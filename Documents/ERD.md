@@ -119,7 +119,7 @@ erDiagram
             datetime created_at
             datetime updated_at
       }
-      }
+
       TRANSACTION {
             int id
             int shop_id
