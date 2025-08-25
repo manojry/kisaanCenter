@@ -26,6 +26,16 @@ erDiagram
       TRANSACTION ||--o{ AUDIT_LOG : logs
       PAYMENT ||--o{ AUDIT_LOG : logs
 
+      FARMER_STOCK ||--o{ FARMER_STOCK_COMMENT : has
+
+      FARMER_STOCK_COMMENT {
+            int id
+            int farmer_stock_id
+            string comment
+            datetime created_at
+            int created_by
+      }
+
       USER {
             int id
             string username
@@ -98,13 +108,17 @@ erDiagram
             int farmer_id
             int product_id
             decimal gross_qty
+            decimal sold_qty
+            decimal unsold_qty
+            decimal discarded_qty
             float reduction_pct
             decimal net_qty
             datetime arrival_date
-            bool status
+            string status
             int created_by
             datetime created_at
             datetime updated_at
+      }
       }
       TRANSACTION {
             int id
