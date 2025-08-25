@@ -10,26 +10,32 @@ A superadmin registers on KisaanCenter and gains access to enterprise-level cont
 ## 2. Owner Creation & Shop Assignment
 The superadmin creates a new owner account and sets up their shop. The owner is linked to the shop, and a plan is assigned (e.g., Basic, Premium, Enterprise) with specific features enabled.
 
+
 ## 3. Adding Users
-The owner (now created by the superadmin) adds employees, farmers, and buyers to their shop. Each user is assigned to the shop, ensuring all transactions and records are tied to the correct business.
+The owner (created by the superadmin) adds users to their shop, assigning each a role (employee, farmer, buyer). All users are managed in a unified USER table, with role-based permissions and shop assignment. If extra fields are needed for a role, a profile extension can be added.
+
 
 ## 4. Receiving Deliveries
-Farmers deliver flowers to the shop. The owner or employees record the delivery, noting the quantity and type of flowers. The system creates a stock entry for each delivery, supporting multiple products per farmer.
+Farmers deliver products to the shop. The owner or employees record the delivery, noting the quantity, type, and negotiated price per batch. The system creates a FARMER_STOCK entry for each delivery, supporting multiple products per farmer and flexible pricing. Remarks can be added directly to the stock entry.
+
 
 ## 5. Managing Sales
-Throughout the day, buyers purchase flowers. Employees record each sale, updating the stock and linking the transaction to the buyer and farmer. The system automatically calculates commissions and updates payment records.
+Throughout the day, buyers purchase products. Employees record each sale, updating the stock and linking the transaction to the buyer and the source farmer stock for traceability. Each TRANSACTION_ITEM references the specific FARMER_STOCK used. The system automatically calculates commissions (using COMMISSION_RULE) and updates payment records. Prices can be set per sale, supporting negotiation and market variability.
+
 
 ## 6. End-of-Day Review & Comments
-At the end of the day, the owner reviews unsold stock and adds comments (e.g., "50kg unsold, will try to sell tomorrow"). Unsold flowers can be marked as discarded if needed.
+At the end of the day, the owner reviews unsold stock and adds remarks directly to the FARMER_STOCK entry (e.g., "50kg unsold, will try to sell tomorrow"). Unsold products can be marked as discarded if needed.
+
 
 ## 7. Payment Management
-The owner tracks payments to farmers, even if buyers pay late. The system shows pending and completed payments, ensuring transparency. Disputes can be resolved using audit logs and transaction history.
+The owner tracks payments to farmers, even if buyers pay late. The system shows pending and completed payments, and tracks credit status. Disputes can be resolved using audit logs and transaction history.
 
 ## 8. Expense Tracking
 The owner records shop expenses (wages, rent, utilities, etc.) in the system. This helps manage profitability and prepare for tax or regulatory reporting.
 
+
 ## 9. Reporting & Analysis
-The owner generates reports on sales, payments, expenses, and stock. These reports help identify trends, manage inventory, and plan for busy seasons.
+The owner generates reports on sales, payments, expenses, stock, credit, commission, and price history. These reports help identify trends, manage inventory, and plan for busy seasons.
 
 ## 10. Multi-Shop Management (if applicable)
 If the owner operates multiple shops, they can view and manage each shop’s data separately, with superadmin oversight.

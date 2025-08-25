@@ -1,32 +1,72 @@
 
-# KisaanCenter Superadmin Features & Capabilities (Detailed)
+# Market Management System - Superadmin Features & User Journey
 
-## What Superadmin Has
-- Full access to all shops, owners, users, plans, products, transactions, payments, expenses, and audit logs.
-- System-wide dashboard with analytics, alerts, and quick actions.
-- Role-based access to delegate certain admin tasks to trusted managers.
-- Controls for compliance, security, regulatory actions, and business rules.
-- Audit logs for every entity and action, with search and export capabilities.
-- Multi-region, multi-currency, and multi-language support.
+## 🔧 **Superadmin - Complete System Administration & Use Cases**
 
-## What Superadmin Can Do
+Based on the comprehensive ERD and business logic, this document outlines all features available to System Superadmins, with practical examples and system-wide management capabilities.
 
-### User & Shop Management
-- Create, update, suspend, or delete owner accounts and shops.
-- Assign, upgrade, downgrade, or suspend plans and features for shops.
-- Activate, deactivate, or suspend owners, shops, and users (including employees, farmers, buyers).
-- Transfer shop ownership and migrate all related data.
-- Set shop limits (users, products, transactions, storage).
-- Bulk import/export users and shop data for onboarding or migration.
-- ERD: Supported via SUPERADMIN, USER, SHOP, PLAN entities.
+---
 
-### Plan & Feature Management
-- Create, update, and manage plans (Basic, Premium, Enterprise, custom).
-- Assign features to plans (e.g., advanced analytics, bulk SMS, multi-shop management).
-- Set plan pricing, expiry, and renewal rules.
-- Monitor plan usage and send alerts for approaching limits.
-- Suspend or reactivate plans for compliance or business reasons.
-- ERD: Supported via PLAN, SHOP.
+## What Superadmin Has Access To
+
+### System-Wide Administrative Control
+- **Complete system access** across all shops and organizations
+- **User management** for all user types and roles
+- **Platform configuration** and system settings
+- **Master data management** (products, categories, plans)
+- **System monitoring** and performance analytics
+- **Compliance oversight** and audit management
+
+### Database Entities - Full Access:
+- All tables and entities across the entire system
+- Cross-shop data analysis and reporting
+- System configuration and reference tables
+- Complete audit trails and logging
+- Performance metrics and analytics
+- Backup and recovery management
+
+---
+
+## Core Superadmin Capabilities
+
+### 1. System & Platform Management
+
+#### **What Superadmin Can Do:**
+- Configure system-wide settings and parameters
+- Manage platform features and capabilities
+- Handle system updates and maintenance
+- Monitor system performance and health
+- Manage security policies and access controls
+- Oversee data backup and recovery procedures
+
+#### **Practical Examples:**
+```
+Example 1 - System Configuration:
+Set platform-wide business rules:
+- Maximum credit limit: ₹5,00,000 per buyer
+- Default commission rates by product category
+- System timeout and security settings
+- Email/SMS notification templates
+- Currency and regional settings
+
+Example 2 - Performance Monitoring:
+Daily system health checks:
+- Database performance metrics
+- API response times and error rates
+- User activity and concurrent sessions
+- Storage utilization and growth trends
+- Transaction processing volumes
+
+Example 3 - Security Management:
+Implement security policies:
+- Password complexity requirements
+- Session timeout configurations
+- API rate limiting rules
+- Data encryption standards
+- Audit log retention policies
+```
+
+### 2. Multi-Shop & Organization Management
 
 ### Compliance, Security & Regulatory Actions
 - Monitor activity logs for suspicious actions or policy violations.
