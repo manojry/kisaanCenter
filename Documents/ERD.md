@@ -6,6 +6,21 @@
 
 ```mermaid
 erDiagram
+      TRANSACTION ||--o{ TRANSACTION_ITEM : has
+      SUPERADMIN {
+            int id
+            string username
+            string password_hash
+            string contact
+            datetime created_at
+            datetime updated_at
+            bool status
+      }
+
+      SUPERADMIN ||--o{ USER : creates
+      SUPERADMIN ||--o{ SHOP : creates
+      SUPERADMIN ||--o{ PLAN : assigns
+
       USER ||--o{ SHOP : manages
       USER ||--o{ FARMER : is
       USER ||--o{ BUYER : is
@@ -42,6 +57,7 @@ erDiagram
             string password_hash
             string role
             int shop_id
+            int created_by_superadmin_id
             string contact
             datetime created_at
             datetime updated_at
@@ -49,7 +65,9 @@ erDiagram
       }
       SHOP {
             int id
-            int owner_id
+            int owner_user_id
+            int created_by_superadmin_id
+            int plan_id
             string name
             string address
             datetime created_at
@@ -86,6 +104,23 @@ erDiagram
             datetime updated_at
             bool status
       }
+      PLAN {
+            int id
+            string name
+            string features
+            decimal price
+            int max_users
+            int max_products
+            int max_transactions
+            int max_shops
+            bool advanced_analytics
+            bool bulk_sms
+            bool multi_region
+            bool active
+            datetime created_at
+            datetime updated_at
+      }
+
       CATEGORY {
             int id
             string name
@@ -111,7 +146,6 @@ erDiagram
             decimal sold_qty
             decimal unsold_qty
             decimal discarded_qty
-            float reduction_pct
             decimal net_qty
             datetime arrival_date
             string status
@@ -125,15 +159,21 @@ erDiagram
             int shop_id
             int farmer_id
             int buyer_id
-            int product_id
-            decimal quantity
-            decimal price
             decimal commission_rate
             decimal commission_amount
+            string payment_status
             datetime date
             bool paid_to_farmer
             datetime created_at
             datetime updated_at
+      }
+
+      TRANSACTION_ITEM {
+            int id
+            int transaction_id
+            int product_id
+            decimal quantity
+            decimal price
       }
       PAYMENT {
             int id
@@ -141,7 +181,8 @@ erDiagram
             int farmer_id
             int buyer_id
             decimal amount
-            string type
+            decimal outstanding_amount
+            string payment_type
             string method
             string remarks
             datetime date
