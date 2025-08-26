@@ -1,32 +1,46 @@
 """
-DEPRECATED: This file is replaced by the new database infrastructure in db/ folder.
-For new development, use:
-
-from db.connection import get_db_session, get_db, get_engine
-from db.init_db import initialize_database
-
-Legacy imports are maintained for backward compatibility.
+Database configuration and session management for FastAPI
 """
 
-import warnings
-from db.connection import get_engine, get_session_factory, get_db_session, get_db
+import os
+from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from dotenv import load_dotenv
 
-# Deprecated: Use db.connection module instead
-warnings.warn(
-    "database.py is deprecated. Use 'from db.connection import get_db_session, get_db' instead",
-    DeprecationWarning,
-    stacklevel=2
+# Load environment variables
+load_dotenv()
+
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # Build from individual components if DATABASE_URL not provided
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    DB_NAME = os.getenv("DB_NAME", "kisaan_center")
+    DB_USER = os.getenv("DB_USER", "kisaan_user")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Create engine
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,
+    pool_pre_ping=True
 )
 
-# Legacy compatibility
-engine = get_engine()
-SessionLocal = get_session_factory()
+# Create session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def get_database_session():
-    """DEPRECATED: Use get_db_session() from db.connection instead"""
-    warnings.warn(
-        "get_database_session() is deprecated. Use get_db_session() from db.connection instead",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return get_db_session()
+# Dependency for FastAPI
+def get_db() -> Generator[Session, None, None]:
+    """
+    Database session dependency for FastAPI
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

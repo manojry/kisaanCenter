@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any, List
 from ..crud.user_crud import UserCRUD
-from ..api.schemas import (
+from ..schemas import (
     UserCreate, UserUpdate, UserRead, UserReadWithRelations,
     PaginationParams, PaginatedResponse, APIResponse, ErrorResponse
 )

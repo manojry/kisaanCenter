@@ -3,3 +3,10 @@
 backend/src/db/.env
 db/__pycache__/
 seeds/__pycache__/
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/**/__pycache__/
+frontend/**/__pycache__/

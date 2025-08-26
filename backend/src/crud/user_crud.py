@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func, desc, asc
 from typing import Optional, List, Dict, Any
 from ..models import User, Shop
-from ..api.schemas import UserCreate, UserUpdate, PaginationParams
+from ..schemas import UserCreate, UserUpdate, PaginationParams
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 

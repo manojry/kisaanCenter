@@ -1,19 +1,23 @@
-from ..crud import credit_crud
 from sqlalchemy.orm import Session
+from ..schemas import CreditCreate, CreditUpdate, APIResponse, PaginationParams
 
 class CreditService:
     @staticmethod
-    def create_credit(db: Session, credit_data):
-        return credit_crud.create_credit(db, credit_data)
-
+    def create_credit(db: Session, credit_data: CreditCreate) -> APIResponse:
+        return APIResponse(success=False, message="Credit service not implemented yet")
+    
     @staticmethod
-    def get_credit(db: Session, credit_id: int):
-        return credit_crud.get_credit(db, credit_id)
-
+    def get_credit(db: Session, credit_id: int) -> APIResponse:
+        return APIResponse(success=False, message="Credit service not implemented yet")
+    
     @staticmethod
-    def update_credit(db: Session, credit_id: int, credit_data):
-        return credit_crud.update_credit(db, credit_id, credit_data)
-
+    def get_credits(db: Session, pagination: PaginationParams, **filters) -> APIResponse:
+        return APIResponse(success=False, message="Credit service not implemented yet")
+    
     @staticmethod
-    def delete_credit(db: Session, credit_id: int):
-        return credit_crud.delete_credit(db, credit_id)
+    def update_credit(db: Session, credit_id: int, credit_update: CreditUpdate) -> APIResponse:
+        return APIResponse(success=False, message="Credit service not implemented yet")
+    
+    @staticmethod
+    def delete_credit(db: Session, credit_id: int) -> APIResponse:
+        return APIResponse(success=False, message="Credit service not implemented yet")

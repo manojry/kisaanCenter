@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc
 from typing import Optional, Dict, Any
 from ..models import Shop
-from ..api.schemas import ShopCreate, ShopUpdate, PaginationParams
+from ..schemas import ShopCreate, ShopUpdate, PaginationParams
 from datetime import datetime
 
 class ShopCRUD:

@@ -1,19 +1,23 @@
-from ..crud import payment_crud
 from sqlalchemy.orm import Session
+from ..schemas import PaymentCreate, PaymentUpdate, APIResponse, PaginationParams
 
 class PaymentService:
     @staticmethod
-    def create_payment(db: Session, payment_data):
-        return payment_crud.create_payment(db, payment_data)
-
+    def create_payment(db: Session, payment_data: PaymentCreate) -> APIResponse:
+        return APIResponse(success=False, message="Payment service not implemented yet")
+    
     @staticmethod
-    def get_payment(db: Session, payment_id: int):
-        return payment_crud.get_payment(db, payment_id)
-
+    def get_payment(db: Session, payment_id: int) -> APIResponse:
+        return APIResponse(success=False, message="Payment service not implemented yet")
+    
     @staticmethod
-    def update_payment(db: Session, payment_id: int, payment_data):
-        return payment_crud.update_payment(db, payment_id, payment_data)
-
+    def get_payments(db: Session, pagination: PaginationParams, **filters) -> APIResponse:
+        return APIResponse(success=False, message="Payment service not implemented yet")
+    
     @staticmethod
-    def delete_payment(db: Session, payment_id: int):
-        return payment_crud.delete_payment(db, payment_id)
+    def update_payment(db: Session, payment_id: int, payment_update: PaymentUpdate) -> APIResponse:
+        return APIResponse(success=False, message="Payment service not implemented yet")
+    
+    @staticmethod
+    def delete_payment(db: Session, payment_id: int) -> APIResponse:
+        return APIResponse(success=False, message="Payment service not implemented yet")

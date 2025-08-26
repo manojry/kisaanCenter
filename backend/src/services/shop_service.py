@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..crud.shop_crud import ShopCRUD
-from ..api.schemas import ShopCreate, ShopUpdate, ShopRead, PaginationParams, APIResponse
+from ..schemas import ShopCreate, ShopUpdate, ShopRead, PaginationParams, APIResponse
 import logging
 
 logger = logging.getLogger(__name__)
