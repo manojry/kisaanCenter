@@ -376,6 +376,61 @@ class DashboardStats(BaseSchema):
     active_farmers: int
     active_buyers: int
 
+# ===============================
+# INVENTORY SCHEMAS
+# ===============================
+
+class InventoryCreate(BaseModel):
+    product_id: int
+    shop_id: int
+    quantity: int = 0
+    status: Optional[str] = "active"
+
+class InventoryUpdate(BaseModel):
+    quantity: Optional[int] = None
+    status: Optional[str] = None
+
+class InventoryRead(BaseModel):
+    id: int
+    product_id: int
+    shop_id: int
+    quantity: int
+    status: str
+    updated_at: Optional[datetime]
+
+    class Config:
+        orm_mode = True
+
+# ===============================
+# ORDER SCHEMAS
+# ===============================
+
+class OrderCreate(BaseModel):
+    product_id: int
+    shop_id: int
+    buyer_id: int
+    quantity: int
+    total_price: float
+    status: Optional[str] = "pending"
+
+class OrderUpdate(BaseModel):
+    quantity: Optional[int] = None
+    status: Optional[str] = None
+
+class OrderRead(BaseModel):
+    id: int
+    product_id: int
+    shop_id: int
+    buyer_id: int
+    quantity: int
+    total_price: float
+    status: str
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+
+    class Config:
+        orm_mode = True
+
 # Update forward references
 UserReadWithRelations.model_rebuild()
 ShopReadWithRelations.model_rebuild()

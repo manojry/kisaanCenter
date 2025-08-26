@@ -1,16 +1,17 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from db.connection import config
-from db.init_db import db_initializer
-from db.seeds.seed_data import db_seeder
-from models import Base
+from backend.src.db.connection import config
+from backend.src.db.init_db import db_initializer
+from backend.src.db.seeds.seed_data import db_seeder
+from backend.src.models import Base
 
 @pytest.fixture(scope="session")
 def test_engine():
     # Use a test database (can be in-memory or a dedicated test DB)
-    test_db_url = config.database_url.replace(config.DB_NAME, config.DB_NAME + "_test")
-    engine = create_engine(test_db_url)
+    # Use SQLite in-memory DB for tests to avoid external dependencies
+    test_db_url = "sqlite:///:memory:"
+    engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)

@@ -13,11 +13,14 @@ Related Documentation:
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text, DECIMAL, Enum, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSON, JSONB
+import os
+from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.types import JSON as SQLiteJSON
 from datetime import datetime
 import enum
 
 Base = declarative_base()
+
 
 # Enums for type safety
 class UserRole(enum.Enum):
@@ -114,7 +117,7 @@ class Plan(Base):
     billing_cycle = Column(String(20), default='monthly')
     max_users = Column(Integer, default=10)
     max_transactions = Column(Integer, default=1000)
-    features = Column(JSONB)
+    features = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
@@ -122,6 +125,19 @@ class Plan(Base):
     # Relationships
     shops = relationship('Shop', back_populates='plan')
     plan_features = relationship('PlanFeature', back_populates='plan')
+
+# Stub PlanFeature model to resolve relationship
+class PlanFeature(Base):
+    __tablename__ = 'plan_feature'
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, ForeignKey('plan.id'))
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+
+    plan = relationship('Plan', back_populates='plan_features')
 
 class Shop(Base):
     __tablename__ = 'shop'
@@ -145,7 +161,24 @@ class Shop(Base):
     commission_rules = relationship('CommissionRule', back_populates='shop')
     expenses = relationship('Expense', back_populates='shop')
     stock_adjustments = relationship('StockAdjustment', back_populates='shop')
-    audit_logs = relationship('AuditLog', back_populates='shop')
+    # Removed audit_logs relationship to fix mapping error
+
+# Stub StockAdjustment model to resolve relationship
+class StockAdjustment(Base):
+    __tablename__ = 'stock_adjustment'
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey('shop.id'))
+    farmer_stock_id = Column(Integer, ForeignKey('farmer_stock.id'))
+    created_by = Column(Integer, ForeignKey('users.id'))
+    adjustment_type = Column(String(50))
+    amount = Column(DECIMAL(12,2), default=0.00)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+
+    shop = relationship('Shop', back_populates='stock_adjustments')
+    created_by_user = relationship('User', back_populates='created_adjustments')
+    farmer_stock = relationship('FarmerStock', back_populates='stock_adjustments')
 
 class User(Base):
     __tablename__ = 'users'
@@ -173,6 +206,15 @@ class User(Base):
     created_expenses = relationship('Expense', back_populates='created_by_user')
     created_adjustments = relationship('StockAdjustment', back_populates='created_by_user')
     created_price_history = relationship('ProductPriceHistory', back_populates='created_by_user')
+        # Stub ProductPriceHistory model to resolve relationship
+
+    class ProductPriceHistory(Base):
+        __tablename__ = 'product_price_history'
+        id = Column(Integer, primary_key=True, index=True)
+        product_id = Column(Integer, ForeignKey('product.id'))
+        created_by = Column(Integer, ForeignKey('users.id'))
+        product = relationship('Product', back_populates='price_history')
+        created_by_user = relationship('User', back_populates='created_price_history')
     audit_logs = relationship('AuditLog', back_populates='user')
 
 class Category(Base):
@@ -408,6 +450,11 @@ class Expense(Base):
     description = Column(Text)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey('users.id'))
+
+    # Relationships
+    shop = relationship('Shop', back_populates='expenses')
+    created_by_user = relationship('User', back_populates='created_expenses')
 
 class AuditLog(Base):
     __tablename__ = 'audit_log'
@@ -417,11 +464,11 @@ class AuditLog(Base):
     entity_type = Column(String(50), nullable=False)
     entity_id = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'))
-    old_data = Column(JSONB)
-    new_data = Column(JSONB)
+    old_data = Column(JSON)
+    new_data = Column(JSON)
     action = Column(Enum(AuditAction), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    shop = relationship('Shop', back_populates='audit_logs')
+    shop = relationship('Shop')
     user = relationship('User', back_populates='audit_logs')

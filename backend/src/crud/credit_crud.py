@@ -6,14 +6,27 @@ from ..schemas import CreditCreate, CreditUpdate
 
 class CreditCRUD:
     @staticmethod
-    def create(db: Session, credit_data: CreditCreate) -> Credit:
-        """Create a new credit"""
-        # This is a stub implementation
-        # In a real implementation, you would:
-        # 1. Create the credit record
-        # 2. Update user's total credit balance
-        # 3. Handle credit limits and validation
-        raise NotImplementedError("Credit creation not implemented yet")
+    def create(db: Session, credit_data: CreditCreate) -> 'Credit':
+        """
+        Create a new credit and initialize all required fields. Enforce business rules.
+        """
+        from ..models import Credit, CreditStatus
+        # Business rule: credit amount must be positive
+        if credit_data.amount is None or credit_data.amount <= 0:
+            raise ValueError("Invalid credit amount")
+        # Business rule: enforce credit limits (stub, add logic as needed)
+        # TODO: Check user's/shop's credit limit
+        credit = Credit(
+            amount=credit_data.amount,
+            user_id=getattr(credit_data, 'user_id', None),
+            shop_id=getattr(credit_data, 'shop_id', None),
+            date=credit_data.date,
+            status=CreditStatus.PENDING,
+        )
+        db.add(credit)
+        db.flush()  # Get credit.id before commit
+        # TODO: Update user's total credit balance if needed
+        return credit
     
     @staticmethod
     def get_by_id(db: Session, credit_id: int) -> Optional[Credit]:

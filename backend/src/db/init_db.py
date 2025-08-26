@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # Add the parent directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from connection import db_manager, config
+from .connection import db_manager, config
 from models import Base  # Import your models
 
 logger = logging.getLogger(__name__)

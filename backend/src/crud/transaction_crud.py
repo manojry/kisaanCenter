@@ -7,14 +7,31 @@ from ..schemas import TransactionCreate, TransactionUpdate
 
 class TransactionCRUD:
     @staticmethod
-    def create(db: Session, transaction_data: TransactionCreate) -> Transaction:
-        """Create a new transaction"""
-        # This is a stub implementation
-        # In a real implementation, you would:
-        # 1. Create the transaction record
-        # 2. Handle the three-party completion logic
-        # 3. Update related records (buyer, farmer, shop balances/credits)
-        raise NotImplementedError("Transaction creation not implemented yet")
+    def create(db: Session, transaction_data: TransactionCreate) -> 'Transaction':
+        """
+        Create a new transaction with three-party completion fields initialized.
+        """
+        from ..models import Transaction, CompletionStatus, PaymentStatus
+        # Initialize transaction fields
+        transaction = Transaction(
+            shop_id=transaction_data.shop_id,
+            buyer_user_id=transaction_data.buyer_user_id,
+            parent_transaction_id=transaction_data.parent_transaction_id,
+            type=transaction_data.transaction_type,
+            status=PaymentStatus.PENDING,  # Initial status
+            commission_rate=transaction_data.commission_rate,
+            commission_amount=0.0,
+            payment_status=PaymentStatus.PENDING,
+            buyer_paid_amount=0.0,
+            farmer_paid_amount=0.0,
+            commission_confirmed=False,
+            completion_status=CompletionStatus.PENDING,
+            date=transaction_data.date,
+        )
+        db.add(transaction)
+        db.flush()  # Get transaction.id before commit
+        # TODO: Add transaction items, handle related records, update balances if needed
+        return transaction
     
     @staticmethod
     def get_by_id(db: Session, transaction_id: int) -> Optional[Transaction]:

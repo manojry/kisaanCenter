@@ -8,18 +8,21 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 
 @router.post("/", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 def create_payment(payment: PaymentCreate, db: Session = Depends(get_db)):
-    result = PaymentService.create_payment(db, payment)
-    if not result.success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
-    return result
+        # TODO: Extract user_role from auth/session (stub: use SUPERADMIN)
+        user_role = "superadmin"  # Replace with actual role extraction
+        result = PaymentService.create_payment(db, payment, user_role=user_role)
+        if not result.success:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+        return result
 
 @router.get("/{payment_id}", response_model=APIResponse)
 def get_payment(payment_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    result = PaymentService.get_payment(db, payment_id)
-    if not result.success:
-        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=status_code, detail=result.message)
-    return result
+        user_role = "superadmin"  # Replace with actual role extraction
+        result = PaymentService.get_payment(db, payment_id, user_role=user_role)
+        if not result.success:
+            status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+            raise HTTPException(status_code=status_code, detail=result.message)
+        return result
 
 @router.get("/", response_model=APIResponse)
 def get_payments(
@@ -28,7 +31,8 @@ def get_payments(
     db: Session = Depends(get_db)
 ):
     pagination = PaginationParams(page=page, limit=limit)
-    result = PaymentService.get_payments(db, pagination)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.get_payments(db, pagination, user_role=user_role)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     return result
@@ -39,7 +43,8 @@ def update_payment(
     payment_update: PaymentUpdate = ...,
     db: Session = Depends(get_db)
 ):
-    result = PaymentService.update_payment(db, payment_id, payment_update)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.update_payment(db, payment_id, payment_update, user_role=user_role)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
@@ -47,7 +52,8 @@ def update_payment(
 
 @router.delete("/{payment_id}", response_model=APIResponse)
 def delete_payment(payment_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    result = PaymentService.delete_payment(db, payment_id)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.delete_payment(db, payment_id, user_role=user_role)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)

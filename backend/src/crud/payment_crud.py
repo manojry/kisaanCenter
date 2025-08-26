@@ -6,14 +6,24 @@ from ..schemas import PaymentCreate, PaymentUpdate
 
 class PaymentCRUD:
     @staticmethod
-    def create(db: Session, payment_data: PaymentCreate) -> Payment:
-        """Create a new payment"""
-        # This is a stub implementation
-        # In a real implementation, you would:
-        # 1. Create the payment record
-        # 2. Update transaction status if needed
-        # 3. Handle payment method validation
-        raise NotImplementedError("Payment creation not implemented yet")
+    def create(db: Session, payment_data: PaymentCreate) -> 'Payment':
+        """
+        Create a new payment and initialize all required fields.
+        """
+        from ..models import Payment, PaymentStatus
+        payment = Payment(
+            amount=payment_data.amount,
+            payment_method_id=payment_data.payment_method_id,
+            payment_type=getattr(payment_data, 'payment_type', 'payment'),
+            date=payment_data.date,
+            transaction_id=getattr(payment_data, 'transaction_id', None),
+            credit_id=getattr(payment_data, 'credit_id', None),
+            status=PaymentStatus.PENDING,
+        )
+        db.add(payment)
+        db.flush()  # Get payment.id before commit
+        # TODO: Update transaction/credit status if needed
+        return payment
     
     @staticmethod
     def get_by_id(db: Session, payment_id: int) -> Optional[Payment]:

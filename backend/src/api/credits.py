@@ -8,14 +8,17 @@ router = APIRouter(prefix="/credits", tags=["Credits"])
 
 @router.post("/", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 def create_credit(credit: CreditCreate, db: Session = Depends(get_db)):
-    result = CreditService.create_credit(db, credit)
+    # TODO: Extract user_role from auth/session (stub: use SUPERADMIN)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.create_credit(db, credit, user_role=user_role)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     return result
 
 @router.get("/{credit_id}", response_model=APIResponse)
 def get_credit(credit_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    result = CreditService.get_credit(db, credit_id)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.get_credit(db, credit_id, user_role=user_role)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
@@ -28,7 +31,8 @@ def get_credits(
     db: Session = Depends(get_db)
 ):
     pagination = PaginationParams(page=page, limit=limit)
-    result = CreditService.get_credits(db, pagination)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.get_credits(db, pagination, user_role=user_role)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     return result
@@ -39,7 +43,8 @@ def update_credit(
     credit_update: CreditUpdate = ...,
     db: Session = Depends(get_db)
 ):
-    result = CreditService.update_credit(db, credit_id, credit_update)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.update_credit(db, credit_id, credit_update, user_role=user_role)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
@@ -47,7 +52,8 @@ def update_credit(
 
 @router.delete("/{credit_id}", response_model=APIResponse)
 def delete_credit(credit_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    result = CreditService.delete_credit(db, credit_id)
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.delete_credit(db, credit_id, user_role=user_role)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)

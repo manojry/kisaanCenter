@@ -6,14 +6,33 @@ from ..schemas import ProductCreate, ProductUpdate
 
 class ProductCRUD:
     @staticmethod
-    def create(db: Session, product_data: ProductCreate) -> Product:
-        """Create a new product"""
-        # This is a stub implementation
-        # In a real implementation, you would:
-        # 1. Create the product record
-        # 2. Validate product data
-        # 3. Handle inventory initialization
-        raise NotImplementedError("Product creation not implemented yet")
+    def create(db: Session, product_data: ProductCreate) -> 'Product':
+        """
+        Create a new product and initialize all required fields. Enforce business rules.
+        """
+        from ..models import Product, ProductStatus
+        # Business rule: product name must not be empty
+        if not product_data.name or not product_data.name.strip():
+            raise ValueError("Product name is required")
+        # Business rule: price must be positive
+        if product_data.price is None or product_data.price <= 0:
+            raise ValueError("Invalid product price")
+        # Business rule: shop_id must be present
+        if not getattr(product_data, 'shop_id', None):
+            raise ValueError("shop_id is required")
+        # TODO: Add inventory initialization logic if needed
+        product = Product(
+            name=product_data.name.strip(),
+            description=getattr(product_data, 'description', None),
+            price=product_data.price,
+            shop_id=product_data.shop_id,
+            status=getattr(product_data, 'status', ProductStatus.ACTIVE),
+            created_at=getattr(product_data, 'created_at', None),
+        )
+        db.add(product)
+        db.flush()  # Get product.id before commit
+        # TODO: Handle inventory initialization if needed
+        return product
     
     @staticmethod
     def get_by_id(db: Session, product_id: int) -> Optional[Product]:

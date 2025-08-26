@@ -29,17 +29,18 @@ def create_transaction(
     - **Stock validation**: Ensures sufficient stock available
     - **Business rules**: Validates buyer credit limits and shop ownership
     """
-    result = TransactionService.create_transaction(db, transaction, created_by_id)
-    
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.create_transaction(db, transaction, created_by_id, user_role=user_role)
+
     if not result.success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "message": result.message,
-                "errors": result.errors
+                "message": result.message
             }
         )
-    
     return result
 
 @router.get("/{transaction_id}",
@@ -135,12 +136,14 @@ def update_transaction(
     - **Status updates**: Change transaction status
     - **Business rules**: Validates update permissions and constraints
     """
-    result = TransactionService.update_transaction(db, transaction_id, transaction_update, updated_by_id)
-    
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.update_transaction(db, transaction_id, transaction_update, updated_by_id, user_role=user_role)
+
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=status_code, detail=result.message)
-    
+        raise HTTPException(status_code=status_code, detail={"message": result.message})
     return result
 
 @router.delete("/{transaction_id}",
@@ -160,12 +163,14 @@ def cancel_transaction(
     - **Payment handling**: Manages existing payments and credits
     - **Audit trail**: Records cancellation reason and timestamp
     """
-    result = TransactionService.cancel_transaction(db, transaction_id, reason)
-    
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.cancel_transaction(db, transaction_id, reason, user_role=user_role)
+
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=status_code, detail=result.message)
-    
+        raise HTTPException(status_code=status_code, detail={"message": result.message})
     return result
 
 # Transaction completion and payment endpoints
@@ -185,11 +190,13 @@ def confirm_commission(
     - **Completion update**: Updates transaction completion status
     - **Audit logging**: Records commission confirmation
     """
-    result = TransactionService.confirm_commission(db, transaction_id, confirmed_by_id)
-    
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.confirm_commission(db, transaction_id, confirmed_by_id, user_role=user_role)
+
     if not result.success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": result.message})
     return result
 
 @router.get("/{transaction_id}/summary",
