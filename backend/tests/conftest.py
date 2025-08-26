@@ -1,31 +1,42 @@
 import pytest
+import sys
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from backend.src.db.connection import config
-from backend.src.db.init_db import db_initializer
-from backend.src.db.seeds.seed_data import db_seeder
-from backend.src.models import Base
+
+# Add the src directory to the Python path
+src_path = os.path.join(os.path.dirname(__file__), '..', 'src')
+sys.path.insert(0, src_path)
+
+from models import Base
+from test_seeder import seed_test_data
 
 @pytest.fixture(scope="session")
 def test_engine():
-    # Use a test database (can be in-memory or a dedicated test DB)
-    # Use SQLite in-memory DB for tests to avoid external dependencies
+    # Use SQLite in-memory DB for tests
     test_db_url = "sqlite:///:memory:"
     engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
 
-@pytest.fixture(scope="function")
-def db_session(test_engine):
+@pytest.fixture(scope="session")
+def seeded_engine(test_engine):
+    # Seed test data once for the session
     Session = sessionmaker(bind=test_engine)
     session = Session()
-    yield session
-    session.rollback()
-    session.close()
+    try:
+        seed_test_data(session)
+        return test_engine
+    finally:
+        session.close()
 
-@pytest.fixture(scope="session", autouse=True)
-def seed_test_data(test_engine):
-    # Seed reference and test data for all tests
-    db_initializer.initialize_database(create_db=False, create_tables=True)
-    db_seeder.seed_all(include_test_data=True)
+@pytest.fixture(scope="function")
+def db_session(seeded_engine):
+    Session = sessionmaker(bind=seeded_engine)
+    session = Session()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()

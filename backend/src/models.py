@@ -147,6 +147,7 @@ class Shop(Base):
     location = Column(String(200))
     plan_id = Column(Integer, ForeignKey('plan.id'))
     created_by = Column(Integer, ForeignKey('superadmin.id'))
+    owner_user_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
@@ -154,14 +155,14 @@ class Shop(Base):
     # Relationships
     plan = relationship('Plan', back_populates='shops')
     creator = relationship('Superadmin', back_populates='created_shops')
-    users = relationship('User', back_populates='shop')
+    owner = relationship('User', foreign_keys=[owner_user_id], back_populates='owned_shops')
+    users = relationship('User', foreign_keys='User.shop_id', back_populates='shop')
     products = relationship('Product', back_populates='shop')
     farmer_stocks = relationship('FarmerStock', back_populates='shop')
     transactions = relationship('Transaction', back_populates='shop')
     commission_rules = relationship('CommissionRule', back_populates='shop')
     expenses = relationship('Expense', back_populates='shop')
     stock_adjustments = relationship('StockAdjustment', back_populates='shop')
-    # Removed audit_logs relationship to fix mapping error
 
 # Stub StockAdjustment model to resolve relationship
 class StockAdjustment(Base):
@@ -196,7 +197,8 @@ class User(Base):
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
     
     # Relationships
-    shop = relationship('Shop', back_populates='users')
+    shop = relationship('Shop', foreign_keys='User.shop_id', back_populates='users')
+    owned_shops = relationship('Shop', foreign_keys='Shop.owner_user_id', back_populates='owner')
     created_by_user = relationship('User', remote_side=[id])
     farmer_stocks = relationship('FarmerStock', back_populates='farmer_user')
     buyer_transactions = relationship('Transaction', foreign_keys='Transaction.buyer_user_id', back_populates='buyer_user')
@@ -206,15 +208,6 @@ class User(Base):
     created_expenses = relationship('Expense', back_populates='created_by_user')
     created_adjustments = relationship('StockAdjustment', back_populates='created_by_user')
     created_price_history = relationship('ProductPriceHistory', back_populates='created_by_user')
-        # Stub ProductPriceHistory model to resolve relationship
-
-    class ProductPriceHistory(Base):
-        __tablename__ = 'product_price_history'
-        id = Column(Integer, primary_key=True, index=True)
-        product_id = Column(Integer, ForeignKey('product.id'))
-        created_by = Column(Integer, ForeignKey('users.id'))
-        product = relationship('Product', back_populates='price_history')
-        created_by_user = relationship('User', back_populates='created_price_history')
     audit_logs = relationship('AuditLog', back_populates='user')
 
 class Category(Base):
@@ -248,6 +241,21 @@ class Product(Base):
     commission_rules = relationship('CommissionRule', back_populates='product')
     credit_details = relationship('CreditDetail', back_populates='product')
     price_history = relationship('ProductPriceHistory', back_populates='product')
+
+class ProductPriceHistory(Base):
+    __tablename__ = 'product_price_history'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey('product.id'))
+    created_by = Column(Integer, ForeignKey('users.id'))
+    price = Column(DECIMAL(10,2), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    
+    # Relationships
+    product = relationship('Product', back_populates='price_history')
+    created_by_user = relationship('User', back_populates='created_price_history')
 
 class FarmerStock(Base):
     __tablename__ = 'farmer_stock'

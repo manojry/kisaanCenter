@@ -1,11 +1,15 @@
 import pytest
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from models import Credit, CreditDetail, RecordStatus
 
 def test_credits_exist(db_session):
     credits = db_session.query(Credit).all()
     assert len(credits) >= 1
     for credit in credits:
-        assert credit.status == RecordStatus.ACTIVE
+        from models import CreditStatus
+        assert credit.status in [CreditStatus.OUTSTANDING, CreditStatus.PARTIAL, CreditStatus.SETTLED]
         assert credit.amount > 0
         assert credit.transaction_id is not None
 

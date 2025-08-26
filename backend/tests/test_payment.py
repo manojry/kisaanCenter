@@ -1,4 +1,7 @@
 import pytest
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from models import Payment, RecordStatus
 
 def test_payments_exist(db_session):
@@ -7,4 +10,5 @@ def test_payments_exist(db_session):
     for payment in payments:
         assert payment.status == RecordStatus.ACTIVE
         assert payment.amount > 0
-        assert payment.transaction_id is not None
+        # Payment can be linked to either transaction or credit
+        assert payment.transaction_id is not None or payment.credit_id is not None

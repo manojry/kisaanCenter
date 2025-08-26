@@ -1,3 +1,4 @@
+# Place main block at end of file
 """
 Database seeding utilities
 Provides initial data setup and test data generation for ERD-compliant schema
@@ -10,31 +11,20 @@ from typing import List, Dict, Any
 from decimal import Decimal
 from datetime import datetime, timedelta, date
 
-# Add the project root to Python path for imports
+
+# Always set sys.path to project root for backend.src imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.insert(0, project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from sqlalchemy.exc import IntegrityError
-
-# Import models and connection from backend.src
-try:
-    from backend.src.models import (
-        User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
-        RecordStatus, CompletionStatus, TransactionType, TransactionStatus,
-        FarmerStock, StockStatus, ExpenseCategory, Transaction, TransactionItem,
-        Credit, PaymentStatus, Superadmin
-    )
-    from backend.src.db.connection import get_db_session
-except ImportError:
-    # Fallback for direct execution
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from models import (
-        User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
-        RecordStatus, CompletionStatus, TransactionType, TransactionStatus,
-        FarmerStock, StockStatus, ExpenseCategory, Transaction, TransactionItem,
-        Credit, PaymentStatus, Superadmin
-    )
-    from connection import get_db_session
+from models import (
+    User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
+    RecordStatus, CompletionStatus, TransactionType, TransactionStatus,
+    FarmerStock, StockStatus, ExpenseCategory, Transaction, TransactionItem,
+    Credit, PaymentStatus, Superadmin
+)
+from db.connection import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +105,8 @@ class DatabaseSeeder:
                 "price": Decimal("999.00"),
                 "billing_cycle": "monthly",
                 "max_users": 5,
-                "max_transactions": 500
+                "max_transactions": 500,
+                "status": RecordStatus.ACTIVE
             },
             {
                 "name": "Standard",
@@ -123,7 +114,8 @@ class DatabaseSeeder:
                 "price": Decimal("1999.00"),
                 "billing_cycle": "monthly",
                 "max_users": 15,
-                "max_transactions": 2000
+                "max_transactions": 2000,
+                "status": RecordStatus.ACTIVE
             },
             {
                 "name": "Premium",
@@ -131,7 +123,8 @@ class DatabaseSeeder:
                 "price": Decimal("4999.00"),
                 "billing_cycle": "monthly",
                 "max_users": 50,
-                "max_transactions": 10000
+                "max_transactions": 10000,
+                "status": RecordStatus.ACTIVE
             }
         ]
         
@@ -193,6 +186,31 @@ class DatabaseSeeder:
         ]
         
         return self._seed_data(Shop, shops_data, 'shops')
+    
+    def update_shop_owners(self) -> bool:
+        """Update shops with owner_user_id after users are created"""
+        if not (self.created_objects['shops'] and self.created_objects['users']):
+            logger.warning("Shops or users not seeded, skipping shop owner update")
+            return True
+            
+        try:
+            with get_db_session() as session:
+                shop = self.created_objects['shops'][0]
+                owner = next((u for u in self.created_objects['users'] if u.role == UserRole.OWNER), None)
+                
+                if owner:
+                    # Update the shop with owner_user_id
+                    session.query(Shop).filter_by(id=shop.id).update({"owner_user_id": owner.id})
+                    session.commit()
+                    logger.info(f"Updated shop {shop.name} with owner {owner.username}")
+                    return True
+                else:
+                    logger.warning("No owner user found")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Error updating shop owners: {str(e)}")
+            return False
 
     def seed_users(self) -> bool:
         """Seed test users with proper roles"""
@@ -487,13 +505,14 @@ class DatabaseSeeder:
             return False
         
         seed_methods = [
-                ('superadmins', self.seed_superadmin),
+            ('superadmins', self.seed_superadmin),
             ('plans', self.seed_plans),
             ('categories', self.seed_categories),
             ('payment_methods', self.seed_payment_methods),
             ('expense_categories', self.seed_expense_categories),
             ('shops', self.seed_shops),
             ('users', self.seed_users),
+            ('shop_owners', self.update_shop_owners),
             ('products', self.seed_products),
         ]
         
