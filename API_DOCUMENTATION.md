@@ -1,14 +1,665 @@
-# 🚀 KisaanCenter Market Management System - Enterprise API
+# 🌾 KisaanCenter Market Management System - API Documentation
 
-## 📋 System Overview
+## 📋 Overview
+RESTful API for the three-party agricultural market management system supporting farmers, buyers, shop owners, employees, and superadmins.
 
-This is a comprehensive, enterprise-level agricultural market management system built with modern architecture patterns and best practices.
+**Base URL**: `http://localhost:8000/api/v1`
 
-## 🏗️ Architecture
+---
 
-### **Clean Architecture Pattern**
+## 🔧 Core Features
+- **Three-Party Transaction Model**: Independent tracking of buyer payments, farmer payments, and commission confirmation
+- **Multi-Tenant Architecture**: Complete shop-based data isolation
+- **Real-Time Stock Management**: Farmer stock delivery and inventory tracking
+- **Flexible Payment Systems**: Full, partial, advance, and credit transactions
+- **Role-Based Access Control**: Five distinct user roles with specific permissions
+- **Comprehensive Audit Trail**: Complete transaction and payment history
+
+---
+
+## 🔐 Authentication & Authorization
+
+### Response Format
+All API responses follow this standard format:
+```json
+{
+  "success": true,
+  "data": {...},
+  "message": "Operation successful",
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 10
+  }
+}
 ```
-📁 backend/src/
+
+### Error Response Format
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "errors": ["Detailed error messages"],
+  "error_code": "VALIDATION_ERROR"
+}
+```
+
+---
+
+## � 1. USER MANAGEMENT
+
+### Base: `/api/v1/users`
+
+#### **POST** `/users` - Create User
+Create a new user with role-based validation.
+
+**Request Body:**
+```json
+{
+  "username": "farmer_john",
+  "password": "SecurePass123!",
+  "role": "farmer",
+  "shop_id": 1,
+  "contact": "+91-9876543210",
+  "credit_limit": 10000.00
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "farmer_john",
+    "role": "farmer",
+    "shop_id": 1,
+    "contact": "+91-9876543210",
+    "credit_limit": 10000.00,
+    "status": "active",
+    "created_at": "2025-08-26T10:30:00Z"
+  },
+  "message": "User created successfully"
+}
+```
+
+**Business Rules:**
+- `superadmin`: No shop_id required, can access all shops
+- `owner`, `farmer`, `buyer`, `employee`: Must have valid shop_id
+- Username must be unique across system
+- Password must meet security requirements (min 8 chars)
+- Credit limit only applicable for farmers and buyers
+
+#### **GET** `/users/{user_id}` - Get User Details
+Retrieve detailed user information.
+
+**Path Parameters:**
+- `user_id` (integer): User ID
+
+**Query Parameters:**
+- `include_relations` (boolean): Include credits and transactions
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "username": "farmer_john",
+    "role": "farmer",
+    "shop": {
+      "id": 1,
+      "name": "Green Valley Market"
+    },
+    "credit_limit": 10000.00,
+    "current_credit_used": 2500.00,
+    "status": "active"
+  }
+}
+```
+
+#### **GET** `/users` - List Users
+Retrieve paginated list of users with filtering.
+
+**Query Parameters:**
+- `page` (integer, default: 1): Page number
+- `limit` (integer, default: 10): Items per page
+- `shop_id` (integer): Filter by shop
+- `role` (string): Filter by user role
+- `status` (string): Filter by user status
+- `search` (string): Search in username/contact
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "username": "farmer_john",
+      "role": "farmer",
+      "shop_name": "Green Valley Market",
+      "status": "active"
+    }
+  ],
+  "pagination": {
+    "total": 50,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 5
+  }
+}
+```
+
+#### **PUT** `/users/{user_id}` - Update User
+Update user information with role-based validation.
+
+#### **DELETE** `/users/{user_id}` - Delete User
+Soft delete user (sets status to inactive).
+
+#### **GET** `/users/{user_id}/credits` - Get User Credits
+Retrieve user's credit history and outstanding amounts.
+
+#### **GET** `/users/{user_id}/transactions` - Get User Transactions
+Retrieve user's transaction history (as buyer).
+
+---
+
+## 🏪 2. SHOP MANAGEMENT
+
+### Base: `/api/v1/shops`
+
+#### **POST** `/shops` - Create Shop
+Create a new shop (superadmin only).
+
+**Request Body:**
+```json
+{
+  "name": "Green Valley Market",
+  "location": "Village Center, Green Valley",
+  "plan_id": 1
+}
+```
+
+#### **GET** `/shops/{shop_id}` - Get Shop Details
+Retrieve detailed shop information.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Green Valley Market",
+    "location": "Village Center, Green Valley",
+    "plan": {
+      "name": "Premium Plan",
+      "max_users": 50,
+      "max_transactions": 1000
+    },
+    "users_count": 25,
+    "products_count": 15,
+    "monthly_transactions": 250,
+    "status": "active"
+  }
+}
+```
+
+#### **GET** `/shops` - List Shops
+Retrieve paginated list of shops.
+
+#### **PUT** `/shops/{shop_id}` - Update Shop
+Update shop information.
+
+#### **DELETE** `/shops/{shop_id}` - Delete Shop
+Soft delete shop and associated data.
+
+---
+
+## 📦 3. PRODUCT MANAGEMENT
+
+### Base: `/api/v1/products`
+
+#### **POST** `/products` - Create Product
+Create a new product in shop catalog.
+
+**Request Body:**
+```json
+{
+  "name": "Organic Tomatoes",
+  "category_id": 1,
+  "shop_id": 1
+}
+```
+
+#### **GET** `/products/{product_id}` - Get Product Details
+Retrieve detailed product information including current stock.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Organic Tomatoes",
+    "category": {
+      "id": 1,
+      "name": "Vegetables"
+    },
+    "shop": {
+      "id": 1,
+      "name": "Green Valley Market"
+    },
+    "current_stock": 150.50,
+    "average_price": 45.00,
+    "last_delivery": "2025-08-25T08:00:00Z",
+    "status": "active"
+  }
+}
+```
+
+#### **GET** `/products` - List Products
+Retrieve paginated list of products with filtering.
+
+**Query Parameters:**
+- `shop_id` (integer): Filter by shop
+- `category_id` (integer): Filter by category
+- `status` (string): Filter by product status
+- `has_stock` (boolean): Filter products with available stock
+
+#### **PUT** `/products/{product_id}` - Update Product
+Update product information.
+
+#### **DELETE** `/products/{product_id}` - Delete Product
+Soft delete product.
+
+---
+
+## 💰 4. TRANSACTION MANAGEMENT
+
+### Base: `/api/v1/transactions`
+
+#### **POST** `/transactions` - Create Transaction
+Create a new transaction with the three-party completion model.
+
+**Request Body:**
+```json
+{
+  "shop_id": 1,
+  "buyer_user_id": 2,
+  "type": "sale",
+  "transaction_items": [
+    {
+      "product_id": 1,
+      "farmer_stock_id": 5,
+      "quantity": 10.50,
+      "price": 45.00
+    }
+  ],
+  "commission_rate": 10.00,
+  "date": "2025-08-26"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "shop_id": 1,
+    "buyer_user_id": 2,
+    "type": "sale",
+    "status": "active",
+    "total_amount": 472.50,
+    "commission_rate": 10.00,
+    "commission_amount": 47.25,
+    
+    "buyer_paid_amount": 0.00,
+    "farmer_paid_amount": 0.00,
+    "commission_confirmed": false,
+    "completion_status": "pending",
+    
+    "transaction_items": [
+      {
+        "product_name": "Organic Tomatoes",
+        "farmer_name": "farmer_john",
+        "quantity": 10.50,
+        "price": 45.00,
+        "total": 472.50
+      }
+    ]
+  },
+  "message": "Transaction created successfully"
+}
+```
+
+**Three-Party Completion Model:**
+- **buyer_paid_amount**: Total amount paid by buyer
+- **farmer_paid_amount**: Total amount paid to farmers
+- **commission_confirmed**: Owner's commission confirmation
+- **completion_status**: Overall completion ("pending", "partial", "complete")
+
+#### **GET** `/transactions/{transaction_id}` - Get Transaction Details
+Retrieve detailed transaction information including completion status.
+
+**Query Parameters:**
+- `include_relations` (boolean): Include buyer, items, payments, credits
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "buyer": {
+      "id": 2,
+      "username": "buyer_mary"
+    },
+    "total_amount": 472.50,
+    "commission_amount": 47.25,
+    
+    "buyer_paid_amount": 300.00,
+    "farmer_paid_amount": 425.25,
+    "commission_confirmed": true,
+    "completion_status": "complete",
+    
+    "completion_summary": {
+      "buyer_payment_status": "complete",
+      "farmer_payment_status": "complete", 
+      "commission_status": "confirmed",
+      "overall_complete": true
+    },
+    
+    "transaction_items": [...],
+    "payments": [...],
+    "farmer_payments": [...]
+  }
+}
+```
+
+#### **GET** `/transactions` - List Transactions
+Retrieve paginated transactions with comprehensive filtering.
+
+**Query Parameters:**
+- `shop_id`, `buyer_id`, `status`, `completion_status`, `payment_status`
+- `transaction_type`, `date_from`, `date_to`
+- `sort_by`, `sort_order`
+
+#### **PUT** `/transactions/{transaction_id}` - Update Transaction
+Update transaction details including commission confirmation.
+
+**Request Body:**
+```json
+{
+  "commission_confirmed": true,
+  "commission_rate": 12.00
+}
+```
+
+#### **DELETE** `/transactions/{transaction_id}` - Cancel Transaction
+Cancel/soft delete transaction.
+
+---
+
+## 💳 5. PAYMENT MANAGEMENT
+
+### Base: `/api/v1/payments`
+
+#### **POST** `/payments` - Create Payment
+Record a payment from buyer for a transaction.
+
+**Request Body:**
+```json
+{
+  "transaction_id": 1,
+  "amount": 300.00,
+  "payment_method_id": 1,
+  "type": "payment",
+  "date": "2025-08-26"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "transaction_id": 1,
+    "amount": 300.00,
+    "payment_method": "Cash",
+    "type": "payment",
+    "date": "2025-08-26",
+    "transaction_update": {
+      "buyer_paid_amount": 300.00,
+      "remaining_amount": 172.50,
+      "completion_status": "partial"
+    }
+  },
+  "message": "Payment recorded successfully"
+}
+```
+
+#### **GET** `/payments/{payment_id}` - Get Payment Details
+Retrieve detailed payment information.
+
+#### **GET** `/payments` - List Payments
+Retrieve paginated payments with filtering.
+
+**Query Parameters:**
+- `transaction_id`, `payment_method_id`, `type`, `status`
+- `date_from`, `date_to`, `amount_min`, `amount_max`
+
+#### **PUT** `/payments/{payment_id}` - Update Payment
+Update payment details.
+
+#### **DELETE** `/payments/{payment_id}` - Delete Payment
+Soft delete payment and recalculate transaction amounts.
+
+---
+
+## � 6. CREDIT MANAGEMENT
+
+### Base: `/api/v1/credits`
+
+#### **POST** `/credits` - Create Credit
+Create a credit entry for a buyer.
+
+**Request Body:**
+```json
+{
+  "transaction_id": 1,
+  "buyer_user_id": 2,
+  "amount": 472.50,
+  "credit_details": [
+    {
+      "farmer_user_id": 3,
+      "product_id": 1,
+      "quantity": 10.50,
+      "price": 45.00
+    }
+  ]
+}
+```
+
+#### **GET** `/credits/{credit_id}` - Get Credit Details
+Retrieve detailed credit information including repayment history.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "buyer": {
+      "id": 2,
+      "username": "buyer_mary",
+      "credit_limit": 10000.00
+    },
+    "original_amount": 472.50,
+    "remaining_amount": 172.50,
+    "paid_amount": 300.00,
+    "status": "partial",
+    "credit_details": [
+      {
+        "farmer_name": "farmer_john",
+        "product_name": "Organic Tomatoes",
+        "quantity": 10.50,
+        "price": 45.00,
+        "total": 472.50
+      }
+    ],
+    "payment_history": [...]
+  }
+}
+```
+
+#### **GET** `/credits` - List Credits
+Retrieve paginated credits with filtering.
+
+**Query Parameters:**
+- `buyer_user_id`, `status`, `transaction_id`
+- `amount_min`, `amount_max`, `date_from`, `date_to`
+
+#### **POST** `/credits/{credit_id}/partial-payment` - Make Partial Payment
+Record a partial payment against a credit.
+
+**Request Body:**
+```json
+{
+  "amount": 100.00,
+  "payment_method_id": 1,
+  "date": "2025-08-26"
+}
+```
+
+#### **PUT** `/credits/{credit_id}` - Update Credit
+Update credit status or details.
+
+#### **DELETE** `/credits/{credit_id}` - Delete Credit
+Soft delete credit entry.
+
+---
+
+## 📊 7. SPECIALIZED ENDPOINTS
+
+### Farmer Stock Management
+
+#### **POST** `/api/v1/farmer-stocks` - Record Stock Delivery
+```json
+{
+  "farmer_user_id": 3,
+  "product_id": 1,
+  "quantity": 50.00,
+  "date": "2025-08-26"
+}
+```
+
+#### **GET** `/api/v1/farmer-stocks` - List Farmer Stocks
+Query parameters: `farmer_id`, `product_id`, `status`, `date_from`, `date_to`
+
+### Farmer Payments
+
+#### **POST** `/api/v1/farmer-payments` - Record Farmer Payment
+```json
+{
+  "transaction_id": 1,
+  "farmer_user_id": 3,
+  "amount": 425.25,
+  "payment_type": "settlement",
+  "payment_method_id": 1
+}
+```
+
+### Dashboard & Analytics
+
+#### **GET** `/api/v1/dashboard/owner/{shop_id}` - Owner Dashboard
+Get comprehensive shop analytics and pending actions.
+
+#### **GET** `/api/v1/dashboard/farmer/{user_id}` - Farmer Dashboard
+Get farmer's stock, transactions, and payment status.
+
+#### **GET** `/api/v1/dashboard/buyer/{user_id}` - Buyer Dashboard
+Get buyer's transaction history and credit status.
+
+---
+
+## 🚦 HTTP Status Codes
+
+- **200 OK**: Successful GET/PUT operations
+- **201 Created**: Successful POST operations
+- **400 Bad Request**: Validation errors, business rule violations
+- **401 Unauthorized**: Authentication required
+- **403 Forbidden**: Insufficient permissions
+- **404 Not Found**: Resource not found
+- **409 Conflict**: Duplicate data, constraint violations
+- **422 Unprocessable Entity**: Invalid data format
+- **500 Internal Server Error**: Server errors
+
+---
+
+## 🔍 Filtering & Pagination
+
+### Standard Query Parameters
+All list endpoints support:
+- `page` (default: 1): Page number
+- `limit` (default: 10, max: 100): Items per page
+- `sort_by` (default: "created_at"): Sort field
+- `sort_order` (default: "desc"): "asc" or "desc"
+
+### Response Pagination
+```json
+{
+  "pagination": {
+    "total": 150,
+    "page": 2,
+    "limit": 10,
+    "total_pages": 15,
+    "has_next": true,
+    "has_prev": true
+  }
+}
+```
+
+---
+
+## 🏗️ Business Rules Summary
+
+### Three-Party Completion Model
+1. **Buyer Payment**: Tracked in `buyer_paid_amount`
+2. **Farmer Payment**: Tracked in `farmer_paid_amount`  
+3. **Commission Confirmation**: Manual owner confirmation
+4. **Completion Status**: Auto-calculated based on all three
+
+### User Role Permissions
+- **Superadmin**: Full system access, shop creation
+- **Owner**: Shop management, commission confirmation
+- **Farmer**: Stock delivery, view own transactions
+- **Buyer**: Create transactions, make payments
+- **Employee**: Assist with shop operations
+
+### Credit Management
+- Credit limits enforced per user
+- Multiple credits can exist per buyer
+- Partial repayments supported
+- Credit status auto-updates with payments
+
+### Multi-Tenant Isolation
+- All data scoped to shop_id
+- Users cannot access other shop data
+- Superadmin has cross-shop access
+
+---
+
+## � Related Documentation
+- **ERD**: Complete entity relationship diagram
+- **Business Rules**: Detailed business logic documentation
+- **Test Cases**: Comprehensive test scenarios
+- **Database Schema**: Complete SQL table definitions
+
+This API supports the complete agricultural market management workflow with robust three-party transaction completion, multi-tenant architecture, and comprehensive business rule enforcement.
 ├── 📁 api/           # Controllers (HTTP layer)
 ├── 📁 services/      # Business Logic layer  
 ├── 📁 crud/          # Data Access layer

@@ -1,54 +1,50 @@
-# Market Management System - API Specification
+# ⚠️ DEPRECATED - API Specification
 
-## 🔌 **RESTful API Endpoints Documentation**
+**This document is outdated and has been replaced.**
 
-This document contains the complete API specification for all user types and operations.
-
----
-
-## Authentication & Authorization
-
-### Base URL
-```
-Production: https://api.kisaancenter.com/v1
-Development: http://localhost:8000/api/v1
-```
-
-### Authentication
-```http
-Authorization: Bearer {jwt_token}
-Content-Type: application/json
-```
-
-### Common Response Format
-```json
-{
-  "success": true,
-  "data": {...},
-  "message": "Operation successful",
-  "timestamp": "2025-08-25T10:30:00Z"
-}
-```
+**Please refer to the current API documentation:**
+- **[Current API Documentation](../../API_DOCUMENTATION.md)** - Complete, up-to-date API reference
 
 ---
 
-## User Management APIs
+## What Changed?
 
-### Authentication
-```http
-POST /auth/login
-POST /auth/logout
-POST /auth/refresh-token
-GET  /auth/me
-```
+### Old vs New Structure
+- **Old**: Theoretical endpoints that don't match implementation
+- **New**: Actual endpoints from the codebase with real examples
 
-### User CRUD Operations
-```http
-GET    /users                    # List users (with filters)
-POST   /users                    # Create new user
-GET    /users/{id}              # Get user details
-PUT    /users/{id}              # Update user
-DELETE /users/{id}              # Delete user
+### Key Updates
+1. **Removed fictional authentication endpoints** (not implemented)
+2. **Added actual three-party transaction model** endpoints
+3. **Updated to match real FastAPI implementation**
+4. **Added proper business rule documentation**
+5. **Included actual request/response examples**
+
+### Migration Guide
+If you were using this old specification:
+
+1. **User Management**: Endpoints remain similar, but response format updated
+2. **Transactions**: Major changes with three-party completion model
+3. **Payments**: New structure supporting partial payments
+4. **Credits**: Enhanced credit management with detailed tracking
+
+---
+
+## 🚀 Use the New Documentation
+
+**Current API Documentation**: [../../API_DOCUMENTATION.md](../../API_DOCUMENTATION.md)
+
+The new documentation includes:
+- ✅ Real endpoints from the codebase
+- ✅ Three-party transaction completion model
+- ✅ Actual request/response examples
+- ✅ Business rules aligned with ERD
+- ✅ Comprehensive error handling
+- ✅ Proper filtering and pagination
+
+---
+
+**This file will be removed in the next cleanup cycle.**
 PATCH  /users/{id}/status       # Update user status
 ```
 
