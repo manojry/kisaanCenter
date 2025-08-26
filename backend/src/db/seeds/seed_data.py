@@ -3,17 +3,22 @@ Database seeding utilities
 Provides initial data setup and test data generation
 """
 
+import sys
+import os
 import logging
 from typing import List, Dict, Any
 from decimal import Decimal
 from datetime import datetime, timedelta
 
+# Add the parent directory to Python path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sqlalchemy.exc import IntegrityError
-from ..models import (
+from models import (
     User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
     RecordStatus, CompletionStatus
 )
-from .connection import get_db_session
+from connection import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +262,7 @@ class DatabaseSeeder:
 
     def seed_monthly_transactions(self) -> bool:
         """Seed a month's worth of sales and transactions covering all scenarios"""
-        from ..models import Transaction, TransactionStatus, CompletionStatus, Payment, PaymentStatus, FarmerStock, Credit, CreditDetail
+        from models import Transaction, TransactionStatus, CompletionStatus, Payment, PaymentStatus, FarmerStock, Credit, CreditDetail
         import random
         from decimal import Decimal
         from datetime import datetime, timedelta
@@ -450,26 +455,30 @@ class DatabaseSeeder:
 db_seeder = DatabaseSeeder()
 
 # Convenience functions
-    def seed_all(self, include_test_data: bool = False) -> bool:
-        """
-        Seed database with all initial data
-        Args:
-            include_test_data: Whether to include test/demo data
-        """
-        try:
-            logger.info("Starting database seeding...")
-            # Seed reference data first
-            self.seed_categories()
-            self.seed_plans()
-            self.seed_payment_methods()
-            # Seed basic operational data
-            if include_test_data:
-                self.seed_users()
-                self.seed_shops()
-                self.seed_products()
-                self.seed_monthly_transactions()
-            logger.info("Database seeding completed successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Database seeding failed: {str(e)}")
-            return False
+def seed_all_data(include_test_data: bool = False) -> bool:
+    """
+    Seed database with all initial data
+    Args:
+        include_test_data: Whether to include test/demo data
+    """
+    try:
+        logger.info("Starting database seeding...")
+        
+        # Seed reference data first
+        db_seeder.seed_categories()
+        db_seeder.seed_plans()
+        db_seeder.seed_payment_methods()
+        
+        # Seed basic operational data
+        if include_test_data:
+            db_seeder.seed_users()
+            db_seeder.seed_shops()
+            db_seeder.seed_products()
+            db_seeder.seed_monthly_transactions()
+            
+        logger.info("Database seeding completed successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Database seeding failed: {str(e)}")
+        return False

@@ -3,13 +3,18 @@ Database initialization and table creation utilities
 Handles database setup, table creation, and initial data seeding
 """
 
+import sys
+import os
 import logging
 from typing import Optional
 from sqlalchemy import text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-from .connection import db_manager, config
-from ..models import Base  # Import your models
+# Add the parent directory to Python path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from connection import db_manager, config
+from models import Base  # Import your models
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +251,44 @@ def verify_database() -> bool:
 def reset_database(confirm: bool = False) -> bool:
     """Reset entire database (USE WITH CAUTION)"""
     return db_initializer.reset_database(confirm=confirm)
+
+if __name__ == "__main__":
+    """Main execution block for database initialization"""
+    print("🚀 Starting KisaanCenter Database Initialization...")
+    
+    try:
+        # Initialize the database
+        success = initialize_database()
+        
+        if success:
+            print("✅ Database initialization completed successfully!")
+            print("\n📊 Database Status:")
+            
+            # Verify tables
+            if verify_database():
+                print("✅ All tables created and verified")
+                
+                # Show table summary
+                with db_manager.get_db_session() as session:
+                    inspector = inspect(session.bind)
+                    tables = inspector.get_table_names()
+                    print(f"📋 Created {len(tables)} tables:")
+                    for table in sorted(tables):
+                        print(f"   • {table}")
+                        
+                print(f"\n🔗 Database URL: {config.database_url}")
+                print("💾 Ready for data seeding!")
+                
+            else:
+                print("❌ Table verification failed")
+                
+        else:
+            print("❌ Database initialization failed")
+            
+    except Exception as e:
+        print(f"💥 Error during database initialization: {e}")
+        import traceback
+        traceback.print_exc()
 
 def get_database_info() -> dict:
     """Get database information"""

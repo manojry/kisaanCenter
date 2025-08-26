@@ -7,12 +7,14 @@ import os
 import logging
 from typing import Generator, Optional
 from contextlib import contextmanager
+from dotenv import load_dotenv
 
 from sqlalchemy import (
     create_engine, 
     Engine,
     MetaData,
-    event
+    event,
+    text
 )
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
@@ -28,6 +30,9 @@ class DatabaseConfig:
     """Database configuration management"""
     
     def __init__(self):
+        # Load environment variables from .env file
+        load_dotenv()
+        
         # Environment variables with defaults
         self.DB_HOST = os.getenv("DB_HOST", "localhost")
         self.DB_PORT = os.getenv("DB_PORT", "5432")
@@ -52,11 +57,9 @@ class DatabaseConfig:
         """Generate database URL with proper SSL and timeout settings"""
         base_url = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         
-        # Add SSL and timeout parameters
+        # Add SSL parameters only
         params = [
             f"sslmode={self.DB_SSL_MODE}",
-            f"statement_timeout={self.STATEMENT_TIMEOUT}",
-            f"lock_timeout={self.LOCK_TIMEOUT}",
         ]
         
         if self.ENVIRONMENT == "production":
@@ -177,17 +180,17 @@ class DatabaseManager:
             admin_engine = create_engine(config.admin_database_url)
             
             with admin_engine.connect() as connection:
-                connection.execute("COMMIT")  # End any existing transaction
+                connection.execute(text("COMMIT"))  # End any existing transaction
                 
                 # Check if database exists
                 result = connection.execute(
-                    "SELECT 1 FROM pg_database WHERE datname = %s",
-                    (config.DB_NAME,)
+                    text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
+                    {"db_name": config.DB_NAME}
                 )
                 
                 if not result.fetchone():
                     # Create database
-                    connection.execute(f"CREATE DATABASE {config.DB_NAME}")
+                    connection.execute(text(f"CREATE DATABASE {config.DB_NAME}"))
                     logger.info(f"Database '{config.DB_NAME}' created successfully")
                     return True
                 else:
@@ -202,7 +205,7 @@ class DatabaseManager:
         """Test database connectivity"""
         try:
             with self.get_db_session() as session:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
                 logger.info("Database connection test successful")
                 return True
                 
@@ -282,3 +285,9 @@ def check_database_health() -> dict:
         health_status["error"] = str(e)
         
     return health_status
+
+if __name__ == "__main__":
+    if db_manager.test_connection():
+        print("Database connection test successful")
+    else:
+        print("Database connection test failed")

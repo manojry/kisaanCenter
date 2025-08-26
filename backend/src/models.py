@@ -6,7 +6,14 @@ This module contains the core database models aligned with the ERD specification
 Models support the three-party transaction completion workflow and financial dashboards.
 
 Related Documentation:
-- ERD: /Documents/Architecture/ERD.md
+- ERD: /Documents/Architecclass PaymentMethod(Base):
+    __tablename__ = 'payment_method'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)D.md
 - Database Schema: /Documents/Architecture/Database_Schema.md  
 - Business Rules: /Documents/Architecture/Business_Rules.md
 """
@@ -274,9 +281,14 @@ class Plan(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)
-    price = Column(DECIMAL(10,2))
+    price = Column(DECIMAL(10,2), nullable=False)
+    billing_cycle = Column(String(20), default='monthly')
+    max_users = Column(Integer, default=10)
+    max_transactions = Column(Integer, default=1000)
+    features = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(String(20), default='active')
 
 class PaymentMethod(Base):
     __tablename__ = 'payment_method'
@@ -284,8 +296,8 @@ class PaymentMethod(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
     description = Column(Text)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class AuditLog(Base):
     __tablename__ = 'audit_log'
