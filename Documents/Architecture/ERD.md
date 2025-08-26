@@ -130,6 +130,10 @@ erDiagram
         decimal commission_rate
         decimal commission_amount
         enum payment_status
+        decimal buyer_paid_amount
+        decimal farmer_paid_amount
+        boolean commission_confirmed
+        enum completion_status
         datetime date
         datetime created_at
         datetime updated_at
@@ -224,7 +228,7 @@ erDiagram
 
 ## System Workflow Overview
 
-### Complete Business Process Flow
+### Complete Business Process Flow with Transaction Completion Tracking
 ```mermaid
 flowchart TD
     %% Farmer Operations
@@ -241,25 +245,60 @@ flowchart TD
     B4 --> B5{Payment Type?}
     
     B5 -->|Full Payment| B6[PAYMENT recorded]
+    B5 -->|Partial Payment| B6A[Partial PAYMENT recorded]
     B5 -->|Credit| B7[CREDIT & CREDIT_DETAIL created]
-    B6 --> B8[Transaction completed]
-    B7 --> B9[Credit ledger updated]
+    
+    %% Transaction Completion Workflow
+    B6 --> TC1[Update buyer_paid_amount]
+    B6A --> TC1
+    B7 --> TC2[Buyer payment pending]
+    
+    TC1 --> TC3{All buyer payment received?}
+    TC2 --> TC3
+    TC3 -->|Yes| TC4[✅ Buyer Payment Complete]
+    TC3 -->|No| TC5[🟡 Buyer Payment Partial]
+    
+    %% Farmer Payment Flow
+    F6 --> TC6[Update farmer_paid_amount]
+    TC6 --> TC7{All farmer payment made?}
+    TC7 -->|Yes| TC8[✅ Farmer Payment Complete]
+    TC7 -->|No| TC9[🟡 Farmer Payment Partial]
+    
+    %% Commission Confirmation
+    TC4 --> TC10{Owner confirms commission?}
+    TC5 --> TC10
+    TC8 --> TC10
+    TC9 --> TC10
+    TC10 -->|Yes| TC11[✅ Commission Confirmed]
+    TC10 -->|No| TC12[❌ Commission Pending]
+    
+    %% Final Transaction Status
+    TC11 --> TC13{All three checkboxes?}
+    TC12 --> TC13
+    TC13 -->|✅✅✅| TC14[TRANSACTION completion_status = 'complete']
+    TC13 -->|Partial| TC15[TRANSACTION completion_status = 'partial']
+    TC13 -->|None| TC16[TRANSACTION completion_status = 'pending']
     
     %% Credit Management
+    B7 --> B9[Credit ledger updated]
     B9 --> B10[Buyer makes partial payment]
     B10 --> B11[PAYMENT with credit_id]
     B11 --> B12[CREDIT status updated]
+    B11 --> TC1
 
     %% Owner Operations
     O1[Owner reviews all operations] --> O2[Commission calculated]
-    O2 --> O3[Reports generated]
-    O3 --> O4[Expenses tracked]
+    O2 --> O3[Transaction completion dashboard]
+    O3 --> O4[Owner confirms commissions]
+    O4 --> TC10
     
     %% Audit Trail
     F2 -.-> A1[AUDIT_LOG entry]
     B3 -.-> A1
     B6 -.-> A1
     F6 -.-> A1
+    TC11 -.-> A1
+    TC14 -.-> A1
     
     %% Stock Adjustments
     F3 --> S1{Stock Issues?}
@@ -281,10 +320,19 @@ flowchart TD
 - **TRANSACTION_ITEM** references specific **FARMER_STOCK** entries
 - **STOCK_ADJUSTMENT** handles corrections and modifications
 
-### 3. **Transaction & Payment Architecture**
+### 3. **Transaction & Payment Architecture with Completion Tracking**
 - **TRANSACTION** can have multiple **TRANSACTION_ITEM** entries
 - **PAYMENT** can be linked to **TRANSACTION** (direct) or **CREDIT** (repayment)
 - **FARMER_PAYMENT** handles farmer settlements and advances
+- **Transaction Completion Model**: Three-checkpoint system
+  - `buyer_paid_amount`: Tracks total payments received from buyer
+  - `farmer_paid_amount`: Tracks total payments made to farmers
+  - `commission_confirmed`: Boolean flag for owner commission confirmation
+  - `completion_status`: Overall transaction status ('pending', 'partial', 'complete')
+- **Completion Logic**: Transaction marked complete only when all three checkboxes are ticked:
+  - ✅ Buyer payment complete (buyer_paid_amount >= transaction total)
+  - ✅ Farmer payment complete (farmer_paid_amount >= settlement amount)
+  - ✅ Commission confirmed by owner (commission_confirmed = TRUE)
 
 ### 4. **Credit Management System**
 - **CREDIT** tracks buyer's total outstanding amount
@@ -304,10 +352,14 @@ flowchart TD
 - All core entities linked to **SHOP** for data isolation
 - **SUPERADMIN** has cross-shop access capabilities
 
-### 2. **Flexible Payment Models**
+### 2. **Flexible Payment Models with Completion Tracking**
 - Support for full payments, partial payments, and credit
 - Advance payments to farmers before stock delivery
 - Commission tracking per transaction
+- **Three-Party Completion Model**: Independent tracking of buyer payments, farmer payments, and commission confirmation
+- **Partial Payment Support**: Proportional calculation of commission based on actual payments received
+- **Owner Control**: Manual commission confirmation prevents premature transaction completion
+- **Status Progression**: 'pending' → 'partial' → 'complete' based on all three checkboxes
 
 ### 3. **Stock Lifecycle Management**
 - Stock status progression: active → closed/returned/discarded
@@ -319,6 +371,65 @@ flowchart TD
 - Detailed breakdown of credit per farmer
 - Flexible repayment with partial payment support
 
+### 5. **Transaction Completion Control**
+- **Three-Checkpoint System**: Ensures no transaction is considered complete until all parties are properly handled
+- **Independent Payment Tracking**: Buyer payments, farmer payments, and commission confirmation tracked separately
+- **Partial Payment Flexibility**: Support for any combination of partial payments with proportional commission calculation
+- **Owner Verification**: Manual commission confirmation prevents automatic assumptions about transaction completion
+- **Status Transparency**: Clear visibility of what payments are pending and what actions are required
+
+---
+
+## Transaction Completion Workflow
+
+### Three-Checkbox Completion Model
+
+Every transaction requires three independent confirmations:
+
+1. **✅ Buyer Payment Checkbox**
+   - Tracks: `buyer_paid_amount` vs transaction total
+   - Status: Complete when `buyer_paid_amount >= SUM(transaction_items.quantity * price)`
+
+2. **✅ Farmer Payment Checkbox**  
+   - Tracks: `farmer_paid_amount` vs settlement amount
+   - Status: Complete when `farmer_paid_amount >= (transaction_total - commission_amount)`
+
+3. **✅ Commission Confirmation Checkbox**
+   - Tracks: `commission_confirmed` boolean flag
+   - Status: Complete when owner manually confirms commission received
+
+### Completion Status Logic
+
+```sql
+completion_status = CASE
+    WHEN buyer_payment_complete AND farmer_payment_complete AND commission_confirmed 
+    THEN 'complete'
+    WHEN buyer_paid_amount > 0 OR farmer_paid_amount > 0 OR commission_confirmed 
+    THEN 'partial'
+    ELSE 'pending'
+END
+```
+
+### Example Scenarios
+
+**Complete Transaction (₹1,000 sale, 10% commission):**
+```
+✅ Buyer paid: ₹1,000 / ₹1,000 (100%)
+✅ Farmer paid: ₹900 / ₹900 (100%) 
+✅ Commission confirmed: ₹100
+Status: COMPLETE
+```
+
+**Partial Transaction:**
+```
+🟡 Buyer paid: ₹600 / ₹1,000 (60%)
+🟡 Farmer paid: ₹540 / ₹900 (60%) 
+✅ Commission confirmed: ₹60 (60% of ₹100)
+Status: PARTIAL
+```
+
+**Financial Dashboard Coverage:** For detailed financial reporting and owner dashboard requirements, see [Transaction Completion Workflows](./Transaction_Completion_Workflows.md).
+
 ---
 
 ## 📋 **ERD Implementation Notes**
@@ -326,11 +437,18 @@ flowchart TD
 ### Database Constraints
 - **Foreign Key Constraints**: Ensure data integrity across relationships
 - **Check Constraints**: Validate enum values and business rules
-- **Unique Constraints**: Prevent duplicate usernames and shop names
+- **Unique Constraints**: Prevent duplicate usernames and shop names  
 - **Not Null Constraints**: Enforce required fields
+- **Transaction Completion Constraints**: 
+  - `buyer_paid_amount >= 0` and `<= transaction_total`
+  - `farmer_paid_amount >= 0` and `<= settlement_amount`
+  - `commission_confirmed` can only be TRUE if `buyer_paid_amount > 0`
+  - `completion_status` auto-calculated based on three checkboxes
 
 ### Performance Considerations
 - **Indexes**: Strategic indexing on frequently queried columns
+- **Completion Status Index**: Index on `completion_status` for owner dashboards
+- **Payment Amount Indexes**: Index on `buyer_paid_amount` and `farmer_paid_amount` for financial queries
 - **Partitioning**: Consider partitioning AUDIT_LOG by date
 - **Materialized Views**: For complex aggregations and reporting
 
@@ -338,8 +456,24 @@ flowchart TD
 - **JSON Fields**: Future-proof for additional attributes
 - **Soft Deletes**: Status-based record management
 - **Audit Trail**: Complete change tracking for compliance
+- **Transaction Completion Triggers**: Auto-update completion status when payments are made
+- **Real-time Status Updates**: Immediate feedback on transaction completion progress
 
-This ERD serves as the foundational blueprint for the Market Management System, ensuring all business relationships are properly modeled and data integrity is maintained across all operations.
+This ERD serves as the foundational blueprint for the Market Management System, ensuring all business relationships are properly modeled and data integrity is maintained across all operations. 
+
+**Enhanced with Transaction Completion Workflow:**
+- Three-party payment tracking ensures no transaction is marked complete until all stakeholders are properly handled
+- Independent buyer payment, farmer payment, and commission confirmation provide complete financial control
+- Partial payment support enables real-world operational flexibility while maintaining audit integrity
+- Owner verification checkpoints prevent premature transaction completion and ensure commission collection
+
+**Key Enhancement Summary:**
+- `buyer_paid_amount`: Real-time tracking of payments received from buyers
+- `farmer_paid_amount`: Real-time tracking of payments made to farmers  
+- `commission_confirmed`: Manual owner confirmation of commission receipt
+- `completion_status`: Automated status calculation based on three-checkpoint completion model
+
+This enhanced ERD supports robust financial management with complete transparency and control over the transaction lifecycle.
 ```
 
 
