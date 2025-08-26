@@ -1,6 +1,6 @@
 """
 Database seeding utilities
-Provides initial data setup and test data generation
+Provides initial data setup and test data generation for ERD-compliant schema
 """
 
 import sys
@@ -23,16 +23,20 @@ from connection import get_db_session
 logger = logging.getLogger(__name__)
 
 class DatabaseSeeder:
-    """Database seeding and initial data setup"""
+    """Database seeding and initial data setup for ERD-compliant schema"""
     
     def __init__(self):
         self.created_objects = {
+            'superadmins': [],
+            'plans': [],
+            'shops': [],
             'users': [],
             'categories': [],
-            'plans': [],
             'payment_methods': [],
-            'shops': [],
-            'products': []
+            'expense_categories': [],
+            'products': [],
+            'farmer_stocks': [],
+            'transactions': []
         }
 
     def seed_all(self, include_test_data: bool = False) -> bool:
@@ -46,15 +50,19 @@ class DatabaseSeeder:
             logger.info("Starting database seeding...")
             
             # Seed reference data first
-            self.seed_categories()
             self.seed_plans()
+            self.seed_categories()
             self.seed_payment_methods()
+            self.seed_expense_categories()
             
             # Seed basic operational data
             if include_test_data:
-                self.seed_users()
+                self.seed_superadmin()
                 self.seed_shops()
+                self.seed_users()
                 self.seed_products()
+                self.seed_farmer_stocks()
+                self.seed_sample_transactions()
             
             logger.info("Database seeding completed successfully")
             return True
@@ -63,202 +71,219 @@ class DatabaseSeeder:
             logger.error(f"Database seeding failed: {str(e)}")
             return False
 
-    def seed_categories(self) -> bool:
-        """Seed product categories"""
-        categories_data = [
-            {"name": "Grains & Cereals", "description": "Rice, Wheat, Corn, Barley, Oats"},
-            {"name": "Pulses & Legumes", "description": "Lentils, Beans, Chickpeas, Peas"},
-            {"name": "Vegetables", "description": "Fresh vegetables and leafy greens"},
-            {"name": "Fruits", "description": "Fresh and seasonal fruits"},
-            {"name": "Spices & Herbs", "description": "Condiments, spices, and herbs"},
-            {"name": "Oil Seeds", "description": "Sunflower, Mustard, Sesame seeds"},
-            {"name": "Cash Crops", "description": "Cotton, Sugarcane, Tobacco"},
-            {"name": "Dairy Products", "description": "Milk, Cheese, Butter products"},
-            {"name": "Organic Products", "description": "Certified organic produce"},
-            {"name": "Processed Goods", "description": "Value-added processed products"}
-        ]
+    def seed_superadmin(self) -> bool:
+        """Seed superadmin user"""
+        superadmin_data = [{
+            "username": "superadmin",
+            "password_hash": "hashed_password_superadmin",
+            "email": "admin@kisaancenter.com",
+            "contact": "+91-9876543210",
+            "status": RecordStatus.ACTIVE
+        }]
         
-        return self._seed_data(Category, categories_data, 'categories')
+        return self._seed_data(Superadmin, superadmin_data, 'superadmins')
 
     def seed_plans(self) -> bool:
         """Seed subscription plans"""
         plans_data = [
             {
-                "name": "Basic Plan",
-                "description": "Essential features for small farmers and shops",
-                "price": Decimal("999.00")
+                "name": "Basic",
+                "description": "Basic plan for small shops",
+                "price": Decimal("999.00"),
+                "billing_cycle": "monthly",
+                "max_users": 5,
+                "max_transactions": 500
             },
             {
-                "name": "Standard Plan",
-                "description": "Advanced features for medium-scale operations",
-                "price": Decimal("2499.00")
+                "name": "Standard",
+                "description": "Standard plan for growing businesses",
+                "price": Decimal("1999.00"),
+                "billing_cycle": "monthly",
+                "max_users": 15,
+                "max_transactions": 2000
             },
             {
-                "name": "Premium Plan",
-                "description": "Full-featured plan for large-scale operations",
-                "price": Decimal("4999.00")
-            },
-            {
-                "name": "Enterprise Plan",
-                "description": "Custom enterprise solutions with dedicated support",
-                "price": Decimal("9999.00")
-            },
-            {
-                "name": "Free Trial",
-                "description": "30-day free trial for new users",
-                "price": Decimal("0.00")
+                "name": "Premium",
+                "description": "Premium plan for large operations",
+                "price": Decimal("4999.00"),
+                "billing_cycle": "monthly",
+                "max_users": 50,
+                "max_transactions": 10000
             }
         ]
         
         return self._seed_data(Plan, plans_data, 'plans')
 
+    def seed_categories(self) -> bool:
+        """Seed product categories"""
+        categories_data = [
+            {"name": "Grains", "description": "Rice, Wheat, Barley, etc."},
+            {"name": "Vegetables", "description": "Fresh vegetables"},
+            {"name": "Fruits", "description": "Fresh fruits"},
+            {"name": "Pulses", "description": "Lentils, beans, peas"},
+            {"name": "Spices", "description": "Spices and condiments"}
+        ]
+        
+        return self._seed_data(Category, categories_data, 'categories')
+
     def seed_payment_methods(self) -> bool:
         """Seed payment methods"""
         payment_methods_data = [
-            {"name": "Cash", "description": "Physical cash payment"},
-            {"name": "Bank Transfer", "description": "Direct bank account transfer"},
-            {"name": "UPI", "description": "Unified Payments Interface"},
-            {"name": "Credit Card", "description": "Credit card payments"},
-            {"name": "Debit Card", "description": "Debit card payments"},
-            {"name": "Digital Wallet", "description": "PayTM, PhonePe, Google Pay"},
-            {"name": "Cheque", "description": "Bank cheque payments"},
-            {"name": "RTGS/NEFT", "description": "Real-time gross settlement"},
-            {"name": "Cryptocurrency", "description": "Digital currency payments"},
-            {"name": "Barter System", "description": "Product exchange without money"}
+            {"name": "Cash", "description": "Cash payment"},
+            {"name": "Bank Transfer", "description": "Direct bank transfer"},
+            {"name": "UPI", "description": "UPI payment"},
+            {"name": "Cheque", "description": "Cheque payment"},
+            {"name": "Credit Card", "description": "Credit card payment"}
         ]
         
         return self._seed_data(PaymentMethod, payment_methods_data, 'payment_methods')
 
-    def seed_users(self) -> bool:
-        """Seed test users with full hierarchy for realistic testing"""
-        users_data = [
-            # Superadmin
-            {
-                "name": "Super Admin",
-                "email": "admin@kisaancenter.com",
-                "phone": "+91-9876543210",
-                "role": UserRole.SUPERADMIN,
-                "password_hash": "hashed_password_admin",
-                "is_verified": True,
-                "status": RecordStatus.ACTIVE
-            },
-            # Shop Owner (test owner)
-            {
-                "name": "Test Owner",
-                "email": "owner@test.com",
-                "phone": "+91-9000000001",
-                "role": UserRole.SHOP_OWNER,
-                "password_hash": "hashed_password_owner",
-                "is_verified": True,
-                "status": RecordStatus.ACTIVE
-            },
+    def seed_expense_categories(self) -> bool:
+        """Seed expense categories"""
+        expense_categories_data = [
+            {"name": "Transportation", "description": "Vehicle and transport costs"},
+            {"name": "Utilities", "description": "Electricity, water, internet"},
+            {"name": "Staff Salary", "description": "Employee salaries"},
+            {"name": "Rent", "description": "Shop rent and property costs"},
+            {"name": "Maintenance", "description": "Equipment and facility maintenance"}
         ]
-        # Add multiple employees linked to the owner's shop
-        for i in range(1, 4):
-            users_data.append({
-                "name": f"Employee {i}",
-                "email": f"employee{i}@test.com",
-                "phone": f"+91-90000000{10+i}",
-                "role": UserRole.EMPLOYEE,
-                "password_hash": f"hashed_password_employee{i}",
-                "is_verified": True,
-                "status": RecordStatus.ACTIVE
-            })
-        # Add multiple farmers
-        for i in range(1, 4):
-            users_data.append({
-                "name": f"Farmer {i}",
-                "email": f"farmer{i}@test.com",
-                "phone": f"+91-90000000{20+i}",
-                "role": UserRole.FARMER,
-                "password_hash": f"hashed_password_farmer{i}",
-                "is_verified": True,
-                "status": RecordStatus.ACTIVE
-            })
-        # Add multiple buyers
-        for i in range(1, 3):
-            users_data.append({
-                "name": f"Buyer {i}",
-                "email": f"buyer{i}@test.com",
-                "phone": f"+91-90000000{30+i}",
-                "role": UserRole.BUYER,
-                "password_hash": f"hashed_password_buyer{i}",
-                "is_verified": True,
-                "status": RecordStatus.ACTIVE
-            })
-        return self._seed_data(User, users_data, 'users')
+        
+        return self._seed_data(ExpenseCategory, expense_categories_data, 'expense_categories')
 
     def seed_shops(self) -> bool:
-        """Seed test shop for the test owner and link employees"""
-        if not self.created_objects['users']:
-            logger.warning("Users not seeded, skipping shops")
+        """Seed test shops"""
+        if not self.created_objects['superadmins'] or not self.created_objects['plans']:
+            logger.warning("Superadmins or plans not seeded, skipping shops")
             return True
-        # Find test owner
-        owner = next((u for u in self.created_objects['users'] if getattr(u, 'role', None) == UserRole.SHOP_OWNER), None)
-        if not owner:
-            logger.warning("No shop owner found, skipping shop creation")
-            return True
+
+        superadmin = self.created_objects['superadmins'][0]
+        plan = self.created_objects['plans'][0]  # Basic plan
+        
         shops_data = [
             {
-                "name": "Test Owner Shop",
-                "owner_user_id": owner.id,
-                "address": "100 Main Street, Test City",
-                "city": "Test City",
-                "state": "Test State",
-                "pin_code": "123456",
-                "gstin": "27AABCU9603R1ZT",
-                "is_verified": True,
+                "name": "Test Market Center",
+                "location": "123 Market Street, Test City",
+                "plan_id": plan.id,
+                "created_by": superadmin.id,
                 "status": RecordStatus.ACTIVE
             }
         ]
-        result = self._seed_data(Shop, shops_data, 'shops')
-        # Optionally, link employees to shop via a relationship if your model supports it
-        return result
+        
+        return self._seed_data(Shop, shops_data, 'shops')
+
+    def seed_users(self) -> bool:
+        """Seed test users with proper roles"""
+        if not self.created_objects['shops']:
+            logger.warning("Shops not seeded, skipping users")
+            return True
+
+        shop = self.created_objects['shops'][0]
+        
+        users_data = [
+            # Shop Owner
+            {
+                "username": "owner1",
+                "password_hash": "hashed_password_owner",
+                "role": UserRole.OWNER,
+                "shop_id": shop.id,
+                "contact": "+91-9000000001",
+                "credit_limit": Decimal("0.00"),
+                "status": RecordStatus.ACTIVE
+            },
+            # Farmers
+            {
+                "username": "farmer1",
+                "password_hash": "hashed_password_farmer1",
+                "role": UserRole.FARMER,
+                "shop_id": shop.id,
+                "contact": "+91-9000000002",
+                "credit_limit": Decimal("0.00"),
+                "status": RecordStatus.ACTIVE
+            },
+            {
+                "username": "farmer2",
+                "password_hash": "hashed_password_farmer2",
+                "role": UserRole.FARMER,
+                "shop_id": shop.id,
+                "contact": "+91-9000000003",
+                "credit_limit": Decimal("0.00"),
+                "status": RecordStatus.ACTIVE
+            },
+            # Buyers
+            {
+                "username": "buyer1",
+                "password_hash": "hashed_password_buyer1",
+                "role": UserRole.BUYER,
+                "shop_id": shop.id,
+                "contact": "+91-9000000004",
+                "credit_limit": Decimal("10000.00"),
+                "status": RecordStatus.ACTIVE
+            },
+            {
+                "username": "buyer2",
+                "password_hash": "hashed_password_buyer2",
+                "role": UserRole.BUYER,
+                "shop_id": shop.id,
+                "contact": "+91-9000000005",
+                "credit_limit": Decimal("5000.00"),
+                "status": RecordStatus.ACTIVE
+            },
+            # Employee
+            {
+                "username": "employee1",
+                "password_hash": "hashed_password_employee1",
+                "role": UserRole.EMPLOYEE,
+                "shop_id": shop.id,
+                "contact": "+91-9000000006",
+                "credit_limit": Decimal("0.00"),
+                "status": RecordStatus.ACTIVE
+            }
+        ]
+        
+        return self._seed_data(User, users_data, 'users')
 
     def seed_products(self) -> bool:
         """Seed test products"""
-        if not self.created_objects['categories']:
-            logger.warning("Categories not seeded, skipping products")
+        if not (self.created_objects['shops'] and self.created_objects['categories']):
+            logger.warning("Shops or categories not seeded, skipping products")
             return True
+
+        shop = self.created_objects['shops'][0]
+        
         products_data = [
             {
+                "shop_id": shop.id,
                 "name": "Basmati Rice",
                 "category_id": self.created_objects['categories'][0].id,
-                "description": "Premium quality basmati rice",
-                "unit": "kg",
                 "status": RecordStatus.ACTIVE
             },
             {
-                "name": "Wheat Flour",
+                "shop_id": shop.id,
+                "name": "Wheat",
                 "category_id": self.created_objects['categories'][0].id,
-                "description": "Fresh ground wheat flour",
-                "unit": "kg",
                 "status": RecordStatus.ACTIVE
             },
             {
-                "name": "Toor Dal",
-                "category_id": self.created_objects['categories'][1].id,
-                "description": "Yellow split pigeon peas",
-                "unit": "kg",
-                "status": RecordStatus.ACTIVE
-            },
-            {
-                "name": "Onions",
-                "category_id": self.created_objects['categories'][2].id,
-                "description": "Fresh red onions",
-                "unit": "kg",
-                "status": RecordStatus.ACTIVE
-            },
-            {
+                "shop_id": shop.id,
                 "name": "Tomatoes",
+                "category_id": self.created_objects['categories'][1].id,
+                "status": RecordStatus.ACTIVE
+            },
+            {
+                "shop_id": shop.id,
+                "name": "Onions",
+                "category_id": self.created_objects['categories'][1].id,
+                "status": RecordStatus.ACTIVE
+            },
+            {
+                "shop_id": shop.id,
+                "name": "Apples",
                 "category_id": self.created_objects['categories'][2].id,
-                "description": "Fresh ripe tomatoes",
-                "unit": "kg",
                 "status": RecordStatus.ACTIVE
             }
         ]
-        result = self._seed_data(Product, products_data, 'products')
-        return result
+        
+        return self._seed_data(Product, products_data, 'products')
 
     def seed_monthly_transactions(self) -> bool:
         """Seed a month's worth of sales and transactions covering all scenarios"""
@@ -269,106 +294,88 @@ class DatabaseSeeder:
         if not (self.created_objects['users'] and self.created_objects['shops'] and self.created_objects['products']):
             logger.warning("Users, shops, or products not seeded, skipping transactions")
             return True
-        # Get test owner, shop, employees, farmers, buyers, products
-        owner = next((u for u in self.created_objects['users'] if getattr(u, 'role', None) == UserRole.SHOP_OWNER), None)
-        shop = self.created_objects['shops'][0] if self.created_objects['shops'] else None
-        employees = [u for u in self.created_objects['users'] if getattr(u, 'role', None) == UserRole.EMPLOYEE]
-        farmers = [u for u in self.created_objects['users'] if getattr(u, 'role', None) == UserRole.FARMER]
-        buyers = [u for u in self.created_objects['users'] if getattr(u, 'role', None) == UserRole.BUYER]
+
+        shop = self.created_objects['shops'][0]
+        farmers = [u for u in self.created_objects['users'] if u.role == UserRole.FARMER]
         products = self.created_objects['products']
-        if not (owner and shop and employees and farmers and buyers and products):
-            logger.warning("Missing required entities for transactions")
+        
+        if not farmers:
+            logger.warning("No farmers found, skipping farmer stocks")
             return True
-        # Seed daily transactions for the last 30 days
-        today = datetime.utcnow().date()
-        start_date = today - timedelta(days=30)
-        statuses = [TransactionStatus.PENDING, TransactionStatus.COMPLETED, TransactionStatus.CANCELLED]
-        completion_statuses = [CompletionStatus.PARTIAL, CompletionStatus.FULL]
-        payment_statuses = [PaymentStatus.PAID, PaymentStatus.UNPAID, PaymentStatus.PARTIAL]
-        payment_methods = self.created_objects['payment_methods']
+
+        farmer_stocks_data = []
+        for farmer in farmers:
+            for product in products[:3]:  # Each farmer brings 3 different products
+                farmer_stocks_data.append({
+                    "shop_id": shop.id,
+                    "farmer_user_id": farmer.id,
+                    "product_id": product.id,
+                    "quantity": Decimal(str(50 + (farmer.id * 10))),  # Different quantities
+                    "status": StockStatus.ACTIVE,
+                    "date": date.today()
+                })
+        
+        return self._seed_data(FarmerStock, farmer_stocks_data, 'farmer_stocks')
+
+    def seed_sample_transactions(self) -> bool:
+        """Seed sample transactions"""
+        if not (self.created_objects['users'] and self.created_objects['farmer_stocks']):
+            logger.warning("Users or farmer stocks not seeded, skipping transactions")
+            return True
+
+        shop = self.created_objects['shops'][0]
+        buyers = [u for u in self.created_objects['users'] if u.role == UserRole.BUYER]
+        farmer_stocks = self.created_objects['farmer_stocks']
+        
+        if not (buyers and farmer_stocks):
+            logger.warning("No buyers or farmer stocks found, skipping transactions")
+            return True
+
         try:
             with get_db_session() as session:
-                for day in range(31):
-                    tx_date = start_date + timedelta(days=day)
-                    # For each day, create 2-3 transactions
-                    for tx_num in range(random.randint(2, 3)):
-                        farmer = random.choice(farmers)
-                        buyer = random.choice(buyers)
-                        employee = random.choice(employees)
-                        product = random.choice(products)
-                        quantity = Decimal(random.randint(10, 100))
-                        price = Decimal(random.randint(50, 500))
-                        status = random.choice(statuses)
-                        completion = random.choice(completion_statuses)
-                        payment_status = random.choice(payment_statuses)
-                        payment_method = random.choice(payment_methods)
-                        # Create FarmerStock
-                        stock = FarmerStock(
-                            farmer_user_id=farmer.id,
-                            product_id=product.id,
-                            quantity=quantity,
-                            price=price,
-                            date=tx_date,
-                            status=RecordStatus.ACTIVE
-                        )
-                        session.add(stock)
-                        session.flush()
-                        # Create Transaction
-                        transaction = Transaction(
-                            shop_id=shop.id,
-                            buyer_user_id=buyer.id,
-                            employee_user_id=employee.id,
-                            product_id=product.id,
-                            quantity=quantity,
-                            price=price,
-                            status=status,
-                            completion_status=completion,
-                            payment_status=payment_status,
-                            date=tx_date,
-                            created_at=tx_date,
-                            updated_at=tx_date
-                        )
-                        session.add(transaction)
-                        session.flush()
-                        # Create Payment
-                        payment = Payment(
-                            transaction_id=transaction.id,
-                            amount=price * quantity,
-                            payment_method_id=payment_method.id,
-                            type="buyer_payment",
-                            status=RecordStatus.ACTIVE,
-                            date=tx_date,
-                            created_at=tx_date,
-                            updated_at=tx_date
-                        )
-                        session.add(payment)
-                        # Create Credit and CreditDetail
-                        credit = Credit(
-                            transaction_id=transaction.id,
-                            buyer_user_id=buyer.id,
-                            amount=price * quantity,
-                            status=RecordStatus.ACTIVE,
-                            created_at=tx_date,
-                            updated_at=tx_date
-                        )
-                        session.add(credit)
-                        session.flush()
-                        credit_detail = CreditDetail(
-                            credit_id=credit.id,
-                            farmer_user_id=farmer.id,
-                            product_id=product.id,
-                            quantity=quantity,
-                            price=price,
-                            date=tx_date,
-                            created_at=tx_date,
-                            updated_at=tx_date
-                        )
-                        session.add(credit_detail)
+                for i, buyer in enumerate(buyers):
+                    # Create a transaction for each buyer
+                    stock = farmer_stocks[i % len(farmer_stocks)]
+                    quantity = Decimal("10.00")
+                    price = Decimal("100.00")
+                    total_amount = quantity * price
+                    
+                    transaction = Transaction(
+                        shop_id=shop.id,
+                        buyer_user_id=buyer.id,
+                        type=TransactionType.SALE,
+                        status=TransactionStatus.ACTIVE,
+                        commission_rate=Decimal("10.00"),
+                        commission_amount=total_amount * Decimal("0.10"),
+                        payment_status=PaymentStatus.PENDING,
+                        buyer_paid_amount=Decimal("0.00"),
+                        farmer_paid_amount=Decimal("0.00"),
+                        commission_confirmed=False,
+                        completion_status=CompletionStatus.PENDING,
+                        date=date.today()
+                    )
+                    session.add(transaction)
+                    session.flush()
+                    
+                    # Create transaction item
+                    transaction_item = TransactionItem(
+                        transaction_id=transaction.id,
+                        product_id=stock.product_id,
+                        farmer_stock_id=stock.id,
+                        quantity=quantity,
+                        price=price,
+                        status=RecordStatus.ACTIVE
+                    )
+                    session.add(transaction_item)
+                    
+                    self.created_objects['transactions'].append(transaction)
+                
                 session.commit()
-            logger.info("Seeded a month's worth of transactions and sales data.")
-            return True
+                logger.info(f"Seeded {len(buyers)} sample transactions")
+                return True
+                
         except Exception as e:
-            logger.error(f"Error seeding monthly transactions: {str(e)}")
+            logger.error(f"Error seeding transactions: {str(e)}")
             return False
 
     def _seed_data(self, model_class, data_list: List[Dict[str, Any]], object_key: str) -> bool:
@@ -451,8 +458,42 @@ class DatabaseSeeder:
             key: len(objects) for key, objects in self.created_objects.items()
         }
 
+    def seed_all(self, include_test_data: bool = False) -> bool:
+        """Seed all data in correct order"""
+        if not self.verify_database_connection():
+            return False
+        
+        seed_methods = [
+            ('superadmins', self.seed_superadmins),
+            ('plans', self.seed_plans),
+            ('categories', self.seed_categories),
+            ('payment_methods', self.seed_payment_methods),
+            ('expense_categories', self.seed_expense_categories),
+            ('shops', self.seed_shops),
+            ('users', self.seed_users),
+            ('products', self.seed_products),
+        ]
+        
+        if include_test_data:
+            seed_methods.extend([
+                ('farmer_stocks', self.seed_farmer_stocks),
+                ('transactions', self.seed_sample_transactions),
+            ])
+        
+        for name, method in seed_methods:
+            logger.info(f"Seeding {name}...")
+            if not method():
+                logger.error(f"Failed to seed {name}")
+                return False
+            logger.info(f"Successfully seeded {name}")
+        
+        logger.info("All seeding completed successfully")
+        return True
+
+
 # Global seeder instance
 db_seeder = DatabaseSeeder()
+
 
 # Convenience functions
 def seed_all_data(include_test_data: bool = False) -> bool:
