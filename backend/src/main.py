@@ -8,6 +8,7 @@ import time
 
 # Import routers
 from .api import users, shops, products, transactions, payments, credits
+from .db.connection import db_manager
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +22,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
     logger.info("🚀 Market Management System API starting up...")
-    logger.info("📊 Database connections initialized")
+    
+    try:
+        # Initialize database engine
+        db_manager.initialize_engine()
+        if db_manager.test_connection():
+            logger.info("📊 Database connection established")
+        else:
+            logger.error("❌ Database connection failed")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {str(e)}")
+    
     logger.info("🔧 Services configured")
     logger.info("✅ Application ready to serve requests")
     
@@ -29,7 +40,11 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("🛑 Market Management System API shutting down...")
-    logger.info("💾 Cleaning up resources...")
+    try:
+        db_manager.close_connections()
+        logger.info("💾 Database connections closed")
+    except Exception as e:
+        logger.error(f"Error closing database connections: {str(e)}")
     logger.info("✅ Shutdown complete")
 
 # Initialize FastAPI app
@@ -149,15 +164,18 @@ def read_root():
 @app.get("/health", tags=["Health"])
 def health_check():
     """Detailed health check endpoint"""
+    db_status = "connected" if db_manager.test_connection() else "disconnected"
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if db_status == "connected" else "degraded",
         "timestamp": time.time(),
         "version": "1.0.0",
         "services": {
             "api": "operational",
-            "database": "connected",
+            "database": db_status,
             "cache": "operational"
         },
+        "database_info": db_manager.get_connection_info(),
         "uptime": "Available via /metrics endpoint"
     }
 
