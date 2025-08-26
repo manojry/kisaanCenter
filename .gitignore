@@ -1,3 +1,5 @@
 # Ignore environment files
 .env
 backend/src/db/.env
+db/__pycache__/
+seeds/__pycache__/

@@ -1,4 +1,3 @@
-
 """
 Market Management System - SQLAlchemy Models
 
@@ -6,14 +5,7 @@ This module contains the core database models aligned with the ERD specification
 Models support the three-party transaction completion workflow and financial dashboards.
 
 Related Documentation:
-- ERD: /Documents/Architecclass PaymentMethod(Base):
-    __tablename__ = 'payment_method'
-    
-    id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False)
-    description = Column(Text)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)D.md
+- ERD: /Documents/Architecture/ERD.md
 - Database Schema: /Documents/Architecture/Database_Schema.md  
 - Business Rules: /Documents/Architecture/Business_Rules.md
 """

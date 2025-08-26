@@ -8,17 +8,33 @@ import os
 import logging
 from typing import List, Dict, Any
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
-# Add the parent directory to Python path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the project root to Python path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.insert(0, project_root)
 
 from sqlalchemy.exc import IntegrityError
-from models import (
-    User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
-    RecordStatus, CompletionStatus
-)
-from connection import get_db_session
+
+# Import models and connection from backend.src
+try:
+    from backend.src.models import (
+        User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
+        RecordStatus, CompletionStatus, TransactionType, TransactionStatus,
+        FarmerStock, StockStatus, ExpenseCategory, Transaction, TransactionItem,
+        Credit, PaymentStatus, Superadmin
+    )
+    from backend.src.db.connection import get_db_session
+except ImportError:
+    # Fallback for direct execution
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from models import (
+        User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
+        RecordStatus, CompletionStatus, TransactionType, TransactionStatus,
+        FarmerStock, StockStatus, ExpenseCategory, Transaction, TransactionItem,
+        Credit, PaymentStatus, Superadmin
+    )
+    from connection import get_db_session
 
 logger = logging.getLogger(__name__)
 
