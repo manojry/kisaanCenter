@@ -1,708 +1,334 @@
 # 🌾 KisaanCenter Market Management System - Comprehensive Test Cases
 
 ## 📋 Overview
-This document contains comprehensive test cases for the KisaanCenter Market Management System, focusing on the three-party transaction completion model, edge cases, and business rule validation based on the ERD and API specifications.
+This document contains comprehensive test cases for the KisaanCenter Market Management System, based on the **core_idea.md** fundamental rules and business workflows.
 
-## 🏗️ System Architecture Summary
-- **Multi-tenant shop management** with superadmin oversight
-- **Three-party completion model** for transactions (buyer payment + farmer payment + commission confirmation)
-- **Flexible payment systems** supporting full, partial, advance, and credit transactions
-- **Real-time stock management** with farmer delivery tracking
-- **Commission tracking** with owner verification
-- **Comprehensive audit trail** for compliance
+## 🏗️ Core Business Rules (From core_idea.md)
+- **Role-based system**: Owner, Farmer, Buyer, Employee, Guest Buyer
+- **Stock management**: Farmer delivers → recorded → visible until closed/discarded/returned
+- **Flexible payments**: Full, partial, credit with buyer ledger tracking
+- **Farmer settlements**: Advance/settlement with commission deduction
+- **Commission system**: Per product (percentage or fixed rate)
+- **Expense tracking**: Shop expenses (wages, rent, utilities, other)
+- **Push notifications only** (in-app) - NO WhatsApp/SMS/Email
+- **Comprehensive audit trail** for all transactions
 
 ---
 
-## 🔧 1. UNIT TESTS
+# 🌾 KisaanCenter Market Management System - Essential Business Logic Test Cases
 
-### 1.1 User Management Tests
+## 📋 Overview
+This document contains **essential business logic test cases** for the KisaanCenter Market Management System, based on the **core_idea.md** fundamental rules. Focus is on preventing bugs during user data entry and core business operations.
 
-#### 1.1.1 User Creation Tests
+## 🏗️ Core Business Rules (From core_idea.md)
+- **Role-based system**: Owner, Farmer, Buyer, Employee, Guest Buyer
+- **Stock management**: Farmer delivers → recorded → visible until closed/discarded/returned
+- **Flexible payments**: Full, partial, credit with buyer ledger tracking
+- **Farmer settlements**: Advance/settlement with commission deduction
+- **Commission system**: Per product (percentage or fixed rate)
+- **Expense tracking**: Shop expenses (wages, rent, utilities, other)
+- **Push notifications only** (in-app) - NO WhatsApp/SMS/Email
+- **Comprehensive audit trail** for all transactions
+
+---
+
+## 🔧 1. USER DATA ENTRY VALIDATION TESTS
+
+### 1.1 User Creation Validation
 ```python
-# ✅ Valid Cases
-test_create_superadmin_user()
-test_create_owner_user_with_shop()
-test_create_farmer_user_with_shop()
-test_create_buyer_user_with_credit_limit()
-test_create_employee_user_with_shop()
+# ✅ Valid Cases (Core Roles Only)
+test_create_owner_user_valid_data()
+test_create_farmer_user_valid_data()
+test_create_buyer_user_valid_data()
+test_create_employee_user_valid_data()
+test_create_guest_buyer_default_per_shop()
 
-# ❌ Edge Cases & Validation
-test_create_user_with_duplicate_username()
-test_create_user_with_invalid_email_format()
-test_create_user_with_weak_password()
-test_create_user_without_required_shop_id()
-test_create_user_with_invalid_role()
-test_create_user_with_negative_credit_limit()
-test_create_user_with_excessive_credit_limit()
-test_create_superadmin_with_shop_id()  # Should fail
-test_create_non_superadmin_without_shop()  # Should fail
+# ❌ Data Entry Bugs Prevention
+test_prevent_duplicate_username()
+test_prevent_invalid_email_format()
+test_prevent_invalid_role_entry()
+test_prevent_multiple_owners_per_shop()
+test_validate_required_fields_not_empty()
+test_validate_password_strength_requirements()
 ```
 
-#### 1.1.2 User Role Permission Tests
+### 1.2 Product Data Entry Validation
 ```python
-test_superadmin_can_create_shops()
-test_superadmin_can_access_all_shops()
-test_owner_can_only_access_own_shop()
-test_farmer_cannot_create_transactions_for_others()
-test_buyer_cannot_access_farmer_stock_directly()
-test_employee_permissions_within_shop_scope()
-test_guest_user_limited_read_access()
+test_create_product_with_valid_category()
+test_prevent_empty_product_name()
+test_prevent_negative_product_price()
+test_validate_category_from_reference_table()  # fruit, veg, flower, grain
+test_prevent_duplicate_product_name_same_shop()
 ```
 
-#### 1.1.3 User Credit Limit Tests
+### 1.3 Stock Data Entry Validation
 ```python
-test_set_credit_limit_for_buyer()
-test_set_credit_limit_for_farmer()
-test_prevent_credit_limit_for_owner()
-test_prevent_negative_credit_limit()
-test_update_credit_limit_validation()
-test_credit_limit_inheritance_from_user_type()
-```
-
-### 1.2 Shop Management Tests
-
-#### 1.2.1 Shop Creation Tests
-```python
-test_create_shop_by_superadmin()
-test_create_shop_with_valid_plan()
-test_create_shop_with_duplicate_name()  # Should fail
-test_create_shop_without_plan()
-test_create_shop_by_non_superadmin()  # Should fail
-test_shop_status_lifecycle()
-```
-
-#### 1.2.2 Multi-tenant Isolation Tests
-```python
-test_shop_data_isolation()
-test_user_cannot_access_other_shop_data()
-test_product_isolation_between_shops()
-test_transaction_isolation_between_shops()
-test_superadmin_cross_shop_access()
-```
-
-### 1.3 Product Management Tests
-
-#### 1.3.1 Product Creation Tests
-```python
-test_create_product_with_category()
-test_create_product_without_category()
-test_create_product_with_duplicate_name_same_shop()
-test_create_product_with_same_name_different_shops()  # Should pass
-test_product_status_management()
-```
-
-#### 1.3.2 Product Price History Tests
-```python
-test_product_price_history_tracking()
-test_price_change_audit_trail()
-test_historical_price_queries()
-test_price_effective_date_validation()
-```
-
-### 1.4 Stock Management Tests
-
-#### 1.4.1 Farmer Stock Tests
-```python
-test_farmer_deliver_stock()
-test_farmer_stock_quantity_validation()
-test_farmer_stock_status_transitions()
-test_farmer_stock_date_validation()
-test_farmer_cannot_deliver_negative_quantity()
-test_farmer_cannot_deliver_to_other_shops()
-```
-
-#### 1.4.2 Stock Adjustment Tests
-```python
-test_stock_increase_adjustment()
-test_stock_decrease_adjustment()
-test_stock_correction_adjustment()
-test_stock_adjustment_audit_trail()
-test_stock_adjustment_permissions()
-test_prevent_negative_stock_after_adjustment()
-```
-
-### 1.5 Transaction Management Tests
-
-#### 1.5.1 Basic Transaction Tests
-```python
-test_create_sale_transaction()
-test_create_return_transaction()
-test_create_adjustment_transaction()
-test_transaction_with_multiple_items()
-test_transaction_item_quantity_validation()
-test_transaction_item_price_validation()
-```
-
-#### 1.5.2 Three-Party Completion Model Tests
-```python
-# Core Completion Logic
-test_transaction_completion_status_pending()
-test_transaction_completion_status_partial()
-test_transaction_completion_status_complete()
-
-# Buyer Payment Tracking
-test_buyer_full_payment_updates_completion()
-test_buyer_partial_payment_updates_completion()
-test_buyer_overpayment_handling()
-test_buyer_payment_amount_validation()
-
-# Farmer Payment Tracking
-test_farmer_full_settlement_updates_completion()
-test_farmer_partial_settlement_updates_completion()
-test_farmer_advance_payment_before_transaction()
-test_farmer_payment_amount_validation()
-
-# Commission Confirmation
-test_owner_commission_confirmation()
-test_commission_confirmation_permission_validation()
-test_commission_amount_calculation()
-test_commission_rate_application()
-
-# Completion Status Integration
-test_all_three_checkboxes_mark_complete()
-test_partial_completion_scenarios()
-test_completion_status_auto_calculation()
-```
-
-#### 1.5.3 Transaction Edge Cases
-```python
-test_transaction_with_insufficient_stock()
-test_transaction_exceeding_buyer_credit_limit()
-test_transaction_with_zero_amount()
-test_transaction_with_negative_quantities()  # Should fail
-test_transaction_date_validation()
-test_transaction_with_inactive_products()
-test_transaction_with_suspended_users()
-test_concurrent_transaction_stock_allocation()
-```
-
-### 1.6 Payment System Tests
-
-#### 1.6.1 Payment Methods Tests
-```python
-test_cash_payment_processing()
-test_digital_payment_processing()
-test_credit_payment_processing()
-test_bank_transfer_processing()
-test_invalid_payment_method()
-```
-
-#### 1.6.2 Payment Validation Tests
-```python
-test_payment_amount_validation()
-test_payment_date_validation()
-test_payment_method_availability()
-test_payment_currency_validation()
-test_duplicate_payment_prevention()
-```
-
-#### 1.6.3 Partial Payment Tests
-```python
-test_multiple_partial_payments()
-test_partial_payment_completion_tracking()
-test_partial_payment_exceeding_due_amount()
-test_partial_payment_for_credits()
-test_partial_payment_refund_scenarios()
-```
-
-### 1.7 Credit Management Tests
-
-#### 1.7.1 Credit Creation Tests
-```python
-test_create_credit_for_buyer()
-test_create_credit_within_limit()
-test_create_credit_exceeding_limit()  # Should fail
-test_credit_detail_breakdown()
-test_credit_status_management()
-```
-
-#### 1.7.2 Credit Repayment Tests
-```python
-test_full_credit_repayment()
-test_partial_credit_repayment()
-test_credit_repayment_allocation()
-test_overpayment_credit_handling()
-test_credit_settlement_completion()
-```
-
-#### 1.7.3 Credit Limit Tests
-```python
-test_credit_limit_enforcement()
-test_credit_limit_update_validation()
-test_multiple_credits_limit_check()
-test_credit_limit_per_user_per_shop()
-test_credit_limit_inheritance()
+test_farmer_stock_delivery_valid_data()
+test_prevent_negative_stock_quantity()
+test_prevent_zero_stock_quantity()
+test_validate_stock_delivery_date()
+test_prevent_farmer_delivering_to_wrong_shop()
+test_validate_stock_status_enum_values()
 ```
 
 ---
 
-## 🔄 2. INTEGRATION TESTS
+## 🎯 2. CORE BUSINESS LOGIC TESTS
 
-### 2.1 Complete Transaction Workflows
-
-#### 2.1.1 Full Payment Transaction Flow
+### 2.1 Stock Management Logic (Core Rules)
 ```python
-test_complete_sale_transaction_full_payment():
+# Stock Delivery and Visibility
+test_farmer_delivers_stock_recorded_in_farmer_stock()
+test_unsold_stock_remains_visible_until_closed()  # Core rule
+test_farmer_can_close_discard_or_return_unsold_stock()
+test_stock_status_transitions_valid_only()
+
+# Stock Adjustments
+test_stock_adjustment_with_valid_reason()  # damage, return, correction
+test_prevent_stock_adjustment_negative_result()
+test_stock_adjustment_creates_audit_log()
+```
+
+### 2.2 Transaction Logic (Core Rules)
+```python
+# Transaction Creation
+test_create_sale_transaction_valid_data()
+test_create_return_transaction_with_parent_id()
+test_prevent_transaction_with_insufficient_stock()
+test_validate_transaction_type_enum()  # sale, return, exchange
+test_validate_transaction_status_enum()  # pending, completed, cancelled
+
+# Guest Buyer Logic
+test_guest_buyer_uses_default_record_per_shop()
+test_guest_buyer_cannot_have_credit()
+test_guest_buyer_cash_upi_payments_only()
+```
+
+### 2.3 Payment Logic (Core Rules)
+```python
+# Payment Types and Methods
+test_payment_type_full_partial_credit_validation()
+test_payment_method_from_reference_table()  # cash, upi, card, cheque
+test_prevent_negative_payment_amounts()
+test_prevent_payment_exceeding_transaction_amount()
+
+# Partial Payment Logic (Core Rule)
+test_buyer_partial_payment_updates_transaction()
+test_farmer_settlement_proportional_to_payment()
+test_commission_applied_only_to_paid_amount()
+```
+
+### 2.4 Credit Management Logic (Core Rules)
+```python
+# Credit Creation and Validation
+test_credit_per_transaction_recorded_separately()  # Core rule
+test_credit_must_record_farmer_product_qty_price_date()  # Core rule
+test_buyer_credit_limit_enforcement()
+test_prevent_credit_for_guest_buyers()
+
+# Credit Repayment Logic
+test_credit_repayment_updates_buyer_ledger()
+test_credit_repayment_reduces_outstanding_amount()
+test_prevent_overpayment_of_credit()
+```
+
+### 2.5 Commission Logic (Core Rules)
+```python
+# Commission Rules and Calculation
+test_commission_defined_by_owner_per_product()  # Core rule
+test_commission_type_percentage_or_fixed_rate()  # Core rule
+test_commission_stored_in_transaction_for_history()  # Core rule
+test_commission_calculation_accuracy()
+test_prevent_negative_commission_rates()
+```
+
+### 2.6 Farmer Settlement Logic (Core Rules)
+```python
+# Settlement Types and Logic
+test_farmer_can_request_advance_anytime()  # Core rule
+test_farmer_settlement_deducts_commission()  # Core rule
+test_settlement_handles_partial_buyer_payments()  # Core rule
+test_advance_without_buyer_payment_allowed()  # Core rule edge case
+
+# Settlement Calculations
+test_proportional_settlement_calculation_accuracy()
+test_settlement_with_previous_advance_deduction()
+test_prevent_settlement_exceeding_available_amount()
+```
+
+### 2.7 Expense Management Logic
+```python
+# Expense Recording and Validation
+test_expense_category_from_reference_table()  # wage, rent, utility, other
+test_prevent_negative_expense_amounts()
+test_expense_date_validation()
+test_expense_affects_owner_profit_calculation()
+```
+
+---
+
+## 🚨 3. BUSINESS RULE EDGE CASES
+
+### 3.1 Stock Management Edge Cases
+```python
+test_multiple_prices_same_product_same_day()  # Core rule
+test_unsold_stock_closure_by_farmer_only()
+test_stock_return_transaction_linked_to_parent()
+test_stock_adjustment_requires_valid_reason()
+```
+
+### 3.2 Payment and Settlement Edge Cases
+```python
+test_buyer_pays_50_percent_farmer_gets_50_percent_settlement()
+test_advance_payment_before_any_buyer_payment()
+test_commission_deduction_before_farmer_settlement()
+test_partial_payment_sequence_validation()
+```
+
+### 3.3 Credit System Edge Cases
+```python
+test_guest_buyer_registration_no_transaction_merging()  # Core rule
+test_buyer_credit_limit_across_multiple_transactions()
+test_credit_repayment_allocation_to_oldest_first()
+```
+
+### 3.4 User Role Edge Cases
+```python
+test_farmer_cannot_access_other_farmer_data()
+test_buyer_cannot_modify_stock_records()
+test_employee_can_only_record_transactions()
+test_owner_full_access_to_shop_data()
+```
+
+---
+
+## 📊 4. DATA INTEGRITY TESTS
+
+### 4.1 Reference Data Validation
+```python
+# ENUM Validation
+test_user_role_enum_values_only()  # owner, farmer, buyer, employee, guest
+test_user_status_enum_values_only()  # active, inactive, suspended
+test_payment_method_enum_values_only()  # cash, upi, card, cheque
+test_expense_category_enum_values_only()  # wage, rent, utility, other
+
+# Reference Table Validation
+test_product_category_valid_values_only()  # fruit, veg, flower, grain
+test_commission_rule_type_valid_values_only()  # flat, percentage
+```
+
+### 4.2 Business Relationship Validation
+```python
+test_transaction_belongs_to_valid_shop()
+test_farmer_stock_belongs_to_farmer_and_shop()
+test_payment_linked_to_valid_transaction()
+test_credit_linked_to_valid_buyer_and_transaction()
+test_settlement_linked_to_valid_farmer()
+```
+
+### 4.3 Audit Trail Validation
+```python
+test_audit_log_created_on_transaction_edit()
+test_audit_log_created_on_stock_adjustment()
+test_audit_log_created_on_farmer_settlement()
+test_audit_log_created_on_credit_update()
+test_audit_log_stores_user_timestamp_old_new_data()
+```
+
+---
+
+## 🔔 5. NOTIFICATION LOGIC TESTS (In-Scope Only)
+
+### 5.1 Push Notification Triggers
+```python
+test_notification_sent_on_stock_delivery()
+test_notification_sent_on_buyer_payment()
+test_notification_sent_on_credit_creation()
+test_notification_sent_on_credit_repayment()
+test_notification_sent_on_farmer_settlement()
+```
+
+### 5.2 Notification Delivery Logic
+```python
+test_notification_delivered_to_active_users_only()
+test_notification_not_sent_to_suspended_users()
+test_push_notifications_only_no_sms_whatsapp_email()  # Core rule
+```
+
+---
+
+## ✅ 6. COMPLETE WORKFLOW TESTS
+
+### 6.1 End-to-End Business Flows
+```python
+test_farmer_stock_to_sale_full_payment_workflow():
     # 1. Farmer delivers stock
-    # 2. Buyer creates transaction
-    # 3. Buyer makes full payment
-    # 4. Farmer receives full settlement
-    # 5. Owner confirms commission
-    # 6. Transaction marked complete
-```
+    # 2. Buyer purchases with full payment
+    # 3. Commission calculated and stored
+    # 4. Farmer requests settlement
+    # 5. Settlement with commission deduction
+    # 6. Push notifications sent
 
-#### 2.1.2 Partial Payment Transaction Flow
-```python
-test_complete_sale_transaction_partial_payments():
+test_partial_payment_proportional_settlement_workflow():
     # 1. Farmer delivers stock
-    # 2. Buyer creates transaction
-    # 3. Buyer makes partial payment (60%)
-    # 4. Farmer receives proportional settlement (60%)
-    # 5. Owner confirms proportional commission
-    # 6. Transaction marked partial
-    # 7. Buyer completes remaining payment
-    # 8. Farmer receives remaining settlement
-    # 9. Owner confirms remaining commission
-    # 10. Transaction marked complete
-```
-
-#### 2.1.3 Credit Transaction Flow
-```python
-test_complete_credit_transaction_flow():
-    # 1. Farmer delivers stock
-    # 2. Buyer creates transaction on credit
-    # 3. Credit record created
-    # 4. Farmer receives advance settlement
-    # 5. Owner confirms commission (pending buyer payment)
-    # 6. Buyer makes credit payments over time
-    # 7. Credit status updates with each payment
-    # 8. Final payment completes transaction
-```
-
-#### 2.1.4 Mixed Payment Transaction Flow
-```python
-test_mixed_payment_transaction_flow():
-    # 1. Farmer delivers stock
-    # 2. Buyer creates transaction
-    # 3. Buyer makes partial cash payment
-    # 4. Remaining amount goes to credit
-    # 5. Farmer receives partial settlement
-    # 6. Credit repayment completes transaction
-```
-
-### 2.2 Multi-User Interaction Tests
-
-#### 2.2.1 Concurrent User Actions
-```python
-test_concurrent_farmer_stock_delivery()
-test_concurrent_buyer_transactions()
-test_concurrent_payment_processing()
-test_concurrent_stock_adjustments()
-test_concurrent_commission_confirmations()
-```
-
-#### 2.2.2 Cross-Role Interactions
-```python
-test_farmer_buyer_transaction_interaction()
-test_owner_commission_approval_workflow()
-test_employee_transaction_assistance()
-test_superadmin_shop_management_impact()
-```
-
-### 2.3 Business Rule Integration Tests
-
-#### 2.3.1 Commission Calculation Integration
-```python
-test_percentage_commission_calculation()
-test_fixed_commission_calculation()
-test_tiered_commission_calculation()
-test_commission_on_partial_payments()
-test_commission_rule_changes_mid_transaction()
-```
-
-#### 2.3.2 Stock Availability Integration
-```python
-test_stock_allocation_across_transactions()
-test_stock_reservation_for_pending_transactions()
-test_stock_adjustment_impact_on_transactions()
-test_stock_expiry_handling()
-```
-
----
-
-## 🚨 3. EDGE CASE TESTS
-
-### 3.1 Data Integrity Edge Cases
-
-#### 3.1.1 Database Constraint Violations
-```python
-test_foreign_key_constraint_violations()
-test_unique_constraint_violations()
-test_check_constraint_violations()
-test_null_constraint_violations()
-test_data_type_constraint_violations()
-```
-
-#### 3.1.2 Referential Integrity
-```python
-test_delete_user_with_active_transactions()
-test_delete_shop_with_active_users()
-test_delete_product_with_stock()
-test_cascade_delete_validation()
-test_soft_delete_implementation()
-```
-
-### 3.2 Numerical Edge Cases
-
-#### 3.2.1 Precision and Rounding
-```python
-test_decimal_precision_in_payments()
-test_currency_rounding_rules()
-test_commission_calculation_precision()
-test_stock_quantity_precision()
-test_floating_point_edge_cases()
-```
-
-#### 3.2.2 Boundary Values
-```python
-test_zero_amount_transactions()
-test_maximum_decimal_values()
-test_minimum_decimal_values()
-test_large_quantity_handling()
-test_high_volume_transaction_processing()
-```
-
-### 3.3 Temporal Edge Cases
-
-#### 3.3.1 Date and Time Handling
-```python
-test_transaction_date_in_future()
-test_transaction_date_in_past()
-test_timezone_handling()
-test_daylight_saving_time_transitions()
-test_leap_year_handling()
-test_date_format_validation()
-```
-
-#### 3.3.2 Sequence and Timing
-```python
-test_payment_before_transaction_creation()
-test_farmer_payment_before_stock_delivery()
-test_commission_confirmation_without_payments()
-test_rapid_sequential_operations()
-test_transaction_timeout_scenarios()
-```
-
-### 3.4 Security Edge Cases
-
-#### 3.4.1 Authentication and Authorization
-```python
-test_unauthorized_access_attempts()
-test_role_escalation_attempts()
-test_cross_tenant_access_attempts()
-test_session_expiry_handling()
-test_password_policy_enforcement()
-```
-
-#### 3.4.2 Input Validation
-```python
-test_sql_injection_prevention()
-test_xss_prevention()
-test_input_length_limits()
-test_special_character_handling()
-test_unicode_character_handling()
-```
-
-### 3.5 System Resource Edge Cases
-
-#### 3.5.1 Memory and Performance
-```python
-test_large_transaction_batch_processing()
-test_high_concurrent_user_load()
-test_memory_usage_under_load()
-test_database_connection_pooling()
-test_query_performance_optimization()
-```
-
-#### 3.5.2 Error Recovery
-```python
-test_database_connection_failure_recovery()
-test_partial_transaction_rollback()
-test_system_restart_transaction_recovery()
-test_network_interruption_handling()
-test_data_corruption_detection()
-```
-
----
-
-## 🎯 4. BUSINESS LOGIC TESTS
-
-### 4.1 Three-Party Completion Model
-
-#### 4.1.1 Completion Status Logic
-```python
-test_completion_status_pending_initial_state()
-test_completion_status_partial_with_buyer_payment()
-test_completion_status_partial_with_farmer_payment()
-test_completion_status_partial_with_commission_only()
-test_completion_status_complete_all_three_confirmed()
-
-# Complex Scenarios
-test_buyer_overpayment_farmer_underpayment()
-test_farmer_overpayment_buyer_underpayment()
-test_commission_confirmation_revocation()
-test_completion_status_recalculation()
-```
-
-#### 4.1.2 Payment Proportion Logic
-```python
-test_proportional_farmer_payment_calculation()
-test_proportional_commission_calculation()
-test_payment_proportion_edge_cases()
-test_rounding_in_proportional_payments()
-```
-
-### 4.2 Credit Management Logic
-
-#### 4.2.1 Credit Limit Enforcement
-```python
-test_single_credit_within_limit()
-test_multiple_credits_cumulative_limit()
-test_credit_limit_per_shop_isolation()
-test_credit_limit_update_existing_credits()
-test_credit_limit_zero_handling()
-```
-
-#### 4.2.2 Credit Repayment Logic
-```python
-test_fifo_credit_repayment_order()
-test_lifo_credit_repayment_order()
-test_specific_credit_repayment()
-test_partial_repayment_allocation()
-test_overpayment_credit_allocation()
-```
-
-### 4.3 Commission Rule Logic
-
-#### 4.3.1 Commission Calculation
-```python
-test_percentage_commission_various_rates()
-test_fixed_commission_various_amounts()
-test_tiered_commission_quantity_based()
-test_commission_rule_priority_resolution()
-test_commission_rule_date_effectiveness()
-```
-
-#### 4.3.2 Commission Edge Cases
-```python
-test_commission_on_zero_profit_transaction()
-test_commission_on_loss_transaction()
-test_commission_rule_changes_during_transaction()
-test_multiple_commission_rules_same_product()
-test_commission_calculation_with_discounts()
-```
-
----
-
-## ⚡ 5. PERFORMANCE TESTS
-
-### 5.1 Load Testing
-```python
-test_concurrent_transactions_performance()
-test_bulk_payment_processing_performance()
-test_large_dataset_query_performance()
-test_database_connection_pool_performance()
-test_api_response_time_under_load()
-```
-
-### 5.2 Stress Testing
-```python
-test_maximum_concurrent_users()
-test_maximum_transaction_volume()
-test_memory_usage_under_stress()
-test_database_lock_contention()
-test_system_recovery_after_overload()
-```
-
----
-
-## 🔧 6. API ENDPOINT TESTS
-
-### 6.1 User Endpoints (`/api/v1/users`)
-```python
-# CRUD Operations
-test_post_users_create_valid_user()
-test_get_users_user_id_existing_user()
-test_get_users_list_with_pagination()
-test_put_users_user_id_update_user()
-test_delete_users_user_id_soft_delete()
-
-# Relationship Endpoints
-test_get_users_user_id_credits()
-test_get_users_user_id_transactions()
-
-# Edge Cases
-test_post_users_invalid_data()
-test_get_users_nonexistent_user_id()
-test_put_users_user_id_role_change_validation()
-test_delete_users_user_id_with_dependencies()
-```
-
-### 6.2 Shop Endpoints (`/api/v1/shops`)
-```python
-test_post_shops_create_valid_shop()
-test_get_shops_shop_id_existing_shop()
-test_get_shops_list_with_filters()
-test_put_shops_shop_id_update_shop()
-test_delete_shops_shop_id_with_users()
-```
-
-### 6.3 Transaction Endpoints (`/api/v1/transactions`)
-```python
-test_post_transactions_create_valid_transaction()
-test_get_transactions_transaction_id_with_completion_status()
-test_post_transactions_transaction_id_confirm_commission()
-test_get_transactions_transaction_id_completion_status()
-test_put_transactions_transaction_id_update_amounts()
-```
-
-### 6.4 Payment Endpoints (`/api/v1/payments`)
-```python
-test_post_payments_create_valid_payment()
-test_post_payments_partial_payment()
-test_get_payments_list_by_transaction()
-test_put_payments_payment_id_update_status()
-```
-
-### 6.5 Credit Endpoints (`/api/v1/credits`)
-```python
-test_post_credits_create_within_limit()
-test_post_credits_credit_id_partial_payment()
-test_get_credits_list_by_buyer()
-test_put_credits_credit_id_update_status()
-```
-
----
-
-## 🧪 7. SPECIAL TEST SCENARIOS
-
-### 7.1 Real-World Scenarios
-
-#### 7.1.1 Daily Operations
-```python
-test_morning_farmer_stock_delivery()
-test_peak_hours_multiple_transactions()
-test_end_of_day_settlement_process()
-test_weekly_commission_confirmation_batch()
-test_monthly_credit_limit_review()
-```
-
-#### 7.1.2 Business Events
-```python
-test_seasonal_product_price_changes()
-test_festival_high_volume_transactions()
-test_harvest_season_stock_surge()
-test_market_day_concurrent_operations()
-test_new_product_introduction_workflow()
-```
-
-### 7.2 Error Recovery Scenarios
-```python
-test_power_outage_transaction_recovery()
-test_network_failure_partial_payment_recovery()
-test_database_backup_restore_integrity()
-test_system_upgrade_data_migration()
-test_concurrent_modification_conflict_resolution()
-```
-
-### 7.3 Compliance and Audit Scenarios
-```python
-test_complete_audit_trail_generation()
-test_regulatory_reporting_data_integrity()
-test_financial_reconciliation_accuracy()
-test_tax_calculation_compliance()
-test_data_retention_policy_enforcement()
-```
-
----
-
-## 📊 8. TEST DATA MANAGEMENT
-
-### 8.1 Test Data Setup
-```python
-# Master Data
-create_test_superadmin()
-create_test_shops_with_plans()
-create_test_users_all_roles()
-create_test_products_with_categories()
-create_test_payment_methods()
-
-# Transactional Data
-create_test_farmer_stocks()
-create_test_transactions_various_statuses()
-create_test_payments_various_types()
-create_test_credits_various_amounts()
-
-# Edge Case Data
-create_boundary_value_test_data()
-create_large_volume_test_data()
-create_complex_relationship_test_data()
-```
-
-### 8.2 Test Environment Management
-```python
-setup_isolated_test_database()
-setup_test_data_fixtures()
-setup_mock_external_services()
-teardown_test_environment()
-cleanup_test_data()
-```
-
----
-
-## ✅ 9. TEST EXECUTION STRATEGY
-
-### 9.1 Test Categories Priority
-1. **Critical Path**: User creation → Stock delivery → Transaction → Payments → Completion
-2. **Business Logic**: Three-party completion model validation
-3. **Security**: Authentication, authorization, data isolation
-4. **Performance**: Load testing, stress testing
-5. **Edge Cases**: Boundary conditions, error scenarios
-
-### 9.2 Test Automation
-```python
-# Continuous Integration Tests
-run_unit_tests_on_commit()
-run_integration_tests_on_merge()
-run_performance_tests_nightly()
-run_security_tests_weekly()
-
-# Test Reporting
-generate_test_coverage_report()
-generate_performance_benchmark_report()
-generate_security_vulnerability_report()
+    # 2. Buyer pays 60% of transaction
+    # 3. Farmer gets 60% settlement (minus commission)
+    # 4. Buyer pays remaining 40%
+    # 5. Farmer gets remaining settlement
+
+test_credit_transaction_repayment_workflow():
+    # 1. Buyer purchases on credit
+    # 2. Credit record created per transaction
+    # 3. Buyer makes partial repayments
+    # 4. Credit ledger updated with each payment
+    # 5. Final payment completes transaction
+
+test_guest_buyer_walk_in_purchase_workflow():
+    # 1. Guest buyer uses default shop record
+    # 2. Cash/UPI payment only
+    # 3. No credit allowed
+    # 4. Transaction recorded against guest buyer
 ```
 
 ---
 
 ## 🎯 CONCLUSION
 
-This comprehensive test plan covers:
-- **428 individual test cases** across all system components
-- **Three-party completion model** edge cases and business logic
-- **Multi-tenant architecture** validation
-- **Real-world scenarios** and business workflows
-- **Performance and security** considerations
-- **API endpoint** validation
-- **Data integrity** and audit requirements
+This focused test plan covers **96 essential business logic test cases** that prevent bugs during user data entry and core business operations:
 
-The test plan ensures robust validation of the KisaanCenter Market Management System's core functionality, business rules, and edge cases, with special emphasis on the unique three-party transaction completion model that distinguishes this system.
+- **Data Entry Validation**: Prevents invalid user inputs
+- **Core Business Logic**: Validates fundamental rules from core_idea.md
+- **Edge Cases**: Covers specific business scenarios and exceptions
+- **Data Integrity**: Ensures referential integrity and audit trails
+- **Complete Workflows**: Validates end-to-end business processes
 
 **Focus Areas for Implementation:**
-1. Three-party completion model validation (highest priority)
-2. Multi-tenant data isolation testing
-3. Credit management system edge cases
-4. Payment processing and reconciliation
-5. Real-world business scenario validation
+1. **User data entry validation** (highest priority for bug prevention)
+2. **Core business rules enforcement** per core_idea.md
+3. **Payment and settlement logic** accuracy
+4. **Stock management** visibility and status rules
+5. **Credit system** per-transaction recording and limits
+6. **Audit trail** completeness for compliance
 
-This test plan provides the foundation for building a reliable, secure, and performant agricultural market management system.
+This streamlined test plan ensures robust validation of core business functionality while preventing user data entry bugs.
+
+---
+
+## 📋 FINAL SUMMARY
+
+This **streamlined business logic test plan** contains **96 essential test cases** focused on preventing bugs during user data entry and core business operations:
+
+### **Test Categories:**
+1. **User Data Entry Validation** (18 tests) - Prevents invalid inputs
+2. **Core Business Logic** (42 tests) - Validates fundamental rules
+3. **Business Rule Edge Cases** (24 tests) - Covers specific scenarios
+4. **Data Integrity** (12 tests) - Ensures referential integrity and audit trails
+
+### **Priority Implementation Order:**
+1. **Data Entry Validation** - Immediate bug prevention
+2. **Payment & Settlement Logic** - Core business accuracy  
+3. **Stock Management Rules** - Inventory visibility and status
+4. **Credit System Logic** - Per-transaction recording and limits
+5. **Audit Trail Coverage** - Compliance and tracking
+
+This focused approach ensures **robust validation of core business functionality** while **preventing user data entry bugs** based on the fundamental rules defined in **core_idea.md**.
