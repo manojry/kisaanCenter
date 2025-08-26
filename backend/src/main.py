@@ -6,9 +6,14 @@ from contextlib import asynccontextmanager
 import logging
 import time
 
-# Import routers
-from .api import users, shops, products, transactions, payments, credits
-from .db.connection import db_manager
+# Import database manager
+from src.database import db_manager
+
+# Import API routers
+from src.api.endpoints import user, shops, product, transaction, payments, credits
+
+# Import core modules
+from src.core import setup_logging
 
 # Configure logging
 logging.basicConfig(
@@ -141,10 +146,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Include API routers
-app.include_router(users.router, prefix="/api/v1")
+app.include_router(user.router, prefix="/api/v1")
 app.include_router(shops.router, prefix="/api/v1")
-app.include_router(products.router, prefix="/api/v1")
-app.include_router(transactions.router, prefix="/api/v1")
+app.include_router(product.router, prefix="/api/v1")
+app.include_router(transaction.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
 app.include_router(credits.router, prefix="/api/v1")
 
