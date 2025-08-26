@@ -1,12 +1,32 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+"""
+DEPRECATED: This file is replaced by the new database infrastructure in db/ folder.
+For new development, use:
 
-MYSQL_USER = 'your_user'
-MYSQL_PASSWORD = 'your_password'
-MYSQL_HOST = 'localhost'
-MYSQL_DB = 'market_db'
+from db.connection import get_db_session, get_db, get_engine
+from db.init_db import initialize_database
 
-DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"
+Legacy imports are maintained for backward compatibility.
+"""
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+import warnings
+from db.connection import get_engine, get_session_factory, get_db_session, get_db
+
+# Deprecated: Use db.connection module instead
+warnings.warn(
+    "database.py is deprecated. Use 'from db.connection import get_db_session, get_db' instead",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Legacy compatibility
+engine = get_engine()
+SessionLocal = get_session_factory()
+
+def get_database_session():
+    """DEPRECATED: Use get_db_session() from db.connection instead"""
+    warnings.warn(
+        "get_database_session() is deprecated. Use get_db_session() from db.connection instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return get_db_session()
