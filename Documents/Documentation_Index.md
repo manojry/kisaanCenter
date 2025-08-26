@@ -15,42 +15,41 @@ This is the master index for all Market Management System documentation, organiz
 - **[Business Rules](./Architecture/Business_Rules.md)** - Core business logic, validation rules, and user permissions
 - **[Business Workflows](./Architecture/Business_Workflows.md)** - Complete business process flows and use cases
 - **[API Specification](./Architecture/API_Specification.md)** - RESTful API endpoints and integration patterns
-- **[ENUMs Reference](./Architecture/KisaanCenter_ENUMs.md)** - Standardized ENUM values and reference data
+- **[ENUMs Reference](./Architecture/ENUMs.md)** - Standardized ENUM values and reference data
 
 ### Architecture Diagrams
 - **[ERD Visual](./Architecture/KisaanCenter_ERD.svg)** - Visual ERD diagram
 - **[ERD Source](./Architecture/KisaanCenter_ERD_drawio.xml)** - Draw.io source file for ERD modifications
-- **[ERD Review](./Architecture/KisaanCenter_ERD_Review.md)** - ERD review and validation notes
 
 ---
 
 ## 👥 User Features Documentation
 
 ### Role-Based Feature Sets
-- **[Owner Features](./Features/KisaanCenter_Owner_Features.md)** - Complete shop management and oversight capabilities
-- **[Farmer Features](./Features/KisaanCenter_Farmer_Features.md)** - Stock delivery, tracking, and payment management
-- **[Buyer Features](./Features/KisaanCenter_Buyer_Features.md)** - Product purchase, credit management, and payment features
-- **[Employee Features](./Features/KisaanCenter_Employee_Features.md)** - Operational support and daily management tasks
-- **[Superadmin Features](./Features/KisaanCenter_Superadmin_Features.md)** - System-wide administration and multi-shop management
+- **[Owner Features](./Features/Owner_Features.md)** - Complete shop management and oversight capabilities
+- **[Farmer Features](./Features/Farmer_Features.md)** - Stock delivery, tracking, and payment management
+- **[Buyer Features](./Features/Buyer_Features.md)** - Product purchase, credit management, and payment features
+- **[Employee Features](./Features/Employee_Features.md)** - Operational support and daily management tasks
+- **[Superadmin Features](./Features/Superadmin_Features.md)** - System-wide administration and multi-shop management
 
 ### User Journey Documentation
-- **[Owner Enterprise Journey](./Features/KisaanCenter_Owner_Journey_Enterprise.md)** - Advanced enterprise features and workflows
-- **[Owner-Superadmin Journey](./Features/KisaanCenter_Owner_Superadmin_Journey.md)** - Multi-level administrative processes
+- **[Owner Enterprise Journey](./Features/Owner_Enterprise_Journey.md)** - Advanced enterprise features and comprehensive workflows
 
 ---
 
 ## 🧪 Testing Documentation
 
 ### Test Scenarios
-- **[Partial Payments Test](./TestCases/KisaanCenter_TestScenario_PartialPayments.md)** - Complex payment scenario testing
+- **[Partial Payments Test](./TestCases/PartialPayments_TestScenario.md)** - Complex payment scenario testing
 
 ---
 
 ## 🎯 Presentation Materials
 
 ### Client Materials  
-- **[Client Presentation](./Presentations/)** - Business presentation materials and visuals
-- **Project PDFs & PowerPoints** - Client-facing documentation
+- **[Client Presentation](./Presentations/Client_Presentation.md)** - Business presentation and system overview
+- **[Client Features Overview](./Presentations/Client_Features_Overview.txt)** - Detailed feature breakdown and benefits
+- **[Presentation Slides](./Presentations/Market_Management_System.pptx)** - PowerPoint presentation
 
 ---
 
@@ -88,14 +87,14 @@ Required Reading:
 ✅ Architecture/Business_Rules.md - Validation and permission logic  
 ✅ Architecture/Business_Workflows.md - Process flow implementation
 ✅ Architecture/API_Specification.md - REST endpoint specifications
-✅ Architecture/KisaanCenter_ENUMs.md - Data validation standards
+✅ Architecture/ENUMs.md - Data validation standards
 ```
 
 ### Frontend Development Team  
 **Primary Focus**: User interfaces, user experience, feature implementation
 ```
 Required Reading:
-✅ Features/KisaanCenter_*_Features.md - All user role capabilities
+✅ Features/*_Features.md - All user role capabilities
 ✅ Architecture/Business_Workflows.md - User journey workflows
 ✅ Architecture/API_Specification.md - API integration patterns
 ✅ TestCases/ - User interaction scenarios

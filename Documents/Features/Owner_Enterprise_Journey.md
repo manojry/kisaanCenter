@@ -1,4 +1,8 @@
-# KisaanCenter Owner & Superadmin Journey (Enterprise)
+# Owner & Superadmin Enterprise Journey
+
+## Complete Enterprise Workflow Documentation
+
+This document covers the complete enterprise workflow for shop owners working within the superadmin-managed system, including all edge cases and technical scenarios.
 
 ## 1. Superadmin Setup & Enterprise Management
 A superadmin registers on KisaanCenter and gains access to enterprise-level controls. The superadmin can:

@@ -1,53 +1,55 @@
-# KisaanCenter Client Presentation
+# Market Management System - Client Presentation
 
 ---
 
 ## Introduction
 
-KisaanCenter is a modern platform designed to empower agricultural businesses and streamline operations. As the owner, you will gain access to a powerful tool that connects farmers, buyers, and service providers, making your business more efficient and profitable.
+The Market Management System is a comprehensive platform designed to streamline agricultural market operations and connect farmers, buyers, and service providers. As a shop owner, you gain access to powerful tools that make your business more efficient and profitable.
 
 ---
 
 ## What You Get
 
 - Centralized dashboard for managing all operations
-- Real-time data on crops, inventory, and sales
+- Real-time data on stock, inventory, and sales
 - Seamless communication between farmers and buyers
 - Secure payment and transaction management
 - Analytics and reporting for informed decision-making
+- Multi-user access with role-based permissions
 
 ---
 
 ## Benefits
 
-- Increase revenue by reaching more buyers
+- Increase revenue by optimizing operations
 - Reduce operational costs with automation
 - Make data-driven decisions for better outcomes
 - Enhance transparency and trust in transactions
-- Save time with easy-to-use interfaces
+- Save time with intuitive interfaces
+- Complete audit trail for compliance
 
 ---
 
 ## Visual Representation
 
-### Dashboard Wireframe
+### Dashboard Overview
 
 ```
 +---------------------------------------------------+
-| KisaanCenter Dashboard                            |
+| Market Management System Dashboard                |
 +---------------------------------------------------+
-| [Crops] [Inventory] [Sales] [Reports] [Settings]  |
+| [Stock] [Sales] [Payments] [Reports] [Settings]  |
 +---------------------------------------------------+
-| Crop Status | Inventory | Sales | Analytics        |
+| Today's Stock | Sales Revenue | Pending Payments  |
 |---------------------------------------------------|
-| Wheat: 1200kg | Fertilizer: 50kg | ₹1,20,000       |
-| Rice: 800kg   | Seeds: 200kg     | ₹80,000         |
+| 50 entries    | ₹45,000      | ₹12,000          |
+| 25 farmers    | 15 buyers    | 3 employees      |
 +---------------------------------------------------+
 ```
 
-### Transaction Flow Diagram
+### Transaction Flow
 
-Farmer → KisaanCenter → Buyer
+Farmer Delivery → Stock Management → Buyer Purchase → Payment Processing
 
 - Farmer lists crops
 - Buyer browses and purchases
