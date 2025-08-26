@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from models import Transaction, TransactionStatus, CompletionStatus, PaymentStatus, RecordStatus
+from src.models import Transaction, TransactionStatus, CompletionStatus, PaymentStatus, RecordStatus
 
 def test_monthly_transactions_exist(db_session):
     transactions = db_session.query(Transaction).all()
@@ -18,7 +18,7 @@ def test_transaction_integrity(db_session):
     assert tx.shop_id is not None
     assert tx.buyer_user_id is not None
     # Transaction doesn't have product_id directly, it's in transaction_items
-    from models import TransactionItem
+    from src.models import TransactionItem
     items = db_session.query(TransactionItem).filter_by(transaction_id=tx.id).all()
     if items:
         assert len(items) > 0

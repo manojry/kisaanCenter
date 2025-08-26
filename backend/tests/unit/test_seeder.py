@@ -8,7 +8,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from models import (
+from src.models import (
     User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
     RecordStatus, Superadmin, FarmerStock, StockStatus
 )
@@ -151,7 +151,7 @@ def seed_test_data(session):
     session.flush()
     
     # Import additional models for transactions
-    from models import (
+    from src.models import (
         Transaction, TransactionItem, TransactionType, TransactionStatus,
         PaymentStatus, CompletionStatus, Credit, CreditStatus, CreditDetail,
         Payment, PaymentType

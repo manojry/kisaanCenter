@@ -10,8 +10,8 @@ from decimal import Decimal
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from main import app
-from database import get_db
+from src.main import app
+from src.database import get_db
 from test_seeder import seed_test_data
 
 client = TestClient(app)

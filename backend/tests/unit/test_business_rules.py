@@ -1,8 +1,7 @@
-import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from models import Transaction, Payment, User, UserRole, RecordStatus, TransactionStatus
+from src.models import Transaction, Payment, User, UserRole, RecordStatus, TransactionStatus, FarmerStock
 
 def test_transaction_status_flow(db_session):
     # Ensure transactions cover all statuses
@@ -28,6 +27,5 @@ def test_farmers_have_stock_and_sales(db_session):
     farmers = db_session.query(User).filter_by(role=UserRole.FARMER).all()
     for farmer in farmers:
         # Farmer should have stock and be involved in transactions
-        from models import FarmerStock
         stocks = db_session.query(FarmerStock).filter_by(farmer_user_id=farmer.id).all()
         assert len(stocks) >= 1

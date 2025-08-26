@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from models import Shop, User, UserRole, RecordStatus
+from src.models import Shop, User, UserRole, RecordStatus
 
 def test_shop_owner_relationship(db_session):
     owner = db_session.query(User).filter_by(role=UserRole.OWNER).first()

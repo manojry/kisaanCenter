@@ -1,4 +1,7 @@
+
+
 import pytest
+
 import sys
 import os
 from sqlalchemy import create_engine
@@ -6,11 +9,12 @@ from sqlalchemy.orm import sessionmaker
 from decimal import Decimal
 from datetime import date
 
-# Add the src directory to the Python path
-src_path = os.path.join(os.path.dirname(__file__), '..', 'src')
-sys.path.insert(0, src_path)
+# Ensure backend is in sys.path for absolute imports
+BACKEND_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if BACKEND_PATH not in sys.path:
+    sys.path.insert(0, BACKEND_PATH)
 
-from models import (
+from src.models import (
     Base, User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
     RecordStatus, Superadmin, FarmerStock, StockStatus, Transaction,
     TransactionItem, TransactionType, TransactionStatus, PaymentStatus,

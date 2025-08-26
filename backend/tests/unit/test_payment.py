@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from models import Payment, RecordStatus
+from src.models import Payment, RecordStatus
 
 def test_payments_exist(db_session):
     payments = db_session.query(Payment).all()

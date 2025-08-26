@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from models import User, UserRole, RecordStatus
+from src.models import User, UserRole, RecordStatus
 
 def test_superadmin_exists(db_session):
     user = db_session.query(User).filter_by(role=UserRole.SUPERADMIN).first()
