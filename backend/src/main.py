@@ -218,8 +218,8 @@ else:
         }
     
     @app.post("/api/v1/users")
-    async def create_user(username: str, role: str, shop_id: int = 1):
-        return {"success": True, "message": "User created", "data": {"id": 4, "username": username, "role": role, "shop_id": shop_id}}
+    async def create_user(user_data: dict):
+        return {"success": True, "message": "User created", "data": {"id": 4, **user_data}}
     
     @app.put("/api/v1/users/{user_id}")
     async def update_user(user_id: int, username: str = None, role: str = None):
@@ -229,21 +229,21 @@ else:
     async def delete_user(user_id: int):
         return {"success": True, "message": "User deleted"}
     
-    @app.post("/api/v1/shops")
-    async def create_shop(name: str, status: str = "active"):
-        return {"success": True, "message": "Shop created", "data": {"id": 2, "name": name, "status": status}}
+    @app.get("/api/v1/stock")
+    async def get_stock(shop_id: int = 1):
+        return {"success": True, "message": "Stock retrieved", "data": [{"id": 1, "product_name": "Sample Product", "quantity": 50, "unit": "kg", "farmer_id": 2, "shop_id": shop_id}]}
     
-    @app.put("/api/v1/shops/{shop_id}")
-    async def update_shop(shop_id: int, name: str = None, status: str = None):
-        return {"success": True, "message": "Shop updated", "data": {"id": shop_id, "name": name, "status": status}}
+    @app.post("/api/v1/stock")
+    async def create_stock(stock_data: dict):
+        return {"success": True, "message": "Stock added", "data": {"id": 2, **stock_data}}
     
-    @app.delete("/api/v1/shops/{shop_id}")
-    async def delete_shop(shop_id: int):
-        return {"success": True, "message": "Shop deleted"}
+    @app.put("/api/v1/stock/{stock_id}")
+    async def update_stock(stock_id: int, stock_data: dict):
+        return {"success": True, "message": "Stock updated", "data": {"id": stock_id, **stock_data}}
     
     @app.post("/api/v1/products")
-    async def create_product(name: str, price: float, shop_id: int = 1):
-        return {"success": True, "message": "Product created", "data": {"id": 2, "name": name, "price": price, "shop_id": shop_id}}
+    async def create_product(product_data: dict):
+        return {"success": True, "message": "Product created", "data": {"id": 2, **product_data}}
     
     @app.put("/api/v1/products/{product_id}")
     async def update_product(product_id: int, name: str = None, price: float = None):
@@ -254,8 +254,8 @@ else:
         return {"success": True, "message": "Product deleted"}
     
     @app.post("/api/v1/transactions")
-    async def create_transaction(amount: float, shop_id: int = 1, status: str = "pending"):
-        return {"success": True, "message": "Transaction created", "data": {"id": 2, "amount": amount, "status": status, "shop_id": shop_id}}
+    async def create_transaction(transaction_data: dict):
+        return {"success": True, "message": "Transaction created", "data": {"id": 2, **transaction_data}}
     
     @app.put("/api/v1/transactions/{transaction_id}")
     async def update_transaction(transaction_id: int, status: str = None, amount: float = None):
@@ -266,16 +266,16 @@ else:
         return {"success": True, "message": "Payments retrieved", "data": [{"id": 1, "amount": 100, "method": "cash", "shop_id": shop_id}]}
     
     @app.post("/api/v1/payments")
-    async def create_payment(amount: float, method: str = "cash", shop_id: int = 1):
-        return {"success": True, "message": "Payment created", "data": {"id": 2, "amount": amount, "method": method, "shop_id": shop_id}}
+    async def create_payment(payment_data: dict):
+        return {"success": True, "message": "Payment created", "data": {"id": 2, **payment_data}}
     
     @app.get("/api/v1/credits")
     async def get_credits(shop_id: int = 1):
         return {"success": True, "message": "Credits retrieved", "data": [{"id": 1, "amount": 500, "status": "active", "shop_id": shop_id}]}
     
     @app.post("/api/v1/credits")
-    async def create_credit(amount: float, shop_id: int = 1):
-        return {"success": True, "message": "Credit created", "data": {"id": 2, "amount": amount, "status": "active", "shop_id": shop_id}}
+    async def create_credit(credit_data: dict):
+        return {"success": True, "message": "Credit created", "data": {"id": 2, **credit_data, "status": "active"}}
     
     @app.get("/api/v1/subscriptions")
     async def get_subscriptions():

@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { UserRole } from '@/types/enums'
+import { Menu, X } from 'lucide-react'
 import { 
   LayoutDashboard, 
   Users, 
@@ -97,6 +98,7 @@ const Sidebar: React.FC = () => {
   const { user } = useAuth()
   const location = useLocation()
   const currentPath = location.pathname
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   if (!user) return null
 
@@ -105,52 +107,77 @@ const Sidebar: React.FC = () => {
   )
 
   return (
-    <div className="w-64 bg-white shadow-sm border-r border-gray-200 h-full">
-      <nav className="mt-8 px-4">
-        <ul className="space-y-2">
-          {allowedNavigation.map((item) => {
-            const isActive = currentPath === item.href
-            const Icon = item.icon
-            
-            return (
-              <li key={item.name}>
-                <Link
-                  to={item.href}
-                  className={clsx(
-                    'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-                    isActive
-                      ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-700'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  )}
-                >
-                  <Icon
-                    className={clsx(
-                      'mr-3 h-5 w-5',
-                      isActive
-                        ? 'text-primary-700'
-                        : 'text-gray-400 group-hover:text-gray-500'
-                    )}
-                  />
-                  {item.name}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+    <>
+      {/* Mobile Menu Button */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 bg-white rounded-lg shadow-md border border-gray-200"
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
 
-      {/* User Role Info */}
-      <div className="absolute bottom-4 left-4 right-4">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-xs text-gray-500">Logged in as</p>
-          <p className="text-sm font-medium text-gray-900">{user.username}</p>
-          <p className="text-xs text-gray-500 capitalize">{user.role}</p>
-          {user.shop_id && (
-            <p className="text-xs text-gray-500">Shop ID: {user.shop_id}</p>
-          )}
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={clsx(
+        'fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white shadow-sm border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:transform-none',
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      )}>
+        <nav className="mt-16 lg:mt-8 px-4">
+          <ul className="space-y-2">
+            {allowedNavigation.map((item) => {
+              const isActive = currentPath === item.href
+              const Icon = item.icon
+              
+              return (
+                <li key={item.name}>
+                  <Link
+                    to={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={clsx(
+                      'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                      isActive
+                        ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-700'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    )}
+                  >
+                    <Icon
+                      className={clsx(
+                        'mr-3 h-5 w-5',
+                        isActive
+                          ? 'text-primary-700'
+                          : 'text-gray-400 group-hover:text-gray-500'
+                      )}
+                    />
+                    {item.name}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+
+        {/* User Role Info */}
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500">Logged in as</p>
+            <p className="text-sm font-medium text-gray-900">{user.username}</p>
+            <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+            {user.shop_id && (
+              <p className="text-xs text-gray-500">Shop ID: {user.shop_id}</p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
