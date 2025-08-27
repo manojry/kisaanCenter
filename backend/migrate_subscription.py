@@ -118,14 +118,14 @@ def run_migration():
                 feature_data.feature_name,
                 true as is_enabled,
                 feature_data.limit_value,
-                feature_data.limit_type::varchar
+                feature_data.limit_type::limittype
             FROM shop s
             CROSS JOIN (
                 VALUES 
-                    ('farmer_creation', 10, 'count'),
-                    ('buyer_creation', 20, 'count'),
-                    ('data_retention', 6, 'months'),
-                    ('monthly_transactions', 1000, 'count')
+                    ('farmer_creation', 10, 'count'::limittype),
+                    ('buyer_creation', 20, 'count'::limittype),
+                    ('data_retention', 6, 'months'::limittype),
+                    ('monthly_transactions', 1000, 'count'::limittype)
             ) AS feature_data(feature_name, limit_value, limit_type)
             WHERE NOT EXISTS (
                 SELECT 1 FROM feature_control fc 
