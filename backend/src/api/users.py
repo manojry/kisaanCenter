@@ -14,11 +14,55 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-@router.post("/", 
-             response_model=APIResponse, 
-             status_code=status.HTTP_201_CREATED,
-             summary="Create a new user",
-             description="Create a new user in the system with comprehensive validation")
+@router.post(
+    "/",
+    response_model=APIResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new user",
+    description="Create a new user in the system with comprehensive validation",
+    response_description="User creation result",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "username": "farmer_john",
+                        "password": "secure_password",
+                        "role": "farmer",
+                        "shop_id": 1,
+                        "contact": "+91-9876543210",
+                        "credit_limit": 10000.00,
+                        "created_by": 2,
+                        "status": "active"
+                    }
+                }
+            }
+        },
+        "responses": {
+            "201": {
+                "description": "User created successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "User created successfully",
+                            "data": {
+                                "id": 123,
+                                "username": "farmer_john",
+                                "role": "farmer",
+                                "shop_id": 1,
+                                "contact": "+91-9876543210",
+                                "credit_limit": 10000.00,
+                                "status": "active",
+                                "created_by": 2
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def create_user(
     user: UserCreate,
     db: Session = Depends(get_db),
@@ -47,10 +91,38 @@ def create_user(
     
     return result
 
-@router.get("/{user_id}",
-            response_model=APIResponse,
-            summary="Get user by ID",
-            description="Retrieve a specific user by their ID")
+@router.get(
+    "/{user_id}",
+    response_model=APIResponse,
+    summary="Get user by ID",
+    description="Retrieve a specific user by their ID",
+    response_description="User details",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "User found",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "User found",
+                            "data": {
+                                "id": 123,
+                                "username": "farmer_john",
+                                "role": "farmer",
+                                "shop_id": 1,
+                                "contact": "+91-9876543210",
+                                "credit_limit": 10000.00,
+                                "status": "active",
+                                "created_by": 2
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def get_user(
     user_id: int = Path(..., description="User ID to retrieve", gt=0),
     include_relations: bool = Query(False, description="Include related entities (shop, transactions, credits)"),
@@ -70,10 +142,46 @@ def get_user(
     
     return result
 
-@router.get("/",
-            response_model=APIResponse,
-            summary="Get users with filtering and pagination",
-            description="Retrieve a paginated list of users with optional filtering")
+@router.get(
+    "/",
+    response_model=APIResponse,
+    summary="Get users with filtering and pagination",
+    description="Retrieve a paginated list of users with optional filtering",
+    response_description="Paginated user list",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "Users retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Users retrieved",
+                            "data": [
+                                {
+                                    "id": 123,
+                                    "username": "farmer_john",
+                                    "role": "farmer",
+                                    "shop_id": 1,
+                                    "contact": "+91-9876543210",
+                                    "credit_limit": 10000.00,
+                                    "status": "active",
+                                    "created_by": 2
+                                }
+                            ],
+                            "pagination": {
+                                "total": 100,
+                                "page": 1,
+                                "limit": 10,
+                                "total_pages": 10
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def get_users(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
