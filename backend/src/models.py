@@ -106,6 +106,36 @@ class Superadmin(Base):
 
     # Relationships
     created_shops = relationship('Shop', back_populates='creator')
+    controlled_features = relationship('FeatureControl', back_populates='controller')
+    subscription_changes = relationship('SubscriptionHistory', back_populates='changer')
+
+class BillingCycle(enum.Enum):
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+class SubscriptionStatus(enum.Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+class PaymentStatus(enum.Enum):
+    PAID = "paid"
+    PENDING = "pending"
+    FAILED = "failed"
+    OVERDUE = "overdue"
+
+class LimitType(enum.Enum):
+    COUNT = "count"
+    DAYS = "days"
+    MONTHS = "months"
+    PERCENTAGE = "percentage"
+
+class ResetCycle(enum.Enum):
+    DAILY = "daily"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
 
 class Plan(Base):
     __tablename__ = 'plan'
@@ -113,10 +143,13 @@ class Plan(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)
-    price = Column(DECIMAL(10,2), nullable=False)
-    billing_cycle = Column(String(20), default='monthly')
-    max_users = Column(Integer, default=10)
+    monthly_price = Column(DECIMAL(10,2), nullable=False)
+    quarterly_price = Column(DECIMAL(10,2))  # With 5% discount
+    yearly_price = Column(DECIMAL(10,2))     # With 15% discount
+    max_farmers = Column(Integer, default=10)
+    max_buyers = Column(Integer, default=20)
     max_transactions = Column(Integer, default=1000)
+    data_retention_months = Column(Integer, default=6)
     features = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -125,6 +158,7 @@ class Plan(Base):
     # Relationships
     shops = relationship('Shop', back_populates='plan')
     plan_features = relationship('PlanFeature', back_populates='plan')
+    subscriptions = relationship('Subscription', back_populates='plan')
 
 # Stub PlanFeature model to resolve relationship
 class PlanFeature(Base):
@@ -163,6 +197,12 @@ class Shop(Base):
     commission_rules = relationship('CommissionRule', back_populates='shop')
     expenses = relationship('Expense', back_populates='shop')
     stock_adjustments = relationship('StockAdjustment', back_populates='shop')
+    
+    # Subscription Management Relationships
+    subscriptions = relationship('Subscription', back_populates='shop')
+    feature_controls = relationship('FeatureControl', back_populates='shop')
+    usage_tracking = relationship('UsageTracking', back_populates='shop')
+    subscription_history = relationship('SubscriptionHistory', back_populates='shop')
 
 # Stub StockAdjustment model to resolve relationship
 class StockAdjustment(Base):
@@ -480,3 +520,82 @@ class AuditLog(Base):
     # Relationships
     shop = relationship('Shop')
     user = relationship('User', back_populates='audit_logs')
+
+# Subscription Management Models
+
+class Subscription(Base):
+    __tablename__ = 'subscription'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False)
+    plan_id = Column(Integer, ForeignKey('plan.id'), nullable=False)
+    billing_cycle = Column(Enum(BillingCycle), default=BillingCycle.MONTHLY)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    auto_renew = Column(Boolean, default=True)
+    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.ACTIVE)
+    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    amount = Column(DECIMAL(10,2), nullable=False)
+    discount_amount = Column(DECIMAL(10,2), default=0.00)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    shop = relationship('Shop', back_populates='subscriptions')
+    plan = relationship('Plan', back_populates='subscriptions')
+    subscription_history = relationship('SubscriptionHistory', back_populates='subscription')
+
+class FeatureControl(Base):
+    __tablename__ = 'feature_control'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False)
+    feature_name = Column(String(100), nullable=False)
+    is_enabled = Column(Boolean, default=True)
+    limit_value = Column(Integer)
+    limit_type = Column(Enum(LimitType))
+    controlled_by = Column(Integer, ForeignKey('superadmin.id'))
+    reason = Column(Text)
+    effective_from = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    shop = relationship('Shop', back_populates='feature_controls')
+    controller = relationship('Superadmin', back_populates='controlled_features')
+
+class UsageTracking(Base):
+    __tablename__ = 'usage_tracking'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False)
+    feature_name = Column(String(100), nullable=False)
+    usage_count = Column(Integer, default=0)
+    usage_date = Column(Date, nullable=False)
+    reset_cycle = Column(Enum(ResetCycle), default=ResetCycle.MONTHLY)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    shop = relationship('Shop', back_populates='usage_tracking')
+
+class SubscriptionHistory(Base):
+    __tablename__ = 'subscription_history'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    subscription_id = Column(Integer, ForeignKey('subscription.id'), nullable=False)
+    shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False)
+    previous_plan_id = Column(Integer, ForeignKey('plan.id'))
+    new_plan_id = Column(Integer, ForeignKey('plan.id'), nullable=False)
+    change_reason = Column(Text)
+    changed_by = Column(Integer, ForeignKey('superadmin.id'))
+    effective_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    subscription = relationship('Subscription', back_populates='subscription_history')
+    shop = relationship('Shop', back_populates='subscription_history')
+    previous_plan = relationship('Plan', foreign_keys=[previous_plan_id])
+    new_plan = relationship('Plan', foreign_keys=[new_plan_id])
+    changer = relationship('Superadmin', back_populates='subscription_changes')

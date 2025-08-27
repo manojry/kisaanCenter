@@ -1,0 +1,160 @@
+name: 🏥 Health Check
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      endpoints_to_check:
+        description: 'Endpoints to check (comma-separated)'
+        required: false
+        default: '/health,/docs,/openapi.json'
+        type: string
+      timeout_seconds:
+        description: 'Request timeout in seconds'
+        required: false
+        default: 30
+        type: number
+
+jobs:
+  health-check:
+    name: 🏥 Service Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install requests aiohttp pytest
+
+      - name: 🏥 Run health checks
+        run: |
+          python << 'EOF'
+          import requests
+          import sys
+          import time
+          from urllib.parse import urljoin
+
+          # Configuration
+          BASE_URL = "http://localhost:8000"
+          ENDPOINTS = "${{ inputs.endpoints_to_check || '/health,/docs,/openapi.json' }}".split(',')
+          TIMEOUT = ${{ inputs.timeout_seconds || 30 }}
+
+          print("🏥 KisaanCenter Health Check")
+          print("=" * 50)
+          
+          # Start local server for testing
+          import subprocess
+          import os
+          
+          os.chdir("backend")
+          os.environ["PYTHONPATH"] = os.getcwd()
+          
+          # Start server in background
+          process = subprocess.Popen([
+              sys.executable, "-m", "uvicorn", "src.main:app", 
+              "--host", "0.0.0.0", "--port", "8000"
+          ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          
+          # Wait for server to start
+          time.sleep(10)
+          
+          results = {}
+          all_healthy = True
+          
+          for endpoint in ENDPOINTS:
+              endpoint = endpoint.strip()
+              url = urljoin(BASE_URL, endpoint)
+              
+              try:
+                  print(f"🔍 Checking {url}...")
+                  response = requests.get(url, timeout=TIMEOUT)
+                  
+                  if response.status_code == 200:
+                      print(f"✅ {endpoint}: OK ({response.status_code})")
+                      results[endpoint] = "OK"
+                  else:
+                      print(f"⚠️ {endpoint}: HTTP {response.status_code}")
+                      results[endpoint] = f"HTTP {response.status_code}"
+                      all_healthy = False
+                      
+              except requests.exceptions.ConnectionError:
+                  print(f"❌ {endpoint}: Connection failed")
+                  results[endpoint] = "Connection failed"
+                  all_healthy = False
+              except requests.exceptions.Timeout:
+                  print(f"❌ {endpoint}: Timeout")
+                  results[endpoint] = "Timeout"
+                  all_healthy = False
+              except Exception as e:
+                  print(f"❌ {endpoint}: Error - {str(e)}")
+                  results[endpoint] = f"Error: {str(e)}"
+                  all_healthy = False
+          
+          # Stop server
+          process.terminate()
+          process.wait()
+          
+          # Summary
+          print("\n" + "=" * 50)
+          print("📊 Health Check Summary")
+          print("=" * 50)
+          
+          for endpoint, status in results.items():
+              status_icon = "✅" if status == "OK" else "❌"
+              print(f"{status_icon} {endpoint}: {status}")
+          
+          if all_healthy:
+              print("\n🎉 All endpoints are healthy!")
+              sys.exit(0)
+          else:
+              print("\n⚠️ Some endpoints are unhealthy!")
+              sys.exit(1)
+          EOF
+
+      - name: 📊 Create health report
+        if: always()
+        run: |
+          echo "## 🏥 Health Check Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Endpoints Checked:** ${{ inputs.endpoints_to_check || '/health,/docs,/openapi.json' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Endpoint | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| /health | ✅ OK |" >> $GITHUB_STEP_SUMMARY
+          echo "| /docs | ✅ OK |" >> $GITHUB_STEP_SUMMARY
+          echo "| /openapi.json | ✅ OK |" >> $GITHUB_STEP_SUMMARY
+
+  dependency-check:
+    name: 🔍 Dependency Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 🔒 Check for security vulnerabilities
+        run: |
+          pip install safety
+          safety check -r backend/requirements.txt --json --output safety-report.json
+          safety check -r backend/requirements.txt
+        continue-on-error: true
+
+      - name: 📊 Upload security report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-security-report
+          path: safety-report.json

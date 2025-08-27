@@ -1,0 +1,430 @@
+"""
+Super Admin API Endpoints
+
+Advanced super admin controls including:
+- Shop-specific plan customizations
+- Account management (enable/disable)
+- Bulk operations
+- Business protection and analytics
+
+Related Documentation:
+- Super Admin Controls: /Documents/Features/Super_Admin_Enhanced_Controls.md
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any, Optional
+from datetime import date, datetime, timedelta
+from pydantic import BaseModel, Field
+
+from ..database import get_db
+from ..services.superadmin_service import SuperAdminControlService, ShopAnalyticsService
+from ..services.superadmin_service import BusinessError, ComplianceError, ResourceError
+
+router = APIRouter(prefix="/admin", tags=["super-admin"])
+
+# Request/Response Models
+
+class PlanOverrideRequest(BaseModel):
+    overrides: Dict[str, Any] = Field(..., description="Feature overrides to apply")
+    reason: str = Field(..., min_length=1, max_length=500)
+    valid_until: Optional[date] = None
+
+class ShopStatusRequest(BaseModel):
+    status: str = Field(..., pattern="^(active|suspended|inactive)$")
+    reason: Optional[str] = None
+    cascade_to_users: bool = True
+    effective_immediately: bool = True
+
+class PasswordResetRequest(BaseModel):
+    require_immediate_change: bool = True
+    send_notification: bool = True
+
+class BulkChangesRequest(BaseModel):
+    shop_ids: List[int] = Field(..., min_items=1)
+    changes: Dict[str, Any] = Field(..., min_items=1)
+    reason: str = Field(..., min_length=1, max_length=500)
+
+class OverrideResponse(BaseModel):
+    shop_id: int
+    overrides_applied: Dict[str, Any]
+    updated_controls: int
+    impact_analysis: Dict[str, Any]
+    approval_required: bool
+    approval_reason: Optional[str] = None
+    valid_until: Optional[date] = None
+
+class ShopStatusResponse(BaseModel):
+    shop_id: int
+    old_status: str
+    new_status: str
+    users_affected: int
+    cascade_applied: bool
+    effective_immediately: bool
+    reason: str
+
+class PasswordResetResponse(BaseModel):
+    user_id: int
+    username: str
+    temporary_password: str
+    require_immediate_change: bool
+    notification_sent: bool
+
+# Shop-Specific Plan Customization Endpoints
+
+@router.put("/shops/{shop_id}/plan-overrides", response_model=OverrideResponse)
+def create_shop_plan_override(
+    shop_id: int,
+    override_request: PlanOverrideRequest,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Create shop-specific plan overrides with business protection"""
+    
+    service = SuperAdminControlService(db)
+    
+    try:
+        result = service.create_shop_plan_override(
+            shop_id=shop_id,
+            admin_id=admin_id,
+            overrides=override_request.overrides,
+            reason=override_request.reason,
+            valid_until=override_request.valid_until
+        )
+        return result
+    
+    except (BusinessError, ComplianceError, ResourceError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/shops/{shop_id}/overrides")
+def get_shop_overrides(
+    shop_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get all active overrides for a shop"""
+    
+    service = SuperAdminControlService(db)
+    
+    try:
+        return service.get_shop_overrides_summary(shop_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.delete("/shops/{shop_id}/overrides/{feature_name}")
+def remove_shop_override(
+    shop_id: int,
+    feature_name: str,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Remove a specific override for a shop"""
+    
+    from ..services.subscription_service import FeatureControlService
+    service = FeatureControlService(db)
+    
+    try:
+        # Reset to plan default by removing admin control
+        service.update_feature_control(
+            shop_id=shop_id,
+            feature_name=feature_name,
+            admin_id=None,  # Remove admin control
+            reason="Override removed by admin"
+        )
+        return {"message": f"Override for {feature_name} removed successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# Account Management Endpoints
+
+@router.put("/shops/{shop_id}/status", response_model=ShopStatusResponse)
+def manage_shop_status(
+    shop_id: int,
+    status_request: ShopStatusRequest,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Enable/disable shop and optionally all its users"""
+    
+    service = SuperAdminControlService(db)
+    
+    try:
+        result = service.manage_shop_status(
+            shop_id=shop_id,
+            admin_id=admin_id,
+            status=status_request.status,
+            reason=status_request.reason,
+            cascade_to_users=status_request.cascade_to_users,
+            effective_immediately=status_request.effective_immediately
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/users/{user_id}/force-password-reset", response_model=PasswordResetResponse)
+def force_password_reset(
+    user_id: int,
+    reset_request: PasswordResetRequest,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Force password reset for a user"""
+    
+    service = SuperAdminControlService(db)
+    
+    try:
+        result = service.force_password_reset(
+            user_id=user_id,
+            admin_id=admin_id,
+            require_immediate_change=reset_request.require_immediate_change,
+            send_notification=reset_request.send_notification
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# Bulk Operations Endpoints
+
+@router.post("/bulk/plan-changes")
+def bulk_plan_changes(
+    bulk_request: BulkChangesRequest,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Apply plan changes to multiple shops"""
+    
+    service = SuperAdminControlService(db)
+    
+    result = service.bulk_plan_changes(
+        shop_ids=bulk_request.shop_ids,
+        changes=bulk_request.changes,
+        admin_id=admin_id,
+        reason=bulk_request.reason
+    )
+    
+    return {
+        "message": f"Bulk operation completed: {len(result['successful'])} successful, {len(result['failed'])} failed",
+        "details": result
+    }
+
+@router.post("/bulk/shop-status")
+def bulk_shop_status_change(
+    shop_ids: List[int],
+    status_request: ShopStatusRequest,
+    admin_id: int = 1,  # TODO: Get from authentication
+    db: Session = Depends(get_db)
+):
+    """Change status for multiple shops"""
+    
+    service = SuperAdminControlService(db)
+    results = {
+        'successful': [],
+        'failed': [],
+        'total_shops': len(shop_ids)
+    }
+    
+    for shop_id in shop_ids:
+        try:
+            result = service.manage_shop_status(
+                shop_id=shop_id,
+                admin_id=admin_id,
+                status=status_request.status,
+                reason=f"Bulk operation: {status_request.reason}",
+                cascade_to_users=status_request.cascade_to_users,
+                effective_immediately=status_request.effective_immediately
+            )
+            results['successful'].append({'shop_id': shop_id, 'result': result})
+        except Exception as e:
+            results['failed'].append({'shop_id': shop_id, 'error': str(e)})
+    
+    return {
+        "message": f"Bulk status change completed: {len(results['successful'])} successful, {len(results['failed'])} failed",
+        "details": results
+    }
+
+# Analytics & Monitoring Endpoints
+
+@router.get("/shops/{shop_id}/analytics")
+def get_shop_analytics(
+    shop_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive shop analytics"""
+    
+    service = ShopAnalyticsService(db)
+    
+    try:
+        return service.get_shop_performance_metrics(shop_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/analytics/risk-assessment")
+def get_risk_assessment(
+    db: Session = Depends(get_db)
+):
+    """Get system-wide risk assessment"""
+    
+    from ..models import Shop, Subscription, SubscriptionStatus
+    
+    # Get shops with payment issues
+    payment_risk_shops = db.query(Shop).join(Subscription).filter(
+        Subscription.payment_status.in_(['overdue', 'failed']),
+        Subscription.status == SubscriptionStatus.ACTIVE
+    ).all()
+    
+    # Get suspended shops
+    suspended_shops = db.query(Shop).filter(
+        Shop.status == 'suspended'
+    ).count()
+    
+    # Get shops with custom overrides
+    shops_with_overrides = db.query(Shop).join(
+        "feature_controls"
+    ).filter(
+        "feature_controls.controlled_by IS NOT NULL"
+    ).distinct().count()
+    
+    return {
+        "payment_risk": {
+            "count": len(payment_risk_shops),
+            "shops": [{"id": s.id, "name": s.name} for s in payment_risk_shops]
+        },
+        "suspended_shops": suspended_shops,
+        "shops_with_custom_overrides": shops_with_overrides,
+        "total_active_shops": db.query(Shop).filter(Shop.status == 'active').count()
+    }
+
+@router.get("/analytics/revenue-impact")
+def get_revenue_impact_analysis(
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Analyze revenue impact of admin overrides"""
+    
+    from ..models import SubscriptionHistory
+    
+    # Get subscription changes in the last N days
+    cutoff_date = date.today() - timedelta(days=days)
+    
+    recent_changes = db.query(SubscriptionHistory).filter(
+        SubscriptionHistory.effective_date >= cutoff_date,
+        SubscriptionHistory.change_reason.like('%override%')
+    ).all()
+    
+    total_changes = len(recent_changes)
+    # In production, calculate actual revenue impact
+    estimated_impact = 0  # Would calculate based on price changes
+    
+    return {
+        "period_days": days,
+        "total_override_changes": total_changes,
+        "estimated_revenue_impact": estimated_impact,
+        "recent_changes": [
+            {
+                "shop_id": change.shop_id,
+                "change_reason": change.change_reason,
+                "effective_date": change.effective_date,
+                "changed_by": change.changed_by
+            }
+            for change in recent_changes
+        ]
+    }
+
+# Business Protection Endpoints
+
+@router.get("/protection/validate-overrides")
+def validate_override_proposal(
+    shop_id: int,
+    proposed_overrides: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """Validate proposed overrides without applying them"""
+    
+    service = SuperAdminControlService(db)
+    
+    try:
+        # Use internal validation method
+        service._validate_overrides(shop_id, proposed_overrides)
+        impact = service._analyze_change_impact(shop_id, proposed_overrides)
+        approval_required, approval_reason = service._requires_approval(proposed_overrides)
+        
+        return {
+            "valid": True,
+            "impact_analysis": impact,
+            "approval_required": approval_required,
+            "approval_reason": approval_reason,
+            "warnings": []
+        }
+    
+    except (BusinessError, ComplianceError, ResourceError) as e:
+        return {
+            "valid": False,
+            "error": str(e),
+            "error_type": e.__class__.__name__
+        }
+
+@router.get("/protection/business-rules")
+def get_business_protection_rules():
+    """Get current business protection rules and limits"""
+    
+    from ..services.superadmin_service import (
+        MIN_MONTHLY_PRICE, MAX_DISCOUNT_YEARLY, MAX_DISCOUNT_QUARTERLY,
+        MAX_DATA_RETENTION_MONTHS, RESOURCE_LIMITS, HIGH_RISK_THRESHOLDS
+    )
+    
+    return {
+        "pricing_protection": {
+            "min_monthly_price": float(MIN_MONTHLY_PRICE),
+            "max_discount_yearly": MAX_DISCOUNT_YEARLY,
+            "max_discount_quarterly": MAX_DISCOUNT_QUARTERLY
+        },
+        "compliance_protection": {
+            "max_data_retention_months": MAX_DATA_RETENTION_MONTHS
+        },
+        "resource_limits": RESOURCE_LIMITS,
+        "approval_thresholds": HIGH_RISK_THRESHOLDS
+    }
+
+# System Health for Super Admin
+
+@router.get("/health")
+def super_admin_health_check(db: Session = Depends(get_db)):
+    """Health check for super admin functionality"""
+    
+    try:
+        from ..models import Shop, User, Subscription, FeatureControl
+        
+        # Count key entities
+        total_shops = db.query(Shop).count()
+        active_shops = db.query(Shop).filter(Shop.status == 'active').count()
+        total_users = db.query(User).count()
+        active_subscriptions = db.query(Subscription).filter(
+            Subscription.status == 'active'
+        ).count()
+        custom_controls = db.query(FeatureControl).filter(
+            FeatureControl.controlled_by.isnot(None)
+        ).count()
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "system_metrics": {
+                "total_shops": total_shops,
+                "active_shops": active_shops,
+                "total_users": total_users,
+                "active_subscriptions": active_subscriptions,
+                "custom_feature_controls": custom_controls
+            },
+            "protection_systems": {
+                "business_rules": "active",
+                "compliance_checks": "active",
+                "approval_workflows": "active"
+            }
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Super admin service unhealthy: {str(e)}"
+        )

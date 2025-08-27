@@ -11,6 +11,7 @@ from src.database import db_manager
 
 # Import API routers
 from src.api.endpoints import user, shops, product, transaction, payments, credits
+from src.api import subscriptions, superadmin
 
 # Import core modules
 from src.core import setup_logging
@@ -63,12 +64,15 @@ app = FastAPI(
     ### Features
     * **User Management**: Multi-role user system (superadmin, owner, farmer, buyer, employee)
     * **Shop Operations**: Multi-tenant shop management with plans and configurations
+    * **Subscription Management**: Flexible billing cycles with feature controls
     * **Product Management**: Product catalog with categories and pricing
     * **Stock Management**: Real-time farmer stock tracking and adjustments
     * **Transaction Processing**: Complete transaction lifecycle with three-party completion model
     * **Payment Systems**: Multiple payment methods with partial payment support
     * **Credit Management**: Buyer credit system with detailed tracking
     * **Commission Tracking**: Automated commission calculation and confirmation
+    * **Feature Controls**: Granular restrictions on user creation, data access, and transactions
+    * **Usage Analytics**: Real-time usage tracking and upgrade predictions
     * **Audit Trail**: Complete audit logging for compliance and traceability
     
     ### Business Model
@@ -152,6 +156,8 @@ app.include_router(product.router, prefix="/api/v1")
 app.include_router(transaction.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
 app.include_router(credits.router, prefix="/api/v1")
+app.include_router(subscriptions.router, prefix="/api/v1")
+app.include_router(superadmin.router, prefix="/api/v1")
 
 # Health check endpoints
 @app.get("/", tags=["Health"])
@@ -206,7 +212,9 @@ def api_info():
             "products": "/api/v1/products",
             "transactions": "/api/v1/transactions",
             "payments": "/api/v1/payments",
-            "credits": "/api/v1/credits"
+            "credits": "/api/v1/credits",
+            "subscriptions": "/api/v1/subscriptions",
+            "super_admin": "/api/v1/admin"
         },
         "documentation": {
             "swagger": "/docs",
