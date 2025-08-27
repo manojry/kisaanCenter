@@ -1,0 +1,108 @@
+import { UserRole, TransactionStatus, PaymentStatus, CreditStatus, CompletionStatus, TransactionType, PaymentMethod } from './enums'
+
+// Core entity types matching backend ERD
+export interface User {
+  id: number
+  username: string
+  role: UserRole
+  shop_id?: number
+  contact?: string
+  credit_limit?: number
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Shop {
+  id: number
+  name: string
+  address: string
+  owner_user_id: number
+  plan?: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Product {
+  id: number
+  name: string
+  category: string
+  unit: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FarmerStock {
+  id: number
+  farmer_id: number
+  product_id: number
+  quantity: number
+  rate: number
+  status: string
+  created_at: string
+  updated_at: string
+  farmer?: User
+  product?: Product
+}
+
+export interface Transaction {
+  id: number
+  shop_id: number
+  buyer_user_id: number
+  type: TransactionType
+  status: TransactionStatus
+  total_amount: number
+  commission_rate: number
+  commission_amount: number
+  buyer_paid_amount: number
+  farmer_paid_amount: number
+  commission_confirmed: boolean
+  completion_status: CompletionStatus
+  created_at: string
+  updated_at: string
+  buyer?: User
+  shop?: Shop
+  transaction_items?: TransactionItem[]
+  payments?: Payment[]
+}
+
+export interface TransactionItem {
+  id: number
+  transaction_id: number
+  product_id: number
+  farmer_stock_id: number
+  quantity: number
+  rate: number
+  amount: number
+  created_at: string
+  updated_at: string
+  product?: Product
+  farmer_stock?: FarmerStock
+}
+
+export interface Payment {
+  id: number
+  transaction_id: number
+  payer_user_id: number
+  amount: number
+  method: PaymentMethod
+  status: PaymentStatus
+  created_at: string
+  updated_at: string
+  payer?: User
+  transaction?: Transaction
+}
+
+export interface Credit {
+  id: number
+  transaction_id: number
+  user_id: number
+  amount: number
+  status: CreditStatus
+  created_at: string
+  updated_at: string
+  user?: User
+  transaction?: Transaction
+}

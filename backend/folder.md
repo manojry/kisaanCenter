@@ -431,18 +431,39 @@ export class WebSocketService {
   }
 }
 ```## 6. Best Practices Followed
-- **Feature isolation**: All plan logic is in `features/plan/`
-- **API abstraction**: All API calls in one file
-- **Type safety**: All data is typed
-- **React Query**: For data fetching and cache
-- **Form validation**: With Formik/Yup
-- **No business logic in UI**: All logic in hooks/services
-- **Reusable components**: For forms, lists, etc.
+## 6. Best Practices Followed
+**Feature isolation**: All logic for a domain in its own folder.
+**API abstraction**: All API calls in one file per feature.
+**Type safety**: All data is typed.
+**React Query**: For data fetching and cache.
+**Form validation**: With Formik/Yup.
+**No business logic in UI**: All logic in hooks/services.
+**Reusable components**: For forms, lists, etc.
+**Accessibility**: All UI must be keyboard and screen-reader accessible.
+**Internationalization**: Support for multiple languages.
+**Documentation**: Every feature and shared module must have a README.md.
 
 ## 7. Extending for Other Features
-- Add new features (e.g., shop, store, transaction) as new folders in `features/`
-- Each feature manages its own API, types, hooks, and components
-- Shared code lives in `components/`, `services/`, `context/`, and `utils/`
+Add new features as new folders in `features/`.
+Each feature manages its own API, types, hooks, and components.
+Shared code lives in `components/`, `services/`, `context/`, and `utils/`.
+Update documentation and tests for every new feature.
+
+## 8. Testing Strategy
+
+- **Unit tests:** For all components, hooks, and services.
+- **Integration tests:** For feature workflows and API interactions.
+- **End-to-end tests:** For critical user journeys (login, transaction, payment).
+- **Coverage:** Aim for >90% coverage per feature.
+
+## 9. Continuous Improvement
+
+- Regularly audit code for modularity, test coverage, and documentation.
+- Use automated tools (lint, prettier, jest, cypress) in CI/CD.
+- Review and update architecture as business needs evolve.
+
+---
+This improved guide ensures your frontend remains scalable, maintainable, accessible, and testable as you grow.
 
 ---
 This plan ensures a scalable, maintainable, and testable frontend for plan management and all future features.
