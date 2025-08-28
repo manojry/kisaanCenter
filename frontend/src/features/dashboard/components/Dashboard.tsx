@@ -15,11 +15,24 @@ const Dashboard: React.FC = () => {
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getDashboardStats();
       setStats(data);
     } catch (err) {
-      setError('Failed to load dashboard data');
-      console.error(err);
+      console.error('Dashboard API error:', err);
+      setError('Unable to load dashboard data. Please check if the backend server is running.');
+      
+      // Set fallback/mock data for development
+      setStats({
+        total_users: 0,
+        active_users: 0,
+        total_shops: 0,
+        active_shops: 0,
+        total_transactions: 0,
+        total_revenue: 0,
+        total_commission: 0,
+        pending_payments: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -34,16 +47,33 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && !stats) {
     return (
       <div className="dashboard-error">
         <div className="alert alert-error">
           <span className="error-icon">⚠️</span>
           {error}
         </div>
-        <button onClick={loadDashboardStats} className="btn btn-primary">
-          Retry
-        </button>
+        <div className="error-actions">
+          <button onClick={loadDashboardStats} className="btn btn-primary">
+            🔄 Retry Connection
+          </button>
+          <button onClick={() => {
+            setError(null);
+            setStats({
+              total_users: 0,
+              active_users: 0,
+              total_shops: 0,
+              active_shops: 0,
+              total_transactions: 0,
+              total_revenue: 0,
+              total_commission: 0,
+              pending_payments: 0,
+            });
+          }} className="btn btn-secondary">
+            📊 View Offline Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -61,6 +91,18 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard">
+      {error && (
+        <div className="dashboard-warning">
+          <div className="alert alert-warning">
+            <span className="warning-icon">⚠️</span>
+            API connection failed. Showing offline dashboard with placeholder data.
+            <button onClick={loadDashboardStats} className="retry-btn">
+              🔄 Retry
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="dashboard-header">
         <h1>Dashboard Overview</h1>
         <button 
