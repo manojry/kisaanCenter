@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ThemeProvider } from '@/context/ThemeContext'
 import LoginForm from '@/features/auth/components/LoginForm'
 import Header from '@/components/layout/Header'
 import Navigation from '@/components/Navigation'
@@ -165,21 +166,23 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <AppRoutes />
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-            }}
-          />
-        </Router>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router>
+            <AppRoutes />
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                },
+              }}
+            />
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

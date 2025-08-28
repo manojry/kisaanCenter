@@ -1,6 +1,7 @@
 import React from 'react'
 import { useAuth } from '@/context/AuthContext'
 import Button from '@/components/ui/Button'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { Building2, LogOut, User, Bell } from 'lucide-react'
 import { UserRole } from '@/types/enums'
 
@@ -51,6 +52,9 @@ const Header: React.FC = () => {
 
           {/* User Info & Actions */}
           <div className="flex items-center space-x-4">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
             <button className="p-2 text-gray-400 hover:text-gray-600 relative">
               <Bell className="w-5 h-5" />

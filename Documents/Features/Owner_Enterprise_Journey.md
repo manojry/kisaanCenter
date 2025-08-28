@@ -47,12 +47,6 @@ The owner records shop expenses (wages, rent, utilities, etc.) in the system. Th
 ## 9. Reporting & Analysis
 The owner generates reports on sales, payments, expenses, stock, credit, commission, and price history. These reports help identify trends, manage inventory, and plan for busy seasons.
 
-## 10. Multi-Shop Management (if applicable)
-If the owner operates multiple shops, they can view and manage each shop’s data separately, with superadmin oversight.
-
-## 11. Offboarding & Data Management
-If the owner decides to close the shop or transfer ownership, the superadmin can archive or migrate data securely.
-
 ---
 
 ## What Can Happen?

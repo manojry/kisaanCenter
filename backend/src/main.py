@@ -32,6 +32,55 @@ except ImportError as e:
     shops = None
 
 try:
+    from src.api import plans
+    logger.info("✅ Plans module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import plans module: {e}")
+    plans = None
+
+try:
+    from src.api import owner_users
+    logger.info("✅ Owner Users module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner users module: {e}")
+    owner_users = None
+
+try:
+    from src.api import owner_products
+    logger.info("✅ Owner Products module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner products module: {e}")
+    owner_products = None
+
+try:
+    from src.api import owner_transactions
+    logger.info("✅ Owner Transactions module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner transactions module: {e}")
+    owner_transactions = None
+
+try:
+    from src.api import owner_financial
+    logger.info("✅ Owner Financial module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner financial module: {e}")
+    owner_financial = None
+
+try:
+    from src.api import owner_analytics
+    logger.info("✅ Owner Analytics module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner analytics module: {e}")
+    owner_analytics = None
+
+try:
+    from src.api import owner_admin
+    logger.info("✅ Owner Admin module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import owner admin module: {e}")
+    owner_admin = None
+
+try:
     from src.api import dashboard
     logger.info("✅ Dashboard module imported successfully")
 except ImportError as e:
@@ -173,7 +222,22 @@ else:
     # Create essential user endpoints directly
     @app.post("/api/v1/users/auth/login")
     async def simple_login(username: str, password: str):
-        if username in ["owner1", "farmer1", "buyer1"] and password == "password":
+        # Hierarchy: super-admin -> owner -> employee -> farmer
+        # Superadmin has highest privileges and can access all functionality
+        if username == "superadmin" and password == "admin123":
+            return {
+                "success": True,
+                "message": "Super Admin authentication successful",
+                "data": {
+                    "id": 0,  # Special ID for superadmin
+                    "username": username,
+                    "role": "superadmin",
+                    "permissions": ["all"],  # Superadmin has all permissions
+                    "shop_id": None,  # Superadmin oversees all shops
+                    "level": 0  # Highest privilege level
+                }
+            }
+        elif username in ["owner1", "farmer1", "buyer1"] and password == "password":
             return {
                 "success": True,
                 "message": "Authentication successful",
@@ -181,7 +245,8 @@ else:
                     "id": 1,
                     "username": username,
                     "role": "owner" if username == "owner1" else username.replace("1", ""),
-                    "shop_id": 1
+                    "shop_id": 1,
+                    "level": 1 if username == "owner1" else (2 if username == "buyer1" else 3)  # owner=1, buyer=2, farmer=3
                 }
             }
         else:
@@ -206,6 +271,114 @@ else:
             "success": True,
             "message": "Shops retrieved successfully",
             "data": [{"id": 1, "name": "Main Shop", "status": "active"}]
+        }
+    
+        # Superadmin-specific endpoints with highest privileges
+    @app.get("/api/v1/admin/system-overview")
+    async def get_superadmin_overview():
+        """Superadmin endpoint to view entire system overview"""
+        return {
+            "success": True,
+            "message": "System overview retrieved successfully",
+            "data": {
+                "total_shops": 5,
+                "total_users": 4,  # Including superadmin
+                "total_transactions": 12,
+                "system_health": "excellent",
+                "user_hierarchy": {
+                    "superadmin": {"level": 0, "count": 1, "permissions": "all"},
+                    "owner": {"level": 1, "count": 1, "permissions": "shop_management"},
+                    "buyer": {"level": 2, "count": 1, "permissions": "transaction_view"},
+                    "farmer": {"level": 3, "count": 1, "permissions": "product_supply"}
+                }
+            }
+        }
+    
+    @app.get("/api/v1/admin/dashboard")
+    async def get_superadmin_dashboard():
+        """Superadmin-specific dashboard with cross-shop analytics"""
+        return {
+            "success": True,
+            "message": "Superadmin dashboard retrieved successfully",
+            "data": {
+                "overview": {
+                    "total_revenue": "$50,000",
+                    "total_shops": 5,
+                    "active_users": 125,
+                    "pending_approvals": 8,
+                    "system_alerts": 2
+                },
+                "shop_performance": [
+                    {"shop_id": 1, "name": "Main Market", "revenue": "$15,000", "status": "active"},
+                    {"shop_id": 2, "name": "Fresh Produce", "revenue": "$12,000", "status": "active"},
+                    {"shop_id": 3, "name": "Organic Store", "revenue": "$8,000", "status": "pending"}
+                ],
+                "user_management": {
+                    "new_registrations_today": 3,
+                    "pending_verifications": 5,
+                    "blocked_users": 2
+                },
+                "financial_overview": {
+                    "total_commission": "$2,500",
+                    "pending_payouts": "$1,200",
+                    "monthly_growth": "+15%"
+                }
+            }
+        }
+    
+    @app.get("/api/v1/admin/all-users")
+    async def get_all_users():
+        """Superadmin endpoint to view all users across all shops"""
+        return {
+            "success": True,
+            "message": "All users retrieved successfully",
+            "data": {
+                "users": [
+                    {"id": 0, "username": "superadmin", "role": "superadmin", "shop_id": None, "status": "active"},
+                    {"id": 1, "username": "owner1", "role": "owner", "shop_id": 1, "status": "active"},
+                    {"id": 2, "username": "farmer1", "role": "farmer", "shop_id": 1, "status": "active"},
+                    {"id": 3, "username": "buyer1", "role": "buyer", "shop_id": 1, "status": "active"}
+                ],
+                "summary": {
+                    "total_users": 4,
+                    "active_users": 4,
+                    "users_by_role": {"superadmin": 1, "owner": 1, "farmer": 1, "buyer": 1}
+                }
+            }
+        }
+    
+    @app.get("/api/v1/owner/dashboard")
+    async def get_owner_dashboard():
+        """Owner-specific dashboard for shop management"""
+        return {
+            "success": True,
+            "message": "Owner dashboard retrieved successfully",
+            "data": {
+                "shop_overview": {
+                    "shop_name": "Main Market",
+                    "shop_id": 1,
+                    "total_revenue": "$15,000",
+                    "active_products": 45,
+                    "total_transactions": 78,
+                    "monthly_growth": "+12%"
+                },
+                "today_stats": {
+                    "transactions": 5,
+                    "revenue": "$450",
+                    "new_customers": 3,
+                    "products_sold": 25
+                },
+                "employee_management": {
+                    "total_employees": 8,
+                    "active_today": 6,
+                    "pending_tasks": 3
+                },
+                "inventory": {
+                    "low_stock_items": 5,
+                    "out_of_stock": 2,
+                    "total_products": 45
+                }
+            }
         }
     
     @app.get("/api/v1/products")
@@ -296,6 +469,34 @@ if shops:
     app.include_router(shops.router, prefix="/api/v1")
     logger.info("✅ Shops router included")
 
+if plans:
+    app.include_router(plans.router, prefix="/api/v1")
+    logger.info("✅ Plans router included")
+
+if owner_users:
+    app.include_router(owner_users.router, prefix="/api/v1")
+    logger.info("✅ Owner Users router included")
+
+if owner_products:
+    app.include_router(owner_products.router, prefix="/api/v1")
+    logger.info("✅ Owner Products router included")
+
+if owner_transactions:
+    app.include_router(owner_transactions.router, prefix="/api/v1")
+    logger.info("✅ Owner Transactions router included")
+
+if owner_financial:
+    app.include_router(owner_financial.router, prefix="/api/v1")
+    logger.info("✅ Owner Financial router included")
+
+if owner_analytics:
+    app.include_router(owner_analytics.router, prefix="/api/v1")
+    logger.info("✅ Owner Analytics router included")
+
+if owner_admin:
+    app.include_router(owner_admin.router, prefix="/api/v1")
+    logger.info("✅ Owner Admin router included")
+
 if dashboard:
     app.include_router(dashboard.router, prefix="/api/v1")
     logger.info("✅ Dashboard router included")
@@ -350,6 +551,7 @@ def api_info():
         "endpoints": {
             "users": "/api/v1/users",
             "shops": "/api/v1/shops", 
+            "plans": "/api/v1/plans",
             "products": "/api/v1/products",
             "transactions": "/api/v1/transactions",
             "payments": "/api/v1/payments",
