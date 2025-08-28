@@ -31,6 +31,13 @@ except ImportError as e:
     logger.error(f"❌ Failed to import shops module: {e}")
     shops = None
 
+try:
+    from src.api import dashboard
+    logger.info("✅ Dashboard module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import dashboard module: {e}")
+    dashboard = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -288,6 +295,10 @@ else:
 if shops:
     app.include_router(shops.router, prefix="/api/v1")
     logger.info("✅ Shops router included")
+
+if dashboard:
+    app.include_router(dashboard.router, prefix="/api/v1")
+    logger.info("✅ Dashboard router included")
 
 # Health check endpoints
 @app.get("/", tags=["Health"])
