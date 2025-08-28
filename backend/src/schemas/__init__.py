@@ -42,16 +42,10 @@ class TimestampMixin(BaseModel):
     updated_at: Optional[datetime] = None
 
 # Import user schemas
-from .user_schemas import UserCreate
+from .user_schemas import UserCreate, UserUpdate, UserRead, UserReadWithRelations
 
 # Import shop schemas
-from .shop_schemas import ShopCreate
-
-# Add missing schema classes that are referenced in API modules
-class ShopUpdate(BaseModel):
-    name: Optional[str] = None
-    address: Optional[str] = None
-    description: Optional[str] = None
+from .shop_schemas import ShopCreate, ShopUpdate, ShopRead
 
 # Import subscription schemas if available
 try:

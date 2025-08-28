@@ -13,6 +13,100 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
+@router.get("/farmer/{farmer_id}", response_model=APIResponse, summary="Get farmer dashboard", description="Get dashboard statistics for a farmer")
+async def get_farmer_dashboard(farmer_id: int, db: Session = Depends(get_db)):
+    try:
+        # Example: Get farmer's stock and sales stats
+        stock_stats = db.query(func.count(Product.id)).filter(Product.owner_id == farmer_id).scalar() or 0
+        total_sales = db.query(func.sum(TransactionItem.quantity * TransactionItem.price)).join(Transaction).filter(Transaction.farmer_id == farmer_id).scalar() or 0.0
+        recent_sales = db.query(Transaction).filter(Transaction.farmer_id == farmer_id).order_by(Transaction.created_at.desc()).limit(5).all()
+        dashboard = {
+            "stock_stats": stock_stats,
+            "sales_stats": {
+                "total_sales": float(total_sales),
+                "recent_sales": [t.id for t in recent_sales]
+            }
+        }
+        return APIResponse(success=True, message="Farmer dashboard retrieved", data=dashboard)
+    except Exception as e:
+        logger.error(f"❌ Error fetching farmer dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch farmer dashboard: {str(e)}")
+
+@router.get("/buyer/{buyer_id}", response_model=APIResponse, summary="Get buyer dashboard", description="Get dashboard statistics for a buyer")
+async def get_buyer_dashboard(buyer_id: int, db: Session = Depends(get_db)):
+    try:
+        # Example: Get buyer's transactions and credits
+        total_transactions = db.query(func.count(Transaction.id)).filter(Transaction.buyer_id == buyer_id).scalar() or 0
+        outstanding_credits = db.query(func.sum(Payment.amount)).filter(Payment.user_id == buyer_id, Payment.status == 'pending').scalar() or 0.0
+        dashboard = {
+            "total_transactions": total_transactions,
+            "outstanding_credits": float(outstanding_credits)
+        }
+        return APIResponse(success=True, message="Buyer dashboard retrieved", data=dashboard)
+    except Exception as e:
+        logger.error(f"❌ Error fetching buyer dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch buyer dashboard: {str(e)}")
+
+@router.get("/employee/{employee_id}", response_model=APIResponse, summary="Get employee dashboard", description="Get dashboard statistics for an employee")
+async def get_employee_dashboard(employee_id: int, db: Session = Depends(get_db)):
+    try:
+        # Example: Get employee's managed transactions
+        managed_transactions = db.query(func.count(Transaction.id)).filter(Transaction.employee_id == employee_id).scalar() or 0
+        dashboard = {
+            "managed_transactions": managed_transactions
+        }
+        return APIResponse(success=True, message="Employee dashboard retrieved", data=dashboard)
+    except Exception as e:
+        logger.error(f"❌ Error fetching employee dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch employee dashboard: {str(e)}")
+
+@router.get("/product-performance", response_model=APIResponse, summary="Get product performance analytics", description="Get top product performance data")
+async def get_product_performance(shop_id: Optional[int] = None, limit: int = 10, db: Session = Depends(get_db)):
+    try:
+        query = db.query(Product.id, Product.name, func.sum(TransactionItem.quantity).label('total_quantity'), func.sum(TransactionItem.quantity * TransactionItem.price).label('total_sales')).join(TransactionItem)
+        if shop_id:
+            query = query.filter(Product.shop_id == shop_id)
+        products = query.group_by(Product.id, Product.name).order_by(func.sum(TransactionItem.quantity * TransactionItem.price).desc()).limit(limit).all()
+        data = [{"product_id": p.id, "name": p.name, "total_quantity": p.total_quantity, "total_sales": float(p.total_sales)} for p in products]
+        return APIResponse(success=True, message="Product performance data retrieved", data=data)
+    except Exception as e:
+        logger.error(f"❌ Error fetching product performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch product performance: {str(e)}")
+
+@router.get("/shop-performance", response_model=APIResponse, summary="Get shop performance analytics", description="Get top shop performance data")
+async def get_shop_performance(limit: int = 10, db: Session = Depends(get_db)):
+    try:
+        shops = db.query(Shop.id, Shop.name, func.count(Transaction.id).label('transaction_count'), func.sum(TransactionItem.quantity * TransactionItem.price).label('shop_revenue')).outerjoin(Transaction).outerjoin(TransactionItem).group_by(Shop.id, Shop.name).order_by(func.sum(TransactionItem.quantity * TransactionItem.price).desc()).limit(limit).all()
+        data = [{"shop_id": s.id, "name": s.name, "transaction_count": s.transaction_count, "shop_revenue": float(s.shop_revenue or 0)} for s in shops]
+        return APIResponse(success=True, message="Shop performance data retrieved", data=data)
+    except Exception as e:
+        logger.error(f"❌ Error fetching shop performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch shop performance: {str(e)}")
+
+@router.get("/user-activity", response_model=APIResponse, summary="Get user activity analytics", description="Get recent user activity data")
+async def get_user_activity(limit: int = 20, db: Session = Depends(get_db)):
+    try:
+        users = db.query(User.id, User.username, User.last_login, User.created_at).order_by(User.last_login.desc()).limit(limit).all()
+        data = [{"user_id": u.id, "username": u.username, "last_login": u.last_login, "created_at": u.created_at} for u in users]
+        return APIResponse(success=True, message="User activity data retrieved", data=data)
+    except Exception as e:
+        logger.error(f"❌ Error fetching user activity: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user activity: {str(e)}")
+
+@router.get("/revenue-trends", response_model=APIResponse, summary="Get revenue trends analytics", description="Get revenue trends over time")
+async def get_revenue_trends(shop_id: Optional[int] = None, days: int = 30, db: Session = Depends(get_db)):
+    try:
+        start_date = datetime.now() - timedelta(days=days)
+        query = db.query(func.date(Transaction.created_at).label('date'), func.sum(TransactionItem.quantity * TransactionItem.price).label('revenue')).join(TransactionItem).filter(Transaction.created_at >= start_date)
+        if shop_id:
+            query = query.filter(Transaction.shop_id == shop_id)
+        trends = query.group_by(func.date(Transaction.created_at)).order_by(func.date(Transaction.created_at)).all()
+        data = [{"date": t.date, "revenue": float(t.revenue or 0)} for t in trends]
+        return APIResponse(success=True, message="Revenue trends data retrieved", data=data)
+    except Exception as e:
+        logger.error(f"❌ Error fetching revenue trends: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch revenue trends: {str(e)}")
+
 @router.get(
     "/stats",
     response_model=APIResponse,
