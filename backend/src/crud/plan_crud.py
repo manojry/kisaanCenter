@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from ..models import Plan, PlanFeature, RecordStatus
-from ..schemas.plan_schemas import PlanCreate, PlanUpdate, PaginationParams
+from ..schemas.plan_schemas import PlanCreate, PlanUpdate
+from ..schemas import PaginationParams
 
 
 class PlanCRUD:

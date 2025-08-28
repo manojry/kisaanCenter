@@ -10,10 +10,10 @@ export async function fetchAuditLogs(filter?: AuditFilter): Promise<AuditLog[]> 
       }
     });
   }
-  const url = params.toString() ? `/audit-logs?${params.toString()}` : '/audit-logs';
-  const response = await apiClient.get<AuditLog[]>(url);
-  if (!response.data) throw new Error('No audit log data returned');
-  return response.data;
+  const url = params.toString() ? `/audit/logs?${params.toString()}` : '/audit/logs';
+  const response = await apiClient.get<{success: boolean; data: {logs: AuditLog[]}}>(url);
+  if (!response.data?.success) throw new Error('No audit log data returned');
+  return response.data.data.logs;
 }
 
 export async function fetchAuditLogById(logId: string): Promise<AuditLog> {

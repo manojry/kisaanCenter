@@ -28,3 +28,39 @@ export async function updateShop(shopId: string, shopData: Partial<Shop>): Promi
 export async function deleteShop(shopId: string): Promise<void> {
   await apiClient.delete<void>(`/shops/${shopId}`);
 }
+
+// Plan Management APIs
+export interface PlanAssignmentRequest {
+  plan_id: number;
+  billing_cycle?: string;
+  start_date?: string;
+  end_date?: string;
+  reason?: string;
+  superadmin_id?: number;
+}
+
+export async function assignPlanToShop(shopId: number, request: PlanAssignmentRequest): Promise<any> {
+  const queryParams = new URLSearchParams();
+  Object.entries(request).forEach(([key, value]) => {
+    if (value !== undefined) queryParams.append(key, String(value));
+  });
+  
+  const response = await apiClient.post(`/shops/${shopId}/plan?${queryParams.toString()}`);
+  return response.data;
+}
+
+export async function upgradePlan(shopId: number, planId: number, reason?: string): Promise<any> {
+  return assignPlanToShop(shopId, {
+    plan_id: planId,
+    billing_cycle: 'monthly',
+    reason: reason || 'Plan upgrade'
+  });
+}
+
+export async function downgradePlan(shopId: number, planId: number, reason?: string): Promise<any> {
+  return assignPlanToShop(shopId, {
+    plan_id: planId,
+    billing_cycle: 'monthly',
+    reason: reason || 'Plan downgrade'
+  });
+}

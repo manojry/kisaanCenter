@@ -19,6 +19,7 @@ import Expenses from '@/pages/Expenses'
 import Reports from '@/pages/Reports'
 import Audit from '@/pages/Audit'
 import Settings from '@/pages/Settings'
+import SuperAdminDashboard from '@/pages/SuperAdminDashboard'
 import '../styles/global.css'
 import './App.css'
 
@@ -60,7 +61,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 }
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
 
   return (
     <Routes>
@@ -70,11 +71,30 @@ const AppRoutes: React.FC = () => {
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginForm />
         } 
       />
+      
+      {/* Super Admin Dashboard */}
+      <Route 
+        path="/superadmin" 
+        element={
+          <ProtectedRoute>
+            {user?.role === 'superadmin' ? (
+              <SuperAdminDashboard user={user} />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )}
+          </ProtectedRoute>
+        } 
+      />
+      
       <Route 
         path="/dashboard" 
         element={
           <ProtectedRoute>
-            <Dashboard />
+            {user?.role === 'superadmin' ? (
+              <Navigate to="/superadmin" replace />
+            ) : (
+              <Dashboard />
+            )}
           </ProtectedRoute>
         } 
       />

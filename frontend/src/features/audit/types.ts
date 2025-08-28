@@ -26,15 +26,15 @@ export enum AuditEntityType {
 export interface AuditLog {
   id: string;
   user_id: string;
-  action: AuditAction;
-  entity_type: AuditEntityType;
+  shop_id?: number;
+  action: string;
+  entity_type: string;
   entity_id: string;
-  old_values?: Record<string, any>;
-  new_values?: Record<string, any>;
-  description: string;
+  old_data?: Record<string, any>;
+  new_data?: Record<string, any>;
+  description?: string;
   ip_address?: string;
   user_agent?: string;
-  timestamp: string;
   created_at: string;
   // Relations
   user?: User;
@@ -42,13 +42,14 @@ export interface AuditLog {
 
 export interface AuditFilter {
   user_id?: string;
-  action?: AuditAction;
-  entity_type?: AuditEntityType;
+  shop_id?: number;
+  action?: string;
+  entity_type?: string;
   entity_id?: string;
-  date_from?: string;
-  date_to?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
   limit?: number;
-  offset?: number;
 }
 
 export interface AuditSummary {
