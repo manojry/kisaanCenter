@@ -39,10 +39,10 @@ const navigation: NavItem[] = [
     roles: [UserRole.SUPERADMIN, UserRole.OWNER]
   },
   {
-    name: 'Shops',
+    name: 'My Shop',
     href: '/shops',
     icon: Building2,
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
+    roles: [UserRole.OWNER]
   },
   {
     name: 'Products',
@@ -57,33 +57,33 @@ const navigation: NavItem[] = [
     roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
   },
   {
-    name: 'Transactions',
+    name: 'Sales',
     href: '/transactions',
     icon: ShoppingCart,
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE]
   },
   {
     name: 'Payments',
     href: '/payments',
     icon: CreditCard,
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE]
   },
   {
     name: 'Credits',
     href: '/credits',
     icon: DollarSign,
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.BUYER]
+    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  {
+    name: 'Expenses',
+    href: '/expenses',
+    icon: FileText,
+    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
   },
   {
     name: 'Reports',
     href: '/reports',
     icon: TrendingUp,
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
-  },
-  {
-    name: 'Audit',
-    href: '/audit',
-    icon: FileText,
     roles: [UserRole.SUPERADMIN, UserRole.OWNER]
   },
   {
@@ -109,7 +109,7 @@ const Sidebar: React.FC = () => {
   return (
     <>
       {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      <div className="lg:hidden fixed top-20 left-4 z-50">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 bg-white rounded-lg shadow-md border border-gray-200"
@@ -128,7 +128,7 @@ const Sidebar: React.FC = () => {
 
       {/* Sidebar */}
       <div className={clsx(
-        'fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white shadow-sm border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:transform-none',
+        'fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white shadow-sm border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:transform-none lg:block',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         <nav className="mt-16 lg:mt-8 px-4">

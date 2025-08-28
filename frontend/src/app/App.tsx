@@ -6,8 +6,8 @@ import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import LoginForm from '@/features/auth/components/LoginForm'
 import Header from '@/components/layout/Header'
-import Navigation from '@/components/Navigation'
-import Dashboard from '@/features/dashboard/components/Dashboard'
+import Sidebar from '@/components/layout/Sidebar'
+import Dashboard from '@/pages/Dashboard'
 import Users from '@/pages/Users'
 import Shops from '@/pages/Shops'
 import Products from '@/pages/Products'
@@ -15,6 +15,7 @@ import Stock from '@/pages/Stock'
 import Transactions from '@/pages/Transactions'
 import Payments from '@/pages/Payments'
 import Credits from '@/pages/Credits'
+import Expenses from '@/pages/Expenses'
 import Reports from '@/pages/Reports'
 import Audit from '@/pages/Audit'
 import Settings from '@/pages/Settings'
@@ -49,8 +50,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex">
-        <Navigation />
-        <main className="flex-1 min-w-0 lg:ml-0">
+        <Sidebar />
+        <main className="flex-1 min-w-0">
           {children}
         </main>
       </div>
@@ -130,6 +131,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Credits />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/expenses" 
+        element={
+          <ProtectedRoute>
+            <Expenses />
           </ProtectedRoute>
         } 
       />
