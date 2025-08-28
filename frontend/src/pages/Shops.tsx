@@ -18,7 +18,7 @@ const Shops: React.FC = () => {
   const fetchShops = async () => {
     try {
       const response = await apiClient.get('/shops')
-      setShops(response.data)
+      setShops(response.data as Shop[])
     } catch (error) {
       toast.error('Failed to fetch shops')
     }

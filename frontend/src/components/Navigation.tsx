@@ -19,91 +19,98 @@ const navigationItems: NavItem[] = [
     label: 'Dashboard',
     icon: '📊',
     route: '/dashboard',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
   {
     id: 'shops',
     label: 'Shops',
     icon: '🏪',
     route: '/shops',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
+    roles: [UserRole.OWNER]
   },
   {
     id: 'products',
     label: 'Products',
     icon: '📦',
     route: '/products',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
   },
   {
     id: 'stock',
     label: 'Stock',
     icon: '📋',
     route: '/stock',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
   },
   {
     id: 'transactions',
     label: 'Transactions',
     icon: '💰',
     route: '/transactions',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
   {
     id: 'payments',
     label: 'Payments',
     icon: '💳',
     route: '/payments',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
   {
     id: 'credit',
     label: 'Credit',
     icon: '🏦',
     route: '/credit',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.BUYER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.BUYER]
   },
   {
     id: 'users',
     label: 'Users',
     icon: '👥',
     route: '/users',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
   {
     id: 'commission',
     label: 'Commission',
     icon: '💼',
     route: '/commission',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
+    roles: [UserRole.OWNER]
   },
   {
     id: 'audit',
     label: 'Audit Log',
     icon: '📝',
     route: '/audit',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER]
+    roles: [UserRole.OWNER]
   },
   {
     id: 'reports',
     label: 'Reports',
     icon: '📈',
     route: '/reports',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
   {
     id: 'settings',
     label: 'Settings',
     icon: '⚙️',
     route: '/settings',
-    roles: [UserRole.SUPERADMIN, UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   }
 ];
 
-export const Navigation: React.FC = () => {
+interface NavigationProps {
+  currentRole: UserRole;
+  currentRoute: string;
+  onNavigate: (route: string) => void;
+  onLogout?: () => void;
+}
+
+export const Navigation: React.FC<NavigationProps> = ({ currentRole, currentRoute, onNavigate, onLogout }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const currentRoute = location.pathname;
+  // const currentRoute = location.pathname;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
 
@@ -112,7 +119,7 @@ export const Navigation: React.FC = () => {
 
   // Get filtered navigation items based on user role
   const visibleNavItems = navigationItems.filter(item => 
-    item.roles.includes(user.role)
+    item.roles.includes(currentRole)
   );
 
   // Close mobile menu when route changes
@@ -198,7 +205,7 @@ export const Navigation: React.FC = () => {
         <div className="nav-footer">
           <div className="user-info">
             <div className="user-avatar">
-              {user.role === UserRole.SUPERADMIN && '👑'}
+
               {user.role === UserRole.OWNER && '🏪'}
               {user.role === UserRole.EMPLOYEE && '👨‍💼'}
               {user.role === UserRole.FARMER && '👨‍🌾'}

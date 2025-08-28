@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { assignPlanToShop, upgradePlan, downgradePlan, PlanAssignmentRequest } from '../api';
 import { Plan } from '../../../types/entities';
+import { getPlanPrice, formatPlanFeatures } from '../../../services/planApi';
 
 interface PlanManagerProps {
   shopId: number;
@@ -103,9 +104,34 @@ const PlanManager: React.FC<PlanManagerProps> = ({
       
       {/* Current Plan Display */}
       {currentPlan && (
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-medium text-blue-800">Current Plan</h4>
-          <p className="text-blue-600">{currentPlan.name} - ${currentPlan.monthly_price}/month</p>
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex justify-between items-start">
+            <div>
+              <h4 className="font-semibold text-blue-900">{currentPlan.name}</h4>
+              <p className="text-blue-700 text-sm mt-1">{currentPlan.description}</p>
+            </div>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              Current
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <span className="text-blue-600">Monthly: </span>
+              <span className="font-semibold">₹{currentPlan.monthly_price}</span>
+            </div>
+            <div>
+              <span className="text-blue-600">Max Farmers: </span>
+              <span className="font-semibold">{currentPlan.max_farmers}</span>
+            </div>
+            <div>
+              <span className="text-blue-600">Max Buyers: </span>
+              <span className="font-semibold">{currentPlan.max_buyers}</span>
+            </div>
+            <div>
+              <span className="text-blue-600">Transactions: </span>
+              <span className="font-semibold">{currentPlan.max_transactions.toLocaleString()}</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -123,25 +149,114 @@ const PlanManager: React.FC<PlanManagerProps> = ({
             <option value={0}>-- Select a Plan --</option>
             {plans.map((plan) => (
               <option key={plan.id} value={plan.id}>
-                {plan.name} - ${plan.monthly_price}/month
+                {plan.name} - ₹{plan.monthly_price}/month (Farmers: {plan.max_farmers}, Buyers: {plan.max_buyers})
               </option>
             ))}
           </select>
         </div>
 
+        {/* Selected Plan Preview */}
+        {selectedPlan && (
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="font-semibold text-gray-900 mb-2">{selectedPlan.name}</h4>
+            <p className="text-gray-600 text-sm mb-3">{selectedPlan.description}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Monthly:</span>
+                  <span className="font-semibold">₹{selectedPlan.monthly_price}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Quarterly:</span>
+                  <span className="font-semibold">₹{selectedPlan.quarterly_price || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Yearly:</span>
+                  <span className="font-semibold">₹{selectedPlan.yearly_price || 'N/A'}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Max Farmers:</span>
+                  <span className="font-semibold">{selectedPlan.max_farmers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Max Buyers:</span>
+                  <span className="font-semibold">{selectedPlan.max_buyers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Transactions:</span>
+                  <span className="font-semibold">{selectedPlan.max_transactions.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Data Retention:</span>
+                  <span className="font-semibold">{selectedPlan.data_retention_months} months</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={`font-semibold ${selectedPlan.status === 'active' ? 'text-green-600' : 'text-gray-600'}`}>
+                    {selectedPlan.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Features */}
+            {selectedPlan.features && Object.keys(selectedPlan.features).length > 0 && (
+              <div className="mt-4">
+                <h5 className="font-medium text-gray-900 mb-2">Features</h5>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                  {Object.entries(selectedPlan.features).map(([feature, enabled]) => (
+                    <div key={feature} className={`flex items-center space-x-2 ${enabled ? 'text-green-700' : 'text-gray-400'}`}>
+                      <span className={`w-2 h-2 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      <span className="capitalize">
+                        {feature.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Billing Cycle
           </label>
-          <select
-            value={billingCycle}
-            onChange={(e) => setBillingCycle(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="yearly">Yearly</option>
-          </select>
+          <div className="space-y-2">
+            <select
+              value={billingCycle}
+              onChange={(e) => setBillingCycle(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            
+            {/* Show selected price */}
+            {selectedPlan && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-green-700 font-medium">Selected Price:</span>
+                  <span className="text-green-800 font-bold text-lg">
+                    ₹{getPlanPrice(selectedPlan, billingCycle as 'monthly' | 'quarterly' | 'yearly').toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-green-600 text-xs mt-1">
+                  {billingCycle === 'yearly' && 'Save up to 15% with yearly billing'}
+                  {billingCycle === 'quarterly' && 'Save up to 5% with quarterly billing'}
+                  {billingCycle === 'monthly' && 'Pay monthly with no commitment'}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div>

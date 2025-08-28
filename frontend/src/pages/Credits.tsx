@@ -21,7 +21,7 @@ const Credits: React.FC = () => {
   const fetchCredits = async () => {
     try {
       const response = await apiClient.get('/credits')
-      setCredits(response.data)
+      setCredits(response.data as Credit[])
     } catch (error) {
       toast.error('Failed to fetch credits')
     }

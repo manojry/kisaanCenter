@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User } from '../../../types/entities';
+import { User, Plan } from '../../../types/entities';
 import { UserRole } from '../../../types/enums';
 
 interface OwnerCreatorProps {
@@ -9,14 +9,37 @@ interface OwnerCreatorProps {
 const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
   const [formData, setFormData] = useState({
     username: '',
+    email: '',
     password: '',
+    full_name: '',
     role: 'owner' as UserRole,
     contact: '',
-    credit_limit: 0
+    credit_limit: 0,
+    shop_name: '',
+    shop_location: '',
+    plan_id: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
+
+  // Load available plans when component mounts
+  React.useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('/api/v1/plans');
+        const result = await response.json();
+        if (result.success && result.data?.items) {
+          setAvailablePlans(result.data.items);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+      }
+    };
+
+    fetchPlans();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -39,7 +62,15 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          role: formData.role,
+          contact: formData.contact,
+          credit_limit: formData.credit_limit
+        })
       });
 
       if (!response.ok) {
@@ -49,16 +80,54 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
       const result = await response.json();
       
       if (result.success) {
-        setSuccess(`Owner "${formData.username}" created successfully`);
-        onOwnerCreated(result.data);
+        const newUser = result.data;
+
+        // Step 2: Create the shop with the plan if shop details provided
+        if (formData.shop_name && formData.shop_location && formData.plan_id) {
+          try {
+            const shopResponse = await fetch('/api/v1/shops', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                name: formData.shop_name,
+                location: formData.shop_location,
+                owner_user_id: newUser.id,
+                plan_id: parseInt(formData.plan_id),
+              }),
+            });
+
+            const shopResult = await shopResponse.json();
+            
+            if (!shopResponse.ok) {
+              console.error('Shop creation failed:', shopResult.message);
+              setError(`Owner created but shop creation failed: ${shopResult.message}`);
+            } else {
+              setSuccess(`Owner "${formData.username}" and shop "${formData.shop_name}" created successfully`);
+            }
+          } catch (shopError) {
+            console.error('Shop creation failed:', shopError);
+            setError(`Owner created but shop creation failed: ${shopError instanceof Error ? shopError.message : 'Unknown error'}`);
+          }
+        } else {
+          setSuccess(`Owner "${formData.username}" created successfully`);
+        }
+
+        onOwnerCreated(newUser);
         
         // Reset form
         setFormData({
           username: '',
+          email: '',
           password: '',
+          full_name: '',
           role: 'owner' as UserRole,
           contact: '',
-          credit_limit: 0
+          credit_limit: 0,
+          shop_name: '',
+          shop_location: '',
+          plan_id: ''
         });
       } else {
         throw new Error(result.message || 'Failed to create owner');
@@ -74,75 +143,169 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-semibold mb-6">Create New Owner</h3>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Username *
-          </label>
-          <input
-            type="text"
-            name="username"
-            value={formData.username}
-            onChange={handleInputChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter username"
-          />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Owner Details Section */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Owner Information</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                name="full_name"
+                value={formData.full_name}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter full name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username *
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter username"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password *
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+                minLength={6}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter password (min 6 chars)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contact Number
+              </label>
+              <input
+                type="text"
+                name="contact"
+                value={formData.contact}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter contact number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Initial Credit Limit
+              </label>
+              <input
+                type="number"
+                name="credit_limit"
+                value={formData.credit_limit}
+                onChange={handleInputChange}
+                min={0}
+                step={0.01}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Password *
-          </label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleInputChange}
-            required
-            minLength={6}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter password"
-          />
-        </div>
+        {/* Shop Details Section */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Shop Information</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shop Name *
+              </label>
+              <input
+                type="text"
+                name="shop_name"
+                value={formData.shop_name}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter shop name"
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Contact
-          </label>
-          <input
-            type="text"
-            name="contact"
-            value={formData.contact}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter contact information"
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shop Location *
+              </label>
+              <input
+                type="text"
+                name="shop_location"
+                value={formData.shop_location}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter shop address/location"
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Initial Credit Limit
-          </label>
-          <input
-            type="number"
-            name="credit_limit"
-            value={formData.credit_limit}
-            onChange={handleInputChange}
-            min={0}
-            step={0.01}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0.00"
-          />
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subscription Plan *
+              </label>
+              <select
+                name="plan_id"
+                value={formData.plan_id}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a subscription plan</option>
+                {availablePlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} - ${plan.monthly_price}/month
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="pt-4">
           <button
             type="submit"
-            disabled={loading || !formData.username || !formData.password}
+            disabled={loading || !formData.username || !formData.password || !formData.full_name || !formData.email || !formData.shop_name || !formData.shop_location || !formData.plan_id}
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Owner...' : 'Create Owner'}
+            {loading ? 'Creating Owner & Shop...' : 'Create Owner & Shop'}
           </button>
         </div>
       </form>
@@ -172,12 +335,15 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
 
       {/* Info Box */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="font-medium text-blue-800 mb-2">Owner Creation Notes</h4>
+        <h4 className="font-medium text-blue-800 mb-2">Owner & Shop Creation Notes</h4>
         <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Owners can manage their shops and create farmers/buyers/employees</li>
+          <li>• Creates both owner account and associated shop in one step</li>
+          <li>• Owner will be assigned to the created shop automatically</li>
+          <li>• All fields marked with * are required</li>
           <li>• Username must be unique across the entire system</li>
           <li>• Password must be at least 6 characters long</li>
-          <li>• After creation, owner can be assigned to a shop by creating a shop</li>
+          <li>• Email must be valid and unique</li>
+          <li>• Shop will be linked to the selected subscription plan</li>
         </ul>
       </div>
     </div>

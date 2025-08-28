@@ -24,7 +24,7 @@ const Stock: React.FC = () => {
   const fetchStock = async () => {
     try {
       const response = await apiClient.get('/stock')
-      setStock(response.data)
+      setStock(response.data as Stock[])
     } catch (error) {
       toast.error('Failed to fetch stock')
     }

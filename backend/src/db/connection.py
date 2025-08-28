@@ -33,14 +33,20 @@ class DatabaseConfig:
         # Load environment variables from .env file
         load_dotenv()
         
-        # Environment variables with defaults
-        self.DB_HOST = os.getenv("DB_HOST", "localhost")
+        # Environment variables - all required from environment or .env file
+        self.DB_HOST = os.getenv("DB_HOST")
         self.DB_PORT = os.getenv("DB_PORT", "5432")
-        self.DB_NAME = os.getenv("DB_NAME", "kisaan_center")
-        self.DB_USER = os.getenv("DB_USER", "kisaan_user")
-        self.DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-        self.DB_SSL_MODE = os.getenv("DB_SSL_MODE", "prefer")
+        self.DB_NAME = os.getenv("DB_NAME")
+        self.DB_USER = os.getenv("DB_USER")
+        self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+        self.DB_SSL_MODE = os.getenv("DB_SSL_MODE", "require")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+        
+        # Validate required environment variables
+        required_vars = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"]
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
         # Connection pool settings
         self.POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))

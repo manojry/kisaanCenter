@@ -5,8 +5,8 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import LoginForm from '@/features/auth/components/LoginForm'
-import Header from '@/components/layout/Header'
-import Sidebar from '@/components/layout/Sidebar'
+import SuperAdminLayout from '@/components/layout/SuperAdminLayout'
+import OwnerLayout from '@/components/layout/OwnerLayout'
 import Dashboard from '@/pages/Dashboard'
 import Users from '@/pages/Users'
 import Shops from '@/pages/Shops'
@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
 })
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
     return (
@@ -47,16 +47,20 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />
   }
 
+  // Super Admin gets their own layout without sidebar
+  if (user?.role === 'superadmin') {
+    return (
+      <SuperAdminLayout>
+        {children}
+      </SuperAdminLayout>
+    )
+  }
+
+  // All other users get the owner layout with Navigation
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 min-w-0">
-          {children}
-        </main>
-      </div>
-    </div>
+    <OwnerLayout>
+      {children}
+    </OwnerLayout>
   )
 }
 
@@ -74,30 +78,19 @@ const AppRoutes: React.FC = () => {
       
       {/* Super Admin Dashboard */}
       <Route 
-        path="/superadmin" 
-        element={
-          <ProtectedRoute>
-            {user?.role === 'superadmin' ? (
-              <SuperAdminDashboard user={user} />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )}
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
         path="/dashboard" 
         element={
           <ProtectedRoute>
             {user?.role === 'superadmin' ? (
-              <Navigate to="/superadmin" replace />
+              <SuperAdminDashboard user={user} />
             ) : (
               <Dashboard />
             )}
           </ProtectedRoute>
         } 
       />
+      
+
       <Route 
         path="/users" 
         element={

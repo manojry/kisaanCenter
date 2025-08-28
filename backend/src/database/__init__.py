@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
 
-from ..core.config import settings
+from ..db.connection import config
 from .models import Base
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class DatabaseManager:
     
     def initialize_engine(self, database_url: Optional[str] = None):
         """Initialize database engine."""
-        db_url = database_url or settings.database_url
+        db_url = database_url or config.database_url
         
         try:
             self._engine = create_engine(
@@ -35,7 +35,7 @@ class DatabaseManager:
                 max_overflow=20,
                 pool_recycle=3600,
                 pool_pre_ping=True,
-                echo=settings.DEBUG
+                echo=config.ENVIRONMENT == "development"
             )
             
             self._sessionmaker = sessionmaker(

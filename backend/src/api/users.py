@@ -187,7 +187,7 @@ def get_users(
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     shop_id: Optional[int] = Query(None, description="Filter by shop ID"),
     role: Optional[str] = Query(None, description="Filter by user role"),
-    status: Optional[str] = Query(None, description="Filter by user status"),
+    user_status: Optional[str] = Query(None, description="Filter by user status"),
     search: Optional[str] = Query(None, description="Search in username and contact"),
     sort_by: str = Query("created_at", description="Sort field"),
     sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
@@ -208,7 +208,7 @@ def get_users(
         pagination=pagination,
         shop_id=shop_id,
         role=role,
-        status=status,
+        status=user_status,
         search=search,
         sort_by=sort_by,
         sort_order=sort_order

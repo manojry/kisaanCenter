@@ -58,7 +58,7 @@ export const userApi = {
   },
 
   updateCreditLimit: async (id: number, newLimit: number, updatedById: number): Promise<APIResponse<User>> => {
-    return apiClient.put(ENDPOINTS.UPDATE_CREDIT_LIMIT(id), null, {
+    return apiClient.put(ENDPOINTS.UPDATE_CREDIT_LIMIT(id), {
       new_limit: newLimit,
       updated_by_id: updatedById
     })

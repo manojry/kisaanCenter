@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from ..models import Plan, PlanFeature, RecordStatus
+from ..models import Plan, PlanFeature
 from ..schemas.plan_schemas import PlanCreate, PlanUpdate
 from ..schemas import PaginationParams
 
@@ -23,7 +23,7 @@ class PlanCRUD:
         """Get plan by ID"""
         return db.query(Plan).filter(
             Plan.id == plan_id,
-            Plan.status == RecordStatus.ACTIVE
+            Plan.status == 'active'
         ).first()
     
     @staticmethod
@@ -31,7 +31,7 @@ class PlanCRUD:
         """Get plan by name"""
         return db.query(Plan).filter(
             Plan.name == name,
-            Plan.status == RecordStatus.ACTIVE
+            Plan.status == 'active'
         ).first()
     
     @staticmethod
@@ -42,7 +42,7 @@ class PlanCRUD:
         price_range: Optional[tuple] = None
     ) -> Dict[str, Any]:
         """Get multiple plans with optional filters"""
-        query = db.query(Plan).filter(Plan.status == RecordStatus.ACTIVE)
+        query = db.query(Plan).filter(Plan.status == 'active')
         
         # Apply search filter
         if search:
@@ -100,7 +100,7 @@ class PlanCRUD:
         if not plan:
             return False
         
-        plan.status = RecordStatus.DELETED
+        plan.status = 'inactive'
         db.flush()
         return True
     
@@ -111,7 +111,7 @@ class PlanCRUD:
         
         shops = db.query(Shop).filter(
             Shop.plan_id == plan_id,
-            Shop.status == RecordStatus.ACTIVE
+            Shop.status == 'active'
         ).all()
         
         return [shop.to_dict() for shop in shops]
@@ -124,13 +124,13 @@ class PlanCRUD:
         # Count active shops
         shop_count = db.query(Shop).filter(
             Shop.plan_id == plan_id,
-            Shop.status == RecordStatus.ACTIVE
+            Shop.status == 'active'
         ).count()
         
         # Count active subscriptions
         subscription_count = db.query(Subscription).filter(
             Subscription.plan_id == plan_id,
-            Subscription.status == RecordStatus.ACTIVE
+            Subscription.status == 'active'
         ).count()
         
         # Calculate monthly revenue (simplified calculation)
@@ -172,7 +172,7 @@ class PlanCRUD:
             Plan,
             db.func.count(Shop.id).label('shop_count')
         ).outerjoin(Shop).filter(
-            Plan.status == RecordStatus.ACTIVE
+            Plan.status == 'active'
         ).group_by(Plan.id).order_by(
             db.func.count(Shop.id).desc()
         ).limit(limit).all()

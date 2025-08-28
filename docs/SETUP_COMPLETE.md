@@ -21,7 +21,7 @@
 - **API documentation** available at http://localhost:8000/docs
 
 ### 📊 Database Details
-- **Host**: manoj-test.dev.ea.mpi-internal.com
+- **Host**: xxxxx
 - **Database**: postgres
 - **Tables Created**: 8
 - **Indexes Created**: 12 (for performance)

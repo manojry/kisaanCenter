@@ -22,7 +22,7 @@ const Users: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const response = await apiClient.get('/users')
-      setUsers(response.data)
+      setUsers(response.data as User[])
     } catch (error) {
       toast.error('Failed to fetch users')
     }

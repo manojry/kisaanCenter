@@ -18,13 +18,20 @@ class Settings:
     DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
-    # Database settings
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    # Database settings - all required from environment
+    # Ignore DATABASE_URL if it points to SQLite, always use .env values for PostgreSQL
+    _env_database_url = os.getenv("DATABASE_URL", "")
+    if _env_database_url.startswith("sqlite"):
+        DATABASE_URL: str = ""
+    else:
+        DATABASE_URL: str = _env_database_url
+    
+    # Database connection parameters (required)
+    DB_HOST: str = os.getenv("DB_HOST")
     DB_PORT: int = int(os.getenv("DB_PORT", "5432"))
-    DB_NAME: str = os.getenv("DB_NAME", "kisaan_center")
-    DB_USER: str = os.getenv("DB_USER", "postgres")
-    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "")
+    DB_NAME: str = os.getenv("DB_NAME")
+    DB_USER: str = os.getenv("DB_USER")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD")
     
     # Redis settings (for caching and sessions)
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -32,8 +39,8 @@ class Settings:
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
     REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
     
-    # Security settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
+    # Security settings - SECRET_KEY is required
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
@@ -76,12 +83,28 @@ class Settings:
         if "://" in self.REDIS_URL:
             return self.REDIS_URL
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+    
+    def validate_required_settings(self) -> None:
+        """Validate that all required settings are present."""
+        required_vars = {
+            "DB_HOST": self.DB_HOST,
+            "DB_NAME": self.DB_NAME, 
+            "DB_USER": self.DB_USER,
+            "DB_PASSWORD": self.DB_PASSWORD,
+            "SECRET_KEY": self.SECRET_KEY
+        }
+        
+        missing_vars = [var for var, value in required_vars.items() if not value]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
 
 @lru_cache()
 def get_settings() -> Settings:
-    """Get cached settings instance."""
-    return Settings()
+    """Get cached settings instance with validation."""
+    settings = Settings()
+    settings.validate_required_settings()
+    return settings
 
 
 # Global settings instance

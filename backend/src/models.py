@@ -153,7 +153,7 @@ class Plan(Base):
     features = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(String(20), default='active')
 
     # Relationships
     shops = relationship('Shop', back_populates='plan')
@@ -169,7 +169,7 @@ class PlanFeature(Base):
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(String(20), default='active')
 
     plan = relationship('Plan', back_populates='plan_features')
 
@@ -181,7 +181,6 @@ class Shop(Base):
     location = Column(String(200))
     plan_id = Column(Integer, ForeignKey('plan.id'))
     created_by = Column(Integer, ForeignKey('superadmin.id'))
-    owner_user_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
@@ -189,7 +188,6 @@ class Shop(Base):
     # Relationships
     plan = relationship('Plan', back_populates='shops')
     creator = relationship('Superadmin', back_populates='created_shops')
-    owner = relationship('User', foreign_keys=[owner_user_id], back_populates='owned_shops')
     users = relationship('User', foreign_keys='User.shop_id', back_populates='shop')
     products = relationship('Product', back_populates='shop')
     farmer_stocks = relationship('FarmerStock', back_populates='shop')
@@ -238,7 +236,6 @@ class User(Base):
     
     # Relationships
     shop = relationship('Shop', foreign_keys='User.shop_id', back_populates='users')
-    owned_shops = relationship('Shop', foreign_keys='Shop.owner_user_id', back_populates='owner')
     created_by_user = relationship('User', remote_side=[id])
     farmer_stocks = relationship('FarmerStock', back_populates='farmer_user')
     buyer_transactions = relationship('Transaction', foreign_keys='Transaction.buyer_user_id', back_populates='buyer_user')

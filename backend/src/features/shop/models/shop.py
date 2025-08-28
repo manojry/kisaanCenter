@@ -14,7 +14,6 @@ class Shop(Base):
     location = Column(String(200))
     plan_id = Column(Integer, ForeignKey('plan.id'))
     created_by = Column(Integer, ForeignKey('superadmin.id'))
-    owner_user_id = Column(Integer, ForeignKey('users.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
@@ -22,7 +21,6 @@ class Shop(Base):
     # Relationships
     plan = relationship('Plan', back_populates='shops')
     creator = relationship('Superadmin', back_populates='created_shops')
-    owner = relationship('User', foreign_keys=[owner_user_id], back_populates='owned_shops')
     users = relationship('User', foreign_keys='User.shop_id', back_populates='shop')
     products = relationship('Product', back_populates='shop')
     farmer_stocks = relationship('FarmerStock', back_populates='shop')
@@ -48,7 +46,6 @@ class Shop(Base):
             'location': self.location,
             'plan_id': self.plan_id,
             'created_by': self.created_by,
-            'owner_user_id': self.owner_user_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'status': self.status.value

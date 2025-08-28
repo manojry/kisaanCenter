@@ -22,7 +22,7 @@ const Transactions: React.FC = () => {
   const fetchTransactions = async () => {
     try {
       const response = await apiClient.get('/transactions')
-      setTransactions(response.data)
+      setTransactions(response.data as Transaction[])
     } catch (error) {
       toast.error('Failed to fetch transactions')
     }

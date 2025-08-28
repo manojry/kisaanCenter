@@ -29,7 +29,7 @@ const Expenses: React.FC = () => {
   const fetchExpenses = async () => {
     try {
       const response = await apiClient.get('/expenses')
-      setExpenses(response.data)
+      setExpenses(response.data as Expense[])
     } catch (error) {
       toast.error('Failed to fetch expenses')
     }

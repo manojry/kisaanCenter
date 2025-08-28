@@ -21,7 +21,7 @@ const Payments: React.FC = () => {
   const fetchPayments = async () => {
     try {
       const response = await apiClient.get('/payments')
-      setPayments(response.data)
+      setPayments(response.data as Payment[])
     } catch (error) {
       toast.error('Failed to fetch payments')
     }
