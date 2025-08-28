@@ -5,8 +5,8 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import LoginForm from '@/features/auth/components/LoginForm'
 import Header from '@/components/layout/Header'
-import Sidebar from '@/components/layout/Sidebar'
-import Dashboard from '@/pages/Dashboard'
+import Navigation from '@/components/Navigation'
+import Dashboard from '@/features/dashboard/components/Dashboard'
 import Users from '@/pages/Users'
 import Shops from '@/pages/Shops'
 import Products from '@/pages/Products'
@@ -17,6 +17,7 @@ import Credits from '@/pages/Credits'
 import Reports from '@/pages/Reports'
 import Audit from '@/pages/Audit'
 import Settings from '@/pages/Settings'
+import '../styles/global.css'
 import './App.css'
 
 const queryClient = new QueryClient({
@@ -47,7 +48,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex">
-        <Sidebar />
+        <Navigation />
         <main className="flex-1 min-w-0 lg:ml-0">
           {children}
         </main>
