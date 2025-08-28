@@ -267,7 +267,7 @@ else:
         
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Pydantic models for request validation
+    # Define Pydantic models for request validation
     class UserCreate(BaseModel):
         username: str
         role: str
@@ -278,178 +278,15 @@ else:
     class ProductCreate(BaseModel):
         name: str
         shop_id: int
-        price: Optional[float] = 0.0
     
     class StockCreate(BaseModel):
         product_name: str
-        quantity: float
-        unit: str = "kg"
-        farmer_id: int
         shop_id: int
+        farmer_id: int
+        quantity: float
     
-    @app.get("/api/v1/users")
-    async def get_users(shop_id: int = 1, page: int = 1, limit: int = 20, db: Session = Depends(get_db)):
-        skip = (page - 1) * limit
-        users = UserService.get_users(db, shop_id, skip, limit)
-        
-        user_data = []
-        for user in users:
-            user_data.append({
-                "id": user.id,
-                "username": user.username,
-                "role": user.role.value,
-                "shop_id": user.shop_id,
-                "contact": user.contact,
-                "credit_limit": float(user.credit_limit) if user.credit_limit else 0.0,
-                "status": user.status.value,
-                "created_at": user.created_at.isoformat() if user.created_at else None
-            })
-        
-        return {
-            "success": True,
-            "message": "Users retrieved successfully",
-            "data": user_data,
-            "pagination": {"page": page, "limit": limit, "total": len(user_data)}
-        }
-    
-    @app.get("/api/v1/shops")
-    async def get_shops(db: Session = Depends(get_db)):
-        # Get shop info from database
-        from src.models import Shop
-        shops = db.query(Shop).all()
-        
-        shop_data = []
-        for shop in shops:
-            shop_data.append({
-                "id": shop.id,
-                "name": shop.name,
-                "location": shop.location,
-                "status": shop.status.value,
-                "created_at": shop.created_at.isoformat() if shop.created_at else None
-            })
-        
-        return {
-            "success": True,
-            "message": "Shops retrieved successfully",
-            "data": shop_data
-        }
-    
-    @app.get("/api/v1/admin/system-overview")
-    async def get_superadmin_overview(db: Session = Depends(get_db)):
-        from src.models import Shop, User, Transaction
-        
-        total_shops = db.query(Shop).count()
-        total_users = db.query(User).count()
-        total_transactions = db.query(Transaction).count()
-        
-        # Count users by role
-        user_counts = {}
-        for role in UserRole:
-            count = db.query(User).filter(User.role == role).count()
-            user_counts[role.value] = count
-        
-        return {
-            "success": True,
-            "message": "System overview retrieved successfully",
-            "data": {
-                "total_shops": total_shops,
-                "total_users": total_users,
-                "total_transactions": total_transactions,
-                "user_counts": user_counts
-            }
-        }
-    
-    @app.get("/api/v1/admin/dashboard")
-    async def get_superadmin_dashboard(db: Session = Depends(get_db)):
-        from src.models import Shop, User, Transaction, RecordStatus
-        from sqlalchemy import func, and_
-        from datetime import date, timedelta
-        
-        # Get shop performance
-        shops = db.query(Shop).filter(Shop.status == RecordStatus.ACTIVE).all()
-        shop_performance = []
-        total_revenue = 0
-        
-        for shop in shops:
-            # Calculate revenue from transactions
-            shop_transactions = db.query(Transaction).filter(Transaction.shop_id == shop.id).all()
-            shop_revenue = 0
-            for txn in shop_transactions:
-                txn_amount = sum(float(item.quantity * item.price) for item in txn.transaction_items)
-                shop_revenue += txn_amount
-            
-            total_revenue += shop_revenue
-            shop_performance.append({
-                "shop_id": shop.id,
-                "name": shop.name,
-                "revenue": shop_revenue,
-                "status": shop.status.value
-            })
-        
-        # Get user counts
-        active_users = db.query(User).filter(User.status == RecordStatus.ACTIVE).count()
-        
-        return {
-            "success": True,
-            "message": "Superadmin dashboard retrieved successfully",
-            "data": {
-                "overview": {
-                    "total_revenue": total_revenue,
-                    "total_shops": len(shops),
-                    "active_users": active_users
-                },
-                "shop_performance": shop_performance
-            }
-        }
-    
-    @app.get("/api/v1/admin/all-users")
-    async def get_all_users(db: Session = Depends(get_db)):
-        from src.models import User, Superadmin
-        
-        # Get all regular users
-        users = db.query(User).all()
-        user_data = []
-        
-        for user in users:
-            user_data.append({
-                "id": user.id,
-                "username": user.username,
-                "role": user.role.value,
-                "shop_id": user.shop_id,
-                "status": user.status.value
-            })
-        
-        # Get superadmins
-        superadmins = db.query(Superadmin).all()
-        for sa in superadmins:
-            user_data.append({
-                "id": sa.id,
-                "username": sa.username,
-                "role": "superadmin",
-                "shop_id": None,
-                "status": sa.status.value
-            })
-        
-        # Calculate summary
-        role_counts = {}
-        for user in user_data:
-            role = user["role"]
-            role_counts[role] = role_counts.get(role, 0) + 1
-        
-        return {
-            "success": True,
-            "message": "All users retrieved successfully",
-            "data": {
-                "users": user_data,
-                "summary": {
-                    "total_users": len(user_data),
-                    "users_by_role": role_counts
-                }
-            }
-        }
-    
-    @app.get("/api/v1/owner/dashboard")
-    async def get_owner_dashboard(shop_id: int, db: Session = Depends(get_db)):
+    @app.get("/api/v1/dashboard/owner")
+    async def get_owner_dashboard(shop_id: int = 1, db: Session = Depends(get_db)):
         from src.models import Shop, Product, Transaction, User, FarmerStock
         from datetime import date
         

@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from decimal import Decimal
-from ..schemas import BaseSchema, TimestampMixin
+from . import BaseSchema, TimestampMixin
 
 
 class PlanBase(BaseSchema):

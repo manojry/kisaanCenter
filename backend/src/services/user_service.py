@@ -3,6 +3,7 @@ from sqlalchemy import and_
 from typing import List, Optional
 from ..models import User, UserRole
 from ..database import get_db
+from fastapi import Depends, HTTPException
 
 class UserService:
     @staticmethod
@@ -54,3 +55,19 @@ class UserService:
             db.commit()
             return True
         return False
+
+# Add missing function that other modules are trying to import
+# This is a placeholder - in a real app, this would validate JWT tokens
+
+def get_current_user(db: Session = Depends(get_db)) -> User:
+    """Get current authenticated user - placeholder implementation"""
+    # In a real application, this would:
+    # 1. Extract JWT token from request headers
+    # 2. Validate and decode the token
+    # 3. Get user from database based on token payload
+    
+    # For now, return a mock owner user for testing
+    user = db.query(User).filter(User.role == UserRole.OWNER).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="No authenticated user found")
+    return user
