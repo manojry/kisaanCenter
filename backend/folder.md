@@ -1,4 +1,204 @@
 # KisaanCenter Frontend: Complete System Architecture & Implementation Guide
+#
+# ---
+# KisaanCenter Frontend API Contract (Based on ERD and Backend Implementation)
+#
+# ## 1. User
+#
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "username": "string",
+#   "role": "SUPERADMIN | OWNER | FARMER | BUYER | EMPLOYEE | GUEST",
+#   "shop_id": "string",
+#   "contact": "string",
+#   "credit_limit": "number",
+#   "status": "active | inactive | suspended",
+#   "created_by": "string",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+#
+# ### Endpoints
+# - POST /api/v1/users
+# - GET /api/v1/users/{user_id}
+# - PUT /api/v1/users/{user_id}
+# - DELETE /api/v1/users/{user_id}
+#
+# ## 2. Shop
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "name": "string",
+#   "owner_id": "string",
+#   "status": "active | inactive | suspended",
+#   "plan_id": "string",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - POST /api/v1/shops
+# - GET /api/v1/shops/{shop_id}
+# - PUT /api/v1/shops/{shop_id}
+# - DELETE /api/v1/shops/{shop_id}
+#
+# ## 3. Product
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "name": "string",
+#   "category_id": "string",
+#   "unit": "string",
+#   "status": "active | inactive | suspended",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - POST /api/v1/products
+# - GET /api/v1/products/{product_id}
+# - PUT /api/v1/products/{product_id}
+# - DELETE /api/v1/products/{product_id}
+#
+# ## 4. Transaction
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "shop_id": "string",
+#   "buyer_user_id": "string",
+#   "type": "SALE | PURCHASE | RETURN",
+#   "status": "pending | partial | complete",
+#   "buyer_paid_amount": "number",
+#   "farmer_paid_amount": "number",
+#   "commission_confirmed": "boolean",
+#   "commission_rate": "number",
+#   "commission_amount": "number",
+#   "total_amount": "number",
+#   "transaction_items": [ /* TransactionItem objects */ ],
+#   "payments": [ /* Payment objects */ ],
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - POST /api/v1/transactions
+# - GET /api/v1/transactions/{transaction_id}
+# - PUT /api/v1/transactions/{transaction_id}
+# - DELETE /api/v1/transactions/{transaction_id}
+#
+# ## 5. Payment
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "transaction_id": "string",
+#   "user_id": "string",
+#   "amount": "number",
+#   "method": "CASH | CARD | UPI | WALLET",
+#   "status": "pending | completed | failed",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - POST /api/v1/payments
+# - GET /api/v1/payments/{payment_id}
+# - PUT /api/v1/payments/{payment_id}
+# - DELETE /api/v1/payments/{payment_id}
+#
+# ## 6. Credit
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "user_id": "string",
+#   "shop_id": "string",
+#   "amount": "number",
+#   "status": "active | repaid | overdue",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - POST /api/v1/credits
+# - GET /api/v1/credits/{credit_id}
+# - PUT /api/v1/credits/{credit_id}
+# - DELETE /api/v1/credits/{credit_id}
+#
+# ## 7. Subscription & Plan
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "name": "string",
+#   "monthly_price": "number",
+#   "features": [ "string" ],
+#   "max_farmers": "number",
+#   "max_buyers": "number",
+#   "status": "active | inactive",
+#   "created_at": "datetime",
+#   "updated_at": "datetime"
+# }
+# ```
+# ### Endpoints
+# - GET /api/v1/subscriptions/plans
+# - POST /api/v1/subscriptions
+# - PUT /api/v1/subscriptions/{id}/upgrade
+# - GET /api/v1/subscriptions/shop/{shop_id}/features
+#
+# ## 8. Audit Log
+# ### Entity
+# ```json
+# {
+#   "id": "string",
+#   "user_id": "string",
+#   "action": "string",
+#   "timestamp": "datetime",
+#   "details": "string"
+# }
+# ```
+# ### Endpoints
+# - GET /api/v1/audit-logs/
+#
+# ## 9. Reports & Analytics
+# ### Endpoints
+# - GET /api/v1/reports/compliance
+# - GET /api/v1/dashboard/{role}
+# - GET /api/v1/analytics/sales
+# - GET /api/v1/analytics/commissions
+# - WebSocket /ws/transactions
+#
+# ## 10. Common API Response Format
+# ```json
+# {
+#   "success": true,
+#   "message": "Operation completed successfully",
+#   "data": { /* entity or list of entities */ },
+#   "pagination": { "page": 1, "limit": 10, "total": 100 }
+# }
+# ```
+#
+# ## 11. Authentication
+# - JWT token required for all protected endpoints.
+# - Token stored in localStorage/sessionStorage (no auto logoff for now).
+# - Role-based guards for route protection.
+#
+# ## 12. Notes & Suggestions
+# - All models and endpoints must match the ERD and backend implementation.
+# - Use strict TypeScript types/interfaces in frontend to mirror backend models.
+# - Use global theme, CSS modules, and modern design.
+# - Use icons/images for better UX.
+# - Ensure clear separation between user roles and features.
+# - No overlapping/confusing UI.
+# - Use store/context for global state (auth, theme, permissions).
+# - Add route guards and permission checks everywhere.
+# - All API contracts should be documented and kept in sync with backend changes.
 
 ## 1. Overview
 This document describes how to design and implement a modular, decoupled React frontend for the complete KisaanCenter Market Management System, based on the ERD and existing backend endpoints. The system handles complex multi-party transactions, stock management, credit systems, and financial workflows.
