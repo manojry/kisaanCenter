@@ -18,7 +18,7 @@ const OwnerLayout: React.FC<OwnerLayoutProps> = ({ children, currentRole, curren
           currentRole={currentRole as UserRole} 
           currentRoute={currentRoute} 
         />
-        <main className="flex-1 min-w-0 ml-64">
+        <main className="flex-1 min-w-0">
           {children}
         </main>
       </div>

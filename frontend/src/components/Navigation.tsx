@@ -14,6 +14,7 @@ interface NavItem {
 }
 
 const navigationItems: NavItem[] = [
+  // Dashboard
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -21,81 +22,95 @@ const navigationItems: NavItem[] = [
     route: '/dashboard',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
+  // Shop Management (Owner & Employee)
   {
-    id: 'shops',
-    label: 'Shops',
+    id: 'shop-overview',
+    label: 'Shop Overview',
     icon: '🏪',
-    route: '/shops',
+    route: '/shop/overview',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  {
+    id: 'shop-transactions',
+    label: 'Transactions',
+    icon: '�',
+    route: '/shop/transactions',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  {
+    id: 'shop-stock',
+    label: 'Stock Management',
+    icon: '📋',
+    route: '/shop/stock',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  {
+    id: 'shop-users',
+    label: 'Users',
+    icon: '�',
+    route: '/shop/users',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  {
+    id: 'shop-commissions',
+    label: 'Commission Rules',
+    icon: '💼',
+    route: '/shop/commissions',
     roles: [UserRole.OWNER]
   },
+  {
+    id: 'shop-payments',
+    label: 'Payments',
+    icon: '💳',
+    route: '/shop/payments',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE]
+  },
+  // Products
   {
     id: 'products',
     label: 'Products',
     icon: '📦',
     route: '/products',
-    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
-  {
-    id: 'stock',
-    label: 'Stock',
-    icon: '📋',
-    route: '/stock',
-    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER]
-  },
+  // Transactions (for all roles)
   {
     id: 'transactions',
     label: 'Transactions',
-    icon: '💰',
+    icon: '�',
     route: '/transactions',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
-  {
-    id: 'payments',
-    label: 'Payments',
-    icon: '💳',
-    route: '/payments',
-    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
-  },
-  {
-    id: 'credit',
-    label: 'Credit',
-    icon: '🏦',
-    route: '/credit',
-    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.BUYER]
-  },
+  // Users (for owner/employee)
   {
     id: 'users',
     label: 'Users',
-    icon: '👥',
+    icon: '�',
     route: '/users',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
-  {
-    id: 'commission',
-    label: 'Commission',
-    icon: '💼',
-    route: '/commission',
-    roles: [UserRole.OWNER]
-  },
-  {
-    id: 'audit',
-    label: 'Audit Log',
-    icon: '📝',
-    route: '/audit',
-    roles: [UserRole.OWNER]
-  },
+  // Reports
   {
     id: 'reports',
     label: 'Reports',
-    icon: '📈',
+    icon: '�',
     route: '/reports',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
+  // Settings
   {
     id: 'settings',
     label: 'Settings',
     icon: '⚙️',
     route: '/settings',
+    roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
+  },
+  // Profile (all roles)
+  {
+    id: 'profile',
+    label: 'Profile',
+    icon: '👤',
+    route: '/profile',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   }
 ];
