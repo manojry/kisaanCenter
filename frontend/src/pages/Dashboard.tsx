@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { apiClient } from '@/services/api'
-import { Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp } from 'lucide-react'
+import { Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp, LogIn } from 'lucide-react'
 
 // Import missing types
 import { User, Product, Transaction, Credit } from '@/types/entities'
@@ -187,10 +187,10 @@ const Dashboard: React.FC = () => {
             <ShoppingCart className="h-6 w-6 mx-auto mb-2 text-purple-500" />
             <span className="text-sm font-medium">New Sale</span>
           </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <CreditCard className="h-6 w-6 mx-auto mb-2 text-orange-500" />
-            <span className="text-sm font-medium">Process Payment</span>
-          </button>
+          <a href="/log-farmer-sales" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center block">
+            <LogIn className="h-6 w-6 mx-auto mb-2 text-emerald-500" />
+            <span className="text-sm font-medium">Log Farmer Sale</span>
+          </a>
         </div>
       </div>
     </div>

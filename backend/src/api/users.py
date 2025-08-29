@@ -3,10 +3,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..database import get_db
-from ..schemas import (
-    UserCreate, UserUpdate, UserRead, UserReadWithRelations,
-    PaginationParams, APIResponse, ErrorResponse
-)
+# Import user schemas from the schemas package
+from ..schemas.user_schemas import UserCreate, UserUpdate, UserRead, UserReadWithRelations
+# Import API schemas from separate file to avoid circular imports
+from ..api_schemas import PaginationParams, APIResponse, ErrorResponse
 from ..services.user_service import UserService
 import logging
 

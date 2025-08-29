@@ -1,72 +1,83 @@
-import React, { useState, useEffect } from 'react'
-import { apiClient } from '@/services/api'
-import toast from 'react-hot-toast'
+import React, { useState, useEffect } from 'react';
+import { apiClient } from '@/services/api';
+import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 interface User {
-  id: number
-  username: string
-  role: string
-  shop_id: number
+  id: number;
+  username: string;
+  email?: string;
+  full_name?: string;
+  role: string;
+  shop_id?: number;
+  contact?: string;
+  credit_limit?: number;
 }
 
 const Users: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [formData, setFormData] = useState({ username: '', role: 'farmer', shop_id: 1 })
+  const [users, setUsers] = useState<User[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formData, setFormData] = useState({ username: '', role: 'farmer', shop_id: 1 as number | undefined });
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
-      const response = await apiClient.get('/users')
-      setUsers(response.data as User[])
+      const response = await apiClient.get('/users');
+      setUsers((response.data as any)?.users || []);
     } catch (error) {
-      toast.error('Failed to fetch users')
+      toast.error('Failed to fetch users');
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
       if (editingUser) {
-        await apiClient.put(`/users/${editingUser.id}`, formData)
-        toast.success('User updated successfully')
+        await apiClient.put(`/users/${editingUser.id}`, formData);
+        toast.success('User updated successfully');
       } else {
-        await apiClient.post('/users', formData)
-        toast.success('User created successfully')
+        await apiClient.post('/users', formData);
+        toast.success('User created successfully');
       }
-      setShowForm(false)
-      setEditingUser(null)
-      setFormData({ username: '', role: 'farmer', shop_id: 1 })
-      fetchUsers()
+      setShowForm(false);
+      setEditingUser(null);
+      setFormData({ username: '', role: 'farmer', shop_id: 1 as number | undefined });
+      fetchUsers();
     } catch (error) {
-      toast.error('Operation failed')
+      toast.error('Operation failed');
     }
-  }
+  };
 
   const handleEdit = (user: User) => {
-    setEditingUser(user)
-    setFormData({ username: user.username, role: user.role, shop_id: user.shop_id })
-    setShowForm(true)
-  }
+    setEditingUser(user);
+    setFormData({ username: user.username, role: user.role, shop_id: user.shop_id || undefined });
+    setShowForm(true);
+  };
 
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure?')) {
       try {
-        await apiClient.delete(`/users/${id}`)
-        toast.success('User deleted successfully')
-        fetchUsers()
+        await apiClient.delete(`/users/${id}`);
+        toast.success('User deleted successfully');
+        fetchUsers();
       } catch (error) {
-        toast.error('Delete failed')
+        toast.error('Delete failed');
       }
     }
-  }
+  };
 
   return (
     <div className="p-4 space-y-6">
+      <div className="flex justify-end mb-4">
+        <Link to="/reset-password" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Reset Password
+        </Link>
+      </div>
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Users</h1>
         <button 
@@ -136,20 +147,8 @@ const Users: React.FC = () => {
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">{user.username}</td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm capitalize">{user.role}</td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button 
-                        onClick={() => handleEdit(user)}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <button onClick={() => handleEdit(user)} className="text-blue-600 hover:underline mr-2">Edit</button>
+                    <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:underline">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -158,7 +157,7 @@ const Users: React.FC = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Users
+export default Users;

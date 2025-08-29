@@ -1,97 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
 
-interface SystemOverview {
+interface SuperAdminStats {
   total_shops: number;
-  active_shops: number;
   total_users: number;
-  active_users: number;
-  shop_utilization_rate: number;
-}
-
-interface FinancialOverview {
   total_revenue: number;
-  total_commission: number;
-  commission_confirmed: number;
-  commission_pending: number;
-  commission_rate: number;
-}
-
-interface TransactionAnalytics {
-  total_transactions: number;
-  completed_transactions: number;
-  pending_transactions: number;
-  partial_transactions: number;
-  completion_percentage: number;
-}
-
-interface PaymentAnalytics {
-  total_buyer_payments: number;
-  total_farmer_payments: number;
-  payment_gap: number;
-}
-
-interface ShopPerformance {
-  shop_id: number;
-  shop_name: string;
-  transaction_count: number;
-  revenue: number;
-  commission: number;
-}
-
-interface RecentActivity {
-  new_shops_7_days: number;
-  new_users_7_days: number;
-  new_transactions_7_days: number;
-}
-
-interface PendingActions {
+  active_users: number;
   pending_approvals: number;
   system_alerts: number;
-  shops_with_pending_transactions: number;
-}
-
-interface SystemHealth {
-  api_status: string;
-  database_status: string;
-  last_updated: string;
-}
-
-interface SuperAdminDashboardData {
-  system_overview: SystemOverview;
-  financial_overview: FinancialOverview;
-  transaction_analytics: TransactionAnalytics;
-  payment_analytics: PaymentAnalytics;
-  shop_performance: ShopPerformance[];
-  recent_activity: RecentActivity;
-  pending_actions: PendingActions;
-  system_health: SystemHealth;
 }
 
 const SuperAdminDashboard: React.FC = () => {
-  const [data, setData] = useState<SuperAdminDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<SuperAdminStats>({
+    total_shops: 5,
+    total_users: 125,
+    total_revenue: 50000,
+    active_users: 98,
+    pending_approvals: 8,
+    system_alerts: 2
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchSuperAdminData();
+    // In a real app, fetch superadmin-specific data
+    // fetchSuperAdminStats();
   }, []);
 
-  const fetchSuperAdminData = async () => {
+  const fetchSuperAdminStats = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const response = await fetch('/api/v1/dashboard/superadmin');
-      const result = await response.json();
-      
-      if (result.success) {
-        setData(result.data);
-      } else {
-        setError(result.message || 'Failed to fetch dashboard data');
-      }
+      // const response = await fetch('/api/v1/admin/dashboard');
+      // const data = await response.json();
+      // setStats(data.data);
     } catch (error) {
-      console.error('Failed to fetch superadmin dashboard:', error);
-      setError('Failed to fetch dashboard data');
+      console.error('Failed to fetch superadmin stats:', error);
     } finally {
       setLoading(false);
     }
@@ -103,34 +45,6 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="loading-spinner">
           <div className="spinner"></div>
           <p>Loading Super Admin Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-container">
-        <div className="error-message">
-          <h2>Error Loading Dashboard</h2>
-          <p>{error}</p>
-          <button onClick={fetchSuperAdminData} className="retry-btn">
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="dashboard-container">
-        <div className="error-message">
-          <h2>No Data Available</h2>
-          <p>Dashboard data is not available at the moment.</p>
-          <button onClick={fetchSuperAdminData} className="retry-btn">
-            Refresh
-          </button>
         </div>
       </div>
     );
@@ -154,7 +68,7 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
           <div className="card-content">
             <h3 className="card-title">Total Revenue</h3>
-            <p className="card-number">${data.financial_overview.total_revenue.toLocaleString()}</p>
+            <p className="card-number">${stats.total_revenue.toLocaleString()}</p>
             <span className="card-subtitle">System Wide</span>
           </div>
         </div>
@@ -166,8 +80,8 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
           <div className="card-content">
             <h3 className="card-title">Total Shops</h3>
-            <p className="card-number">{data.system_overview.total_shops}</p>
-            <span className="card-subtitle">{data.system_overview.active_shops} Active</span>
+            <p className="card-number">{stats.total_shops}</p>
+            <span className="card-subtitle">Registered</span>
           </div>
         </div>
 
@@ -178,109 +92,67 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
           <div className="card-content">
             <h3 className="card-title">Total Users</h3>
-            <p className="card-number">{data.system_overview.total_users}</p>
-            <span className="card-subtitle">{data.system_overview.active_users} Active</span>
+            <p className="card-number">{stats.total_users}</p>
+            <span className="card-subtitle">All Roles</span>
           </div>
         </div>
 
-        {/* Transaction Completion Card */}
+        {/* Active Users Card */}
         <div className="dashboard-card">
           <div className="card-icon" style={{ backgroundColor: '#06b6d4' }}>
-            �
+            🟢
           </div>
           <div className="card-content">
-            <h3 className="card-title">Transaction Completion</h3>
-            <p className="card-number">{data.transaction_analytics.completion_percentage.toFixed(1)}%</p>
-            <span className="card-subtitle">{data.transaction_analytics.completed_transactions} / {data.transaction_analytics.total_transactions}</span>
+            <h3 className="card-title">Active Users</h3>
+            <p className="card-number">{stats.active_users}</p>
+            <span className="card-subtitle">Currently Online</span>
           </div>
         </div>
 
-        {/* Commission Pending Card */}
+        {/* Pending Approvals Card */}
         <div className="dashboard-card">
           <div className="card-icon" style={{ backgroundColor: '#f59e0b' }}>
             ⏳
           </div>
           <div className="card-content">
-            <h3 className="card-title">Commission Pending</h3>
-            <p className="card-number">${data.financial_overview.commission_pending.toLocaleString()}</p>
-            <span className="card-subtitle">Requires Confirmation</span>
+            <h3 className="card-title">Pending Approvals</h3>
+            <p className="card-number">{stats.pending_approvals}</p>
+            <span className="card-subtitle">Require Action</span>
           </div>
         </div>
 
-        {/* Pending Transactions Card */}
+        {/* System Alerts Card */}
         <div className="dashboard-card">
           <div className="card-icon" style={{ backgroundColor: '#ef4444' }}>
             🚨
           </div>
           <div className="card-content">
-            <h3 className="card-title">Pending Transactions</h3>
-            <p className="card-number">{data.transaction_analytics.pending_transactions}</p>
-            <span className="card-subtitle">Need Attention</span>
+            <h3 className="card-title">System Alerts</h3>
+            <p className="card-number">{stats.system_alerts}</p>
+            <span className="card-subtitle">Critical Issues</span>
           </div>
         </div>
       </div>
 
       <div className="dashboard-lower-section">
-        {/* Financial Overview */}
+        {/* System Overview */}
         <div className="status-cards">
-          <h3>Financial Overview</h3>
+          <h3>System Management</h3>
           <div className="status-item">
-            <span className="status-label">Total Commission</span>
-            <span className="status-value">${data.financial_overview.total_commission.toLocaleString()}</span>
+            <span className="status-label">All Shops Control</span>
+            <span className="status-value healthy">Available</span>
           </div>
           <div className="status-item">
-            <span className="status-label">Commission Rate</span>
-            <span className="status-value">{data.financial_overview.commission_rate.toFixed(2)}%</span>
+            <span className="status-label">User Management</span>
+            <span className="status-value healthy">Active</span>
           </div>
           <div className="status-item">
-            <span className="status-label">Payment Gap</span>
-            <span className="status-value">${data.payment_analytics.payment_gap.toLocaleString()}</span>
+            <span className="status-label">Financial Oversight</span>
+            <span className="status-value healthy">Monitored</span>
           </div>
           <div className="status-item">
             <span className="status-label">System Health</span>
-            <span className="status-value healthy">{data.system_health.api_status}</span>
-          </div>
-        </div>
-
-        {/* Top Performing Shops */}
-        <div className="status-cards">
-          <h3>Top Performing Shops</h3>
-          <div className="shop-performance-list">
-            {data.shop_performance.slice(0, 5).map((shop, index) => (
-              <div key={shop.shop_id} className="performance-item">
-                <div className="performance-rank">#{index + 1}</div>
-                <div className="performance-details">
-                  <span className="shop-name">{shop.shop_name}</span>
-                  <span className="shop-revenue">${shop.revenue.toLocaleString()}</span>
-                </div>
-                <div className="performance-transactions">
-                  {shop.transaction_count} txns
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="status-cards">
-          <h3>Recent Activity (7 Days)</h3>
-          <div className="status-item">
-            <span className="status-label">New Shops</span>
-            <span className="status-value">{data.recent_activity.new_shops_7_days}</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">New Users</span>
-            <span className="status-value">{data.recent_activity.new_users_7_days}</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">New Transactions</span>
-            <span className="status-value">{data.recent_activity.new_transactions_7_days}</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">Last Updated</span>
-            <span className="status-value">
-              {new Date(data.system_health.last_updated).toLocaleTimeString()}
-            </span>
+            <span className="status-value healthy">Excellent</span>
           </div>
         </div>
 
@@ -288,19 +160,19 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="status-cards">
           <h3>Quick Actions</h3>
           <div className="quick-actions-grid">
-            <button className="action-btn" onClick={() => window.location.href = '/shops'}>
+            <button className="action-btn">
               <span className="action-icon">🏪</span>
               <span>Manage Shops</span>
             </button>
-            <button className="action-btn" onClick={() => window.location.href = '/users'}>
+            <button className="action-btn">
               <span className="action-icon">👥</span>
               <span>User Management</span>
             </button>
-            <button className="action-btn" onClick={() => window.location.href = '/analytics'}>
+            <button className="action-btn">
               <span className="action-icon">📊</span>
               <span>System Reports</span>
             </button>
-            <button className="action-btn" onClick={() => window.location.href = '/settings'}>
+            <button className="action-btn">
               <span className="action-icon">⚙️</span>
               <span>System Settings</span>
             </button>

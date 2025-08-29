@@ -20,6 +20,11 @@ import Reports from '@/pages/Reports'
 import Audit from '@/pages/Audit'
 import Settings from '@/pages/Settings'
 import SuperAdminDashboard from '@/pages/SuperAdminDashboard'
+import Profile from '@/pages/Profile'
+import ShopOverview from '@/pages/ShopOverview'
+import Commissions from '@/pages/Commissions'
+import ResetPassword from '@/pages/ResetPassword'
+import LogFarmerSales from '@/pages/LogFarmerSales'
 import '../styles/global.css'
 import './App.css'
 
@@ -107,6 +112,57 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         } 
       />
+      
+      {/* Shop Management Routes */}
+      <Route 
+        path="/shop/overview" 
+        element={
+          <ProtectedRoute>
+            <ShopOverview />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/shop/transactions" 
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/shop/stock" 
+        element={
+          <ProtectedRoute>
+            <Stock />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/shop/users" 
+        element={
+          <ProtectedRoute>
+            <Users />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/shop/commissions" 
+        element={
+          <ProtectedRoute>
+            <Commissions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/shop/payments" 
+        element={
+          <ProtectedRoute>
+            <Payments />
+          </ProtectedRoute>
+        } 
+      />
+      
       <Route 
         path="/products" 
         element={
@@ -178,6 +234,30 @@ const AppRoutes: React.FC = () => {
             <Settings />
           </ProtectedRoute>
         } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <ProtectedRoute>
+            <ResetPassword />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/log-farmer-sales"
+        element={
+          <ProtectedRoute>
+            <LogFarmerSales />
+          </ProtectedRoute>
+        }
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
