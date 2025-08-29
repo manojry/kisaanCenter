@@ -6,9 +6,9 @@ class Transaction(Base):
     __tablename__ = "transaction"
     
     id = Column(Integer, primary_key=True, index=True)
-    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buyer_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Changed from buyer_id
     shop_id = Column(Integer, ForeignKey("shop.id"), nullable=False)
-    farmer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    farmer_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Changed from farmer_id
     total_amount = Column(DECIMAL(12, 2), nullable=False)
     commission = Column(DECIMAL(10, 2), nullable=True, default=0.00)
     status = Column(String(20), nullable=False, default="pending")
@@ -19,8 +19,8 @@ class Transaction(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     # Relationships
-    buyer = relationship("User", foreign_keys=[buyer_id])
-    farmer = relationship("User", foreign_keys=[farmer_id])
+    buyer = relationship("User", foreign_keys=[buyer_user_id])  # Updated foreign key reference
+    farmer = relationship("User", foreign_keys=[farmer_user_id])  # Updated foreign key reference
     shop = relationship("Shop")
 
 class TransactionItem(Base):

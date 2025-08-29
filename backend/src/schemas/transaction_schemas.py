@@ -4,9 +4,9 @@ from decimal import Decimal
 from datetime import datetime
 
 class TransactionCreate(BaseModel):
-    buyer_id: int = Field(..., gt=0)
+    buyer_user_id: int = Field(..., gt=0)
     shop_id: int = Field(..., gt=0)
-    farmer_id: Optional[int] = Field(None, gt=0)
+    farmer_user_id: Optional[int] = Field(None, gt=0)  # Changed from farmer_id
     total_amount: Decimal = Field(..., gt=0, decimal_places=2)
     commission: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     status: Optional[str] = Field("pending", max_length=20)
@@ -22,9 +22,9 @@ class TransactionUpdate(BaseModel):
 
 class TransactionRead(BaseModel):
     id: int
-    buyer_id: int
+    buyer_user_id: int
     shop_id: int
-    farmer_id: Optional[int] = None
+    farmer_user_id: Optional[int] = None  # Changed from farmer_id
     total_amount: Decimal
     commission: Optional[Decimal] = None
     status: str
