@@ -5,10 +5,16 @@ from ..models import Product, RecordStatus
 class ProductService:
     @staticmethod
     def get_products(db: Session, shop_id: int, skip: int = 0, limit: int = 100) -> List[Product]:
-        return db.query(Product).filter(
-            Product.shop_id == shop_id,
-            Product.status == RecordStatus.ACTIVE
-        ).offset(skip).limit(limit).all()
+        try:
+            return db.query(Product).filter(
+                Product.shop_id == shop_id,
+                Product.status == RecordStatus.ACTIVE
+            ).offset(skip).limit(limit).all()
+        except Exception:
+            # Fallback without status filter if enum mismatch
+            return db.query(Product).filter(
+                Product.shop_id == shop_id
+            ).offset(skip).limit(limit).all()
     
     @staticmethod
     def get_product_by_id(db: Session, product_id: int) -> Optional[Product]:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { apiClient } from '@/services/api'
-import { FileText, Download, Calendar, TrendingUp, DollarSign, Users } from 'lucide-react'
+import { FileText, Download, TrendingUp, DollarSign, Users } from 'lucide-react'
 
 const Reports: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly')

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc
 from typing import List, Optional
-from ..models import User, UserRole
+from ..models import User, RecordStatus
 from ..database import get_db
 from ..schemas import APIResponse, PaginationParams
 from fastapi import Depends, HTTPException
@@ -102,19 +102,76 @@ class UserService:
         return db.query(User).filter(User.username == username).first()
     
     @staticmethod
-    def create_user(db: Session, username: str, password_hash: str, role: UserRole, shop_id: int, contact: str = None, credit_limit: float = 0.0) -> User:
-        user = User(
-            username=username,
-            password_hash=password_hash,
-            role=role,
-            shop_id=shop_id,
-            contact=contact,
-            credit_limit=credit_limit
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return user
+    def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: int, contact: str = None, credit_limit: float = 0.0):
+        from sqlalchemy.exc import IntegrityError
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            user = User(
+                username=username,
+                password_hash=password_hash,
+                role=role,
+                shop_id=shop_id,
+                contact=contact,
+                credit_limit=credit_limit,
+                status='active'
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            logger.info(f"✅ User created successfully: {username} (ID: {user.id})")
+            
+            return APIResponse(
+                success=True,
+                message=f"User '{username}' created successfully",
+                data={
+                    "id": user.id,
+                    "username": user.username,
+                    "role": user.role,
+                    "contact": user.contact,
+                    "credit_limit": float(user.credit_limit),
+                    "status": user.status,
+                    "created_at": user.created_at.isoformat(),
+                    "updated_at": user.updated_at.isoformat()
+                }
+            )
+            
+        except IntegrityError as e:
+            db.rollback()
+            error_msg = str(e.orig).lower()
+            
+            if "unique constraint" in error_msg and "username" in error_msg:
+                logger.warning(f"❌ Username already exists: {username}")
+                return APIResponse(
+                    success=False,
+                    message=f"Username '{username}' already exists. Please choose a different username.",
+                    errors=["DUPLICATE_USERNAME"]
+                )
+            elif "check constraint" in error_msg:
+                logger.warning(f"❌ Invalid data provided for user: {username}")
+                return APIResponse(
+                    success=False,
+                    message="Invalid data provided. Please check your input values.",
+                    errors=["INVALID_DATA"]
+                )
+            else:
+                logger.error(f"❌ Database integrity error creating user {username}: {str(e)}")
+                return APIResponse(
+                    success=False,
+                    message="Database constraint violation occurred.",
+                    errors=["DATABASE_CONSTRAINT_VIOLATION"]
+                )
+                
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ Unexpected error creating user {username}: {str(e)}")
+            return APIResponse(
+                success=False,
+                message="An unexpected error occurred while creating the user.",
+                errors=["INTERNAL_ERROR"]
+            )
     
     @staticmethod
     def update_user(db: Session, user_id: int, **kwargs) -> Optional[User]:
@@ -223,7 +280,7 @@ def get_current_user(db: Session = Depends(get_db)) -> User:
     # 3. Get user from database based on token payload
     
     # For now, return a mock owner user for testing
-    user = db.query(User).filter(User.role == UserRole.OWNER).first()
+    user = db.query(User).filter(User.role == 'owner').first()
     if not user:
         raise HTTPException(status_code=401, detail="No authenticated user found")
     return user

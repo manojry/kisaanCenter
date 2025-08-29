@@ -51,7 +51,7 @@ async def get_shop_info(
 ):
     """Get comprehensive shop information and current settings"""
     
-    if current_user.role != UserRole.OWNER:
+    if current_user.role != 'owner':
         raise HTTPException(status_code=403, detail="Owner access required")
     
     if not current_user.shop_id:

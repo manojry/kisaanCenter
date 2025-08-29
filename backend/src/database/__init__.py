@@ -133,6 +133,10 @@ db_manager = DatabaseManager()
 
 def get_db() -> Generator[Session, None, None]:
     """FastAPI dependency for getting database session."""
+    # Ensure database is initialized
+    if db_manager._engine is None:
+        db_manager.initialize_engine()
+    
     with db_manager.get_session_context() as session:
         yield session
 

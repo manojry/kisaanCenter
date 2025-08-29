@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getDashboardStats } from '../api';
 import { DashboardStats } from '../types';
-import { UserRole } from '@/types/enums';
 import SuperAdminDashboard from './SuperAdminDashboard';
 import OwnerDashboard from './OwnerDashboard';
 import './Dashboard.css';

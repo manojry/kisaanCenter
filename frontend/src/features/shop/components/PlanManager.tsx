@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { assignPlanToShop, upgradePlan, downgradePlan, PlanAssignmentRequest } from '../api';
 import { Plan } from '../../../types/entities';
-import { getPlanPrice, formatPlanFeatures } from '../../../services/planApi';
+import { getPlanPrice } from '../../../services/planApi';
 
 interface PlanManagerProps {
   shopId: number;

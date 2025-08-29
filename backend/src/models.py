@@ -225,14 +225,14 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), nullable=False)
+    role = Column(String(20), nullable=False)
     shop_id = Column(Integer, ForeignKey('shop.id'))
     created_by = Column(Integer, ForeignKey('users.id'))
     contact = Column(String(20))
     credit_limit = Column(DECIMAL(12,2), default=0.00)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(String(20), default='active')
     
     # Relationships
     shop = relationship('Shop', foreign_keys='User.shop_id', back_populates='users')

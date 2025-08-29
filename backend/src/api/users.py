@@ -78,7 +78,17 @@ def create_user(
     - **contact**: Optional contact information
     - **credit_limit**: Optional credit limit for buyers/farmers
     """
-    result = UserService.create_user(db, user, created_by_id)
+    import hashlib
+    password_hash = hashlib.sha256(user.password.encode()).hexdigest()
+    result = UserService.create_user(
+        db,
+        user.username,
+        password_hash,
+        user.role,
+        user.shop_id,
+        user.contact,
+        float(user.credit_limit) if user.credit_limit is not None else 0.0
+    )
     
     if not result.success:
         raise HTTPException(
@@ -325,8 +335,12 @@ def get_users_by_shop(
     - **Returns**: List of users in the shop
     """
     try:
-        from ..crud.user_crud import UserCRUD
-        users = UserCRUD.get_by_shop(db, shop_id, active_only)
+        # Get users by shop_id using direct query
+        from ..models import User
+        users = db.query(User).filter(
+            User.shop_id == shop_id,
+            User.status == 'active' if active_only else True
+        ).all()
         users_data = [UserRead.model_validate(user) for user in users]
         
         return APIResponse(
@@ -357,8 +371,14 @@ def get_farmers_with_stock(
     - **Business logic**: Only farmers with quantity > 0
     """
     try:
-        from ..crud.user_crud import UserCRUD
-        farmers = UserCRUD.get_farmers_with_stock(db, shop_id)
+        # Get farmers with active stock using direct query
+        from ..models import User, FarmerStock
+        farmers = db.query(User).join(FarmerStock).filter(
+            User.shop_id == shop_id,
+            User.role == 'farmer',
+            FarmerStock.quantity > 0,
+            User.status == 'active'
+        ).all()
         farmers_data = [UserRead.model_validate(farmer) for farmer in farmers]
         
         return APIResponse(
@@ -389,8 +409,14 @@ def get_buyers_with_credit(
     - **Business logic**: Only buyers with outstanding or partial credit
     """
     try:
-        from ..crud.user_crud import UserCRUD
-        buyers = UserCRUD.get_buyers_with_credit(db, shop_id)
+        # Get buyers with outstanding credit using direct query
+        from ..models import User, Credit
+        buyers = db.query(User).join(Credit).filter(
+            User.shop_id == shop_id,
+            User.role == 'buyer',
+            Credit.status.in_(['outstanding', 'partial']),
+            User.status == 'active'
+        ).all()
         buyers_data = [UserRead.model_validate(buyer) for buyer in buyers]
         
         return APIResponse(
@@ -424,8 +450,8 @@ def update_credit_limit(
     - **Validation**: Business rules for credit limit changes
     """
     try:
-        from ..crud.user_crud import UserCRUD
-        user = UserCRUD.update_credit_limit(db, user_id, new_limit, updated_by_id)
+        # Update credit limit using UserService
+        user = UserService.update_user(db, user_id, credit_limit=new_limit)
         
         if not user:
             raise HTTPException(

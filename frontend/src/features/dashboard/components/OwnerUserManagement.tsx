@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import './Dashboard.css';
 
 interface User {
@@ -38,7 +37,6 @@ interface UpdateUserRequest {
 }
 
 const OwnerUserManagement: React.FC = () => {
-  const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState(false);

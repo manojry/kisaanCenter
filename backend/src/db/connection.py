@@ -5,6 +5,7 @@ Implements connection pooling, SSL support, and environment-based configuration
 
 import os
 import logging
+import time
 from typing import Generator, Optional
 from contextlib import contextmanager
 from dotenv import load_dotenv
@@ -48,11 +49,15 @@ class DatabaseConfig:
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
         
-        # Connection pool settings
-        self.POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "10"))
-        self.MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
-        self.POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))  # 1 hour
+        # Connection pool settings - more conservative for stability
+        self.POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))  # Reduced pool size
+        self.MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))  # Reduced overflow
+        self.POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "300"))  # 5 minutes - much shorter
         self.POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
+        
+        # Connection timeout settings
+        self.CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))  # 10 seconds
+        self.COMMAND_TIMEOUT = int(os.getenv("DB_COMMAND_TIMEOUT", "30"))  # 30 seconds
         
         # Query timeout settings
         self.STATEMENT_TIMEOUT = os.getenv("DB_STATEMENT_TIMEOUT", "30000")  # 30 seconds
@@ -63,15 +68,26 @@ class DatabaseConfig:
         """Generate database URL with proper SSL and timeout settings"""
         base_url = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         
-        # Add SSL parameters only
+        # Add SSL and timeout parameters for all environments
         params = [
             f"sslmode={self.DB_SSL_MODE}",
+            f"connect_timeout={self.CONNECT_TIMEOUT}",
+            "application_name=KisaanCenter-API"
         ]
         
+        # Add additional production parameters
         if self.ENVIRONMENT == "production":
             params.extend([
-                "application_name=KisaanCenter-API",
-                "connect_timeout=10"
+                "keepalives_idle=600",
+                "keepalives_interval=30", 
+                "keepalives_count=3"
+            ])
+        else:
+            # Development parameters for better debugging
+            params.extend([
+                "keepalives_idle=300",
+                "keepalives_interval=15",
+                "keepalives_count=2"
             ])
             
         return f"{base_url}?{'&'.join(params)}"
@@ -97,15 +113,20 @@ class DatabaseManager:
         if self._engine is None:
             logger.info(f"Initializing database engine for environment: {config.ENVIRONMENT}")
             
-            # Engine configuration
+            # Engine configuration with better reliability settings
             engine_kwargs = {
                 "poolclass": QueuePool,
                 "pool_size": config.POOL_SIZE,
                 "max_overflow": config.MAX_OVERFLOW,
                 "pool_recycle": config.POOL_RECYCLE,
                 "pool_pre_ping": config.POOL_PRE_PING,
+                "pool_timeout": 20,  # Timeout when getting connection from pool
+                "pool_reset_on_return": "commit",  # Reset connection state on return
                 "echo": config.ENVIRONMENT == "development",
                 "echo_pool": config.ENVIRONMENT == "development",
+                "connect_args": {
+                    "connect_timeout": config.CONNECT_TIMEOUT
+                }
             }
             
             self._engine = create_engine(config.database_url, **engine_kwargs)
@@ -121,27 +142,66 @@ class DatabaseManager:
         """Setup SQLAlchemy event listeners for better connection management"""
         
         @event.listens_for(self._engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
+        def set_postgresql_settings(dbapi_connection, connection_record):
             """Set PostgreSQL-specific connection parameters"""
-            if hasattr(dbapi_connection, 'cursor'):
-                cursor = dbapi_connection.cursor()
-                # Set timezone
-                cursor.execute("SET timezone TO 'UTC'")
-                # Set statement timeout (if not already set in URL)
-                cursor.execute(f"SET statement_timeout TO '{config.STATEMENT_TIMEOUT}'")
-                cursor.close()
+            try:
+                if hasattr(dbapi_connection, 'cursor'):
+                    cursor = dbapi_connection.cursor()
+                    # Set timezone
+                    cursor.execute("SET timezone TO 'UTC'")
+                    # Set statement timeout (if not already set in URL)
+                    cursor.execute(f"SET statement_timeout TO '{config.STATEMENT_TIMEOUT}'")
+                    # Set lock timeout
+                    cursor.execute(f"SET lock_timeout TO '{config.LOCK_TIMEOUT}'")
+                    # Set idle_in_transaction_session_timeout
+                    cursor.execute("SET idle_in_transaction_session_timeout TO '60000'")  # 1 minute
+                    cursor.close()
+                    logger.debug("PostgreSQL connection settings applied")
+            except Exception as e:
+                logger.warning(f"Failed to set PostgreSQL connection settings: {e}")
 
         @event.listens_for(self._engine, "checkout")
         def receive_checkout(dbapi_connection, connection_record, connection_proxy):
-            """Log connection checkout in development"""
+            """Handle connection checkout from pool"""
             if config.ENVIRONMENT == "development":
                 logger.debug("Connection checked out from pool")
+            
+            # Test connection validity
+            try:
+                cursor = dbapi_connection.cursor()
+                cursor.execute("SELECT 1")
+                cursor.close()
+            except Exception as e:
+                logger.error(f"Invalid connection detected during checkout: {e}")
+                # Let the pool handle the invalid connection
+                raise
 
         @event.listens_for(self._engine, "checkin")
         def receive_checkin(dbapi_connection, connection_record):
-            """Log connection checkin in development"""
+            """Handle connection checkin to pool"""
             if config.ENVIRONMENT == "development":
                 logger.debug("Connection returned to pool")
+            
+        @event.listens_for(self._engine, "invalidate")
+        def receive_invalidate(dbapi_connection, connection_record, exception):
+            """Handle connection invalidation"""
+            logger.warning(f"Connection invalidated: {exception}")
+            
+        @event.listens_for(self._engine, "soft_invalidate")
+        def receive_soft_invalidate(dbapi_connection, connection_record, exception):
+            """Handle soft connection invalidation"""
+            logger.info(f"Connection soft invalidated: {exception}")
+            
+        # Add disconnection handling
+        @event.listens_for(self._engine.pool, "connect")
+        def receive_connect(dbapi_connection, connection_record):
+            """Log new connections"""
+            logger.debug("New database connection established")
+            
+        @event.listens_for(self._engine.pool, "close")  
+        def receive_close(dbapi_connection, connection_record):
+            """Log connection closures"""
+            logger.debug("Database connection closed")
 
     def get_session_factory(self) -> sessionmaker:
         """Get SQLAlchemy session factory"""
@@ -160,24 +220,65 @@ class DatabaseManager:
 
     @contextmanager
     def get_db_session(self) -> Generator[Session, None, None]:
-        """Context manager for database sessions with proper error handling"""
+        """Context manager for database sessions with proper error handling and retry logic"""
         session_factory = self.get_session_factory()
-        session = session_factory()
+        session = None
+        max_retries = 3
+        retry_count = 0
         
-        try:
-            logger.debug("Database session created")
-            yield session
-            session.commit()
-            logger.debug("Database session committed")
-            
-        except Exception as e:
-            logger.error(f"Database session error: {str(e)}")
-            session.rollback()
-            raise
-            
-        finally:
-            session.close()
-            logger.debug("Database session closed")
+        while retry_count <= max_retries:
+            try:
+                session = session_factory()
+                logger.debug(f"Database session created (attempt {retry_count + 1})")
+                
+                # Test the connection before yielding
+                session.execute(text("SELECT 1"))
+                
+                yield session
+                session.commit()
+                logger.debug("Database session committed successfully")
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                logger.error(f"Database session error (attempt {retry_count + 1}): {str(e)}")
+                
+                if session:
+                    try:
+                        session.rollback()
+                    except:
+                        pass
+                    try:
+                        session.close()
+                        session = None
+                    except:
+                        pass
+                
+                # Check if this is a connection-related error that might benefit from retry
+                error_msg = str(e).lower()
+                is_connection_error = any(phrase in error_msg for phrase in [
+                    "server closed the connection",
+                    "connection", 
+                    "timeout",
+                    "disconnected",
+                    "broken pipe",
+                    "connection reset"
+                ])
+                
+                if is_connection_error and retry_count < max_retries:
+                    retry_count += 1
+                    logger.info(f"Retrying database operation (attempt {retry_count + 1}/{max_retries + 1})")
+                    time.sleep(0.1 * retry_count)  # Brief exponential backoff
+                    continue
+                else:
+                    raise  # Re-raise the exception if not retryable or max retries reached
+                    
+        # Ensure session is closed in finally block
+        if session:
+            try:
+                session.close()
+                logger.debug("Database session closed")
+            except Exception as close_error:
+                logger.warning(f"Error closing database session: {close_error}")
 
     def create_database_if_not_exists(self) -> bool:
         """Create database if it doesn't exist (for initial setup)"""
@@ -208,16 +309,29 @@ class DatabaseManager:
             raise
 
     def test_connection(self) -> bool:
-        """Test database connectivity"""
-        try:
-            with self.get_db_session() as session:
-                session.execute(text("SELECT 1"))
-                logger.info("Database connection test successful")
-                return True
-                
-        except Exception as e:
-            logger.error(f"Database connection test failed: {str(e)}")
-            return False
+        """Test database connectivity with better error handling"""
+        max_attempts = 3
+        
+        for attempt in range(max_attempts):
+            try:
+                with self.get_db_session() as session:
+                    # Test basic connectivity
+                    session.execute(text("SELECT 1"))
+                    
+                    # Test actual table access that was failing
+                    session.execute(text("SELECT COUNT(*) FROM users LIMIT 1"))
+                    
+                    logger.info(f"Database connection test successful (attempt {attempt + 1})")
+                    return True
+                    
+            except Exception as e:
+                logger.warning(f"Database connection test failed (attempt {attempt + 1}): {str(e)}")
+                if attempt < max_attempts - 1:
+                    time.sleep(0.5 * (attempt + 1))  # Exponential backoff
+                else:
+                    logger.error(f"Database connection test failed after {max_attempts} attempts")
+                    
+        return False
 
     def get_connection_info(self) -> dict:
         """Get current connection pool information"""
@@ -229,8 +343,7 @@ class DatabaseManager:
             "pool_size": pool.size(),
             "checked_in": pool.checkedin(),
             "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "invalid": pool.invalid()
+            "overflow": pool.overflow()
         }
 
     def close_connections(self):

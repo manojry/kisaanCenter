@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { apiClient } from '@/services/api'
 import { Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp } from 'lucide-react'
 
+// Import missing types
+import { User, Product, Transaction, Credit } from '@/types/entities'
+
 interface DashboardStats {
   totalUsers: number
   totalProducts: number
@@ -33,14 +36,19 @@ const Dashboard: React.FC = () => {
         apiClient.get('/transactions'),
         apiClient.get('/credits')
       ])
-      
-      const totalSales = transactionsRes.data.reduce((sum: number, t: any) => sum + t.amount, 0)
-      const pendingCredits = creditsRes.data.reduce((sum: number, c: any) => sum + c.amount, 0)
-      
+      // Add runtime array check and type assertion
+      const users = Array.isArray(usersRes.data) ? usersRes.data as User[] : [];
+      const products = Array.isArray(productsRes.data) ? productsRes.data as Product[] : [];
+      const transactions = Array.isArray(transactionsRes.data) ? transactionsRes.data as Transaction[] : [];
+      const credits = Array.isArray(creditsRes.data) ? creditsRes.data as Credit[] : [];
+
+      const totalSales = transactions.reduce((sum: number, t: Transaction) => sum + (t.total_amount || 0), 0);
+      const pendingCredits = credits.reduce((sum: number, c: Credit) => sum + (c.amount || 0), 0);
+
       setStats({
-        totalUsers: usersRes.data.length,
-        totalProducts: productsRes.data.length,
-        totalTransactions: transactionsRes.data.length,
+        totalUsers: users.length,
+        totalProducts: products.length,
+        totalTransactions: transactions.length,
         totalSales,
         pendingCredits,
         monthlyExpenses: 2000 // This would come from expenses API when available

@@ -52,10 +52,9 @@ export const useUpdateUser = () => {
     ({ id, userData }: { id: number; userData: UpdateUserData }) => 
       userApi.updateUser(id, userData),
     {
-      onSuccess: (response, { id }) => {
+      onSuccess: () => {
         queryClient.invalidateQueries(['users'])
-        queryClient.invalidateQueries(['user', id])
-        toast.success(response.message || 'User updated successfully')
+        toast.success('User updated successfully')
       },
       onError: (error: any) => {
         toast.error(error.response?.data?.message || 'Failed to update user')
@@ -118,9 +117,8 @@ export const useUpdateCreditLimit = () => {
     ({ id, newLimit, updatedById }: { id: number; newLimit: number; updatedById: number }) => 
       userApi.updateCreditLimit(id, newLimit, updatedById),
     {
-      onSuccess: (response, { id }) => {
+      onSuccess: () => {
         queryClient.invalidateQueries(['users'])
-        queryClient.invalidateQueries(['user', id])
         toast.success('Credit limit updated successfully')
       },
       onError: (error: any) => {

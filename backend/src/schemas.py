@@ -52,7 +52,7 @@ class TimestampMixin(BaseModel):
 
 class UserBase(BaseSchema):
     username: str = Field(..., min_length=3, max_length=50)
-    role: UserRoleEnum
+    role: str
     contact: Optional[str] = Field(None, max_length=20)
     shop_id: Optional[int] = None
     credit_limit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
@@ -60,17 +60,17 @@ class UserBase(BaseSchema):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
     created_by: Optional[int] = None
-    status: RecordStatusEnum = RecordStatusEnum.ACTIVE
+    status: str = "active"
 
 class UserUpdate(BaseSchema):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     contact: Optional[str] = Field(None, max_length=20)
     credit_limit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    status: Optional[RecordStatusEnum] = None
+    status: Optional[str] = None
 
 class UserRead(UserBase, TimestampMixin):
     id: int
-    status: RecordStatusEnum
+    status: str
     created_by: Optional[int] = None
     
 class UserReadWithRelations(UserRead):

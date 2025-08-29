@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '../types/enums';
 import './Navigation.css';
@@ -103,14 +103,10 @@ const navigationItems: NavItem[] = [
 interface NavigationProps {
   currentRole: UserRole;
   currentRoute: string;
-  onNavigate: (route: string) => void;
-  onLogout?: () => void;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentRole, currentRoute, onNavigate, onLogout }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentRole, currentRoute }) => {
   const { user, logout } = useAuth();
-  const location = useLocation();
-  // const currentRoute = location.pathname;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
 
