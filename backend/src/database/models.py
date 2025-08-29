@@ -1,3 +1,4 @@
+
 """
 Market Management System - SQLAlchemy Models
 
@@ -106,6 +107,8 @@ class Superadmin(Base):
 
     # Relationships
     created_shops = relationship('Shop', back_populates='creator')
+    controlled_features = relationship('FeatureControl', back_populates='controller')
+    subscription_changes = relationship('SubscriptionHistory', back_populates='changer')
 
 class Plan(Base):
     __tablename__ = 'plan'
@@ -206,6 +209,7 @@ class User(Base):
     created_adjustments = relationship('StockAdjustment', back_populates='created_by_user')
     created_price_history = relationship('ProductPriceHistory', back_populates='created_by_user')
     audit_logs = relationship('AuditLog', back_populates='user')
+    feature_controls = relationship('FeatureControl', back_populates='user')
 
 class Category(Base):
     __tablename__ = 'category'
@@ -477,3 +481,36 @@ class AuditLog(Base):
     # Relationships
     shop = relationship('Shop')
     user = relationship('User', back_populates='audit_logs')
+
+class FeatureControl(Base):
+    __tablename__ = 'feature_control'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    controller_id = Column(Integer, ForeignKey('superadmin.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
+    feature_name = Column(String(100), nullable=False)
+    access_level = Column(String(20), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    
+    controller = relationship('Superadmin', back_populates='controlled_features')
+    user = relationship('User', back_populates='feature_controls')
+
+class SubscriptionHistory(Base):
+    __tablename__ = 'subscription_history'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey('shop.id'))
+    changer_id = Column(Integer, ForeignKey('superadmin.id'))
+    old_plan_id = Column(Integer, ForeignKey('plan.id'))
+    new_plan_id = Column(Integer, ForeignKey('plan.id'))
+    change_date = Column(DateTime, default=datetime.utcnow)
+    reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    shop = relationship('Shop')
+    changer = relationship('Superadmin', back_populates='subscription_changes')
+    old_plan = relationship('Plan', foreign_keys=[old_plan_id])
+    new_plan = relationship('Plan', foreign_keys=[new_plan_id])

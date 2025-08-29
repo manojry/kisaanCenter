@@ -267,6 +267,13 @@ class APIResponse(BaseModel):
     error_code: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
+class ErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    error_code: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
 class PaginatedResponse(BaseModel):
     items: List[Any]
     total: int

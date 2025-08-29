@@ -23,4 +23,16 @@ class ErrorResponse(BaseModel):
     success: bool = False
     message: str
     error_code: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    errors: Optional[List[str]] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": False,
+                "message": "Validation failed",
+                "error_code": "VALIDATION_ERROR",
+                "errors": ["Username is required", "Password too short"],
+                "timestamp": "2024-01-01T10:00:00"
+            }
+        }

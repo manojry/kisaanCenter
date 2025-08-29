@@ -206,3 +206,37 @@ def delete_credit(credit_id: int = Path(..., gt=0), db: Session = Depends(get_db
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
     return result
+
+# Business-specific endpoints
+@router.get("/user/{user_id}", response_model=APIResponse)
+def get_user_credits(user_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.get_user_credits(db, user_id, user_role=user_role)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result.message)
+    return result
+
+@router.get("/shop/{shop_id}", response_model=APIResponse)
+def get_shop_credits(shop_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.get_shop_credits(db, shop_id, user_role=user_role)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result.message)
+    return result
+
+@router.get("/overdue", response_model=APIResponse)
+def get_overdue_credits(db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.get_overdue_credits(db, user_role=user_role)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    return result
+
+@router.put("/{credit_id}/payment", response_model=APIResponse)
+def record_payment(credit_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = CreditService.record_payment(db, credit_id, user_role=user_role)
+    if not result.success:
+        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=result.message)
+    return result

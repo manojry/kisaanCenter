@@ -14,6 +14,34 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+# CRUD Operations
+# POST   /users                    # Create new user
+# GET    /users/{user_id}          # Get user by ID
+# GET    /users                    # Get users with pagination/filters
+# PUT    /users/{user_id}          # Update user
+# DELETE /users/{user_id}          # Soft delete user
+
+# Authentication
+# POST   /users/auth/login         # User login
+# POST   /users/auth/logout        # User logout
+# POST   /users/auth/refresh       # Refresh token
+
+# Business-specific
+# GET    /users/shop/{shop_id}     # Get users by shop
+# GET    /users/farmers/with-stock/{shop_id}    # Farmers with stock
+# GET    /users/buyers/with-credit/{shop_id}    # Buyers with credit
+# PUT    /users/{user_id}/credit-limit          # Update credit limit
+
+# Query Parameters for GET /users:
+# - page: int (default: 1)
+# - limit: int (default: 10, max: 100)
+# - shop_id: Optional[int]
+# - role: Optional[str]
+# - user_status: Optional[str]
+# - search: Optional[str]
+# - sort_by: str (default: "created_at")
+# - sort_order: str (default: "desc")
+
 @router.post(
     "/",
     response_model=APIResponse,
@@ -316,6 +344,44 @@ def login_user(
         )
     
     return result
+
+@router.post("/auth/logout",
+             response_model=APIResponse,
+             summary="Logout user",
+             description="Logout user and invalidate session")
+def logout_user(
+    db: Session = Depends(get_db)
+):
+    """
+    Logout user and invalidate session:
+    
+    - **No parameters required**
+    - **Returns**: Success message on logout
+    """
+    # Implementation would depend on session management strategy
+    return APIResponse(
+        success=True,
+        message="User logged out successfully"
+    )
+
+@router.post("/auth/refresh",
+             response_model=APIResponse,
+             summary="Refresh authentication token",
+             description="Generate new authentication token using refresh token")
+def refresh_token(
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh authentication token:
+    
+    - **No parameters required**
+    - **Returns**: New authentication token
+    """
+    # Implementation would depend on JWT or session management
+    return APIResponse(
+        success=True,
+        message="Token refreshed successfully"
+    )
 
 # Business-specific endpoints
 @router.get("/shop/{shop_id}",

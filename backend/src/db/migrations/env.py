@@ -12,12 +12,11 @@ from pathlib import Path
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Add the src directory to Python path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the project root to Python path for consistent imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 # Import your models and database configuration
-from models import Base  # Your SQLAlchemy models
-from db.connection import config as db_config
+from src.database import models  # Your SQLAlchemy models
 
 # Alembic Config object
 config = context.config
@@ -32,7 +31,7 @@ logger = logging.getLogger('alembic.env')
 config.set_main_option('sqlalchemy.url', db_config.database_url)
 
 # Add your model's MetaData object for 'autogenerate' support
-target_metadata = Base.metadata
+target_metadata = models.Base.metadata
 
 def run_migrations_offline() -> None:
     """

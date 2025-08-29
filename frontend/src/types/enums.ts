@@ -2,40 +2,45 @@
 export enum UserRole {
   SUPERADMIN = 'superadmin',
   OWNER = 'owner',
-  EMPLOYEE = 'employee',
   FARMER = 'farmer',
   BUYER = 'buyer',
-  GUEST = 'guest'
+  EMPLOYEE = 'employee'
+}
+
+export enum RecordStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  DELETED = 'DELETED'
 }
 
 // Transaction statuses
 export enum TransactionStatus {
-  PENDING = 'pending',
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
 }
 
 // Payment statuses
 export enum PaymentStatus {
-  PENDING = 'pending',
-  PARTIAL = 'partial',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
+  PENDING = 'PENDING',
+  PARTIAL = 'PARTIAL',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
 }
 
 // Credit statuses
 export enum CreditStatus {
-  OUTSTANDING = 'outstanding',
-  PARTIAL = 'partial',
-  PAID = 'paid'
+  OUTSTANDING = 'OUTSTANDING',
+  PARTIAL = 'PARTIAL',
+  PAID = 'PAID',
+  OVERDUE = 'OVERDUE'
 }
 
 // Transaction completion status
 export enum CompletionStatus {
-  PENDING = 'pending',
-  PARTIAL = 'partial',
-  COMPLETE = 'complete'
+  INCOMPLETE = 'INCOMPLETE',
+  COMPLETE = 'COMPLETE'
 }
 
 // Transaction types
@@ -52,4 +57,10 @@ export enum PaymentMethod {
   UPI = 'upi',
   CHEQUE = 'cheque',
   CREDIT = 'credit'
+}
+
+export enum PaymentType {
+  FULL_PAYMENT = 'FULL_PAYMENT',
+  PARTIAL_PAYMENT = 'PARTIAL_PAYMENT',
+  ADVANCE = 'ADVANCE'
 }

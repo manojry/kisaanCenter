@@ -1,33 +1,39 @@
 from pydantic import BaseModel, Field
 from typing import Optional
+from decimal import Decimal
+from datetime import datetime
+
+class PaginationParams(BaseModel):
+    page: int = 1
+    size: int = 20
+    search: Optional[str] = None
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    email: Optional[str] = None
-    password: str = Field(..., min_length=6)
-    full_name: Optional[str] = None
-    role: Optional[str] = None
+    password: str = Field(..., min_length=6)  # Will be hashed to password_hash in service
+    role: str = Field(..., max_length=20)
     shop_id: Optional[int] = None
-    contact: Optional[str] = None
-    credit_limit: Optional[float] = 0.0
+    contact: Optional[str] = Field(None, max_length=15)
+    credit_limit: Optional[Decimal] = Field(default=Decimal('0.00'))
+    status: Optional[str] = Field(default="active", max_length=20)
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    role: Optional[str] = None
-    contact: Optional[str] = None
-    credit_limit: Optional[float] = None
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    role: Optional[str] = Field(None, max_length=20)
+    contact: Optional[str] = Field(None, max_length=15)
+    credit_limit: Optional[Decimal] = None
+    status: Optional[str] = Field(None, max_length=20)
 
 class UserRead(BaseModel):
     id: int
     username: str
-    email: Optional[str] = None
-    full_name: Optional[str] = None
     role: str
     shop_id: Optional[int] = None
     contact: Optional[str] = None
-    credit_limit: Optional[float] = None
+    credit_limit: Optional[Decimal] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True

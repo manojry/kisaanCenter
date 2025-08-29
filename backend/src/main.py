@@ -38,6 +38,20 @@ except ImportError as e:
     logger.error(f"❌ Failed to import dashboard module: {e}")
     dashboard = None
 
+try:
+    from src.api import transactions
+    logger.info("✅ Transactions module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import transactions module: {e}")
+    transactions = None
+
+try:
+    from src.api import credits
+    logger.info("✅ Credits module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import credits module: {e}")
+    credits = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -423,6 +437,14 @@ if shops:
 if dashboard:
     app.include_router(dashboard.router, prefix="/api/v1")
     logger.info("✅ Dashboard router included")
+
+if transactions:
+    app.include_router(transactions.router, prefix="/api/v1")
+    logger.info("✅ Transactions router included")
+
+if credits:
+    app.include_router(credits.router, prefix="/api/v1")
+    logger.info("✅ Credits router included")
 
 # Health check endpoints
 @app.get("/", tags=["Health"])

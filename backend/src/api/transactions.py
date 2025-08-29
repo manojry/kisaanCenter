@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import status
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..database import get_db
@@ -204,7 +205,7 @@ def get_transactions(
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     shop_id: Optional[int] = Query(None, description="Filter by shop"),
     buyer_id: Optional[int] = Query(None, description="Filter by buyer"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    transaction_status: Optional[str] = Query(None, description="Filter by status"),
     completion_status: Optional[str] = Query(None, description="Filter by completion status"),
     payment_status: Optional[str] = Query(None, description="Filter by payment status"),
     transaction_type: Optional[str] = Query(None, description="Filter by transaction type"),
@@ -230,7 +231,7 @@ def get_transactions(
         pagination=pagination,
         shop_id=shop_id,
         buyer_id=buyer_id,
-        status=status,
+        status=transaction_status,
         completion_status=completion_status,
         payment_status=payment_status,
         transaction_type=transaction_type,
@@ -321,7 +322,7 @@ def update_transaction(
                         "example": {
                             "success": True,
                             "message": "Transaction cancelled successfully",
-                            "data": null
+                            "data": None
                         }
                     }
                 }
@@ -352,7 +353,173 @@ def cancel_transaction(
         raise HTTPException(status_code=status_code, detail={"message": result.message})
     return result
 
-# Transaction completion and payment endpoints
+# Business-specific endpoints
+@router.put(
+    "/{transaction_id}/complete",
+    response_model=APIResponse,
+    summary="Mark transaction as complete",
+    description="Mark transaction as complete with all parties paid",
+    response_description="Completion result",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "Transaction marked as complete",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Transaction marked as complete",
+                            "data": {
+                                "id": 555,
+                                "status": "completed",
+                                "completion_status": "complete"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def mark_complete(
+    transaction_id: int = Path(..., description="Transaction ID", gt=0),
+    completed_by_id: int = Query(..., description="ID of user marking complete"),
+    db: Session = Depends(get_db)
+):
+    """
+    Mark transaction as complete:
+    
+    - **Three-party validation**: Ensures all parties have paid
+    - **Status update**: Updates transaction completion status
+    - **Audit logging**: Records completion timestamp and user
+    """
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.mark_complete(db, transaction_id, completed_by_id, user_role=user_role)
+
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": result.message})
+    return result
+
+@router.put(
+    "/{transaction_id}/buyer-payment",
+    response_model=APIResponse,
+    summary="Update buyer payment",
+    description="Record or update buyer payment for transaction",
+    response_description="Buyer payment result",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "amount": 4500.00,
+                        "payment_method": "bank_transfer"
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "Buyer payment recorded successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Buyer payment recorded successfully",
+                            "data": {
+                                "id": 555,
+                                "buyer_paid": 4500.00,
+                                "buyer_payment_status": "paid"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def update_buyer_payment(
+    transaction_id: int = Path(..., description="Transaction ID", gt=0),
+    amount: float = Query(..., description="Payment amount"),
+    payment_method: str = Query(..., description="Payment method used"),
+    db: Session = Depends(get_db)
+):
+    """
+    Record buyer payment:
+    
+    - **Payment recording**: Updates buyer payment status and amount
+    - **Completion tracking**: Updates transaction completion status
+    - **Audit trail**: Records payment details and timestamp
+    """
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.update_buyer_payment(db, transaction_id, amount, payment_method, user_role=user_role)
+
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": result.message})
+    return result
+
+@router.put(
+    "/{transaction_id}/farmer-payment",
+    response_model=APIResponse,
+    summary="Update farmer payment",
+    description="Record or update farmer payment for transaction",
+    response_description="Farmer payment result",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "example": {
+                        "amount": 4000.00,
+                        "payment_method": "cash"
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "Farmer payment recorded successfully",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Farmer payment recorded successfully",
+                            "data": {
+                                "id": 555,
+                                "farmer_paid": 4000.00,
+                                "farmer_payment_status": "paid"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def update_farmer_payment(
+    transaction_id: int = Path(..., description="Transaction ID", gt=0),
+    amount: float = Query(..., description="Payment amount"),
+    payment_method: str = Query(..., description="Payment method used"),
+    db: Session = Depends(get_db)
+):
+    """
+    Record farmer payment:
+    
+    - **Payment recording**: Updates farmer payment status and amount
+    - **Completion tracking**: Updates transaction completion status
+    - **Audit trail**: Records payment details and timestamp
+    """
+    # Example: Get user role from context/session (stub)
+    # In production, use authentication middleware to get user info
+    user_role = "owner"  # TODO: Replace with actual role from auth/session
+    result = TransactionService.update_farmer_payment(db, transaction_id, amount, payment_method, user_role=user_role)
+
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": result.message})
+    return result
+
 @router.put(
     "/{transaction_id}/confirm-commission",
     response_model=APIResponse,
@@ -400,6 +567,109 @@ def confirm_commission(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"message": result.message})
     return result
 
+@router.get(
+    "/shop/{shop_id}",
+    response_model=APIResponse,
+    summary="Get shop transactions",
+    description="Retrieve all transactions for a specific shop",
+    response_description="Shop transactions list",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "Shop transactions retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Shop transactions retrieved",
+                            "data": [
+                                {
+                                    "id": 555,
+                                    "buyer_user_id": 456,
+                                    "transaction_type": "sale",
+                                    "commission_rate": 10.00
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def get_shop_transactions(
+    shop_id: int = Path(..., description="Shop ID", gt=0),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all transactions for a shop:
+    
+    - **Shop filtering**: All transactions belonging to a specific shop
+    - **Pagination**: Configurable page size and number
+    - **Basic info**: Essential transaction details for shop overview
+    """
+    pagination = PaginationParams(page=page, limit=limit)
+    result = TransactionService.get_shop_transactions(db, shop_id, pagination)
+    
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    
+    return result
+
+@router.get(
+    "/user/{user_id}",
+    response_model=APIResponse,
+    summary="Get user transactions",
+    description="Retrieve all transactions for a specific user",
+    response_description="User transactions list",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "User transactions retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "User transactions retrieved",
+                            "data": [
+                                {
+                                    "id": 555,
+                                    "shop_id": 1,
+                                    "transaction_type": "sale",
+                                    "commission_rate": 10.00
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def get_user_transactions(
+    user_id: int = Path(..., description="User ID", gt=0),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all transactions for a user:
+    
+    - **User filtering**: All transactions where user is buyer or seller
+    - **Pagination**: Configurable page size and number
+    - **Contextual info**: Transaction details relevant to user role
+    """
+    pagination = PaginationParams(page=page, limit=limit)
+    result = TransactionService.get_user_transactions(db, user_id, pagination)
+    
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    
+    return result
+
+# Transaction completion and payment endpoints
 @router.get(
     "/{transaction_id}/summary",
     response_model=APIResponse,

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, ForeignKey, String, DateTime, func
 from sqlalchemy.orm import relationship
-from ..database import Base
+from .base import Base
 
 class Inventory(Base):
     __tablename__ = "inventory"
@@ -11,5 +11,5 @@ class Inventory(Base):
     status = Column(String, default="active")
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    product = relationship("Product", back_populates="inventory_items")
-    shop = relationship("Shop", back_populates="inventory_items")
+    product = relationship("Product")
+    shop = relationship("Shop")

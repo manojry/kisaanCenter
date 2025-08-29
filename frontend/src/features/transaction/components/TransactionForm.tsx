@@ -1,352 +1,316 @@
-import React, { useState, useEffect } from 'react';
-import { Transaction, CreateTransactionRequest, TransactionType } from '../types';
-import { fetchAvailableStock } from '../../stock/api';
-import { userApi } from '../../user/api';
-import { createTransaction } from '../api';
-import { previewCommission } from '../../commission/api';
-import { FarmerStock } from '../../stock/types';
-import { User } from '../../../types/entities';
-import { CommissionCalculation } from '../../commission/types';
-import './TransactionForm.css';
+import React, { useState, useEffect } from 'react'
+import { TransactionFormData } from '@/types/transaction'
+import './TransactionForm.css'
 
-interface TransactionFormProps {
-  shopId: string;
-  onTransactionCreated?: (transaction: Transaction) => void;
-  onCancel?: () => void;
+interface User {
+  id: number
+  username: string
+  role: string
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({
-  shopId,
-  onTransactionCreated,
-  onCancel
+interface Product {
+  id: number
+  name: string
+  price: number
+}
+
+interface TransactionFormProps {
+  formData: TransactionFormData
+  users: User[]
+  products: Product[]
+  loading: boolean
+  onSubmit: (data: TransactionFormData) => void
+  onCancel: () => void
+  onChange: (data: TransactionFormData) => void
+  isEditing: boolean
+}
+
+const TransactionForm: React.FC<TransactionFormProps> = ({
+  formData,
+  users,
+  products,
+  loading,
+  onSubmit,
+  onCancel,
+  onChange,
+  isEditing
 }) => {
-  const [availableStock, setAvailableStock] = useState<FarmerStock[]>([]);
-  const [buyers, setBuyers] = useState<User[]>([]);
-  const [selectedBuyer, setSelectedBuyer] = useState<string>('');
-  const [transactionItems, setTransactionItems] = useState<{
-    product_id: string;
-    farmer_id: string;
-    quantity: number;
-    unit_price: number;
-    stock_id: string;
-  }[]>([]);
-  const [commissionPreview, setCommissionPreview] = useState<CommissionCalculation[]>([]);
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localFormData, setLocalFormData] = useState<TransactionFormData>(formData)
 
   useEffect(() => {
-    loadInitialData();
-  }, [shopId]);
+    setLocalFormData(formData)
+  }, [formData])
 
-  const loadInitialData = async () => {
-    try {
-      const [stockData, usersResponse] = await Promise.all([
-        fetchAvailableStock(shopId),
-        userApi.getUsers({ role: 'BUYER', status: 'active' })
-      ]);
-      
-      setAvailableStock(stockData);
-      setBuyers(usersResponse.data || []);
-    } catch (err) {
-      setError('Failed to load data');
-      console.error(err);
-    }
-  };
+  const handleInputChange = (field: keyof TransactionFormData, value: any) => {
+    const updatedData = { ...localFormData, [field]: value }
+    setLocalFormData(updatedData)
+    onChange(updatedData)
+  }
 
-  const addTransactionItem = () => {
-    setTransactionItems([...transactionItems, {
-      product_id: '',
-      farmer_id: '',
-      quantity: 0,
-      unit_price: 0,
-      stock_id: ''
-    }]);
-  };
-
-  const removeTransactionItem = (index: number) => {
-    const newItems = transactionItems.filter((_, i) => i !== index);
-    setTransactionItems(newItems);
-    updateCommissionPreview(newItems);
-  };
-
-  const updateTransactionItem = (index: number, field: string, value: any) => {
-    const newItems = [...transactionItems];
-    newItems[index] = { ...newItems[index], [field]: value };
+  const handleItemChange = (index: number, field: string, value: any) => {
+    const updatedItems = [...localFormData.items]
+    updatedItems[index] = { ...updatedItems[index], [field]: value }
     
-    if (field === 'stock_id' && value) {
-      const selectedStock = availableStock.find(s => s.id === value);
-      if (selectedStock) {
-        newItems[index].product_id = selectedStock.product_id;
-        newItems[index].farmer_id = selectedStock.farmer_user_id;
-        newItems[index].unit_price = selectedStock.unit_price || 0;
-      }
+    const updatedData = { ...localFormData, items: updatedItems }
+    setLocalFormData(updatedData)
+    onChange(updatedData)
+  }
+
+  const addItem = () => {
+    const newItem = { product_id: 0, quantity: 0, price: 0 }
+    const updatedData = {
+      ...localFormData,
+      items: [...localFormData.items, newItem]
     }
-    
-    setTransactionItems(newItems);
-    updateCommissionPreview(newItems);
-  };
+    setLocalFormData(updatedData)
+    onChange(updatedData)
+  }
 
-  const updateCommissionPreview = async (items: typeof transactionItems) => {
-    if (items.length === 0 || items.some(item => !item.product_id || !item.quantity || !item.unit_price)) {
-      setCommissionPreview([]);
-      return;
-    }
+  const removeItem = (index: number) => {
+    const updatedItems = localFormData.items.filter((_, i) => i !== index)
+    const updatedData = { ...localFormData, items: updatedItems }
+    setLocalFormData(updatedData)
+    onChange(updatedData)
+  }
 
-    try {
-      const preview = await previewCommission({
-        shop_id: shopId,
-        items: items.map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price
-        }))
-      });
-      setCommissionPreview(preview);
-    } catch (err) {
-      console.error('Failed to preview commission:', err);
-    }
-  };
+  const calculateTotal = () => {
+    return localFormData.items.reduce((total, item) => {
+      return total + (item.quantity * item.price)
+    }, 0)
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedBuyer || transactionItems.length === 0) {
-      setError('Please select a buyer and add at least one item');
-      return;
-    }
+  const calculateCommission = () => {
+    const total = calculateTotal()
+    return total * (localFormData.commission_rate / 100)
+  }
 
-    if (transactionItems.some(item => !item.product_id || !item.quantity || item.quantity <= 0)) {
-      setError('Please fill in all item details with valid quantities');
-      return;
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSubmit(localFormData)
+  }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const transactionData: CreateTransactionRequest = {
-        shop_id: shopId,
-        buyer_user_id: selectedBuyer,
-        type: TransactionType.SALE,
-        items: transactionItems.map(item => ({
-          product_id: item.product_id,
-          farmer_id: item.farmer_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price
-        })),
-        notes: notes || undefined
-      };
-
-      const transaction = await createTransaction(transactionData);
-      onTransactionCreated?.(transaction);
-    } catch (err) {
-      setError('Failed to create transaction');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getTotalAmount = () => {
-    return transactionItems.reduce((total, item) => 
-      total + (item.quantity * item.unit_price), 0
-    );
-  };
-
-  const getTotalCommission = () => {
-    return commissionPreview.reduce((total, comm) => 
-      total + comm.commission_amount, 0
-    );
-  };
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount)
+  }
 
   return (
-    <div className="transaction-form">
-      <div className="form-header">
-        <h2>Create New Transaction</h2>
-        {onCancel && (
-          <button type="button" onClick={onCancel} className="close-btn">
-            ×
-          </button>
-        )}
+    <div className="bg-white shadow-lg rounded-lg p-6 max-w-4xl mx-auto">
+      <div className="section-header mb-6">
+        <h3>{isEditing ? 'Edit Transaction' : 'Create New Transaction'}</h3>
       </div>
-      
-      {error && (
-        <div className="error-message">
-          <span className="error-icon">⚠️</span>
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="form">
-        <div className="form-section">
-          <div className="form-group">
-            <label className="form-label">Select Buyer *</label>
-            <select 
-              value={selectedBuyer} 
-              onChange={(e) => setSelectedBuyer(e.target.value)}
-              className="form-select"
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Buyer *
+            </label>
+            <select
+              value={localFormData.buyer_user_id}
+              onChange={(e) => handleInputChange('buyer_user_id', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             >
-              <option value="">-- Select Buyer --</option>
-              {buyers.map(buyer => (
-                <option key={buyer.id} value={buyer.id}>
-                  {buyer.username} {buyer.contact ? `(${buyer.contact})` : ''}
+              <option value="">Select Buyer</option>
+              {users.filter(user => user.role === 'buyer').map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
                 </option>
               ))}
             </select>
           </div>
-        </div>
 
-        <div className="form-section">
-          <div className="section-header">
-            <h3>Transaction Items</h3>
-            <button type="button" onClick={addTransactionItem} className="add-item-btn">
-              + Add Item
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Transaction Type *
+            </label>
+            <select
+              value={localFormData.type}
+              onChange={(e) => handleInputChange('type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="sale">Sale</option>
+              <option value="return">Return</option>
+              <option value="adjustment">Adjustment</option>
+            </select>
           </div>
-          
-          {transactionItems.map((item, index) => (
-            <div key={index} className="transaction-item">
-              <div className="item-header">
-                <span className="item-number">Item {index + 1}</span>
-                <button 
-                  type="button" 
-                  onClick={() => removeTransactionItem(index)}
-                  className="remove-item-btn"
-                >
-                  Remove
-                </button>
-              </div>
-              
-              <div className="item-form">
-                <div className="form-group">
-                  <label className="form-label">Product Stock *</label>
-                  <select
-                    value={item.stock_id}
-                    onChange={(e) => updateTransactionItem(index, 'stock_id', e.target.value)}
-                    className="form-select"
-                    required
-                  >
-                    <option value="">-- Select Product Stock --</option>
-                    {availableStock.map(stock => (
-                      <option key={stock.id} value={stock.id}>
-                        {stock.product?.name} - {stock.farmer_user?.username} 
-                        (Qty: {stock.quantity}, Price: ${stock.unit_price})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Quantity *</label>
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => updateTransactionItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                      min="1"
-                      max={availableStock.find(s => s.id === item.stock_id)?.quantity || 1}
-                      className="form-input"
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label className="form-label">Unit Price *</label>
-                    <input
-                      type="number"
-                      value={item.unit_price}
-                      onChange={(e) => updateTransactionItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                      step="0.01"
-                      min="0"
-                      className="form-input"
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="item-total">
-                    <span className="total-label">Total:</span>
-                    <span className="total-amount">${(item.quantity * item.unit_price).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {transactionItems.length === 0 && (
-            <div className="empty-state">
-              <p>No items added yet. Click "Add Item" to start.</p>
-            </div>
-          )}
-        </div>
 
-        {commissionPreview.length > 0 && (
-          <div className="form-section commission-preview">
-            <h3>Commission Preview</h3>
-            <div className="commission-items">
-              {commissionPreview.map((comm, index) => (
-                <div key={index} className="commission-item">
-                  <span>Item {index + 1}:</span>
-                  <span className="commission-rate">{(comm.commission_rate * 100).toFixed(1)}%</span>
-                  <span className="commission-amount">${comm.commission_amount.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="commission-total">
-              <strong>Total Commission: ${getTotalCommission().toFixed(2)}</strong>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Commission Rate (%) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={localFormData.commission_rate}
+              onChange={(e) => handleInputChange('commission_rate', parseFloat(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
           </div>
-        )}
 
-        <div className="form-section transaction-summary">
-          <h3>Transaction Summary</h3>
-          <div className="summary-grid">
-            <div className="summary-row">
-              <span>Subtotal:</span>
-              <span>${getTotalAmount().toFixed(2)}</span>
-            </div>
-            <div className="summary-row">
-              <span>Commission:</span>
-              <span>${getTotalCommission().toFixed(2)}</span>
-            </div>
-            <div className="summary-row total">
-              <span><strong>Net to Farmer:</strong></span>
-              <span><strong>${(getTotalAmount() - getTotalCommission()).toFixed(2)}</strong></span>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <div className="form-group">
-            <label className="form-label">Notes (Optional)</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="form-textarea"
-              placeholder="Any additional notes for this transaction..."
-              rows={3}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date *
+            </label>
+            <input
+              type="date"
+              value={localFormData.date}
+              onChange={(e) => handleInputChange('date', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
           </div>
         </div>
 
-        <div className="form-actions">
-          <button 
-            type="submit" 
-            disabled={loading || transactionItems.length === 0} 
-            className="primary-btn"
-          >
-            {loading ? 'Creating...' : 'Create Transaction'}
-          </button>
-          {onCancel && (
-            <button type="button" onClick={onCancel} className="secondary-btn">
-              Cancel
+        {/* Items Section */}
+        <div className="items-section">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-lg font-semibold text-gray-900">Transaction Items</h4>
+            <button
+              type="button"
+              onClick={addItem}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+            >
+              + Add Item
             </button>
+          </div>
+
+          <div className="space-y-4">
+            {localFormData.items.map((item, index) => (
+              <div key={index} className="item-row bg-gray-50 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Product *
+                    </label>
+                    <select
+                      value={item.product_id}
+                      onChange={(e) => handleItemChange(index, 'product_id', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select Product</option>
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>
+                          {product.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Price per Unit *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="w-full bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 text-right">
+                  <span className="text-sm text-gray-600">
+                    Subtotal: {formatCurrency(item.quantity * item.price)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {localFormData.items.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No items added yet. Click "Add Item" to get started.</p>
+            </div>
           )}
+        </div>
+
+        {/* Summary Section */}
+        {localFormData.items.length > 0 && (
+          <div className="commission-summary bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Transaction Summary</h4>
+            
+            <div className="space-y-2">
+              <div className="commission-item">
+                <span>Subtotal:</span>
+                <span className="font-semibold">{formatCurrency(calculateTotal())}</span>
+              </div>
+              
+              <div className="commission-item">
+                <span>Commission ({localFormData.commission_rate}%):</span>
+                <span className="font-semibold">{formatCurrency(calculateCommission())}</span>
+              </div>
+              
+              <div className="commission-total">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold">Total Amount:</span>
+                  <span className="text-xl font-bold">{formatCurrency(calculateTotal())}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
+          <button
+            type="submit"
+            disabled={loading || localFormData.items.length === 0}
+            className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {isEditing ? 'Update Transaction' : 'Create Transaction'}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-md hover:bg-gray-700 transition-colors font-medium"
+          >
+            Cancel
+          </button>
         </div>
       </form>
     </div>
-  );
-};
+  )
+}
+
+export default TransactionForm

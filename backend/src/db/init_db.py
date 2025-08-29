@@ -1,102 +1,79 @@
+
 """
-Database initialization and table creation utilities
-Handles database setup, table creation, and initial data seeding
+Database initialization and table creation utilities.
+
+This script is intended for initial development setup, testing, or creating a fresh
+database from scratch. It is NOT a replacement for production database migrations,
+which should be handled by Alembic.
 """
 
-import sys
-import os
+
 import logging
-from typing import Optional
+import os
+import sys
+import traceback
 from sqlalchemy import text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-# Add the parent directory to Python path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the project root to Python path for consistent imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from .connection import db_manager, config
-from models import Base  # Import your models
+# Import all models to ensure they are registered with SQLAlchemy's Base metadata.
+# This is crucial for `Base.metadata.create_all(engine)` to work correctly.
+from src.database import models
+from src.db.connection import db_manager, config
 
 logger = logging.getLogger(__name__)
 
 class DatabaseInitializer:
-    """Database initialization and setup utilities"""
+    """Handles database creation, table setup, and verification."""
     
-    def __init__(self):
-        self.db_manager = db_manager
+    def __init__(self, db_manager_instance):
+        self.db_manager = db_manager_instance
 
-    def initialize_database(self, create_db: bool = True, create_tables: bool = True) -> bool:
-        """
-        Complete database initialization
-        
-        Args:
-            create_db: Whether to create database if it doesn't exist
-            create_tables: Whether to create tables
-            
-        Returns:
-            bool: Success status
-        """
+    def initialize_database(self, **kwargs) -> bool:
+        """Initializes the database if it doesn't exist."""
         try:
-            logger.info("Starting database initialization...")
-            
-            # Step 1: Create database if requested and doesn't exist
-            if create_db:
-                self.db_manager.create_database_if_not_exists()
-            
-            # Step 2: Initialize engine and test connection
-            engine = self.db_manager.initialize_engine()
-            if not self.db_manager.test_connection():
-                logger.error("Failed to connect to database")
-                return False
-            
-            # Step 3: Create tables if requested
-            if create_tables:
-                self.create_all_tables()
-            
-            # Step 4: Verify table creation
-            if create_tables:
-                self.verify_tables()
-            
-            logger.info("Database initialization completed successfully")
+            logger.info("Initializing database...")
+            self.db_manager.initialize_database(**kwargs)
+            logger.info("Database initialized successfully.")
             return True
-            
         except Exception as e:
-            logger.error(f"Database initialization failed: {str(e)}")
+            logger.error(f"Failed to initialize database: {e}")
             return False
 
     def create_all_tables(self) -> bool:
-        """Create all tables defined in SQLAlchemy models"""
+        """Creates all tables defined in the models based on SQLAlchemy metadata."""
         try:
-            logger.info("Creating database tables...")
             engine = self.db_manager.initialize_engine()
+            logger.info("Creating all tables from model metadata...")
+            # `models.Base.metadata` now contains all table definitions from `database/models.py`
+            models.Base.metadata.create_all(bind=engine)
             
-            # Create all tables
-            Base.metadata.create_all(bind=engine)
-            
-            # Create indexes and constraints if needed
             self._create_additional_indexes()
             
-            logger.info("All tables created successfully")
+            logger.info("All tables created successfully.")
             return True
-            
         except SQLAlchemyError as e:
-            logger.error(f"Error creating tables: {str(e)}")
+            logger.error(f"An error occurred during table creation: {e}")
             return False
 
     def _create_additional_indexes(self):
-        """Create additional indexes for performance"""
+        """Create additional non-unique indexes for performance optimization."""
+        logger.info("Creating additional performance indexes...")
         try:
             engine = self.db_manager.initialize_engine()
             
             with engine.connect() as connection:
-                # Performance indexes
+                # List of idempotent index creation statements
                 indexes = [
-                    "CREATE INDEX IF NOT EXISTS idx_user_email ON user(email)",
-                    "CREATE INDEX IF NOT EXISTS idx_user_phone ON user(phone)",
-                    "CREATE INDEX IF NOT EXISTS idx_transaction_date ON transaction(date)",
+                    "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
+                    "CREATE INDEX IF NOT EXISTS idx_users_status ON users(status)",
+                    "CREATE INDEX IF NOT EXISTS idx_transaction_date ON transaction(transaction_date)",
                     "CREATE INDEX IF NOT EXISTS idx_transaction_status ON transaction(status)",
                     "CREATE INDEX IF NOT EXISTS idx_farmer_stock_product ON farmer_stock(product_id)",
                     "CREATE INDEX IF NOT EXISTS idx_farmer_stock_farmer ON farmer_stock(farmer_user_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_payment_date ON payment(date)",
+                    "CREATE INDEX IF NOT EXISTS idx_payment_date ON payment(payment_date)",
                     "CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id)",
                     "CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at)",
                 ]
@@ -104,92 +81,52 @@ class DatabaseInitializer:
                 for index_sql in indexes:
                     try:
                         connection.execute(text(index_sql))
-                        logger.debug(f"Created index: {index_sql}")
+                        logger.debug(f"Ensured index exists: {index_sql.split(' ')[5]}")
                     except Exception as e:
-                        logger.warning(f"Could not create index {index_sql}: {str(e)}")
+                        # Log as a warning because it's not a critical failure
+                        logger.warning(f"Could not create index '{index_sql}': {str(e)}")
                 
+                # Use commit to finalize the transaction
                 connection.commit()
+                logger.info("Finished creating additional indexes.")
                 
         except Exception as e:
-            logger.warning(f"Error creating additional indexes: {str(e)}")
+            logger.warning(f"An error occurred while creating additional indexes: {str(e)}", exc_info=True)
 
     def verify_tables(self) -> bool:
-        """Verify that all expected tables exist"""
+        """Verifies that all expected tables have been created in the database."""
         try:
             engine = self.db_manager.initialize_engine()
             inspector = inspect(engine)
-            existing_tables = set(inspector.get_table_names())
+            db_tables = inspector.get_table_names()
+            model_tables = models.Base.metadata.tables.keys()
             
-            # Expected tables from your models
-            expected_tables = {
-                'user', 'shop', 'product', 'farmer_stock', 'transaction',
-                'credit', 'credit_detail', 'payment', 'farmer_payment',
-                'category', 'plan', 'payment_method', 'audit_log'
-            }
+            missing_tables = [table for table in model_tables if table not in db_tables]
             
-            missing_tables = expected_tables - existing_tables
-            if missing_tables:
-                logger.error(f"Missing tables: {missing_tables}")
+            if not missing_tables:
+                logger.info(f"Database verification successful. Found {len(db_tables)} tables.")
+                return True
+            else:
+                logger.error(f"Database verification failed. Missing tables: {missing_tables}")
                 return False
-            
-            logger.info(f"All {len(expected_tables)} tables verified successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error verifying tables: {str(e)}")
-            return False
-
-    def drop_all_tables(self, confirm: bool = False) -> bool:
-        """
-        Drop all tables (USE WITH CAUTION)
-        
-        Args:
-            confirm: Must be True to actually drop tables
-        """
-        if not confirm:
-            logger.warning("drop_all_tables called without confirmation")
-            return False
-            
-        try:
-            logger.warning("DROPPING ALL TABLES...")
-            engine = self.db_manager.initialize_engine()
-            
-            Base.metadata.drop_all(bind=engine)
-            
-            logger.warning("All tables dropped")
-            return True
-            
         except SQLAlchemyError as e:
-            logger.error(f"Error dropping tables: {str(e)}")
+            logger.error(f"An error occurred during table verification: {e}")
             return False
 
     def reset_database(self, confirm: bool = False) -> bool:
-        """
-        Complete database reset - drops and recreates everything
-        
-        Args:
-            confirm: Must be True to actually reset
-        """
+        """Drops all tables and recreates them. Requires confirmation."""
         if not confirm:
-            logger.warning("reset_database called without confirmation")
+            logger.warning("Database reset aborted. Confirmation not provided.")
             return False
-            
+        
         try:
-            logger.warning("RESETTING DATABASE...")
-            
-            # Drop all tables
-            if not self.drop_all_tables(confirm=True):
-                return False
-                
-            # Recreate all tables
-            if not self.create_all_tables():
-                return False
-                
-            logger.info("Database reset completed successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Database reset failed: {str(e)}")
+            engine = self.db_manager.initialize_engine()
+            logger.warning("Dropping all tables...")
+            models.Base.metadata.drop_all(bind=engine)
+            logger.info("All tables dropped.")
+            return self.create_all_tables()
+        except SQLAlchemyError as e:
+            logger.error(f"An error occurred during database reset: {e}")
             return False
 
     def get_database_info(self) -> dict:
@@ -227,69 +164,74 @@ class DatabaseInitializer:
                 "tables": table_info,
                 "connection_info": self.db_manager.get_connection_info()
             }
-            
+        
         except Exception as e:
             logger.error(f"Error getting database info: {str(e)}")
+            traceback.print_exc()
             return {"error": str(e)}
 
-# Global initializer instance
-db_initializer = DatabaseInitializer()
+# Global initializer instance for convenience in scripting
+db_initializer = DatabaseInitializer(db_manager)
 
-# Convenience functions
+# Convenience functions for direct script execution
 def initialize_database(**kwargs) -> bool:
-    """Initialize database with default settings"""
+    """Convenience wrapper for DatabaseInitializer.initialize_database."""
     return db_initializer.initialize_database(**kwargs)
 
 def create_tables() -> bool:
-    """Create all database tables"""
+    """Convenience wrapper for DatabaseInitializer.create_all_tables."""
     return db_initializer.create_all_tables()
 
 def verify_database() -> bool:
-    """Verify database setup"""
+    """Convenience wrapper for DatabaseInitializer.verify_tables."""
     return db_initializer.verify_tables()
 
 def reset_database(confirm: bool = False) -> bool:
-    """Reset entire database (USE WITH CAUTION)"""
+    """Convenience wrapper for DatabaseInitializer.reset_database."""
     return db_initializer.reset_database(confirm=confirm)
 
+def get_database_info() -> dict:
+    """Convenience wrapper for DatabaseInitializer.get_database_info."""
+    return db_initializer.get_database_info()
+
 if __name__ == "__main__":
-    """Main execution block for database initialization"""
-    print("🚀 Starting KisaanCenter Database Initialization...")
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger.info("Running Database Initializer script...")
     
     try:
-        # Initialize the database
-        success = initialize_database()
+        # This script is a command-line utility for database management.
+        # Example of how to use the script directly.
+        # Uncomment the desired action or pass command-line arguments.
         
-        if success:
-            print("✅ Database initialization completed successfully!")
-            print("\n📊 Database Status:")
-            
-            # Verify tables
-            if verify_database():
-                print("✅ All tables created and verified")
-                
-                # Show table summary
-                with db_manager.get_db_session() as session:
-                    inspector = inspect(session.bind)
-                    tables = inspector.get_table_names()
-                    print(f"📋 Created {len(tables)} tables:")
-                    for table in sorted(tables):
-                        print(f"   • {table}")
-                        
-                print(f"\n🔗 Database URL: {config.database_url}")
-                print("💾 Ready for data seeding!")
-                
-            else:
-                print("❌ Table verification failed")
-                
+        # 1. Initialize the database (creates it if not exists)
+        # initialize_database()
+        
+        # 2. Create all tables
+        if create_tables():
+            logger.info("SCRIPT: Table creation process completed successfully.")
         else:
-            print("❌ Database initialization failed")
-            
-    except Exception as e:
-        print(f"💥 Error during database initialization: {e}")
-        import traceback
-        traceback.print_exc()
+            logger.error("SCRIPT: Table creation process failed.")
+            sys.exit(1)
 
-def get_database_info() -> dict:
-    """Get database information"""
-    return db_initializer.get_database_info()
+        # 3. Verify tables
+        verify_database()
+
+        # 4. Get database info
+        # import json
+        # info = get_database_info()
+        # print(json.dumps(info, indent=2))
+
+        # 5. Reset the database (DANGEROUS: DROPS ALL DATA)
+        # confirmation = input("Are you sure you want to reset the database? This will delete all data. (yes/no): ")
+        # if confirmation.lower() == 'yes':
+        #     if reset_database(confirm=True):
+        #         logger.info("SCRIPT: Database reset completed successfully.")
+        #     else:
+        #         logger.error("SCRIPT: Database reset failed.")
+        # else:
+        #     logger.info("SCRIPT: Database reset aborted by user.")
+
+    except Exception as e:
+        logger.critical(f"A critical error occurred in the main script execution: {e}")
+        traceback.print_exc()
+        sys.exit(1)

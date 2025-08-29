@@ -1,25 +1,24 @@
 
 
 import pytest
-
-import sys
-import os
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from decimal import Decimal
-from datetime import date
+from sqlalchemy.pool import StaticPool
 
-# Ensure backend is in sys.path for absolute imports
-BACKEND_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if BACKEND_PATH not in sys.path:
-    sys.path.insert(0, BACKEND_PATH)
+from src.main import app
+from src.database import get_db, Base
+from src.models import *
 
-from src.models import (
-    Base, User, UserRole, Shop, Product, Category, Plan, PaymentMethod,
-    RecordStatus, Superadmin, FarmerStock, StockStatus, Transaction,
-    TransactionItem, TransactionType, TransactionStatus, PaymentStatus,
-    CompletionStatus, Credit, CreditStatus, CreditDetail, Payment, PaymentType
+# Test database URL
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def seed_test_data(session):
     """Seed minimal test data for tests"""
@@ -250,32 +249,48 @@ def seed_test_data(session):
         'credits': credits
     }
 
-@pytest.fixture(scope="session")
-def test_engine():
-    # Use SQLite in-memory DB for tests
-    test_db_url = "sqlite:///:memory:"
-    engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
-    yield engine
-    Base.metadata.drop_all(bind=engine)
-
-@pytest.fixture(scope="session")
-def seeded_engine(test_engine):
-    # Seed test data once for the session
-    Session = sessionmaker(bind=test_engine)
-    session = Session()
-    try:
-        seed_test_data(session)
-        return test_engine
-    finally:
-        session.close()
-
 @pytest.fixture(scope="function")
-def db_session(seeded_engine):
-    Session = sessionmaker(bind=seeded_engine)
-    session = Session()
+def db_session():
+    """Create a fresh database session for each test"""
+    Base.metadata.create_all(bind=engine)
+    session = TestingSessionLocal()
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        Base.metadata.drop_all(bind=engine)
+
+@pytest.fixture(scope="function")
+def client(db_session):
+    """Create a test client with database dependency override"""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+@pytest.fixture
+def sample_user_data():
+    return {
+        "username": "testuser",
+        "password": "testpass123",
+        "role": "farmer",
+        "contact": "1234567890",
+        "shop_id": 1
+    }
+
+@pytest.fixture
+def sample_shop_data():
+    return {
+        "name": "Test Shop",
+        "address": "123 Test Street",
+        "contact": "9876543210",
+        "commission_rate": 5.0,
+        "owner_id": 1,
+        "plan_id": 1
+    }

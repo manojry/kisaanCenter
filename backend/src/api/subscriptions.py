@@ -1,3 +1,4 @@
+
 """
 Subscription Management API Endpoints
 
@@ -17,51 +18,22 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 
-from ..database import get_db
-from ..models import (
+from src.db.connection import get_db
+from src.database.models import (
     Plan, Subscription, FeatureControl, BillingCycle, 
     SubscriptionStatus, UserRole
 )
-from ..services.subscription_service import (
-    SubscriptionService, FeatureControlService, 
-    UsageTrackingService, BillingService
-)
-from ..schemas.subscription_schemas import (
+from src.services.subscription_service import SubscriptionService
+from src.services.feature_control_service import FeatureControlService
+from src.services.usage_tracking_service import UsageTrackingService
+from src.services.billing_service import BillingService
+from src.schemas.subscription_schemas import (
     SubscriptionResponse, PlanResponse, FeatureControlResponse,
     CreateSubscriptionRequest, UpgradeSubscriptionRequest, 
     UpdateFeatureControlRequest, PlanCreate
 )
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
-
-# Pydantic models for request/response
-
-class CreateSubscriptionRequest(BaseModel):
-    shop_id: int
-    plan_id: int
-    billing_cycle: BillingCycle
-    start_date: Optional[date] = None
-
-class UpgradeSubscriptionRequest(BaseModel):
-    new_plan_id: int
-    reason: Optional[str] = None
-
-class UpdateFeatureControlRequest(BaseModel):
-    feature_name: str
-    is_enabled: Optional[bool] = None
-    limit_value: Optional[int] = None
-    reason: Optional[str] = None
-
-class PlanCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    monthly_price: float
-    max_farmers: int = 10
-    max_buyers: int = 20
-    max_transactions: int = 1000
-    data_retention_months: int = 6
-    features: Optional[Dict[str, Any]] = None
 
 # Plan Management Endpoints
 

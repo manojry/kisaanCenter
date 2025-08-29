@@ -225,3 +225,49 @@ def delete_payment(payment_id: int = Path(..., gt=0), db: Session = Depends(get_
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
     return result
+
+# Business-specific
+@router.get(
+    "/transaction/{transaction_id}",
+    response_model=APIResponse,
+    summary="Get payments by transaction ID",
+    description="Retrieve payments associated with a specific transaction",
+    response_description="Transaction payments",
+)
+def get_payments_by_transaction(transaction_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.get_payments_by_transaction(db, transaction_id, user_role=user_role)
+    if not result.success:
+        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=result.message)
+    return result
+
+@router.get(
+    "/user/{user_id}",
+    response_model=APIResponse,
+    summary="Get payments by user ID",
+    description="Retrieve payments made or received by a specific user",
+    response_description="User payments",
+)
+def get_payments_by_user(user_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.get_payments_by_user(db, user_id, user_role=user_role)
+    if not result.success:
+        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=result.message)
+    return result
+
+@router.post(
+    "/bulk",
+    response_model=APIResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create multiple payments",
+    description="Create multiple payment records in bulk",
+    response_description="Bulk payment creation result",
+)
+def create_bulk_payments(payments: list[PaymentCreate], db: Session = Depends(get_db)):
+    user_role = "superadmin"  # Replace with actual role extraction
+    result = PaymentService.create_bulk_payments(db, payments, user_role=user_role)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    return result

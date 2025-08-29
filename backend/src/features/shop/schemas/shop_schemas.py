@@ -1,35 +1,40 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from decimal import Decimal
 from ....schemas import BaseSchema, TimestampMixin
 
 
-class ShopBase(BaseSchema):
+class ShopBase(BaseModel):
     """Base shop schema"""
-    name: str = Field(..., min_length=2, max_length=100, description="Shop name")
-    location: Optional[str] = Field(None, max_length=200, description="Shop location")
-    plan_id: Optional[int] = Field(None, description="Subscription plan ID")
+    name: str = Field(..., min_length=1, max_length=100, description="Shop name")
+    description: Optional[str] = Field(None, description="Shop description")
+    address: Optional[str] = Field(None, description="Shop address")
+    contact: Optional[str] = Field(None, max_length=20, description="Contact information")
+    commission_rate: Optional[Decimal] = Field(default=5.00, ge=0, le=100, description="Commission rate percentage")
 
 
 class ShopCreate(ShopBase):
     """Shop creation schema"""
-    created_by: Optional[int] = Field(None, description="Creator ID")
-    owner_user_id: Optional[int] = Field(None, description="Owner user ID")
+    owner_user_id: int
+    plan_id: Optional[int] = Field(None, description="Subscription plan ID")
 
 
 class ShopUpdate(BaseModel):
     """Shop update schema"""
-    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Shop name")
-    location: Optional[str] = Field(None, max_length=200, description="Shop location")
-    plan_id: Optional[int] = Field(None, description="Subscription plan ID")
-    owner_user_id: Optional[int] = Field(None, description="Owner user ID")
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Shop name")
+    description: Optional[str] = Field(None, description="Shop description")
+    address: Optional[str] = Field(None, description="Shop address")
+    contact: Optional[str] = Field(None, max_length=20, description="Contact information")
+    commission_rate: Optional[Decimal] = Field(None, ge=0, le=100, description="Commission rate percentage")
+    status: Optional[str] = Field(None, description="Shop status")
 
 
 class ShopRead(ShopBase, TimestampMixin):
     """Shop read schema"""
     id: int
-    created_by: Optional[int] = None
-    owner_user_id: Optional[int] = None
+    owner_user_id: int
+    plan_id: Optional[int] = Field(None, description="Subscription plan ID")
     status: str
     
     class Config:
@@ -38,9 +43,10 @@ class ShopRead(ShopBase, TimestampMixin):
 
 class ShopReadWithRelations(ShopRead):
     """Shop read schema with relationships"""
-    users: List["UserRead"] = []
-    products: List["ProductRead"] = []
-    transactions: List["TransactionRead"] = []
+    owner: Optional["UserRead"] = Field(None, description="Owner user information")
+    users: List["UserRead"] = Field([], description="List of users associated with the shop")
+    products: List["ProductRead"] = Field([], description="List of products in the shop")
+    transactions: List["TransactionRead"] = Field([], description="List of transactions in the shop")
 
 
 class ShopAnalytics(BaseModel):

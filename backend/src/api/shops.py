@@ -200,3 +200,50 @@ def delete_shop(shop_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
     return result
+
+# Business-specific
+@router.get("/{shop_id}/stats", response_model=APIResponse)
+def get_shop_stats(shop_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
+    result = ShopService.get_shop_stats(db, shop_id)
+    if not result.success:
+        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=result.message)
+    return result
+
+@router.put("/{shop_id}/commission-rate", response_model=APIResponse)
+def update_commission_rate(
+    shop_id: int = Path(..., gt=0),
+    commission_rate: float = Query(..., ge=0, le=100),
+    db: Session = Depends(get_db)
+):
+    result = ShopService.update_commission_rate(db, shop_id, commission_rate)
+    if not result.success:
+        status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=result.message)
+    return result
+
+@router.get("/{shop_id}/transactions", response_model=APIResponse)
+def get_shop_transactions(
+    shop_id: int = Path(..., gt=0),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    pagination = PaginationParams(page=page, limit=limit)
+    result = ShopService.get_shop_transactions(db, shop_id, pagination)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    return result
+
+@router.get("/{shop_id}/users", response_model=APIResponse)
+def get_shop_users(
+    shop_id: int = Path(..., gt=0),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    pagination = PaginationParams(page=page, limit=limit)
+    result = ShopService.get_shop_users(db, shop_id, pagination)
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    return result
