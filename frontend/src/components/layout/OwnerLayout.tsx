@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Header from './Header';
-import Navigation from '../Navigation';
+import OwnerNavigation from '../OwnerNavigation';
 import { UserRole } from '@/types/enums';
 
 interface OwnerLayoutProps {
@@ -23,7 +23,7 @@ const OwnerLayout: React.FC<OwnerLayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="flex">
-        <Navigation 
+        <OwnerNavigation 
           currentRole={currentRole} 
           currentRoute={currentRoute} 
         />

@@ -17,6 +17,9 @@ class User(Base):
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    farmer_stocks = relationship("FarmerStock", back_populates="farmer")
 
 class Superadmin(Base):
     __tablename__ = "superadmin"

@@ -51,9 +51,7 @@ router = APIRouter(prefix="/products", tags=["Products"])
     }
 )
 def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    # TODO: Extract user_role from auth/session (stub: use SUPERADMIN)
-    user_role = "superadmin"  # Replace with actual role extraction
-    result = ProductService.create_product(db, product, user_role=user_role)
+    result = ProductService.create_product(db, product)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     return result
@@ -89,8 +87,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     }
 )
 def get_product(product_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    user_role = "superadmin"  # Replace with actual role extraction
-    result = ProductService.get_product(db, product_id, user_role=user_role)
+    result = ProductService.get_product(db, product_id)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
@@ -140,8 +137,7 @@ def get_products(
     db: Session = Depends(get_db)
 ):
     pagination = PaginationParams(page=page, limit=limit)
-    user_role = "superadmin"  # Replace with actual role extraction
-    result = ProductService.get_products(db, pagination, user_role=user_role)
+    result = ProductService.get_products(db, pagination)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     return result
@@ -152,8 +148,7 @@ def update_product(
     product_update: ProductUpdate = ...,
     db: Session = Depends(get_db)
 ):
-    user_role = "superadmin"  # Replace with actual role extraction
-    result = ProductService.update_product(db, product_id, product_update, user_role=user_role)
+    result = ProductService.update_product(db, product_id, product_update)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)
@@ -161,8 +156,7 @@ def update_product(
 
 @router.delete("/{product_id}", response_model=APIResponse)
 def delete_product(product_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    user_role = "superadmin"  # Replace with actual role extraction
-    result = ProductService.delete_product(db, product_id, user_role=user_role)
+    result = ProductService.delete_product(db, product_id)
     if not result.success:
         status_code = status.HTTP_404_NOT_FOUND if "not found" in result.message.lower() else status.HTTP_400_BAD_REQUEST
         raise HTTPException(status_code=status_code, detail=result.message)

@@ -16,7 +16,8 @@ from .enums import (
     LimitType
 )
 from .user import User, Superadmin, UserActivity
-from .shop import Shop, ShopUser, ShopTiming, ShopInventory, Category, ProductCategory, FarmerStock
+from .shop import Shop, ShopUser, ShopTiming, ShopInventory, Category, ProductCategory
+from .farmer_stock import FarmerStock
 from .product import Product
 from .transaction import Transaction, TransactionItem
 from .plan import Plan

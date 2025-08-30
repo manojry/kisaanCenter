@@ -5,7 +5,7 @@ import json
 superadmin_payload = {
     "username": "superadmin_terminal",
     "password": "superpass123",
-    "role": "superadmin",
+    "role": "SUPERADMIN",
     "contact": "9999999999"
 }
 superadmin_resp = requests.post("http://127.0.0.1:8000/api/v1/users/", headers={"Content-Type": "application/json"}, json=superadmin_payload)
@@ -21,7 +21,7 @@ if superadmin_id:
     owner_payload = {
         "username": "owner_terminal",
         "password": "testpass123",
-        "role": "owner",
+        "role": "OWNER",
         "contact": "9876543210",
         "created_by": superadmin_id
     }
@@ -294,35 +294,29 @@ def run_database_migration():
     
     venv_python = get_venv_python()
     migration_script = 'migrate_subscription.py'  # Script is in backend directory
-    
-    if not os.path.exists(os.path.join('backend', migration_script)):
-        print(f"{Colors.YELLOW}⚠️  Migration script not found, skipping{Colors.END}")
-        return
-    
-    try:
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.path.join(os.getcwd(), 'backend')
-        
-        # Use absolute path for venv_python if it's relative
-        if not os.path.isabs(venv_python):
-            venv_python = os.path.join(os.getcwd(), venv_python)
-        
-        subprocess.run([venv_python, migration_script], 
-                      check=True, cwd='backend', env=env)
-        print(f"{Colors.GREEN}✅ Database migrations completed{Colors.END}")
-    except subprocess.CalledProcessError as e:
-        print(f"{Colors.YELLOW}⚠️  Database migration failed (this is OK if DB is not configured): {e}{Colors.END}")
-    except FileNotFoundError as e:
-        print(f"{Colors.YELLOW}⚠️  Python executable not found, trying fallback: {e}{Colors.END}")
-        # Try with system python as fallback
+    env = os.environ.copy()
+    env['PYTHONPATH'] = os.path.join(os.getcwd(), 'backend')
+
+    # Run custom migration script if present
+    migration_script_path = os.path.join('backend', migration_script)
+    if os.path.exists(migration_script_path):
         try:
-            env = os.environ.copy()
-            env['PYTHONPATH'] = os.path.join(os.getcwd(), 'backend')
-            subprocess.run([sys.executable, migration_script], 
-                          check=True, cwd='backend', env=env)
-            print(f"{Colors.GREEN}✅ Database migrations completed (fallback){Colors.END}")
-        except Exception as fallback_e:
-            print(f"{Colors.YELLOW}⚠️  Migration failed: {fallback_e}{Colors.END}")
+            if not os.path.isabs(venv_python):
+                venv_python = os.path.join(os.getcwd(), venv_python)
+            subprocess.run([venv_python, migration_script], check=True, cwd='backend', env=env)
+            print(f"{Colors.GREEN}✅ Custom migration script completed{Colors.END}")
+        except Exception as e:
+            print(f"{Colors.YELLOW}⚠️  Custom migration script failed: {e}{Colors.END}")
+    else:
+        print(f"{Colors.YELLOW}⚠️  Custom migration script not found, skipping{Colors.END}")
+
+    # Run Alembic migrations
+    print(f"{Colors.YELLOW}🗄️  Running Alembic migrations...{Colors.END}")
+    try:
+        subprocess.run([venv_python, '-m', 'alembic', 'upgrade', 'head'], check=True, cwd='backend', env=env)
+        print(f"{Colors.GREEN}✅ Alembic migrations completed{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Alembic migration failed: {e}{Colors.END}")
 
 def start_application(port=8000, dev_mode=False):
     """Start the FastAPI application"""

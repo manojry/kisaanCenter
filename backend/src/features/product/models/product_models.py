@@ -2,7 +2,9 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime, DECIMAL, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql import func
 from datetime import datetime
+from ....models.base import Base # Assuming Base is in a central location
 
 class ProductCategory(Base):
     __tablename__ = 'product_categories'

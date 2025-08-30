@@ -8,7 +8,7 @@ class FarmerPayment(Base):
     # Foreign Keys
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     farmer_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False)
+    shop_id = Column(Integer, ForeignKey('shops.id'), nullable=False)
     
     # Business Fields
     amount = Column(DECIMAL(12,2), nullable=False)

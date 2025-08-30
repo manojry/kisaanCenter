@@ -39,7 +39,7 @@ class Payment(Base):
     __tablename__ = 'payment'
     
     id = Column(Integer, primary_key=True, index=True)
-    transaction_id = Column(Integer, ForeignKey('transaction.id'), nullable=False)
+    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     credit_id = Column(Integer, ForeignKey('credit.id'), nullable=True)
     amount = Column(DECIMAL(12,2), nullable=False)
     payment_method_id = Column(Integer, ForeignKey('payment_method.id'), nullable=False)
@@ -90,8 +90,8 @@ class FarmerPayment(Base):
     __tablename__ = 'farmer_payment'
     
     id = Column(Integer, primary_key=True, index=True)
-    transaction_id = Column(Integer, ForeignKey('transaction.id'), nullable=False)
-    farmer_stock_id = Column(Integer, ForeignKey('farmer_stock.id'), nullable=True)
+    transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
+    farmer_stock_id = Column(Integer, ForeignKey('farmer_stocks.id'), nullable=True)
     farmer_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     amount = Column(DECIMAL(12,2), nullable=False)
     payment_type = Column(Enum(FarmerPaymentType), nullable=False)
@@ -107,7 +107,7 @@ class FarmerPayment(Base):
     # Relationships
     transaction = relationship('Transaction', back_populates='farmer_payments')
     farmer_stock = relationship('FarmerStock', back_populates='farmer_payments')
-    farmer_user = relationship('User', back_populates='farmer_payments', foreign_keys=[farmer_user_id])
+    farmer_user = relationship('User', foreign_keys=[farmer_user_id])
     payment_method = relationship('PaymentMethod', back_populates='farmer_payments')
     approved_by_user = relationship('User', foreign_keys=[approved_by])
 

@@ -5,8 +5,8 @@ from .base import Base
 class Order(Base):
     __tablename__ = "order"
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("product.id"), nullable=False)
-    shop_id = Column(Integer, ForeignKey("shop.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)

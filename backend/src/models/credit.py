@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DECIMAL, DateTime, func, ForeignKey, Enum
+from sqlalchemy.orm import relationship
 from .base import Base
 from .enums import CreditStatus, RecordStatus
 
@@ -12,3 +13,6 @@ class Credit(Base):
     record_status = Column(Enum(RecordStatus), nullable=False, default=RecordStatus.ACTIVE)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    payments = relationship('Payment', back_populates='credit')

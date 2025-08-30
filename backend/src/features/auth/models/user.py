@@ -13,7 +13,7 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), nullable=False)
-    shop_id = Column(Integer, ForeignKey('shop.id'))
+    shop_id = Column(Integer, ForeignKey('shops.id'))
     created_by = Column(Integer, ForeignKey('users.id'))
     contact = Column(String(20))
     credit_limit = Column(DECIMAL(12,2), default=0.00)

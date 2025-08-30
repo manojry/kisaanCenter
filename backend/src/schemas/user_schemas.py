@@ -5,7 +5,7 @@ from datetime import datetime
 
 class PaginationParams(BaseModel):
     page: int = 1
-    size: int = 20
+    limit: int = 20
     search: Optional[str] = None
 
 class UserCreate(BaseModel):

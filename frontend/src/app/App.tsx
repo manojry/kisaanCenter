@@ -259,6 +259,95 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      
+      {/* Additional Owner Routes */}
+      <Route 
+        path="/commissions" 
+        element={
+          <ProtectedRoute>
+            <Commissions />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Farmer-specific routes */}
+      <Route 
+        path="/farmer/stock" 
+        element={
+          <ProtectedRoute>
+            <Stock />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/farmer/payments" 
+        element={
+          <ProtectedRoute>
+            <Payments />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Buyer-specific routes */}
+      <Route 
+        path="/buyer/purchases" 
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/buyer/credits" 
+        element={
+          <ProtectedRoute>
+            <Credits />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Quick action routes */}
+      <Route 
+        path="/stock/add" 
+        element={
+          <ProtectedRoute>
+            <Stock />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/transactions/create" 
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/payments/farmers" 
+        element={
+          <ProtectedRoute>
+            <Payments />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/payments/buyers" 
+        element={
+          <ProtectedRoute>
+            <Payments />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/users/create" 
+        element={
+          <ProtectedRoute>
+            <Users />
+          </ProtectedRoute>
+        } 
+      />
+      
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

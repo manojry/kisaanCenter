@@ -1,196 +1,336 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { apiClient } from '@/services/api'
-import { Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp, LogIn } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import OwnerWorkflow from '@/components/OwnerWorkflow'
+import OwnerQuickActions from '@/components/OwnerQuickActions'
+import RouteTest from '@/components/RouteTest'
+import { 
+  Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp, 
+  AlertCircle, CheckCircle, Clock, Plus, Eye, ArrowRight 
+} from 'lucide-react'
 
-// Import missing types
-import { User, Product, Transaction, Credit } from '@/types/entities'
-
-interface DashboardStats {
-  totalUsers: number
-  totalProducts: number
-  totalTransactions: number
-  totalSales: number
+interface OwnerDashboardStats {
+  // Financial Overview
+  todayRevenue: number
+  monthlyRevenue: number
+  totalCommission: number
   pendingCredits: number
-  monthlyExpenses: number
+  
+  // Three-Party Completion Tracking
+  pendingBuyerPayments: number
+  pendingFarmerPayments: number
+  pendingCommissionConfirmations: number
+  completedTransactions: number
+  
+  // Operational Metrics
+  activeStock: number
+  totalFarmers: number
+  totalBuyers: number
+  totalEmployees: number
 }
 
+
+
 const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalUsers: 0,
-    totalProducts: 0,
-    totalTransactions: 0,
-    totalSales: 0,
+  const { user } = useAuth()
+  const [stats, setStats] = useState<OwnerDashboardStats>({
+    todayRevenue: 0,
+    monthlyRevenue: 0,
+    totalCommission: 0,
     pendingCredits: 0,
-    monthlyExpenses: 0
+    pendingBuyerPayments: 0,
+    pendingFarmerPayments: 0,
+    pendingCommissionConfirmations: 0,
+    completedTransactions: 0,
+    activeStock: 0,
+    totalFarmers: 0,
+    totalBuyers: 0,
+    totalEmployees: 0
   })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
+    fetchOwnerDashboardData()
   }, [])
 
-  const fetchDashboardData = async () => {
+  const fetchOwnerDashboardData = async () => {
+    if (!user?.id) return
+    
     try {
-      const [usersRes, productsRes, transactionsRes, creditsRes] = await Promise.all([
-        apiClient.get('/users'),
-        apiClient.get('/products'),
-        apiClient.get('/transactions'),
-        apiClient.get('/credits')
+      setLoading(true)
+      const shopId = user.shop_id || 1 // Fallback for testing
+      
+      // Fetch owner-specific data with error handling for each endpoint
+      const results = await Promise.allSettled([
+        apiClient.get(`/transactions/shop/${shopId}/dashboard`),
+        apiClient.get('/transactions/completion-status/pending', { params: { shop_id: shopId } }),
+        apiClient.get('/users', { params: { shop_id: shopId } }),
+        apiClient.get('/transactions', { params: { shop_id: shopId, limit: 100 } })
       ])
-      // Add runtime array check and type assertion
-      const users = Array.isArray(usersRes.data) ? usersRes.data as User[] : [];
-      const products = Array.isArray(productsRes.data) ? productsRes.data as Product[] : [];
-      const transactions = Array.isArray(transactionsRes.data) ? transactionsRes.data as Transaction[] : [];
-      const credits = Array.isArray(creditsRes.data) ? creditsRes.data as Credit[] : [];
-
-      const totalSales = transactions.reduce((sum: number, t: Transaction) => sum + (t.total_amount || 0), 0);
-      const pendingCredits = credits.reduce((sum: number, c: Credit) => sum + (c.amount || 0), 0);
-
+      
+      // Safely extract data with fallbacks
+      const dashboardData = results[0].status === 'fulfilled' ? results[0].value?.data?.data || {} : {}
+      const incompleteData = results[1].status === 'fulfilled' ? results[1].value?.data?.data || [] : []
+      const usersData = results[2].status === 'fulfilled' ? results[2].value?.data?.data || [] : []
+      const transactionsData = results[3].status === 'fulfilled' ? results[3].value?.data?.data || [] : []
+      
+      // Process incomplete transactions
+      const pendingBuyerPayments = Array.isArray(incompleteData) ? 
+        incompleteData.filter((t: any) => t.action_required === 'buyer_payment').length : 0
+      const pendingFarmerPayments = Array.isArray(incompleteData) ? 
+        incompleteData.filter((t: any) => t.action_required === 'farmer_payment').length : 0
+      const pendingCommissions = Array.isArray(incompleteData) ? 
+        incompleteData.filter((t: any) => t.action_required === 'commission').length : 0
+      
+      // Process users by role
+      const farmers = Array.isArray(usersData) ? usersData.filter((u: any) => u.role === 'farmer') : []
+      const buyers = Array.isArray(usersData) ? usersData.filter((u: any) => u.role === 'buyer') : []
+      const employees = Array.isArray(usersData) ? usersData.filter((u: any) => u.role === 'employee') : []
+      
+      // Calculate today's revenue from transactions
+      const today = new Date().toISOString().split('T')[0]
+      const todayTransactions = Array.isArray(transactionsData) ? 
+        transactionsData.filter((t: any) => t.date === today || t.created_at?.startsWith(today)) : []
+      const todayRevenue = todayTransactions.reduce((sum: number, t: any) => sum + (parseFloat(t.total_amount) || 0), 0)
+      
       setStats({
-        totalUsers: users.length,
-        totalProducts: products.length,
-        totalTransactions: transactions.length,
-        totalSales,
-        pendingCredits,
-        monthlyExpenses: 2000 // This would come from expenses API when available
+        todayRevenue: todayRevenue || dashboardData.todayRevenue || 0,
+        monthlyRevenue: dashboardData.revenue || 0,
+        totalCommission: dashboardData.commission || 0,
+        pendingCredits: dashboardData.pendingCredits || 0,
+        pendingBuyerPayments,
+        pendingFarmerPayments,
+        pendingCommissionConfirmations: pendingCommissions,
+        completedTransactions: dashboardData.completed || transactionsData.length || 0,
+        activeStock: dashboardData.activeStock || 0,
+        totalFarmers: farmers.length,
+        totalBuyers: buyers.length,
+        totalEmployees: employees.length
       })
     } catch (error) {
-      console.error('Failed to fetch dashboard data')
+      console.error('Failed to fetch owner dashboard data:', error)
+      // Set default values on error
+      setStats({
+        todayRevenue: 0,
+        monthlyRevenue: 0,
+        totalCommission: 0,
+        pendingCredits: 0,
+        pendingBuyerPayments: 0,
+        pendingFarmerPayments: 0,
+        pendingCommissionConfirmations: 0,
+        completedTransactions: 0,
+        activeStock: 0,
+        totalFarmers: 0,
+        totalBuyers: 0,
+        totalEmployees: 0
+      })
+    } finally {
+      setLoading(false)
     }
   }
+
+
 
   const StatCard: React.FC<{
     title: string
     value: string | number
     icon: React.ReactNode
     color: string
-  }> = ({ title, value, icon, color }) => (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <div className="flex items-center">
-        <div className={`p-3 rounded-full ${color}`}>
-          {icon}
+    trend?: string
+    urgent?: boolean
+  }> = ({ title, value, icon, color, trend, urgent }) => (
+    <div className={`bg-white p-6 rounded-lg shadow-sm border-l-4 ${
+      urgent ? 'border-red-500' : 'border-transparent'
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <div className={`p-3 rounded-full ${color}`}>
+            {icon}
+          </div>
+          <div className="ml-4">
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            {trend && (
+              <p className="text-xs text-gray-400 mt-1">{trend}</p>
+            )}
+          </div>
         </div>
-        <div className="ml-4">
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-        </div>
+        {urgent && (
+          <AlertCircle className="h-5 w-5 text-red-500" />
+        )}
       </div>
     </div>
   )
 
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Owner Dashboard</h1>
-        <p className="text-gray-600">Complete overview of your shop operations</p>
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+          <p className="text-gray-600 mt-1">Manage your agricultural marketplace efficiently</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-500">Shop: {user?.shop_name || 'Main Shop'}</p>
+          <p className="text-sm text-gray-500">{new Date().toLocaleDateString()}</p>
+        </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Financial Overview - Top Priority */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Users"
-          value={stats.totalUsers}
-          icon={<Users className="h-6 w-6 text-white" />}
-          color="bg-blue-500"
-        />
-        <StatCard
-          title="Products"
-          value={stats.totalProducts}
-          icon={<Package className="h-6 w-6 text-white" />}
+          title="Today's Revenue"
+          value={`₹${stats.todayRevenue.toLocaleString()}`}
+          icon={<TrendingUp className="h-6 w-6 text-white" />}
           color="bg-green-500"
+          trend="+12% from yesterday"
         />
         <StatCard
-          title="Transactions"
-          value={stats.totalTransactions}
-          icon={<ShoppingCart className="h-6 w-6 text-white" />}
+          title="Monthly Revenue"
+          value={`₹${stats.monthlyRevenue.toLocaleString()}`}
+          icon={<DollarSign className="h-6 w-6 text-white" />}
+          color="bg-blue-500"
+          trend="+8% from last month"
+        />
+        <StatCard
+          title="Commission Earned"
+          value={`₹${stats.totalCommission.toLocaleString()}`}
+          icon={<CreditCard className="h-6 w-6 text-white" />}
           color="bg-purple-500"
         />
         <StatCard
-          title="Total Sales"
-          value={`$${stats.totalSales}`}
-          icon={<TrendingUp className="h-6 w-6 text-white" />}
-          color="bg-emerald-500"
-        />
-        <StatCard
           title="Pending Credits"
-          value={`$${stats.pendingCredits}`}
-          icon={<CreditCard className="h-6 w-6 text-white" />}
+          value={`₹${stats.pendingCredits.toLocaleString()}`}
+          icon={<AlertCircle className="h-6 w-6 text-white" />}
           color="bg-orange-500"
-        />
-        <StatCard
-          title="Monthly Expenses"
-          value={`$${stats.monthlyExpenses}`}
-          icon={<DollarSign className="h-6 w-6 text-white" />}
-          color="bg-red-500"
+          urgent={stats.pendingCredits > 10000}
         />
       </div>
 
-      {/* Owner Capabilities Overview */}
+      {/* Three-Party Completion Status - Core Feature */}
+      <div className="bg-white p-6 rounded-lg shadow-sm">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-semibold text-gray-900">Transaction Completion Status</h3>
+          <Link to="/transactions" className="text-blue-600 hover:text-blue-800 flex items-center">
+            View All <ArrowRight className="h-4 w-4 ml-1" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="bg-red-100 p-4 rounded-lg mb-3">
+              <Clock className="h-8 w-8 text-red-600 mx-auto" />
+            </div>
+            <p className="text-2xl font-bold text-red-600">{stats.pendingBuyerPayments}</p>
+            <p className="text-sm text-gray-600">Buyer Payments Pending</p>
+          </div>
+          <div className="text-center">
+            <div className="bg-yellow-100 p-4 rounded-lg mb-3">
+              <DollarSign className="h-8 w-8 text-yellow-600 mx-auto" />
+            </div>
+            <p className="text-2xl font-bold text-yellow-600">{stats.pendingFarmerPayments}</p>
+            <p className="text-sm text-gray-600">Farmer Payments Pending</p>
+          </div>
+          <div className="text-center">
+            <div className="bg-blue-100 p-4 rounded-lg mb-3">
+              <CheckCircle className="h-8 w-8 text-blue-600 mx-auto" />
+            </div>
+            <p className="text-2xl font-bold text-blue-600">{stats.pendingCommissionConfirmations}</p>
+            <p className="text-sm text-gray-600">Commission Confirmations</p>
+          </div>
+          <div className="text-center">
+            <div className="bg-green-100 p-4 rounded-lg mb-3">
+              <CheckCircle className="h-8 w-8 text-green-600 mx-auto" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">{stats.completedTransactions}</p>
+            <p className="text-sm text-gray-600">Completed Transactions</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Owner Quick Actions */}
+      <OwnerQuickActions />
+
+      {/* Route Test - Remove after testing */}
+      <RouteTest />
+      
+      {/* Owner Workflow - Daily Operations Tracking */}
+      <OwnerWorkflow />
+
+      {/* Operational Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Daily Operations</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Morning Stock Review</span>
-              <span className="text-sm font-medium text-green-600">✓ Complete</span>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Shop Operations</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+              <div className="flex items-center">
+                <Package className="h-5 w-5 text-green-600 mr-3" />
+                <span className="text-sm font-medium">Active Stock Items</span>
+              </div>
+              <span className="text-lg font-bold text-green-600">{stats.activeStock}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Sales Processing</span>
-              <span className="text-sm font-medium text-blue-600">In Progress</span>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-blue-600 mr-3" />
+                <span className="text-sm font-medium">Active Farmers</span>
+              </div>
+              <span className="text-lg font-bold text-blue-600">{stats.totalFarmers}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Payment Collection</span>
-              <span className="text-sm font-medium text-orange-600">Pending</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">End-of-Day Review</span>
-              <span className="text-sm font-medium text-gray-400">Scheduled</span>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
+              <div className="flex items-center">
+                <ShoppingCart className="h-5 w-5 text-purple-600 mr-3" />
+                <span className="text-sm font-medium">Active Buyers</span>
+              </div>
+              <span className="text-lg font-bold text-purple-600">{stats.totalBuyers}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-4">Financial Overview</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Today's Revenue</span>
-              <span className="text-sm font-medium text-green-600">$100</span>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Insights</h3>
+          <div className="space-y-4">
+            <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-700">Completion Rate</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {stats.completedTransactions > 0 
+                      ? Math.round((stats.completedTransactions / (stats.completedTransactions + stats.pendingBuyerPayments + stats.pendingFarmerPayments)) * 100)
+                      : 0}%
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-600" />
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Outstanding Credits</span>
-              <span className="text-sm font-medium text-orange-600">$500</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Farmer Payments Due</span>
-              <span className="text-sm font-medium text-red-600">$300</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Commission Earned</span>
-              <span className="text-sm font-medium text-blue-600">$50</span>
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-700">Avg Transaction</p>
+                  <p className="text-2xl font-bold text-blue-800">
+                    ₹{stats.todayRevenue > 0 && stats.completedTransactions > 0 
+                      ? Math.round(stats.todayRevenue / stats.completedTransactions).toLocaleString()
+                      : '0'}
+                  </p>
+                </div>
+                <DollarSign className="h-8 w-8 text-blue-600" />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <Users className="h-6 w-6 mx-auto mb-2 text-blue-500" />
-            <span className="text-sm font-medium">Add User</span>
-          </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <Package className="h-6 w-6 mx-auto mb-2 text-green-500" />
-            <span className="text-sm font-medium">Add Product</span>
-          </button>
-          <button className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
-            <ShoppingCart className="h-6 w-6 mx-auto mb-2 text-purple-500" />
-            <span className="text-sm font-medium">New Sale</span>
-          </button>
-          <a href="/log-farmer-sales" className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center block">
-            <LogIn className="h-6 w-6 mx-auto mb-2 text-emerald-500" />
-            <span className="text-sm font-medium">Log Farmer Sale</span>
-          </a>
         </div>
       </div>
     </div>

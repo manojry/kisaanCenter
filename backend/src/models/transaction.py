@@ -6,6 +6,10 @@ from .enums import TransactionStatus, PaymentStatus, CompletionStatus, RecordSta
 class Transaction(Base):
     __tablename__ = "transactions"
     
+    # Relationships
+    payments = relationship('Payment', back_populates='transaction')
+    farmer_payments = relationship('FarmerPayment', back_populates='transaction')
+    
     id = Column(Integer, primary_key=True, index=True)
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False, index=True)
     buyer_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

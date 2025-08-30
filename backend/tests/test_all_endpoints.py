@@ -14,10 +14,63 @@ import uuid
 
 # Load environment variables
 load_dotenv()
-BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8001/api/v1")
-HEALTH_URL = os.getenv("HEALTH_URL", "http://127.0.0.1:8001")
+BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000/api/v1")
+HEALTH_URL = os.getenv("HEALTH_URL", "http://127.0.0.1:8000")
 
 class TestAPIEndpoints:
+
+    @classmethod
+    def ensure_test_data_exists(cls):
+        """Ensure required shop, user, and product records exist for tests."""
+        # Check shop
+        shop_response = requests.get(f"{BASE_URL}/shops/{cls.test_data['shop_id']}", headers=cls.headers)
+        if shop_response.status_code != 200:
+            # Create shop if missing
+            shop_data = {
+                "name": "Test Shop",
+                "location": "Test Location",
+                "contact": "+91-9999999999",
+                "commission_rate": 5.0,
+                "owner_user_id": cls.test_data['user_id'],
+                "status": "active"
+            }
+            requests.post(f"{BASE_URL}/shops/", json=shop_data, headers=cls.headers)
+
+        # Check user
+        user_response = requests.get(f"{BASE_URL}/users/{cls.test_data['user_id']}", headers=cls.headers)
+        if user_response.status_code != 200:
+            user_data = {
+                "username": f"testuser_{int(time.time())}",
+                "password": "testpass123",
+                "role": "farmer",
+                "shop_id": cls.test_data['shop_id'],
+                "contact": "+91-9876543210",
+                "credit_limit": 10000.0,
+                "created_by": 12,
+                "status": "active"
+            }
+            resp = requests.post(f"{BASE_URL}/users/", json=user_data, headers=cls.headers)
+            if resp.status_code == 201:
+                cls.test_data['user_id'] = resp.json()["data"]["id"]
+
+        # Check product
+        products_response = requests.get(f"{BASE_URL}/products/?page=1&limit=1", headers=cls.headers)
+        if products_response.status_code == 200:
+            products_data = products_response.json()
+            if products_data.get("data") and len(products_data["data"]) > 0:
+                cls.test_data['product_id'] = products_data["data"][0]["id"]
+            else:
+                # Create a product if none exist
+                product_data = {
+                    "name": "Test Product",
+                    "category_id": 1,
+                    "price": 100.0,
+                    "status": "active"
+                }
+                prod_resp = requests.post(f"{BASE_URL}/products/", json=product_data, headers=cls.headers)
+                if prod_resp.status_code == 201:
+                    cls.test_data['product_id'] = prod_resp.json()["data"]["id"]
+
     """Test all 22 API endpoints with comprehensive validation"""
     
     def setup_class(cls):
@@ -45,7 +98,7 @@ class TestAPIEndpoints:
 
         print("--- Test data setup complete ---\n")
 
-    def teardown_class(cls):
+    def setup_class(cls):
         """Cleanup test data"""
         print("\n--- Cleaning up test data ---")
         # Add cleanup logic here if needed
@@ -65,6 +118,9 @@ class TestAPIEndpoints:
         """Test detailed health check"""
         response = requests.get(f"{HEALTH_URL}/health")
         assert response.status_code == 200
+
+        # Ensure all required test data exists
+    cls.ensure_test_data_exists()
         data = response.json()
         assert "status" in data
         assert "services" in data

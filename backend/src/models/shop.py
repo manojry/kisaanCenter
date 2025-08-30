@@ -1,6 +1,3 @@
-# Stub for FarmerStock to resolve import error
-class FarmerStock:
-    pass
 # Stub for ProductCategory to resolve import error
 class ProductCategory:
     pass
