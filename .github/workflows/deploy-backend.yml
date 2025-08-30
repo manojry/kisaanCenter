@@ -61,7 +61,7 @@ jobs:
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          --image ghcr.io/manojry/kisaancenter/backend:latest \
           --revision-suffix $(date +%s)
 
     - name: ✅ Verify deployment
