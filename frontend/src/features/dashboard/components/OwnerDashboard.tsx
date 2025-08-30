@@ -1,188 +1,269 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import './Dashboard.css';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProductAssignmentWizard } from '../../product/components/ProductAssignmentWizard';
+import { FarmersProductsManager } from '../../product/components/FarmersProductsManager';
+import { productManagementApi } from '../../product/api/productManagementApi';
+import { User } from '../../auth/types';
 
-interface OwnerStats {
-  shop_revenue: number;
-  shop_transactions: number;
-  shop_products: number;
-  today_transactions: number;
-  monthly_growth: string;
-  active_employees: number;
+interface OwnerDashboardProps {
+  user: User;
 }
 
-const OwnerDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<OwnerStats>({
-    shop_revenue: 15000,
-    shop_transactions: 78,
-    shop_products: 45,
-    today_transactions: 5,
-    monthly_growth: '+12%',
-    active_employees: 6
-  });
-  const [loading, setLoading] = useState(false);
+export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [shopProducts, setShopProducts] = useState<any>({});
+  const [farmersCount, setFarmersCount] = useState(0);
+  const [showProductSetup, setShowProductSetup] = useState(false);
+  const [showFarmerAssignment, setShowFarmerAssignment] = useState(false);
+  const [selectedFarmerId, setSelectedFarmerId] = useState<number | null>(null);
 
   useEffect(() => {
-    // In a real app, fetch owner-specific data
-    // fetchOwnerStats();
+    loadDashboardData();
   }, []);
 
-  const fetchOwnerStats = async () => {
+  const loadDashboardData = async () => {
     try {
-      setLoading(true);
-      // const response = await fetch('/api/v1/owner/dashboard');
-      // const data = await response.json();
-      // setStats(data.data);
+      // Load shop's product catalog
+      const catalogResponse = await productManagementApi.getShopCatalog(user.shop_id!);
+      setShopProducts(catalogResponse.data);
+
+      // Load farmers summary
+      const summaryResponse = await productManagementApi.getFarmersProductsSummary(user.shop_id!);
+      setFarmersCount(summaryResponse.data.farmers?.length || 0);
     } catch (error) {
-      console.error('Failed to fetch owner stats:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load dashboard data:', error);
     }
   };
 
-  if (loading) {
+  const handleProductSetupComplete = () => {
+    setShowProductSetup(false);
+    loadDashboardData();
+  };
+
+  const handleFarmerAssignmentComplete = () => {
+    setShowFarmerAssignment(false);
+    setSelectedFarmerId(null);
+    loadDashboardData();
+  };
+
+  const totalProducts = Object.values(shopProducts.products_by_category || {})
+    .reduce((total: number, products: any) => total + products.length, 0);
+
+  if (showProductSetup) {
     return (
-      <div className="dashboard-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading Shop Dashboard...</p>
-        </div>
-      </div>
+      <ProductAssignmentWizard
+        shopId={user.shop_id!}
+        mode="shop-setup"
+        onComplete={handleProductSetupComplete}
+      />
+    );
+  }
+
+  if (showFarmerAssignment && selectedFarmerId) {
+    return (
+      <ProductAssignmentWizard
+        shopId={user.shop_id!}
+        farmerId={selectedFarmerId}
+        mode="farmer-assignment"
+        onComplete={handleFarmerAssignmentComplete}
+      />
     );
   }
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-header">
-        <h1>Shop Dashboard</h1>
-        <div className="status-indicator status-online">
-          <span>🏪</span>
-          <span>Shop Owner</span>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Owner Dashboard</h1>
+          <p className="text-gray-600">Manage your shop and farmers</p>
+        </div>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowProductSetup(true)}
+          >
+            Manage Shop Products
+          </Button>
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Shop Revenue Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#10b981' }}>
-            💰
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Shop Revenue</h3>
-            <p className="card-number">${stats.shop_revenue.toLocaleString()}</p>
-            <span className="card-subtitle">Total Earned</span>
-          </div>
-        </div>
-
-        {/* Shop Transactions Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#3b82f6' }}>
-            📊
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Transactions</h3>
-            <p className="card-number">{stats.shop_transactions}</p>
-            <span className="card-subtitle">Total Count</span>
-          </div>
-        </div>
-
-        {/* Shop Products Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#8b5cf6' }}>
-            📦
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Products</h3>
-            <p className="card-number">{stats.shop_products}</p>
-            <span className="card-subtitle">In Inventory</span>
-          </div>
-        </div>
-
-        {/* Today's Transactions Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#06b6d4' }}>
-            📈
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Today's Sales</h3>
-            <p className="card-number">{stats.today_transactions}</p>
-            <span className="card-subtitle">Transactions</span>
-          </div>
-        </div>
-
-        {/* Monthly Growth Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#10b981' }}>
-            📈
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Growth</h3>
-            <p className="card-number">{stats.monthly_growth}</p>
-            <span className="card-subtitle">This Month</span>
-          </div>
-        </div>
-
-        {/* Active Employees Card */}
-        <div className="dashboard-card">
-          <div className="card-icon" style={{ backgroundColor: '#f59e0b' }}>
-            👥
-          </div>
-          <div className="card-content">
-            <h3 className="card-title">Active Staff</h3>
-            <p className="card-number">{stats.active_employees}</p>
-            <span className="card-subtitle">Working Today</span>
-          </div>
-        </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{totalProducts}</div>
+            <p className="text-sm text-gray-600">Products Available</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">{farmersCount}</div>
+            <p className="text-sm text-gray-600">Active Farmers</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">
+              {Object.keys(shopProducts.products_by_category || {}).length}
+            </div>
+            <p className="text-sm text-gray-600">Product Categories</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold">₹0</div>
+            <p className="text-sm text-gray-600">Today's Revenue</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="dashboard-lower-section">
-        {/* Shop Management */}
-        <div className="status-cards">
-          <h3>Shop Management</h3>
-          <div className="status-item">
-            <span className="status-label">Inventory Status</span>
-            <span className="status-value healthy">Well Stocked</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">Staff Management</span>
-            <span className="status-value healthy">Active</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">Sales Performance</span>
-            <span className="status-value healthy">Above Target</span>
-          </div>
-          <div className="status-item">
-            <span className="status-label">Customer Service</span>
-            <span className="status-value healthy">Excellent</span>
-          </div>
-        </div>
+      {/* Main Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="products">Product Management</TabsTrigger>
+          <TabsTrigger value="farmers">Farmer Management</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+        </TabsList>
 
-        {/* Shop Actions */}
-        <div className="status-cards">
-          <h3>Quick Actions</h3>
-          <div className="quick-actions-grid">
-            <button className="action-btn">
-              <span className="action-icon">📦</span>
-              <span>Add Product</span>
-            </button>
-            <button className="action-btn">
-              <span className="action-icon">👤</span>
-              <span>Manage Staff</span>
-            </button>
-            <button className="action-btn">
-              <span className="action-icon">📊</span>
-              <span>View Reports</span>
-            </button>
-            <button className="action-btn">
-              <span className="action-icon">⚙️</span>
-              <span>Shop Settings</span>
-            </button>
+        <TabsContent value="overview" className="space-y-6">
+          <ProductCategoriesOverview 
+            productsByCategory={shopProducts.products_by_category || {}}
+          />
+        </TabsContent>
+
+        <TabsContent value="products" className="space-y-6">
+          <ProductManagementTab 
+            shopId={user.shop_id!}
+            productsByCategory={shopProducts.products_by_category || {}}
+            onSetupProducts={() => setShowProductSetup(true)}
+          />
+        </TabsContent>
+
+        <TabsContent value="farmers" className="space-y-6">
+          <FarmersProductsManager
+            shopId={user.shop_id!}
+            onAssignProducts={(farmerId) => {
+              setSelectedFarmerId(farmerId);
+              setShowFarmerAssignment(true);
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="transactions">
+          <div className="text-center py-12">
+            <p className="text-gray-500">Transaction management coming soon...</p>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-export default OwnerDashboard;
+// Product Categories Overview Component
+interface ProductCategoriesOverviewProps {
+  productsByCategory: { [category: string]: any[] };
+}
+
+const ProductCategoriesOverview: React.FC<ProductCategoriesOverviewProps> = ({
+  productsByCategory
+}) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Object.entries(productsByCategory).map(([category, products]) => (
+        <Card key={category}>
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold capitalize">{category}</h3>
+              <Badge variant="secondary">{products.length}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {products.slice(0, 3).map((product, index) => (
+                <div key={index} className="text-sm text-gray-600">
+                  • {product.name}
+                </div>
+              ))}
+              {products.length > 3 && (
+                <div className="text-sm text-gray-400">
+                  +{products.length - 3} more...
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// Product Management Tab Component
+interface ProductManagementTabProps {
+  shopId: number;
+  productsByCategory: { [category: string]: any[] };
+  onSetupProducts: () => void;
+}
+
+const ProductManagementTab: React.FC<ProductManagementTabProps> = ({
+  shopId,
+  productsByCategory,
+  onSetupProducts
+}) => {
+  const totalProducts = Object.values(productsByCategory)
+    .reduce((total, products) => total + products.length, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-semibold">Product Management</h2>
+          <p className="text-gray-600">
+            Manage which products your shop sells ({totalProducts} products configured)
+          </p>
+        </div>
+        <Button onClick={onSetupProducts}>
+          Update Product Selection
+        </Button>
+      </div>
+
+      {totalProducts === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <h3 className="text-lg font-semibold mb-2">No Products Configured</h3>
+            <p className="text-gray-600 mb-4">
+              Set up your shop's product catalog to start managing inventory and transactions.
+            </p>
+            <Button onClick={onSetupProducts}>
+              Setup Products Now
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(productsByCategory).map(([category, products]) => (
+            <Card key={category}>
+              <CardHeader className="pb-3">
+                <h3 className="font-semibold capitalize">{category}</h3>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {products.map((product, index) => (
+                    <li key={index} className="text-sm text-gray-600 flex justify-between">
+                      <span>{product.name}</span>
+                      <span className="text-gray-400">₹{product.price}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

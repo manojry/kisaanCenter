@@ -33,7 +33,7 @@ KisaanCenter is an enterprise-grade Agricultural Market Management System with a
 - fastapi==0.104.1
 - uvicorn[standard]==0.24.0
 - sqlalchemy==2.0.23
-- psycopg2-binary==2.9.9
+- psycopg2-binary
 - alembic==1.12.1/1.13.0
 - pydantic==2.5.0
 - python-jose[cryptography]==3.3.0

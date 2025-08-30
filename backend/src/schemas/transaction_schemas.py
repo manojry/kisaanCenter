@@ -1,38 +1,54 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 class TransactionCreate(BaseModel):
-    buyer_user_id: int = Field(..., gt=0)
     shop_id: int = Field(..., gt=0)
-    farmer_user_id: Optional[int] = Field(None, gt=0)  # Changed from farmer_id
-    total_amount: Decimal = Field(..., gt=0, decimal_places=2)
-    commission: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    status: Optional[str] = Field("pending", max_length=20)
-    payment_status: Optional[str] = Field("pending", max_length=20)
-    completion_status: Optional[str] = Field("pending", max_length=20)
+    buyer_user_id: int = Field(..., gt=0)
+    parent_transaction_id: Optional[int] = Field(None, gt=0)
+    type: Optional[str] = Field("sale", max_length=50)
+    status: Optional[str] = Field("active", max_length=50)
+    commission_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    payment_status: Optional[str] = Field("pending", max_length=50)
+    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_confirmed: Optional[bool] = Field(False)
+    completion_status: Optional[str] = Field("pending", max_length=50)
+    date: date
 
 class TransactionUpdate(BaseModel):
-    total_amount: Optional[Decimal] = Field(None, gt=0, decimal_places=2)
-    commission: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    status: Optional[str] = Field(None, max_length=20)
-    payment_status: Optional[str] = Field(None, max_length=20)
-    completion_status: Optional[str] = Field(None, max_length=20)
+    type: Optional[str] = Field(None, max_length=50)
+    status: Optional[str] = Field(None, max_length=50)
+    commission_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    payment_status: Optional[str] = Field(None, max_length=50)
+    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_confirmed: Optional[bool] = None
+    completion_status: Optional[str] = Field(None, max_length=50)
 
 class TransactionRead(BaseModel):
     id: int
-    buyer_user_id: int
     shop_id: int
-    farmer_user_id: Optional[int] = None  # Changed from farmer_id
-    total_amount: Decimal
-    commission: Optional[Decimal] = None
-    status: str
-    payment_status: str
-    completion_status: str
-    transaction_date: datetime
-    created_at: datetime
-    updated_at: datetime
+    buyer_user_id: int
+    parent_transaction_id: Optional[int] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+    commission_rate: Optional[Decimal] = None
+    commission_amount: Optional[Decimal] = None
+    payment_status: Optional[str] = None
+    buyer_paid_amount: Optional[Decimal] = None
+    farmer_paid_amount: Optional[Decimal] = None
+    commission_confirmed: Optional[bool] = None
+    completion_status: Optional[str] = None
+    date: date
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
     
     class Config:
         from_attributes = True

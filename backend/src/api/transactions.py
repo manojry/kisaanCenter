@@ -834,3 +834,58 @@ def get_incomplete_transactions(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
     
     return result
+
+@router.get(
+    "/analytics",
+    response_model=APIResponse,
+    summary="Get transaction analytics",
+    description="Get comprehensive transaction analytics and statistics",
+    response_description="Transaction analytics data",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "description": "Transaction analytics retrieved",
+                "content": {
+                    "application/json": {
+                        "example": {
+                            "success": True,
+                            "message": "Transaction analytics retrieved successfully",
+                            "data": {
+                                "total_transactions": 150,
+                                "total_amount": 25000.00,
+                                "pending_transactions": 10,
+                                "completed_transactions": 140,
+                                "total_commission": 2500.00,
+                                "average_transaction_amount": 166.67,
+                                "monthly_growth": 15.5,
+                                "top_shops": [],
+                                "transaction_trends": []
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+def get_transaction_analytics(
+    db: Session = Depends(get_db),
+    shop_id: Optional[int] = Query(None, description="Filter analytics by shop ID"),
+    days: int = Query(30, ge=1, le=365, description="Number of days for analytics period")
+):
+    """
+    Get comprehensive transaction analytics including:
+    
+    - **Total transactions and amounts**
+    - **Transaction status breakdown**  
+    - **Commission statistics**
+    - **Average transaction values**
+    - **Growth trends and metrics**
+    - **Top performing shops**
+    """
+    result = TransactionService.get_transaction_analytics(db, shop_id=shop_id, days=days)
+    
+    if not result.success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+    
+    return result

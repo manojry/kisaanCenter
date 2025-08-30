@@ -23,6 +23,9 @@ from .credit_schemas import *
 from .user_schemas import PaginationParams
 from .subscription_schemas import APIResponse, ErrorResponse
 
+# Import Order schemas from main schemas.py
+from ..schemas import OrderCreate, OrderUpdate, OrderRead
+
 __all__ = [
     "UserCreate", "UserUpdate", "UserRead", "UserReadWithRelations", "PaginationParams",
     "ShopCreate", "ShopUpdate", "ShopRead",
@@ -30,5 +33,6 @@ __all__ = [
     "PlanCreate", "PlanUpdate", "PlanResponse",
     "TransactionCreate", "TransactionUpdate", "TransactionRead", "TransactionReadWithRelations", "TransactionSummary",
     "CreditCreate", "CreditUpdate", "CreditRead", "CreditReadWithRelations",
+    "OrderCreate", "OrderUpdate", "OrderRead",
     "APIResponse", "ErrorResponse"
 ]

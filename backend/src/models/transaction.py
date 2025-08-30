@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, DECIMAL, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, func, DECIMAL, ForeignKey, Boolean, Date
 from sqlalchemy.orm import relationship
 from .base import Base
 
@@ -6,22 +6,26 @@ class Transaction(Base):
     __tablename__ = "transaction"
     
     id = Column(Integer, primary_key=True, index=True)
-    buyer_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Changed from buyer_id
-    shop_id = Column(Integer, ForeignKey("shop.id"), nullable=False)
-    farmer_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Changed from farmer_id
-    total_amount = Column(DECIMAL(12, 2), nullable=False)
-    commission = Column(DECIMAL(10, 2), nullable=True, default=0.00)
-    status = Column(String(20), nullable=False, default="pending")
-    payment_status = Column(String(20), nullable=False, default="pending")
-    completion_status = Column(String(20), nullable=False, default="pending")
-    transaction_date = Column(DateTime, default=func.now())
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    shop_id = Column(Integer, ForeignKey("shop.id"), nullable=False, index=True)
+    buyer_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    parent_transaction_id = Column(Integer, ForeignKey("transaction.id"), nullable=True)
+    type = Column(String, nullable=True, default="sale")  # Column name from database
+    status = Column(String, nullable=True, default="active")
+    commission_rate = Column(DECIMAL(5, 2), nullable=True, default=0.00)
+    commission_amount = Column(DECIMAL(12, 2), nullable=True, default=0.00)
+    payment_status = Column(String, nullable=True, default="pending")
+    buyer_paid_amount = Column(DECIMAL(12, 2), nullable=True, default=0.00)
+    farmer_paid_amount = Column(DECIMAL(12, 2), nullable=True, default=0.00)
+    commission_confirmed = Column(Boolean, nullable=True, default=False)
+    completion_status = Column(String, nullable=True, default="pending")
+    date = Column(Date, nullable=False)
+    created_at = Column(DateTime, nullable=True, default=func.now())
+    updated_at = Column(DateTime, nullable=True, default=func.now(), onupdate=func.now())
     
     # Relationships
-    buyer = relationship("User", foreign_keys=[buyer_user_id])  # Updated foreign key reference
-    farmer = relationship("User", foreign_keys=[farmer_user_id])  # Updated foreign key reference
     shop = relationship("Shop")
+    buyer = relationship("User", foreign_keys=[buyer_user_id])
+    parent_transaction = relationship("Transaction", remote_side=[id])
 
 class TransactionItem(Base):
     __tablename__ = "transaction_item"

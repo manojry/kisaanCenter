@@ -52,6 +52,13 @@ except ImportError as e:
     logger.error(f"❌ Failed to import credits module: {e}")
     credits = None
 
+try:
+    from src.api import reports
+    logger.info("✅ Reports module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import reports module: {e}")
+    reports = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -445,6 +452,10 @@ if transactions:
 if credits:
     app.include_router(credits.router, prefix="/api/v1")
     logger.info("✅ Credits router included")
+
+if reports:
+    app.include_router(reports.router, prefix="/api/v1")
+    logger.info("✅ Reports router included")
 
 # Health check endpoints
 @app.get("/", tags=["Health"])

@@ -446,3 +446,88 @@ class TransactionService:
             
         except Exception as e:
             return APIResponse(success=False, message=f"Failed to get incomplete transactions: {str(e)}")
+
+    @staticmethod
+    def get_transaction_analytics(db: Session, shop_id: int = None, days: int = 30) -> APIResponse:
+        """
+        Get comprehensive transaction analytics and statistics
+        """
+        try:
+            from ..crud.transaction_crud import TransactionCRUD
+            from ..models import Transaction
+            from sqlalchemy import func, and_
+            from datetime import datetime, timedelta
+            
+            # Calculate date range
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+            
+            # Base query with date filtering
+            base_query = db.query(Transaction).filter(
+                Transaction.created_at >= start_date,
+                Transaction.created_at <= end_date
+            )
+            
+            # Add shop filter if provided
+            if shop_id:
+                base_query = base_query.filter(Transaction.shop_id == shop_id)
+            
+            # Get basic transaction counts and amounts
+            total_transactions = base_query.count()
+            total_amount = base_query.with_entities(func.sum(Transaction.commission_amount)).scalar() or 0
+            
+            # Status breakdown
+            pending_transactions = base_query.filter(Transaction.completion_status == 'pending').count()
+            completed_transactions = base_query.filter(Transaction.completion_status == 'complete').count()
+            
+            # Commission analytics
+            total_commission = base_query.with_entities(func.sum(Transaction.commission_amount)).scalar() or 0
+            avg_commission_rate = base_query.with_entities(func.avg(Transaction.commission_rate)).scalar() or 0
+            
+            # Calculate average transaction amount
+            avg_transaction_amount = total_amount / total_transactions if total_transactions > 0 else 0
+            
+            # Payment status breakdown
+            payment_pending = base_query.filter(Transaction.payment_status == 'pending').count()
+            payment_partial = base_query.filter(Transaction.payment_status == 'partial').count()
+            payment_completed = base_query.filter(Transaction.payment_status == 'paid').count()
+            
+            # Prepare analytics data
+            analytics_data = {
+                "period_days": days,
+                "date_range": {
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat()
+                },
+                "totals": {
+                    "total_transactions": total_transactions,
+                    "total_amount": float(total_amount),
+                    "total_commission": float(total_commission),
+                    "average_transaction_amount": float(avg_transaction_amount),
+                    "average_commission_rate": float(avg_commission_rate)
+                },
+                "status_breakdown": {
+                    "pending_transactions": pending_transactions,
+                    "completed_transactions": completed_transactions,
+                    "completion_rate": (completed_transactions / total_transactions * 100) if total_transactions > 0 else 0
+                },
+                "payment_breakdown": {
+                    "payment_pending": payment_pending,
+                    "payment_partial": payment_partial,
+                    "payment_completed": payment_completed,
+                    "payment_completion_rate": (payment_completed / total_transactions * 100) if total_transactions > 0 else 0
+                }
+            }
+            
+            # Add shop-specific analytics if shop_id is provided
+            if shop_id:
+                analytics_data["shop_id"] = shop_id
+            
+            return APIResponse(
+                success=True, 
+                message="Transaction analytics retrieved successfully",
+                data=analytics_data
+            )
+            
+        except Exception as e:
+            return APIResponse(success=False, message=f"Failed to get transaction analytics: {str(e)}")

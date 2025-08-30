@@ -27,8 +27,11 @@ if config.config_file_name is not None:
 
 logger = logging.getLogger('alembic.env')
 
-# Set the SQLAlchemy URL from our database configuration
-config.set_main_option('sqlalchemy.url', db_config.database_url)
+# Set the SQLAlchemy URL from .env file
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[4] / '.env')
+db_url = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
+config.set_main_option('sqlalchemy.url', db_url)
 
 # Add your model's MetaData object for 'autogenerate' support
 target_metadata = models.Base.metadata
@@ -63,7 +66,7 @@ def run_migrations_online() -> None:
     """
     # Create engine with connection pooling disabled for migrations
     configuration = config.get_section(config.config_ini_section)
-    configuration['sqlalchemy.url'] = db_config.database_url
+    configuration['sqlalchemy.url'] = db_url
     
     connectable = engine_from_config(
         configuration,

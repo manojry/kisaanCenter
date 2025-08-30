@@ -1,3 +1,5 @@
+
+
 """
 Core application exceptions.
 
@@ -180,3 +182,32 @@ def exception_to_http_exception(exc: KisaanCenterException) -> HTTPException:
             "details": exc.details
         }
     )
+
+class ValidationError(Exception):
+    """Raised when data validation fails"""
+    def __init__(self, message: str, field: str = None):
+        self.message = message
+        self.field = field
+        super().__init__(self.message)
+
+class BusinessRuleError(Exception):
+    """Raised when business rule validation fails"""
+    def __init__(self, message: str, rule: str = None):
+        self.message = message
+        self.rule = rule
+        super().__init__(self.message)
+
+class StockNotFoundError(Exception):
+    """Raised when stock record is not found"""
+    def __init__(self, stock_id: int):
+        self.stock_id = stock_id
+        self.message = f"Stock record {stock_id} not found"
+        super().__init__(self.message)
+
+class OversellError(Exception):
+    """Raised when attempting to sell more than declared stock"""
+    def __init__(self, declared_qty: float, attempted_qty: float):
+        self.declared_qty = declared_qty
+        self.attempted_qty = attempted_qty
+        self.message = f"Cannot sell {attempted_qty}kg - only {declared_qty}kg declared"
+        super().__init__(self.message)
