@@ -73,36 +73,28 @@ class TestAPIEndpoints:
 
     """Test all 22 API endpoints with comprehensive validation"""
     
+    @classmethod
     def setup_class(cls):
         """Setup test data for all endpoint tests"""
         cls.test_data = {}
         cls.headers = {}
         print("\n--- Setting up test data ---")
-        # Use unique names to avoid conflicts during re-runs
-        unique_id = str(uuid.uuid4())[:8]
-
+        
         # 1. Authenticate as superadmin
         response = requests.post(f"{BASE_URL}/users/auth/login?username=superadmin&password=admin123")
         assert response.status_code == 200, f"Failed to authenticate superadmin: {response.text}"
         auth_data = response.json()["data"]
-        # For now, we'll use a simple token format since JWT is not implemented in auth service
         user_id = auth_data.get('user_id') or auth_data.get('id', 'unknown')
         cls.headers['Authorization'] = f"Bearer superadmin_token_{user_id}"
         print("Superadmin authenticated successfully.")
 
-        # Use existing data for testing (authentication is working!)
-        cls.test_data['shop_id'] = 1  # Use existing shop
-        cls.test_data['user_id'] = 5  # Use existing user
-
-
-
+        # Use existing data for testing
+        cls.test_data['shop_id'] = 1
+        cls.test_data['user_id'] = 5
+        
+        # Ensure test data exists
+        cls.ensure_test_data_exists()
         print("--- Test data setup complete ---\n")
-
-    def setup_class(cls):
-        """Cleanup test data"""
-        print("\n--- Cleaning up test data ---")
-        # Add cleanup logic here if needed
-        print("--- Cleanup complete ---\n")
 
     # Health Endpoints (3)
     def test_01_root_endpoint(self):
@@ -113,14 +105,11 @@ class TestAPIEndpoints:
         assert "Market Management System API" in data["message"]
         assert data["status"] == "healthy"
         print("Root endpoint working")
-    
+
     def test_02_health_check(self):
         """Test detailed health check"""
         response = requests.get(f"{HEALTH_URL}/health")
         assert response.status_code == 200
-
-        # Ensure all required test data exists
-    cls.ensure_test_data_exists()
         data = response.json()
         assert "status" in data
         assert "services" in data
@@ -540,7 +529,11 @@ class TestAPIEndpoints:
             print("Skipping subscription health check test due to API issues")
             return
         data = response.json()
-        assert data["data"]["status"] == "ok"
+        print("Subscription health check response:", data)
+        assert data["status"] == "healthy", f"Unexpected status: {data.get('status')}"
+        assert "metrics" in data, f"Response missing 'metrics' key: {data}"
+        assert "total_plans" in data["metrics"], f"Response missing 'total_plans' in metrics: {data['metrics']}"
+        assert "total_subscriptions" in data["metrics"], f"Response missing 'total_subscriptions' in metrics: {data['metrics']}"
         print("[PASS] Subscription health check working")
 
 def run_all_endpoint_tests():
