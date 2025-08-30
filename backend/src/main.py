@@ -208,11 +208,29 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Include API routers - only the working ones
-if users:
-    app.include_router(users.router, prefix="/api/v1")
-    logger.info("✅ Users router included")
-else:
+# Include working API routers
+try:
+    from src.api.simple_endpoints import (
+        users_router, shops_router, products_router, 
+        payments_router, credits_router
+    )
+    from src.api.subscription_endpoints import router as subscriptions_router
+    from src.api.transaction_endpoints import router as transactions_router
+    from src.api.stock_endpoints import router as stock_router
+    
+    app.include_router(users_router, prefix="/api/v1")
+    app.include_router(shops_router, prefix="/api/v1")
+    app.include_router(products_router, prefix="/api/v1")
+    app.include_router(payments_router, prefix="/api/v1")
+    app.include_router(credits_router, prefix="/api/v1")
+    app.include_router(subscriptions_router, prefix="/api/v1")
+    app.include_router(transactions_router, prefix="/api/v1")
+    app.include_router(stock_router, prefix="/api/v1")
+    logger.info("✅ Working API routers included (including transactions and stock)")
+except ImportError as e:
+    logger.error(f"Failed to import working endpoints: {e}")
+    # Fallback to stub endpoints
+if not users:
     logger.warning("⚠️ Users router not available - creating simple login endpoint")
     # Create essential user endpoints directly
     @app.post("/api/v1/users/auth/login")
@@ -546,6 +564,8 @@ def api_info():
             "payments": "/api/v1/payments",
             "credits": "/api/v1/credits",
             "subscriptions": "/api/v1/subscriptions",
+            "transactions": "/api/v1/transactions",
+            "stock": "/api/v1/farmer-stock",
             "super_admin": "/api/v1/admin"
         },
         "documentation": {

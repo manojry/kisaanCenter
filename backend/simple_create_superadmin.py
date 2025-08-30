@@ -25,18 +25,18 @@ def create_superadmin():
             
             # Create superadmin user with raw SQL
             password_hash = hashlib.sha256("admin123".encode()).hexdigest()
-            
+
             db.execute(text("""
-                INSERT INTO users (username, password_hash, role, contact, status, created_at, updated_at)
-                VALUES (:username, :password_hash, :role, :contact, :status, NOW(), NOW())
+                INSERT INTO superadmin (username, password_hash, email, contact, status, created_at, updated_at)
+                VALUES (:username, :password_hash, :email, :contact, :status, NOW(), NOW())
             """), {
                 "username": "superadmin",
                 "password_hash": password_hash,
-                "role": "superadmin",
+                "email": "superadmin@test.com",
                 "contact": "1234567890",
                 "status": "active"
             })
-            
+
             print("Superadmin user created successfully!")
             print("Username: superadmin")
             print("Password: admin123")
