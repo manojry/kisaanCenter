@@ -56,14 +56,14 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
 
-    - name: 🚀 AZ ghcr login
-      run: |
-        az containerapp registry set \
-          --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
-          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --server ghcr.io \
-          --username manojRY \
-          --password ${{ secrets.GHCR_PAT }}
+    #- name: 🚀 AZ ghcr login
+      # run: |
+      #   az containerapp registry set \
+      #     --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+      #     --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+      #     --server ghcr.io \
+      #     --username manojRY \
+      #     --password ${{ secrets.GHCR_PAT }}
 
     - name: 🚀 Deploy to Container Apps
       run: |
