@@ -16,3 +16,165 @@ frontend\node_modules\
 c/Users/r.kowdampalli/Documents/kisaanCenter/frontend/src/components/UserForm.css 
 .venv12/
 .vscode/tasks.json
+# Ignore environment files
+.env
+backend/src/db/.env
+db/__pycache__/
+seeds/__pycache__/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/**/__pycache__/
+frontend/**/__pycache__/
+backend/**/__pycache__
+backend\src\__pycache__
+frontend\node_modules\
+
+# Virtual environments
+.venv*/
+venv*/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+
+# ============================================
+# TERRAFORM FILES (SENSITIVE & LARGE) - ALL LOCATIONS
+# ============================================
+
+# Terraform state files (SENSITIVE - contain passwords, keys, IPs)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform variable files (SENSITIVE - may contain secrets)
+*.tfvars
+*.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+
+# Terraform provider binaries (LARGE - auto-downloaded) - EVERYWHERE
+.terraform/
+*/.terraform/
+**/.terraform/
+terraform/*/.terraform/
+terraform/**/.terraform/
+.terraform.lock.hcl
+*/.terraform.lock.hcl
+
+# Terraform plan files (SENSITIVE - contain infrastructure details)
+*.tfplan
+*.tfplan.*
+
+# Terraform crash logs
+crash.log
+crash.*.log
+
+# ============================================
+# AZURE & CLOUD CREDENTIALS (SENSITIVE)
+# ============================================
+
+# Azure CLI credentials
+.azure/
+
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa
+id_rsa.pub
+*.pub
+
+# ============================================
+# APPLICATION SECRETS & CONFIG (SENSITIVE)
+# ============================================
+
+# Environment files
+.env*
+.environment
+*.env
+
+# Database connection strings
+database.url
+connection-string.txt
+
+# ============================================
+# LOGS & TEMPORARY FILES
+# ============================================
+
+# Application logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# ============================================
+# BUILD & DISTRIBUTION FILES
+# ============================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+
+# Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Upload directories
+uploads/
+files/
+media/
+
+# Test and coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
