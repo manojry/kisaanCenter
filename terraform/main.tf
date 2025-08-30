@@ -30,23 +30,30 @@ resource "azurerm_resource_provider_registration" "container_apps" {
   name = "Microsoft.App"
 }
 
-# Create a resource group in West Europe region
+# Generate random suffix for unique naming
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+# Create Resource Group in North Europe (better PostgreSQL availability)
 resource "azurerm_resource_group" "kisaancenter_rg" {
   name     = "kisaancenter-rg"
-  location = "West Europe"
+  location = "North Europe"  # Better for PostgreSQL Flexible Server free tier
 
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
+    CostModel   = "FreeTier"
     CreatedBy   = "Terraform"
-    Region      = "WestEurope"
   }
 }
 
 # Create a virtual network
 resource "azurerm_virtual_network" "kisaancenter_vnet" {
   name                = "kisaancenter-vnet"
-  address_space       = ["10.0.0.0/16"]  # Provides 65,534 IP addresses
+  address_space       = ["10.0.0.0/16"]
   location            = azurerm_resource_group.kisaancenter_rg.location
   resource_group_name = azurerm_resource_group.kisaancenter_rg.name
 
@@ -54,34 +61,35 @@ resource "azurerm_virtual_network" "kisaancenter_vnet" {
     Environment = "Production"
     Project     = "KisaanCenter"
     CreatedBy   = "Terraform"
-    Region      = "WestEurope"
   }
 }
 
-# Create subnet for backend services (Container Apps) - Must be /23 or larger
-resource "azurerm_subnet" "backend_subnet" {
-  name                 = "backend-subnet"
+# Create subnet for Container Apps (must be /23 or larger)
+resource "azurerm_subnet" "container_subnet" {
+  name                 = "container-subnet"
   resource_group_name  = azurerm_resource_group.kisaancenter_rg.name
   virtual_network_name = azurerm_virtual_network.kisaancenter_vnet.name
-  address_prefixes     = ["10.0.0.0/23"]  # 512 IP addresses for Container Apps (required minimum)
+  address_prefixes     = ["10.0.0.0/23"]  # 512 IP addresses for Container Apps
 
-  # Note: No delegation needed - Container Apps will handle this automatically
+  # Container Apps will automatically delegate this subnet
 }
 
-# Create subnet for database services
+# Create subnet for PostgreSQL Flexible Server
 resource "azurerm_subnet" "database_subnet" {
   name                 = "database-subnet"
   resource_group_name  = azurerm_resource_group.kisaancenter_rg.name
   virtual_network_name = azurerm_virtual_network.kisaancenter_vnet.name
-  address_prefixes     = ["10.0.2.0/24"]  # 254 IP addresses for database services
-}
+  address_prefixes     = ["10.0.2.0/24"]
 
-# Create subnet for future services (optional)
-resource "azurerm_subnet" "services_subnet" {
-  name                 = "services-subnet"
-  resource_group_name  = azurerm_resource_group.kisaancenter_rg.name
-  virtual_network_name = azurerm_virtual_network.kisaancenter_vnet.name
-  address_prefixes     = ["10.0.3.0/24"]  # 254 IP addresses for additional services
+  delegation {
+    name = "postgresql-delegation"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
 }
 
 # Get current Azure client configuration
@@ -124,16 +132,18 @@ resource "azurerm_key_vault" "kisaancenter_kv" {
   }
 }
 
-# Generate random suffix for unique naming
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
-}
-
 # Generate secure random password for PostgreSQL
 resource "random_password" "postgresql_password" {
   length  = 32
+  special = true
+  upper   = true
+  lower   = true
+  numeric = true
+}
+
+# Generate application secret key
+resource "random_password" "app_secret_key" {
+  length  = 64
   special = true
   upper   = true
   lower   = true
@@ -155,166 +165,10 @@ resource "azurerm_key_vault_secret" "postgresql_password" {
   }
 }
 
-# Create Network Security Group for PostgreSQL VM
-resource "azurerm_network_security_group" "postgresql_nsg" {
-  name                = "postgresql-nsg"
-  location            = azurerm_resource_group.kisaancenter_rg.location
-  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-
-  # Allow PostgreSQL access from backend subnet only
-  security_rule {
-    name                       = "PostgreSQL"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "5432"
-    source_address_prefix      = "10.0.1.0/24"  # Backend subnet
-    destination_address_prefix = "*"
-  }
-
-  # Allow SSH for management (optional, can be removed later)
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1002
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "10.0.0.0/16"  # VNet only
-    destination_address_prefix = "*"
-  }
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Database Security"
-  }
-}
-
-# Associate NSG with database subnet
-resource "azurerm_subnet_network_security_group_association" "postgresql_nsg_association" {
-  subnet_id                 = azurerm_subnet.database_subnet.id
-  network_security_group_id = azurerm_network_security_group.postgresql_nsg.id
-}
-
-# Create Public IP for PostgreSQL VM (for initial setup only)
-resource "azurerm_public_ip" "postgresql_vm_pip" {
-  name                = "postgresql-vm-pip"
-  location            = azurerm_resource_group.kisaancenter_rg.location
-  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-  allocation_method   = "Static"
-  sku                = "Standard"
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Database VM Management"
-  }
-}
-
-# Create Network Interface for PostgreSQL VM
-resource "azurerm_network_interface" "postgresql_vm_nic" {
-  name                = "postgresql-vm-nic"
-  location            = azurerm_resource_group.kisaancenter_rg.location
-  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.database_subnet.id
-    private_ip_address_allocation = "Static"
-    private_ip_address           = "10.0.2.10"  # Fixed IP for easy backend connection
-    public_ip_address_id         = azurerm_public_ip.postgresql_vm_pip.id
-  }
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Database VM Network"
-  }
-}
-
-# Create Managed Disk for PostgreSQL data
-resource "azurerm_managed_disk" "postgresql_data_disk" {
-  name                 = "postgresql-data-disk"
-  location             = azurerm_resource_group.kisaancenter_rg.location
-  resource_group_name  = azurerm_resource_group.kisaancenter_rg.name
-  storage_account_type = "Standard_LRS"  # Cheapest option
-  create_option        = "Empty"
-  disk_size_gb         = 10  # 10GB for database data
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Database Storage"
-  }
-}
-
-# Create PostgreSQL VM (Free Tier B1s)
-resource "azurerm_linux_virtual_machine" "postgresql_vm" {
-  name                = "postgresql-vm"
-  location            = azurerm_resource_group.kisaancenter_rg.location
-  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-  size                = "Standard_B1s"  # Free tier: 1 vCPU, 1GB RAM
-  admin_username      = "azureuser"
-  
-  # Disable password authentication and use SSH keys
-  disable_password_authentication = true
-
-  network_interface_ids = [
-    azurerm_network_interface.postgresql_vm_nic.id,
-  ]
-
-  admin_ssh_key {
-    username   = "azureuser"
-    public_key = tls_private_key.postgresql_vm_ssh.public_key_openssh
-  }
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"  # Cheapest storage
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts-gen2"
-    version   = "latest"
-  }
-
-  # PostgreSQL installation and configuration script
-  custom_data = base64encode(templatefile("${path.module}/postgresql_setup.sh", {
-    postgresql_password = random_password.postgresql_password.result
-  }))
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Database Server"
-    Tier        = "Free"
-  }
-}
-
-# Attach data disk to VM
-resource "azurerm_virtual_machine_data_disk_attachment" "postgresql_data_attachment" {
-  managed_disk_id    = azurerm_managed_disk.postgresql_data_disk.id
-  virtual_machine_id = azurerm_linux_virtual_machine.postgresql_vm.id
-  lun                = "10"
-  caching            = "ReadWrite"
-}
-
-# Generate SSH key pair for VM access
-resource "tls_private_key" "postgresql_vm_ssh" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# Store SSH private key in Key Vault
-resource "azurerm_key_vault_secret" "postgresql_vm_ssh_private" {
-  name         = "postgresql-vm-ssh-private-key"
-  value        = tls_private_key.postgresql_vm_ssh.private_key_pem
+# Store application secret key in Key Vault
+resource "azurerm_key_vault_secret" "app_secret_key" {
+  name         = "app-secret-key"
+  value        = random_password.app_secret_key.result
   key_vault_id = azurerm_key_vault.kisaancenter_kv.id
 
   depends_on = [azurerm_key_vault.kisaancenter_kv]
@@ -322,94 +176,131 @@ resource "azurerm_key_vault_secret" "postgresql_vm_ssh_private" {
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
-    Purpose     = "VM Access"
+    Purpose     = "Application Security"
   }
 }
 
-# Create Container Registry for storing backend images
-resource "azurerm_container_registry" "kisaancenter_acr" {
-  name                = "kisaancenteracr${random_string.suffix.result}"
+# Private DNS Zone for PostgreSQL
+resource "azurerm_private_dns_zone" "postgresql_dns" {
+  name                = "kisaancenter.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+  }
+}
+
+# Link DNS zone to virtual network
+resource "azurerm_private_dns_zone_virtual_network_link" "postgresql_dns_link" {
+  name                  = "kisaancenter-db-dns-link"
+  private_dns_zone_name = azurerm_private_dns_zone.postgresql_dns.name
+  virtual_network_id    = azurerm_virtual_network.kisaancenter_vnet.id
+  resource_group_name   = azurerm_resource_group.kisaancenter_rg.name
+  registration_enabled  = false
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+  }
+}
+
+# PostgreSQL Flexible Server (FREE for 12 months - 750 hours)
+resource "azurerm_postgresql_flexible_server" "kisaancenter_db" {
+  name                = "kisaancenter-db-${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.kisaancenter_rg.name
   location            = azurerm_resource_group.kisaancenter_rg.location
-  sku                 = "Basic"  # Cheapest tier
-  admin_enabled       = true     # Enable admin for easy access
+
+  administrator_login    = "postgres"
+  administrator_password = azurerm_key_vault_secret.postgresql_password.value
+
+  # FREE tier configuration
+  sku_name   = "B_Standard_B1ms"  # Burstable B1ms (FREE for 12 months)
+  storage_mb = 32768              # 32GB storage (FREE included)
+  version    = "15"
+
+  # Network configuration
+  public_network_access_enabled = false
+  delegated_subnet_id           = azurerm_subnet.database_subnet.id
+  private_dns_zone_id          = azurerm_private_dns_zone.postgresql_dns.id
+
+  # Backup configuration (optimize for cost)
+  backup_retention_days        = 7    # Minimum retention
+  geo_redundant_backup_enabled = false # Disable for cost savings
 
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
-    Purpose     = "Container Images"
+    Tier        = "FreeTier"
+    Purpose     = "Database"
   }
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgresql_dns_link]
 }
 
-# Store ACR admin password in Key Vault
-resource "azurerm_key_vault_secret" "acr_admin_password" {
-  name         = "acr-admin-password"
-  value        = azurerm_container_registry.kisaancenter_acr.admin_password
-  key_vault_id = azurerm_key_vault.kisaancenter_kv.id
-
-  depends_on = [azurerm_key_vault.kisaancenter_kv]
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Container Registry Access"
-  }
+# Create database
+resource "azurerm_postgresql_flexible_server_database" "kisaancenter_database" {
+  name      = "kisaancenter"
+  server_id = azurerm_postgresql_flexible_server.kisaancenter_db.id
+  collation = "en_US.utf8"
+  charset   = "utf8"
 }
 
-# Create Log Analytics Workspace for Container Apps
-resource "azurerm_log_analytics_workspace" "container_apps_logs" {
-  name                = "kisaancenter-logs"
+# Log Analytics Workspace for Container Apps (FREE tier)
+resource "azurerm_log_analytics_workspace" "kisaancenter_logs" {
+  name                = "kisaancenter-logs-${random_string.suffix.result}"
   location            = azurerm_resource_group.kisaancenter_rg.location
   resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-  sku                 = "PerGB2018"
-  retention_in_days   = 30  # Minimum retention
+  sku                 = "PerGB2018"  # Pay-per-GB (very low cost for small apps)
+  retention_in_days   = 30          # Minimum retention for cost savings
 
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
-    Purpose     = "Container Logging"
+    Purpose     = "Monitoring"
   }
 }
 
-# Create Container Apps Environment
+# Container Apps Environment (FREE tier - 180,000 vCPU-seconds monthly)
 resource "azurerm_container_app_environment" "kisaancenter_env" {
   name                       = "kisaancenter-env"
   location                   = azurerm_resource_group.kisaancenter_rg.location
   resource_group_name        = azurerm_resource_group.kisaancenter_rg.name
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.container_apps_logs.id
-  infrastructure_subnet_id   = azurerm_subnet.backend_subnet.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.kisaancenter_logs.id
 
-  depends_on = [azurerm_resource_provider_registration.container_apps]
+  # Use the container subnet
+  infrastructure_subnet_id = azurerm_subnet.container_subnet.id
 
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
-    Purpose     = "Container Environment"
+    Tier        = "FreeTier"
   }
+
+  depends_on = [azurerm_resource_provider_registration.container_apps]
 }
 
-# Create Container App for Backend API
+# Container App for Backend API (using GitHub Container Registry)
 resource "azurerm_container_app" "kisaancenter_backend" {
   name                         = "kisaancenter-backend"
   container_app_environment_id = azurerm_container_app_environment.kisaancenter_env.id
   resource_group_name          = azurerm_resource_group.kisaancenter_rg.name
   revision_mode                = "Single"
 
-  # Container App configuration
   template {
-    min_replicas = 0  # Scale to zero when not in use (free tier)
-    max_replicas = 1  # Maximum 1 replica for cost control
+    min_replicas = 0  # Scale to zero when not in use (FREE tier optimization)
+    max_replicas = 2  # Maximum 2 replicas for availability
 
     container {
       name   = "kisaancenter-api"
-      image  = "${azurerm_container_registry.kisaancenter_acr.login_server}/kisaancenter-backend:latest"
-      cpu    = 0.25  # 0.25 CPU cores (free tier)
-      memory = "0.5Gi"  # 0.5GB memory (free tier)
+      image  = "ghcr.io/manojry/kisaancenter/backend:latest"  # GitHub Container Registry
+      cpu    = 0.25    # 0.25 CPU cores (FREE tier)
+      memory = "0.5Gi"  # 0.5GB memory (FREE tier)
 
       # Environment variables for the backend
       env {
         name  = "DB_HOST"
-        value = azurerm_network_interface.postgresql_vm_nic.ip_configuration[0].private_ip_address
+        value = azurerm_postgresql_flexible_server.kisaancenter_db.fqdn
       }
 
       env {
@@ -444,7 +335,12 @@ resource "azurerm_container_app" "kisaancenter_backend" {
 
       env {
         name  = "CORS_ORIGINS"
-        value = "https://*.azurestaticapps.net,https://kisaancenter.com,https://www.kisaancenter.com"
+        value = "https://kisaancenter.com,https://www.kisaancenter.com,https://manojry.github.io"
+      }
+
+      env {
+        name  = "ALLOWED_HOSTS"
+        value = "*"
       }
     }
 
@@ -455,45 +351,35 @@ resource "azurerm_container_app" "kisaancenter_backend" {
     }
   }
 
-  # Ingress configuration (internal only for security)
+  # Ingress configuration - EXTERNAL for frontend access
   ingress {
     allow_insecure_connections = false
-    external_enabled          = false  # Internal access only
+    external_enabled          = true   # Allow external access from frontend
     target_port               = 8000
+    transport                 = "http"
+
     traffic_weight {
       percentage      = 100
       latest_revision = true
     }
   }
 
-  # Registry configuration
-  registry {
-    server               = azurerm_container_registry.kisaancenter_acr.login_server
-    username             = azurerm_container_registry.kisaancenter_acr.admin_username
-    password_secret_name = "acr-password"
-  }
-
   # Secrets configuration
   secret {
     name  = "db-password"
-    value = random_password.postgresql_password.result
+    value = azurerm_key_vault_secret.postgresql_password.value
   }
 
   secret {
     name  = "app-secret-key"
-    value = random_password.app_secret_key.result
-  }
-
-  secret {
-    name  = "acr-password"
-    value = azurerm_container_registry.kisaancenter_acr.admin_password
+    value = azurerm_key_vault_secret.app_secret_key.value
   }
 
   tags = {
     Environment = "Production"
     Project     = "KisaanCenter"
     Purpose     = "Backend API"
-    Tier        = "Free"
+    Tier        = "FreeTier"
   }
 
   # Allow GitHub Actions to update the image without Terraform conflicts
@@ -504,29 +390,9 @@ resource "azurerm_container_app" "kisaancenter_backend" {
   }
 }
 
-# Generate application secret key
-resource "random_password" "app_secret_key" {
-  length  = 64
-  special = true
-  upper   = true
-  lower   = true
-  numeric = true
-}
-
-# Store application secret key in Key Vault
-resource "azurerm_key_vault_secret" "app_secret_key" {
-  name         = "app-secret-key"
-  value        = random_password.app_secret_key.result
-  key_vault_id = azurerm_key_vault.kisaancenter_kv.id
-
-  depends_on = [azurerm_key_vault.kisaancenter_kv]
-
-  tags = {
-    Environment = "Production"
-    Project     = "KisaanCenter"
-    Purpose     = "Application Security"
-  }
-}
+# ===============================================
+# OUTPUTS
+# ===============================================
 
 # Output the resource group details
 output "resource_group_name" {
@@ -535,35 +401,6 @@ output "resource_group_name" {
 
 output "resource_group_location" {
   value = azurerm_resource_group.kisaancenter_rg.location
-}
-
-output "resource_group_id" {
-  value = azurerm_resource_group.kisaancenter_rg.id
-}
-
-# Output the virtual network details
-output "virtual_network_name" {
-  value = azurerm_virtual_network.kisaancenter_vnet.name
-}
-
-output "virtual_network_id" {
-  value = azurerm_virtual_network.kisaancenter_vnet.id
-}
-
-output "virtual_network_address_space" {
-  value = azurerm_virtual_network.kisaancenter_vnet.address_space
-}
-
-output "backend_subnet_id" {
-  value = azurerm_subnet.backend_subnet.id
-}
-
-output "database_subnet_id" {
-  value = azurerm_subnet.database_subnet.id
-}
-
-output "services_subnet_id" {
-  value = azurerm_subnet.services_subnet.id
 }
 
 # Output the Key Vault details
@@ -576,51 +413,20 @@ output "key_vault_uri" {
 }
 
 # Output the PostgreSQL server details (NO PASSWORD)
-output "postgresql_vm_name" {
-  value = azurerm_linux_virtual_machine.postgresql_vm.name
+output "postgresql_server_name" {
+  value = azurerm_postgresql_flexible_server.kisaancenter_db.name
 }
 
-output "postgresql_vm_private_ip" {
-  value = azurerm_network_interface.postgresql_vm_nic.ip_configuration[0].private_ip_address
-}
-
-output "postgresql_vm_public_ip" {
-  value = azurerm_public_ip.postgresql_vm_pip.ip_address
+output "postgresql_server_fqdn" {
+  value = azurerm_postgresql_flexible_server.kisaancenter_db.fqdn
 }
 
 output "postgresql_database_name" {
-  value = "kisaancenter"
+  value = azurerm_postgresql_flexible_server_database.kisaancenter_database.name
 }
 
 output "postgresql_admin_username" {
   value = "postgres"
-}
-
-output "postgresql_connection_info" {
-  value = {
-    host     = azurerm_network_interface.postgresql_vm_nic.ip_configuration[0].private_ip_address
-    port     = 5432
-    database = "kisaancenter"
-    username = "postgres"
-    password_secret_name = azurerm_key_vault_secret.postgresql_password.name
-    key_vault_name = azurerm_key_vault.kisaancenter_kv.name
-    ssh_username = "azureuser"
-    ssh_private_key_secret = azurerm_key_vault_secret.postgresql_vm_ssh_private.name
-  }
-  description = "PostgreSQL connection information (password and SSH key stored in Key Vault)"
-}
-
-# Output Container Registry details
-output "container_registry_name" {
-  value = azurerm_container_registry.kisaancenter_acr.name
-}
-
-output "container_registry_login_server" {
-  value = azurerm_container_registry.kisaancenter_acr.login_server
-}
-
-output "container_registry_admin_username" {
-  value = azurerm_container_registry.kisaancenter_acr.admin_username
 }
 
 # Output Container Apps details
@@ -632,30 +438,52 @@ output "backend_container_app_name" {
   value = azurerm_container_app.kisaancenter_backend.name
 }
 
-output "backend_container_app_url" {
-  value = "https://${azurerm_container_app.kisaancenter_backend.latest_revision_fqdn}"
-  description = "Internal URL for the backend API (accessible only from within Azure network)"
+output "backend_container_app_fqdn" {
+  value = azurerm_container_app.kisaancenter_backend.latest_revision_fqdn
+  description = "FQDN for the backend API (accessible from frontend)"
 }
 
-# Output deployment information
+output "backend_container_app_url" {
+  value = "https://${azurerm_container_app.kisaancenter_backend.latest_revision_fqdn}"
+  description = "Complete URL for the backend API"
+}
+
+# Output deployment information for GitHub Actions
 output "deployment_info" {
   value = {
-    container_registry = {
-      name         = azurerm_container_registry.kisaancenter_acr.name
-      login_server = azurerm_container_registry.kisaancenter_acr.login_server
-      username     = azurerm_container_registry.kisaancenter_acr.admin_username
-      password_secret = "acr-admin-password"
-    }
     backend_api = {
       name = azurerm_container_app.kisaancenter_backend.name
+      fqdn = azurerm_container_app.kisaancenter_backend.latest_revision_fqdn
       url  = "https://${azurerm_container_app.kisaancenter_backend.latest_revision_fqdn}"
       environment = azurerm_container_app_environment.kisaancenter_env.name
+      resource_group = azurerm_resource_group.kisaancenter_rg.name
     }
     database = {
-      host = azurerm_network_interface.postgresql_vm_nic.ip_configuration[0].private_ip_address
-      port = 5432
-      name = "kisaancenter"
+      server_name = azurerm_postgresql_flexible_server.kisaancenter_db.name
+      fqdn = azurerm_postgresql_flexible_server.kisaancenter_db.fqdn
+      database_name = azurerm_postgresql_flexible_server_database.kisaancenter_database.name
+      username = "postgres"
+    }
+    secrets = {
+      key_vault_name = azurerm_key_vault.kisaancenter_kv.name
+      db_password_secret = azurerm_key_vault_secret.postgresql_password.name
+      app_secret_key = azurerm_key_vault_secret.app_secret_key.name
     }
   }
-  description = "Complete deployment information for the KisaanCenter application"
+  description = "Complete deployment information for the FREE tier KisaanCenter application"
+}
+
+# Output cost summary
+output "cost_summary" {
+  value = {
+    postgresql_flexible_server = "FREE for 12 months (B1ms + 32GB storage)"
+    container_apps = "FREE tier (180,000 vCPU-seconds monthly)"
+    log_analytics = "Pay-per-GB (~€0.10/month for small usage)"
+    key_vault = "~€0.03/month"
+    virtual_network = "FREE"
+    dns_zone = "~€0.45/month"
+    estimated_monthly_cost = "~€0.60/month"
+    after_12_months = "~€15-20/month (when PostgreSQL free tier expires)"
+  }
+  description = "Cost breakdown for the FREE tier architecture"
 }

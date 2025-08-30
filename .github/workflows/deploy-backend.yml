@@ -1,5 +1,4 @@
-# .github/workflows/deploy-backend.yml
-name: Deploy Backend to Azure Container Apps
+name: Deploy Backend to Azure Container Apps (FREE Tier)
 
 on:
   push:
@@ -8,15 +7,16 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  AZURE_CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
-  AZURE_CONTAINER_APP_ENVIRONMENT: ${{ secrets.AZURE_CONTAINER_APP_ENVIRONMENT }}
-  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/backend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      packages: write
+      
     steps:
     - name: 🛎️ Checkout code
       uses: actions/checkout@v4
@@ -32,47 +32,65 @@ jobs:
             "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
           }
 
-    - name: 🐳 Login to Azure Container Registry
-      run: |
-        az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+    - name: 🐳 Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: 🏗️ Build Docker image
-      run: |
-        docker build -f Dockerfile -t ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} .
-        docker tag ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:latest
+    - name: 📋 Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: 📦 Push image to ACR
-      run: |
-        docker push ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }}
-        docker push ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:latest
+    - name: 🏗️ Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
 
     - name: 🚀 Deploy to Container Apps
       run: |
         az containerapp update \
-          --name ${{ env.AZURE_CONTAINER_APP_NAME }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }}
+          --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          --revision-suffix $(date +%s)
 
     - name: ✅ Verify deployment
       run: |
         # Wait for deployment to complete
         sleep 30
         
-        # Get the container app URL (internal)
+        # Get the container app URL
         FQDN=$(az containerapp show \
-          --name ${{ env.AZURE_CONTAINER_APP_NAME }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --query properties.configuration.ingress.fqdn -o tsv)
         
-        echo "Container App URL: https://$FQDN"
+        echo "Backend API URL: https://$FQDN"
         
-        # Check if the app is responding (basic health check)
-        # Note: This is internal URL, so it might not be accessible from GitHub Actions
-        # But we can check if the deployment was successful
+        # Check if the app is responding
+        if curl -f "https://$FQDN/health" > /dev/null 2>&1; then
+          echo "✅ Health check passed"
+        else
+          echo "⚠️ Health check failed (app might still be starting)"
+        fi
         
+        # Get latest revision info
         REVISION_NAME=$(az containerapp revision list \
-          --name ${{ env.AZURE_CONTAINER_APP_NAME }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --query "[0].name" -o tsv)
         
         echo "Latest revision: $REVISION_NAME"
@@ -81,10 +99,10 @@ jobs:
       run: |
         echo "🎉 Deployment Summary"
         echo "===================="
-        echo "✅ Image: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }}"
-        echo "✅ Container App: ${{ env.AZURE_CONTAINER_APP_NAME }}"
-        echo "✅ Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
+        echo "✅ Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "✅ Container App: ${{ secrets.AZURE_CONTAINER_APP_NAME }}"
+        echo "✅ Resource Group: ${{ secrets.AZURE_RESOURCE_GROUP }}"
         echo "✅ Commit SHA: ${{ github.sha }}"
         echo ""
         echo "🔗 View in Azure Portal:"
-        echo "https://portal.azure.com/#@/resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}/providers/Microsoft.App/containerApps/${{ env.AZURE_CONTAINER_APP_NAME }}"
+        echo "https://portal.azure.com/#@/resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RESOURCE_GROUP }}/providers/Microsoft.App/containerApps/${{ secrets.AZURE_CONTAINER_APP_NAME }}"
