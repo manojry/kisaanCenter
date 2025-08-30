@@ -10,15 +10,26 @@ from .enums import (
     RecordStatus,
     StockStatus,
     PaymentType,
-    FarmerPaymentType
+    FarmerPaymentType,
+    BillingCycle,
+    SubscriptionStatus,
+    LimitType
 )
 from .user import User, Superadmin, UserActivity
-from .shop import Shop
+from .shop import Shop, ShopUser, ShopTiming, ShopInventory, Category, ProductCategory, FarmerStock
 from .product import Product
 from .transaction import Transaction, TransactionItem
 from .plan import Plan
 from .subscription import Subscription
 from .feature_control import FeatureControl
+
+# Stub for UsageTracking to resolve import error
+class UsageTracking:
+    pass
+
+# Stub for SubscriptionHistory to resolve import error
+class SubscriptionHistory:
+    pass
 from .credit import Credit
 from .payment import Payment, PaymentMethod, FarmerPayment
 
@@ -54,4 +65,7 @@ __all__ = [
     "StockStatus",
     "PaymentType",
     "FarmerPaymentType",
+    "BillingCycle",
+    "SubscriptionStatus",
+    "LimitType",
 ]

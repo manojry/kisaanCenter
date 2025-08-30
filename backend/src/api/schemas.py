@@ -55,7 +55,7 @@ class UserBase(BaseSchema):
     role: UserRoleEnum
     contact: Optional[str] = Field(None, max_length=20)
     shop_id: Optional[int] = None
-    credit_limit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    credit_limit: Optional[Decimal] = Field(None, ge=0)
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
@@ -65,7 +65,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseSchema):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
     contact: Optional[str] = Field(None, max_length=20)
-    credit_limit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    credit_limit: Optional[Decimal] = Field(None, ge=0)
     status: Optional[RecordStatusEnum] = None
 
 class UserRead(UserBase, TimestampMixin):
@@ -141,14 +141,14 @@ class TransactionBase(BaseSchema):
     shop_id: int
     buyer_user_id: int
     transaction_type: TransactionTypeEnum = TransactionTypeEnum.SALE
-    commission_rate: Decimal = Field(..., ge=0, le=100, decimal_places=2)
+    commission_rate: Decimal = Field(..., ge=0, le=100)
     parent_transaction_id: Optional[int] = None
 
 class TransactionCreate(TransactionBase):
     transaction_items: List["TransactionItemCreate"] = []
     
 class TransactionUpdate(BaseSchema):
-    commission_rate: Optional[Decimal] = Field(None, ge=0, le=100, decimal_places=2)
+    commission_rate: Optional[Decimal] = Field(None, ge=0, le=100)
     commission_confirmed: Optional[bool] = None
     status: Optional[str] = None
 

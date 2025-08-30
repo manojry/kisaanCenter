@@ -20,7 +20,7 @@ from .plan_schemas import *
 from .transaction_schemas import *
 from .credit_schemas import *
 from .product_schemas import ProductCreate, ProductUpdate
-from .payment_schemas import PaymentCreate
+from .payment_schemas import PaymentCreate, PaymentUpdate
 
 # Import common schemas from main schemas file without circular import
 # These will be imported directly when needed
@@ -39,5 +39,6 @@ __all__ = [
     "CreditCreate", "CreditUpdate", "CreditRead", "CreditReadWithRelations",
 
     "OrderCreate", "OrderUpdate", "OrderRead",
+    "PaymentUpdate",
     "APIResponse", "ErrorResponse"
 ]

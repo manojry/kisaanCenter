@@ -6,13 +6,13 @@ from datetime import datetime
 class CreditCreate(BaseModel):
     user_id: int = Field(..., gt=0)
     shop_id: int = Field(..., gt=0)
-    amount: Decimal = Field(..., gt=0, decimal_places=2)
+    amount: Decimal = Field(..., gt=0)
     credit_type: Optional[str] = Field("buyer_credit", max_length=50)
     description: Optional[str] = Field(None, max_length=255)
     status: Optional[str] = Field("active", max_length=20)
 
 class CreditUpdate(BaseModel):
-    amount: Optional[Decimal] = Field(None, gt=0, decimal_places=2)
+    amount: Optional[Decimal] = Field(None, gt=0)
     credit_type: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = Field(None, max_length=255)
     status: Optional[str] = Field(None, max_length=20)

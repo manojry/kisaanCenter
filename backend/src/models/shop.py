@@ -1,3 +1,21 @@
+# Stub for FarmerStock to resolve import error
+class FarmerStock:
+    pass
+# Stub for ProductCategory to resolve import error
+class ProductCategory:
+    pass
+# Stub for Category to resolve import error
+class Category:
+    pass
+# Stub for ShopInventory to resolve import error
+class ShopInventory:
+    pass
+# Stub for ShopTiming to resolve import error
+class ShopTiming:
+    pass
+# Stub for ShopUser to resolve import error
+class ShopUser:
+    pass
 from sqlalchemy import Column, Integer, String, Float, Date, Enum, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from .base import Base

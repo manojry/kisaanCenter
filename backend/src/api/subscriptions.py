@@ -203,7 +203,7 @@ def check_farmer_creation_limit(shop_id: int, db: Session = Depends(get_db)):
     return {
         "feature": "farmer_creation",
         "status": service.get_restriction_level(result.get('usage_percentage', 0)),
-        **result
+        "data": result
     }
 
 @router.get("/shop/{shop_id}/limits/buyers")

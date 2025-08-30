@@ -14,3 +14,5 @@ backend/**/__pycache__
 backend\src\__pycache__
 frontend\node_modules\
 c/Users/r.kowdampalli/Documents/kisaanCenter/frontend/src/components/UserForm.css 
+.venv12/
+.vscode/tasks.json

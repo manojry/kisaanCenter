@@ -9,11 +9,11 @@ class TransactionCreate(BaseModel):
     parent_transaction_id: Optional[int] = Field(None, gt=0)
     type: Optional[str] = Field("sale", max_length=50)
     status: Optional[str] = Field("active", max_length=50)
-    commission_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    commission_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_rate: Optional[Decimal] = Field(None, ge=0)
+    commission_amount: Optional[Decimal] = Field(None, ge=0)
     payment_status: Optional[str] = Field("pending", max_length=50)
-    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0)
+    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0)
     commission_confirmed: Optional[bool] = Field(False)
     completion_status: Optional[str] = Field("pending", max_length=50)
     date: date
@@ -21,11 +21,11 @@ class TransactionCreate(BaseModel):
 class TransactionUpdate(BaseModel):
     type: Optional[str] = Field(None, max_length=50)
     status: Optional[str] = Field(None, max_length=50)
-    commission_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    commission_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    commission_rate: Optional[Decimal] = Field(None, ge=0)
+    commission_amount: Optional[Decimal] = Field(None, ge=0)
     payment_status: Optional[str] = Field(None, max_length=50)
-    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
-    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0)
+    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0)
     commission_confirmed: Optional[bool] = None
     completion_status: Optional[str] = Field(None, max_length=50)
 

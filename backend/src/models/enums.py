@@ -1,5 +1,12 @@
 from enum import Enum
 
+class LimitType(str, Enum):
+    """Enum for limit types"""
+    DAILY = "daily"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+from enum import Enum
+
 class RecordStatus(str, Enum):
     """Enum for record status"""
     ACTIVE = "active"
@@ -31,6 +38,7 @@ class CompletionStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETE = "complete"
+    INCOMPLETE = "incomplete"
 
 class StockStatus(str, Enum):
     """Enum for stock status"""

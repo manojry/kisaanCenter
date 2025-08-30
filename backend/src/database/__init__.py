@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from contextlib import contextmanager
 
 from ..db.connection import config
-from .models import Base
+from src.models.base import Base
 
 logger = logging.getLogger(__name__)
 
