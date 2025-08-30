@@ -5,7 +5,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/manojry/kisaancenter/backend:latest
+  IMAGE_NAME: ${{ github.repository_owner }}/kisaancenter/backend
 
 jobs:
   deploy:
