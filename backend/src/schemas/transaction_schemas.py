@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime, date
@@ -47,11 +47,7 @@ class TransactionRead(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TransactionReadWithRelations(TransactionRead):
     """Transaction read schema with relationship data"""

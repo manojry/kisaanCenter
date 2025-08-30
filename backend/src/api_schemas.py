@@ -2,7 +2,7 @@
 API-specific schemas that are commonly used across different endpoints
 This file is separate to avoid circular imports
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 
@@ -26,8 +26,8 @@ class ErrorResponse(BaseModel):
     errors: Optional[List[str]] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": False,
                 "message": "Validation failed",
@@ -36,3 +36,4 @@ class ErrorResponse(BaseModel):
                 "timestamp": "2024-01-01T10:00:00"
             }
         }
+    )

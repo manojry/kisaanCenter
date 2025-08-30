@@ -236,7 +236,7 @@ def get_users(
     user_status: Optional[str] = Query(None, description="Filter by user status"),
     search: Optional[str] = Query(None, description="Search in username and contact"),
     sort_by: str = Query("created_at", description="Sort field"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     db: Session = Depends(get_db)
 ):
     """
@@ -555,7 +555,7 @@ def update_credit_limit(
             detail="Failed to update credit limit"
         )
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 class UserCreate(BaseModel):
     username: str
@@ -567,43 +567,48 @@ class UserCreate(BaseModel):
     created_by: int
     status: str
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, username):
         if len(username) < 3 or len(username) > 50:
             raise ValueError('Username must be between 3 and 50 characters')
         return username
 
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, password):
         if len(password) < 8:
             raise ValueError('Password must be at least 8 characters')
         return password
 
-    @validator('role')
+    @field_validator('role')
+    @classmethod
     def validate_role(cls, role):
         valid_roles = ["superadmin", "owner", "farmer", "buyer", "employee"]
         if role not in valid_roles:
             raise ValueError(f'Role must be one of {valid_roles}')
         return role
 
-    @validator('shop_id')
-    def validate_shop_id(cls, shop_id, values):
-        role = values.get('role')
+    @field_validator('shop_id')
+    @classmethod
+    def validate_shop_id(cls, shop_id, info):
+        role = info.data.get('role')
         if role not in ["owner", "superadmin"] and shop_id is None:
             raise ValueError('Shop ID is required for non-owner, non-superadmin users')
         return shop_id
 
-    @validator('contact')
+    @field_validator('contact')
+    @classmethod
     def validate_contact(cls, contact):
         if contact and not contact.startswith("+"):
             raise ValueError('Contact must start with a country code, e.g., +91')
         return contact
 
-    @validator('credit_limit')
+    @field_validator('credit_limit')
+    @classmethod
     def validate_credit_limit(cls, credit_limit):
         if credit_limit is not None and credit_limit < 0:
             raise ValueError('Credit limit must be >= 0')
         return credit_limit
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any
 from decimal import Decimal
 
@@ -21,8 +21,7 @@ class PlanRead(PlanBase):
 	created_at: Optional[str]
 	updated_at: Optional[str]
 
-	class Config:
-		orm_mode = True
+	model_config = ConfigDict(from_attributes=True)
 
 class PlanUpdate(BaseModel):
 	name: Optional[str] = Field(None, min_length=1, max_length=100)

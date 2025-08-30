@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 class ShopBase(BaseModel):
@@ -27,5 +27,4 @@ class ShopRead(BaseModel):
     contact: Optional[str] = Field(None, max_length=15)
     commission_rate: Optional[float] = Field(0.0, ge=0, le=100)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

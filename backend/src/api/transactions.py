@@ -212,7 +212,7 @@ def get_transactions(
     date_from: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
     sort_by: str = Query("created_at", description="Sort field"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
     db: Session = Depends(get_db)
 ):
     """

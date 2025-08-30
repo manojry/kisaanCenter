@@ -4,7 +4,7 @@ Subscription Management Schemas
 Pydantic models for subscription-related request/response validation
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -66,8 +66,7 @@ class PlanResponse(PlanBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Subscription Schemas
 
@@ -100,8 +99,7 @@ class SubscriptionResponse(SubscriptionBase):
     # Nested relationships
     plan: Optional[PlanResponse] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Feature Control Schemas
 
@@ -133,8 +131,7 @@ class FeatureControlResponse(FeatureControlBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Usage Tracking Schemas
 
@@ -148,8 +145,7 @@ class UsageTrackingResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UsageSummaryResponse(BaseModel):
     shop_id: int
@@ -169,8 +165,7 @@ class SubscriptionHistoryResponse(BaseModel):
     effective_date: date
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Limit Check Response Schemas
 
@@ -238,7 +233,8 @@ class CreateSubscriptionRequest(BaseModel):
     billing_cycle: BillingCycleEnum = BillingCycleEnum.MONTHLY
     start_date: Optional[date] = None
     
-    @validator('start_date')
+    @field_validator('start_date')
+    @classmethod
     def validate_start_date(cls, v):
         if v and v < date.today():
             raise ValueError('Start date cannot be in the past')
