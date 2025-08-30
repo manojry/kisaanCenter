@@ -1,3 +1,53 @@
+import requests
+import json
+
+# 1. Create Superadmin
+superadmin_payload = {
+    "username": "superadmin_terminal",
+    "password": "superpass123",
+    "role": "superadmin",
+    "contact": "9999999999"
+}
+superadmin_resp = requests.post("http://127.0.0.1:8000/api/v1/users/", headers={"Content-Type": "application/json"}, json=superadmin_payload)
+print("Superadmin:", superadmin_resp.status_code, superadmin_resp.text)
+superadmin_id = None
+try:
+    superadmin_id = superadmin_resp.json()["data"]["id"]
+except Exception:
+    print("Could not extract superadmin ID.")
+
+# 2. Create Owner
+if superadmin_id:
+    owner_payload = {
+        "username": "owner_terminal",
+        "password": "testpass123",
+        "role": "owner",
+        "contact": "9876543210",
+        "created_by": superadmin_id
+    }
+    owner_resp = requests.post("http://127.0.0.1:8000/api/v1/users/", headers={"Content-Type": "application/json"}, json=owner_payload)
+    print("Owner:", owner_resp.status_code, owner_resp.text)
+    owner_id = None
+    try:
+        owner_id = owner_resp.json()["data"]["id"]
+    except Exception:
+        print("Could not extract owner ID.")
+else:
+    print("Superadmin creation failed, cannot create owner.")
+    owner_id = None
+
+# 3. Create Shop
+if owner_id:
+    shop_payload = {
+        "name": "Owner Shop Terminal",
+        "location": "Test Location",
+        "plan_id": 1,
+        "owner_id": owner_id
+    }
+    shop_resp = requests.post("http://127.0.0.1:8000/api/v1/shops/", headers={"Content-Type": "application/json"}, json=shop_payload)
+    print("Shop:", shop_resp.status_code, shop_resp.text)
+else:
+    print("Owner creation failed, cannot create shop.")
 #!/usr/bin/env python3
 """
 Cross-Platform KisaanCenter Setup Script

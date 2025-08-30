@@ -57,7 +57,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
                         "username": "farmer_john",
                         "password": "secure_password",
                         "role": "farmer",
-                        "shop_id": 1,
+                        # "shop_id": 1,  # shop_id not required for owner creation
                         "contact": "+91-9876543210",
                         "credit_limit": 10000.00,
                         "created_by": 2,
@@ -78,7 +78,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
                                 "id": 123,
                                 "username": "farmer_john",
                                 "role": "farmer",
-                                "shop_id": 1,
+                                # "shop_id": 1,
                                 "contact": "+91-9876543210",
                                 "credit_limit": 10000.00,
                                 "status": "active",
@@ -102,20 +102,23 @@ def create_user(
     - **username**: Unique username (3-50 characters)
     - **password**: Secure password (min 8 characters)
     - **role**: User role (superadmin, owner, farmer, buyer, employee)
-    - **shop_id**: Required for non-superadmin users
+    - **shop_id**: Required for non-owner, non-superadmin users
     - **contact**: Optional contact information
     - **credit_limit**: Optional credit limit for buyers/farmers
     """
     import hashlib
     password_hash = hashlib.sha256(user.password.encode()).hexdigest()
+    # Only pass shop_id for non-owner roles
+    shop_id = user.shop_id if user.role not in ["owner", "superadmin"] else None
     result = UserService.create_user(
         db,
         user.username,
         password_hash,
         user.role,
-        user.shop_id,
+        shop_id,
         user.contact,
-        float(user.credit_limit) if user.credit_limit is not None else 0.0
+        float(user.credit_limit) if user.credit_limit is not None else 0.0,
+        user.status if hasattr(user, "status") and user.status is not None else "active"
     )
     
     if not result.success:
@@ -123,11 +126,16 @@ def create_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "message": result.message,
-                "errors": result.errors
+                "errors": result.errors if hasattr(result, "errors") else None
             }
         )
     
-    return result
+        return {
+            "success": result.success,
+            "message": result.message,
+            "data": result.data,
+            "errors": result.errors if hasattr(result, "errors") else None
+        }
 
 @router.get(
     "/{user_id}",
@@ -546,3 +554,56 @@ def update_credit_limit(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update credit limit"
         )
+
+from pydantic import BaseModel, validator
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str
+    shop_id: Optional[int] = None
+    contact: Optional[str] = None
+    credit_limit: Optional[float] = None
+    created_by: int
+    status: str
+
+    @validator('username')
+    def validate_username(cls, username):
+        if len(username) < 3 or len(username) > 50:
+            raise ValueError('Username must be between 3 and 50 characters')
+        return username
+
+    @validator('password')
+    def validate_password(cls, password):
+        if len(password) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return password
+
+    @validator('role')
+    def validate_role(cls, role):
+        valid_roles = ["superadmin", "owner", "farmer", "buyer", "employee"]
+        if role not in valid_roles:
+            raise ValueError(f'Role must be one of {valid_roles}')
+        return role
+
+    @validator('shop_id')
+    def validate_shop_id(cls, shop_id, values):
+        role = values.get('role')
+        if role not in ["owner", "superadmin"] and shop_id is None:
+            raise ValueError('Shop ID is required for non-owner, non-superadmin users')
+        return shop_id
+
+    @validator('contact')
+    def validate_contact(cls, contact):
+        if contact and not contact.startswith("+"):
+            raise ValueError('Contact must start with a country code, e.g., +91')
+        return contact
+
+    @validator('credit_limit')
+    def validate_credit_limit(cls, credit_limit):
+        if credit_limit is not None and credit_limit < 0:
+            raise ValueError('Credit limit must be >= 0')
+        return credit_limit
+
+    class Config:
+        orm_mode = True

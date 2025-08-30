@@ -12,7 +12,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)  # Will be hashed to password_hash in service
     role: str = Field(..., max_length=20)
-    shop_id: Optional[int] = None
+    # shop_id removed: owner does not need shop_id
     contact: Optional[str] = Field(None, max_length=15)
     credit_limit: Optional[Decimal] = Field(default=Decimal('0.00'))
     status: Optional[str] = Field(default="active", max_length=20)
@@ -28,7 +28,7 @@ class UserRead(BaseModel):
     id: int
     username: str
     role: str
-    shop_id: Optional[int] = None
+    # shop_id removed: owner does not need shop_id
     contact: Optional[str] = None
     credit_limit: Optional[Decimal] = None
     status: str

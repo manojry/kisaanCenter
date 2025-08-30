@@ -1,7 +1,9 @@
+
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..crud.shop_crud import ShopCRUD
 from ..schemas import ShopCreate, ShopUpdate, ShopRead, PaginationParams, APIResponse
+from ..models import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,15 +12,57 @@ class ShopService:
     """Enterprise-level Shop service with business logic"""
     
     @staticmethod
-    def create_shop(db: Session, shop_create: ShopCreate) -> APIResponse:
+    def create_shop(db: Session, shop_create: ShopCreate, creator_user: Optional[User] = None) -> APIResponse:
         """Create a new shop with validation"""
         try:
             validation_errors = ShopService._validate_shop_create(shop_create)
             if validation_errors:
-                return APIResponse(
+                from ..api_schemas import ErrorResponse
+                return ErrorResponse(
                     success=False,
                     message="Validation failed",
+                    error_code="VALIDATION_ERROR",
                     errors=validation_errors
+                )
+
+            # Validate owner_id exists and creator permissions
+            owner = db.query(User).filter(User.id == shop_create.owner_id, User.status == 'active').first()
+            if not owner:
+                from ..api_schemas import ErrorResponse
+                return ErrorResponse(
+                    success=False,
+                    message=f"Owner with id {shop_create.owner_id} does not exist or is not active.",
+                    error_code="INVALID_OWNER_ID",
+                    errors=["INVALID_OWNER_ID"]
+                )
+            # Only owner or superadmin can create shop
+            if creator_user and creator_user.role not in ["owner", "superadmin"]:
+                from ..api_schemas import ErrorResponse
+                return ErrorResponse(
+                    success=False,
+                    message="Only owner or superadmin can create a shop.",
+                    error_code="PERMISSION_DENIED",
+                    errors=["PERMISSION_DENIED"]
+                )
+            if creator_user and creator_user.role == "owner" and creator_user.id != shop_create.owner_id:
+                from ..api_schemas import ErrorResponse
+                return ErrorResponse(
+                    success=False,
+                    message="Owner can only create shop for themselves.",
+                    error_code="INVALID_OWNER",
+                    errors=["INVALID_OWNER"]
+                )
+
+            # Validate plan_id exists
+            from ..database.models import Plan
+            plan = db.query(Plan).filter(Plan.id == shop_create.plan_id, Plan.status == 'active').first()
+            if not plan:
+                from ..api_schemas import ErrorResponse
+                return ErrorResponse(
+                    success=False,
+                    message=f"Plan with id {shop_create.plan_id} does not exist or is not active.",
+                    error_code="INVALID_PLAN_ID",
+                    errors=["INVALID_PLAN_ID"]
                 )
             
             shop = ShopCRUD.create(db, shop_create)
@@ -33,11 +77,13 @@ class ShopService:
             
         except ValueError as e:
             db.rollback()
-            return APIResponse(success=False, message=str(e), errors=["Validation error"])
+            from ..api_schemas import ErrorResponse
+            return ErrorResponse(success=False, message=str(e), error_code="VALIDATION_ERROR", errors=["Validation error"])
         except Exception as e:
             db.rollback()
             logger.error(f"Shop creation failed: {str(e)}")
-            return APIResponse(success=False, message="Failed to create shop", errors=["Internal server error"])
+            from ..api_schemas import ErrorResponse
+            return ErrorResponse(success=False, message="Failed to create shop", error_code="INTERNAL_ERROR", errors=["Internal server error"])
     
     @staticmethod
     def get_shop(db: Session, shop_id: int) -> APIResponse:

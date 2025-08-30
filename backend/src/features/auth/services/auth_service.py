@@ -3,7 +3,7 @@ import logging
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from ....models import User
+from ....models import User, Superadmin
 from ....schemas import APIResponse
 from ....models import RecordStatus
 
@@ -15,9 +15,30 @@ class AuthService:
     
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> APIResponse:
-        """Authenticate user credentials"""
+        """Authenticate user credentials - check both superadmin and user tables"""
         try:
             password_hash = hashlib.sha256(password.encode()).hexdigest()
+            
+            # First check superadmin table
+            superadmin = db.query(Superadmin).filter(
+                Superadmin.username == username,
+                Superadmin.password_hash == password_hash,
+                Superadmin.status == RecordStatus.ACTIVE
+            ).first()
+            
+            if superadmin:
+                return APIResponse(
+                    success=True,
+                    message="Authentication successful",
+                    data={
+                        "user_id": superadmin.id,
+                        "username": superadmin.username,
+                        "role": "superadmin",
+                        "shop_id": None
+                    }
+                )
+            
+            # Then check user table
             user = db.query(User).filter(
                 User.username == username,
                 User.password_hash == password_hash,

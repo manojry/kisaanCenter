@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from src.models import Base  # Only import Base to register models for SQLAlchemy
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
@@ -29,7 +30,8 @@ try:
     logger.info("✅ Shops module imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import shops module: {e}")
-    shops = None
+    # Make import errors visible and fail fast
+    raise
 
 try:
     from src.api import dashboard
@@ -58,6 +60,27 @@ try:
 except ImportError as e:
     logger.error(f"❌ Failed to import reports module: {e}")
     reports = None
+
+try:
+    from src.api import products
+    logger.info("✅ Products module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import products module: {e}")
+    products = None
+
+try:
+    from src.api import payments
+    logger.info("✅ Payments module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import payments module: {e}")
+    payments = None
+
+try:
+    from src.api import subscriptions
+    logger.info("✅ Subscriptions module imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import subscriptions module: {e}")
+    subscriptions = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -232,9 +255,8 @@ else:
             "data": [
                 {"id": 1, "username": "owner1", "role": "owner", "shop_id": shop_id},
                 {"id": 2, "username": "farmer1", "role": "farmer", "shop_id": shop_id},
-                {"id": 3, "username": "buyer1", "role": "buyer", "shop_id": shop_id}
             ],
-            "pagination": {"page": page, "limit": limit, "total": 3}
+            "pagination": {"page": page, "limit": limit, "total": 2}
         }
     
     @app.get("/api/v1/shops")
@@ -384,7 +406,7 @@ else:
     @app.get("/api/v1/stock")
     async def get_stock(shop_id: int = 1):
         return {"success": True, "message": "Stock retrieved", "data": [{"id": 1, "product_name": "Sample Product", "quantity": 50, "unit": "kg", "farmer_id": 2, "shop_id": shop_id}]}
-    
+
     @app.post("/api/v1/stock")
     async def create_stock(stock_data: dict):
         return {"success": True, "message": "Stock added", "data": {"id": 2, **stock_data}}
@@ -456,6 +478,18 @@ if credits:
 if reports:
     app.include_router(reports.router, prefix="/api/v1")
     logger.info("✅ Reports router included")
+
+if products:
+    app.include_router(products.router, prefix="/api/v1")
+    logger.info("✅ Products router included")
+
+if payments:
+    app.include_router(payments.router, prefix="/api/v1")
+    logger.info("✅ Payments router included")
+
+if subscriptions:
+    app.include_router(subscriptions.router, prefix="/api/v1")
+    logger.info("✅ Subscriptions router included")
 
 # Health check endpoints
 @app.get("/", tags=["Health"])

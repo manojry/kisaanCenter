@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
+
+from fastapi import APIRouter, Depends, HTTPException, status, Path, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from ..database import get_db
@@ -7,42 +8,13 @@ from ..services.shop_service import ShopService
 
 router = APIRouter(prefix="/shops", tags=["Shops"])
 
+# FIX: Add missing POST /shops endpoint
 @router.post("/", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
-@router.post(
-    "/",
-    response_model=APIResponse,
-    status_code=status.HTTP_201_CREATED,
-    openapi_extra={
-        "requestBody": {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "name": "Kisaan Mart",
-                        "location": "Village Center",
-                        "owner_id": 1,
-                        "status": "active"
-                    }
-                }
-            }
-        },
-        "responses": {
-            "201": {
-                "description": "Shop created successfully.",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "success": True,
-                            "message": "Shop created.",
-                            "data": {"shop_id": 101}
-                        }
-                    }
-                }
-            },
-            "400": {"description": "Invalid input or business rule violation."}
-        }
-    }
-)
 def create_shop(shop: ShopCreate, db: Session = Depends(get_db)):
+    """
+    Create a new shop with the given information.
+    Required fields: name, owner_id, plan_id
+    """
     result = ShopService.create_shop(db, shop)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)

@@ -547,18 +547,313 @@ Soft delete credit entry.
 
 ### Farmer Stock Management
 
-#### **POST** `/api/v1/farmer-stocks` - Record Stock Delivery
+---
+
+## Farmer Stock API Endpoints (Detailed)
+
+### 1. **Create Farmer Stock**
+**POST** `/api/v1/farmer-stocks`
+
+**Logic:**
+- Validates duplicate record (same farmer, product, shop, date).
+- Requires `declared_qty` and `declared_by_id` for `declared` mode.
+- Creates record with all fields.
+
+**Parameters:**
+- `farmer_user_id` (int, required)
+- `product_id` (int, required)
+- `shop_id` (int, required)
+- `declared_qty` (decimal, optional)
+- `unit_price` (decimal, optional)
+- `mode` (enum: declared, implicit, default implicit)
+- `declared_by_id` (int, required for declared mode)
+- `entry_date` (date, default today)
+
+**Example Request:**
 ```json
 {
   "farmer_user_id": 3,
   "product_id": 1,
-  "quantity": 50.00,
-  "date": "2025-08-26"
+  "shop_id": 2,
+  "declared_qty": 50.0,
+  "unit_price": 100.0,
+  "mode": "declared",
+  "declared_by_id": 1,
+  "entry_date": "2025-08-30"
+}
+```
+**Example Response:**
+```json
+{
+  "id": 101,
+  "farmer_user_id": 3,
+  "product_id": 1,
+  "shop_id": 2,
+  "declared_qty": 50.0,
+  "sold_qty": 0.0,
+  "unit_price": 100.0,
+  "mode": "declared",
+  "declared_by_id": 1,
+  "entry_date": "2025-08-30",
+  "status": "active",
+  "created_at": "...",
+  "updated_at": "..."
 }
 ```
 
-#### **GET** `/api/v1/farmer-stocks` - List Farmer Stocks
-Query parameters: `farmer_id`, `product_id`, `status`, `date_from`, `date_to`
+### 2. **List Farmer Stocks**
+**GET** `/api/v1/farmer-stocks`
+
+**Logic:**
+- Supports filtering by farmer, product, status, mode, date range.
+- Returns paginated list.
+
+**Query Parameters:**
+- `farmer_id`, `product_id`, `status`, `mode`, `date_from`, `date_to`, `page`, `limit`
+
+**Example Response:**
+```json
+{
+  "items": [
+    {
+      "id": 101,
+      "farmer_user_id": 3,
+      "product_id": 1,
+      "shop_id": 2,
+      "declared_qty": 50.0,
+      "sold_qty": 10.0,
+      "mode": "declared",
+      "status": "active"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 10
+}
+```
+
+### 3. **Get Farmer Stock Details**
+**GET** `/api/v1/farmer-stock/{id}`
+
+**Logic:**
+- Returns all fields, computed properties, and audit logs.
+
+**Example Response:**
+```json
+{
+  "id": 101,
+  "farmer_user_id": 3,
+  "product_id": 1,
+  "shop_id": 2,
+  "declared_qty": 50.0,
+  "sold_qty": 10.0,
+  "balance_qty": 40.0,
+  "is_oversold": false,
+  "audit_logs": [
+    {
+      "action_type": "sale",
+      "old_values": {"sold_qty": 0},
+      "new_values": {"sold_qty": 10},
+      "timestamp": "..."
+    }
+  ]
+}
+```
+
+### 4. **Update Farmer Stock**
+**PUT** `/api/v1/farmer-stock/{id}`
+
+**Logic:**
+- Allows updating declared_qty, unit_price, notes, status.
+- Validates business rules (e.g., cannot reduce declared_qty below sold_qty).
+
+**Parameters:**
+- `declared_qty` (decimal, optional)
+- `unit_price` (decimal, optional)
+- `notes` (string, optional)
+- `status` (enum, optional)
+
+**Example Request:**
+```json
+{
+  "declared_qty": 60.0,
+  "unit_price": 110.0,
+  "notes": "Updated after audit",
+  "status": "active"
+}
+```
+
+### 5. **Soft Delete Farmer Stock**
+**DELETE** `/api/v1/farmer-stock/{id}`
+
+**Logic:**
+- Marks record as `archived`, does not remove from DB.
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Stock archived"
+}
+```
+
+### 6. **Late Declaration**
+**POST** `/api/v1/farmer-stock/{id}/declare`
+
+**Logic:**
+- Only allowed for implicit mode.
+- Declared quantity must be >= sold_qty.
+- Updates mode to declared, logs audit.
+
+**Parameters:**
+- `declared_qty` (decimal, required)
+- `declared_by_id` (int, required)
+- `notes` (string, optional)
+
+**Example Request:**
+```json
+{
+  "declared_qty": 20.0,
+  "declared_by_id": 1,
+  "notes": "Farmer declared late"
+}
+```
+**Example Response:**
+```json
+{
+  "id": 101,
+  "mode": "declared",
+  "declared_qty": 20.0,
+  "sold_qty": 15.0,
+  "is_oversold": false
+}
+```
+
+### 7. **Change Stock Mode**
+**PUT** `/api/v1/farmer-stock/{id}/mode`
+
+**Logic:**
+- Switch between declared and implicit.
+- Validates required fields for declared mode.
+
+**Parameters:**
+- `mode` (enum: declared, implicit)
+- `declared_qty` (decimal, required for declared)
+- `declared_by_id` (int, required for declared)
+
+**Example Request:**
+```json
+{
+  "mode": "declared",
+  "declared_qty": 30.0,
+  "declared_by_id": 1
+}
+```
+
+### 8. **Deduct Stock for Sale**
+**POST** `/api/v1/farmer-stock/{id}/deduct`
+
+**Logic:**
+- Increases sold_qty.
+- Warns if overselling declared stock.
+
+**Parameters:**
+- `quantity` (decimal, required)
+
+**Example Request:**
+```json
+{
+  "quantity": 5.0
+}
+```
+**Example Response:**
+```json
+{
+  "sold_qty": 20.0,
+  "is_oversold": false,
+  "warning": null
+}
+```
+
+### 9. **Carry Forward Remaining Stock**
+**POST** `/api/v1/farmer-stock/{id}/carry-forward`
+
+**Logic:**
+- Only if balance_qty > 0.
+- Creates new record for next day.
+- Validates no duplicate for target date.
+
+**Parameters:**
+- `carry_to_date` (date, required)
+
+**Example Request:**
+```json
+{
+  "carry_to_date": "2025-08-31"
+}
+```
+**Example Response:**
+```json
+{
+  "success": true,
+  "carry_qty": 10.0,
+  "new_stock_id": 102
+}
+```
+
+### 10. **Get Audit Trail**
+**GET** `/api/v1/farmer-stock/{id}/audit`
+
+**Logic:**
+- Returns all audit records for the stock.
+
+**Example Response:**
+```json
+[
+  {
+    "action_type": "sale",
+    "old_values": {"sold_qty": 0},
+    "new_values": {"sold_qty": 10},
+    "notes": "Sale recorded",
+    "timestamp": "..."
+  },
+  {
+    "action_type": "late_declare",
+    "old_values": {"mode": "implicit"},
+    "new_values": {"mode": "declared"},
+    "notes": "Late declaration",
+    "timestamp": "..."
+  }
+]
+```
+
+---
+
+### FarmerStock Enums & Business Rules
+
+#### **StockMode Enum**
+- `declared`: Stock is declared upfront by farmer
+- `implicit`: Stock is tracked only by transactions
+
+#### **StockStatus Enum**
+- `active`: Stock is available for sale
+- `closed`: Stock sold out
+- `discarded`: Stock damaged/expired
+- `returned`: Stock sent back to farmer
+- `archived`: Stock record archived (system only)
+
+#### **Business Rule Notes**
+- Only `declared` mode allows upfront quantity declaration.
+- Status transitions:
+  - `active` → `closed` (sold out)
+  - `active` → `discarded` (damaged/expired)
+  - `active` → `returned` (sent back)
+  - Any → `archived` (soft delete)
+- Cannot carry forward if status is `archived` or `discarded`.
+- Overselling in `declared` mode triggers warning and audit log.
+- All enum values are validated; invalid values return 400 error.
+
+---
 
 ### Farmer Payments
 

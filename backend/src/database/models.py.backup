@@ -111,36 +111,22 @@ class Superadmin(Base):
     subscription_changes = relationship('SubscriptionHistory', back_populates='changer')
 
 class Plan(Base):
-    __tablename__ = 'plan'
-    
+    __tablename__ = 'plans'
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
-    price = Column(DECIMAL(10,2), nullable=False)
-    billing_cycle = Column(String(20), default='monthly')
-    max_users = Column(Integer, default=10)
-    max_transactions = Column(Integer, default=1000)
+    monthly_price = Column(DECIMAL(10,2), nullable=False)
+    max_farmers = Column(Integer, nullable=False, default=10)
+    max_buyers = Column(Integer, nullable=False, default=20)
+    max_transactions = Column(Integer, nullable=False, default=1000)
+    data_retention_months = Column(Integer, default=6)
     features = Column(JSON)
+    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(String(20), default='active')
 
     # Relationships
     shops = relationship('Shop', back_populates='plan')
-    plan_features = relationship('PlanFeature', back_populates='plan')
-
-# Stub PlanFeature model to resolve relationship
-class PlanFeature(Base):
-    __tablename__ = 'plan_feature'
-    id = Column(Integer, primary_key=True, index=True)
-    plan_id = Column(Integer, ForeignKey('plan.id'))
-    name = Column(String(100), nullable=False)
-    description = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = Column(String(20), default='active')
-
-    plan = relationship('Plan', back_populates='plan_features')
 
 class Shop(Base):
     __tablename__ = 'shop'
@@ -148,8 +134,9 @@ class Shop(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     location = Column(String(200))
-    plan_id = Column(Integer, ForeignKey('plan.id'))
+    plan_id = Column(Integer, ForeignKey('plans.id'))
     created_by = Column(Integer, ForeignKey('superadmin.id'))
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Explicit owner reference
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
@@ -157,6 +144,7 @@ class Shop(Base):
     # Relationships
     plan = relationship('Plan', back_populates='shops')
     creator = relationship('Superadmin', back_populates='created_shops')
+    owner = relationship('User', foreign_keys=[owner_id])  # Direct owner relationship
     users = relationship('User', foreign_keys='User.shop_id', back_populates='shop')
     products = relationship('Product', back_populates='shop')
     farmer_stocks = relationship('FarmerStock', back_populates='shop')
@@ -503,8 +491,8 @@ class SubscriptionHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     shop_id = Column(Integer, ForeignKey('shop.id'))
     changer_id = Column(Integer, ForeignKey('superadmin.id'))
-    old_plan_id = Column(Integer, ForeignKey('plan.id'))
-    new_plan_id = Column(Integer, ForeignKey('plan.id'))
+    old_plan_id = Column(Integer, ForeignKey('plans.id'))
+    new_plan_id = Column(Integer, ForeignKey('plans.id'))
     change_date = Column(DateTime, default=datetime.utcnow)
     reason = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)

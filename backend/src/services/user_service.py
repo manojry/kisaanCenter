@@ -102,34 +102,38 @@ class UserService:
         return db.query(User).filter(User.username == username).first()
     
     @staticmethod
-    def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: int, contact: str = None, credit_limit: float = 0.0):
+    def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: Optional[int] = None, contact: str = None, credit_limit: float = 0.0, status: str = "active"):
         from sqlalchemy.exc import IntegrityError
         import logging
         logger = logging.getLogger(__name__)
-        
+        from ..models import UserRole
         try:
+            # Convert role string to Enum if needed
+            role_enum = UserRole(role) if isinstance(role, str) else role
+            from ..models import RecordStatus
+            status_enum = RecordStatus(status) if isinstance(status, str) else status
             user = User(
                 username=username,
                 password_hash=password_hash,
-                role=role,
-                shop_id=shop_id,
+                role=role_enum,
                 contact=contact,
                 credit_limit=credit_limit,
-                status='active'
+                status=status_enum
             )
+            # Only set shop_id for non-owner roles
+            if shop_id is not None and role_enum != UserRole.OWNER:
+                user.shop_id = shop_id
             db.add(user)
             db.commit()
             db.refresh(user)
-            
             logger.info(f"✅ User created successfully: {username} (ID: {user.id})")
-            
             return APIResponse(
                 success=True,
                 message=f"User '{username}' created successfully",
                 data={
                     "id": user.id,
                     "username": user.username,
-                    "role": user.role,
+                    "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
                     "contact": user.contact,
                     "credit_limit": float(user.credit_limit),
                     "status": user.status,
@@ -137,11 +141,9 @@ class UserService:
                     "updated_at": user.updated_at.isoformat()
                 }
             )
-            
         except IntegrityError as e:
             db.rollback()
             error_msg = str(e.orig).lower()
-            
             if "unique constraint" in error_msg and "username" in error_msg:
                 logger.warning(f"❌ Username already exists: {username}")
                 return APIResponse(
@@ -163,7 +165,6 @@ class UserService:
                     message="Database constraint violation occurred.",
                     errors=["DATABASE_CONSTRAINT_VIOLATION"]
                 )
-                
         except Exception as e:
             db.rollback()
             logger.error(f"❌ Unexpected error creating user {username}: {str(e)}")

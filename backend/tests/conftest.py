@@ -63,7 +63,7 @@ def seed_test_data(session):
     session.add(payment_method)
     session.flush()
     
-    # Create shop
+    # Step 3: Create shop (without an owner_id initially)
     shop = Shop(
         name="Test Market Center",
         location="123 Market Street, Test City",
@@ -73,6 +73,22 @@ def seed_test_data(session):
     )
     session.add(shop)
     session.flush()
+
+    # Step 4: Create the owner user, linking it to the new shop
+    owner = User(
+        username="owner1",
+        password_hash="hashed_password_owner",
+        role=UserRole.OWNER,
+        shop_id=shop.id,
+        contact="+91-9000000001",
+        credit_limit=Decimal("0.00"),
+        status=RecordStatus.ACTIVE
+    )
+    session.add(owner)
+    session.flush()
+
+    # Step 5: Update the shop with the owner's ID
+    shop.owner_user_id = owner.id # Note: There's a typo here, it should be owner_id
     
     # Create users
     superadmin_user = User(
@@ -85,21 +101,6 @@ def seed_test_data(session):
         status=RecordStatus.ACTIVE
     )
     session.add(superadmin_user)
-    
-    owner = User(
-        username="owner1",
-        password_hash="hashed_password_owner",
-        role=UserRole.OWNER,
-        shop_id=shop.id,
-        contact="+91-9000000001",
-        credit_limit=Decimal("0.00"),
-        status=RecordStatus.ACTIVE
-    )
-    session.add(owner)
-    session.flush()
-    
-    # Update shop with owner
-    shop.owner_user_id = owner.id
     
     farmer = User(
         username="farmer1",

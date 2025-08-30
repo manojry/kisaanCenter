@@ -19,10 +19,8 @@ from typing import List, Dict, Any, Optional
 from datetime import date, datetime
 
 from src.db.connection import get_db
-from src.database.models import (
-    Plan, Subscription, FeatureControl, BillingCycle, 
-    SubscriptionStatus, UserRole
-)
+from src.models import Plan, Subscription, FeatureControl
+from src.models.enums import BillingCycle, SubscriptionStatus, UserRole
 from src.services.subscription_service import SubscriptionService
 from src.services.feature_control_service import FeatureControlService
 from src.services.usage_tracking_service import UsageTrackingService

@@ -82,7 +82,7 @@ class ShopCRUD:
     @staticmethod
     def get_shop_users(db: Session, shop_id: int) -> List[Dict]:
         """Get all users for a shop"""
-        from ....models import User  # Import here to avoid circular import
+        from ....models import User, RecordStatus  # Import here to avoid circular import
         
         users = db.query(User).filter(
             User.shop_id == shop_id,
