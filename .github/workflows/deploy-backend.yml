@@ -1,9 +1,6 @@
 name: Deploy Backend to Azure Container Apps (FREE Tier)
 
 on:
-  push:
-    branches: [ main ]
-    paths: [ 'backend/**' ]
   workflow_dispatch:
 
 env:
