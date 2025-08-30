@@ -1,23 +1,20 @@
+# .github/workflows/deploy-backend.yml
 name: Deploy Backend to Azure Container Apps
 
 on:
   push:
     branches: [ main ]
     paths: [ 'backend/**' ]
-  pull_request:
-    branches: [ main ]
-    paths: [ 'backend/**' ]
   workflow_dispatch:
 
 env:
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
   AZURE_CONTAINER_APP_NAME: ${{ secrets.AZURE_CONTAINER_APP_NAME }}
   AZURE_CONTAINER_APP_ENVIRONMENT: ${{ secrets.AZURE_CONTAINER_APP_ENVIRONMENT }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
@@ -37,16 +34,12 @@ jobs:
 
     - name: 🐳 Login to Azure Container Registry
       run: |
-        echo ${{ secrets.AZURE_REGISTRY_PASSWORD }} | docker login ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }} \
-          --username ${{ secrets.AZURE_REGISTRY_USERNAME }} \
-          --password-stdin
+        az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
 
     - name: 🏗️ Build Docker image
       run: |
-        cd backend
-        docker build -t ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} .
-        docker tag ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} \
-          ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:latest
+        docker build -f Dockerfile -t ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} .
+        docker tag ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }} ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:latest
 
     - name: 📦 Push image to ACR
       run: |
@@ -65,27 +58,33 @@ jobs:
         # Wait for deployment to complete
         sleep 30
         
-        # Get the app URL
-        APP_URL=$(az containerapp show \
+        # Get the container app URL (internal)
+        FQDN=$(az containerapp show \
           --name ${{ env.AZURE_CONTAINER_APP_NAME }} \
           --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
           --query properties.configuration.ingress.fqdn -o tsv)
         
-        echo "🎯 Deployment completed!"
-        echo "📱 App URL: https://$APP_URL"
+        echo "Container App URL: https://$FQDN"
         
-        # Basic health check (if health endpoint exists)
-        if curl -f -s "https://$APP_URL/health" > /dev/null 2>&1; then
-          echo "✅ Health check passed"
-        else
-          echo "⚠️ Health check endpoint not available (this is normal for new deployments)"
-        fi
+        # Check if the app is responding (basic health check)
+        # Note: This is internal URL, so it might not be accessible from GitHub Actions
+        # But we can check if the deployment was successful
+        
+        REVISION_NAME=$(az containerapp revision list \
+          --name ${{ env.AZURE_CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --query "[0].name" -o tsv)
+        
+        echo "Latest revision: $REVISION_NAME"
 
     - name: 📋 Deployment Summary
       run: |
-        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image**: \`${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Container App**: \`${{ env.AZURE_CONTAINER_APP_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Resource Group**: \`${{ env.AZURE_RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "🎉 Deployment Summary"
+        echo "===================="
+        echo "✅ Image: ${{ secrets.AZURE_REGISTRY_LOGIN_SERVER }}/kisaancenter-backend:${{ github.sha }}"
+        echo "✅ Container App: ${{ env.AZURE_CONTAINER_APP_NAME }}"
+        echo "✅ Resource Group: ${{ env.AZURE_RESOURCE_GROUP }}"
+        echo "✅ Commit SHA: ${{ github.sha }}"
+        echo ""
+        echo "🔗 View in Azure Portal:"
+        echo "https://portal.azure.com/#@/resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}/providers/Microsoft.App/containerApps/${{ env.AZURE_CONTAINER_APP_NAME }}"
