@@ -106,22 +106,26 @@ const ownerNavigationItems: NavItem[] = [
   }
 ];
 
+
 interface OwnerNavigationProps {
   currentRole: UserRole;
   currentRoute: string;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
+
 
 export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ 
   currentRole, 
   currentRoute,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  isMobileOpen = false,
+  onMobileClose
 }) => {
-  const { user, logout } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+  const { user } = useAuth();
   if (!user) return null;
 
   // Get filtered navigation items based on user role
@@ -129,44 +133,14 @@ export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({
     item.roles.includes(currentRole)
   );
 
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [currentRoute]);
-
   const handleNavClick = () => {
-    setIsMobileMenuOpen(false);
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
+    if (onMobileClose) onMobileClose();
   };
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="mobile-menu-toggle"
-        onClick={toggleMobileMenu}
-        aria-label="Toggle navigation"
-      >
-        <span className={`hamburger ${isMobileMenuOpen ? 'active' : ''}`}>
-          <span></span>
-          <span></span>
-          <span></span>
-        </span>
-      </button>
-
-      {/* Mobile Backdrop */}
-      {isMobileMenuOpen && (
-        <div 
-          className={`mobile-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Navigation Sidebar */}
-      <nav className={`owner-navigation ${isMobileMenuOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+  {/* Navigation Sidebar */}
+  <nav className={`owner-navigation ${isMobileOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Navigation Header - no brand logo, just collapse button if present */}
         {onToggleCollapse && (
           <button 
@@ -224,34 +198,6 @@ export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({
             </div>
           </div>
         )}
-
-        {/* User Profile & Logout */}
-        <div className="nav-footer">
-          <div className="user-profile">
-            <div className="user-avatar">
-              <span className="avatar-icon">
-                {user.role === UserRole.OWNER && '🏪'}
-                {user.role === UserRole.EMPLOYEE && '👨‍💼'}
-                {user.role === UserRole.FARMER && '👨‍🌾'}
-                {user.role === UserRole.BUYER && '🛒'}
-              </span>
-              {user.role === UserRole.OWNER && (
-                <span className="owner-crown">👑</span>
-              )}
-            </div>
-            <div className="user-details">
-              <div className="user-name">{user.username}</div>
-              <div className="user-role">{user.role.toLowerCase()}</div>
-            </div>
-            <button
-              className="logout-btn"
-              onClick={logout}
-              title={isCollapsed ? 'Logout' : undefined}
-            >
-              🚪
-            </button>
-          </div>
-        </div>
       </nav>
     </>
   );

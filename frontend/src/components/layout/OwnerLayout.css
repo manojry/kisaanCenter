@@ -1,0 +1,79 @@
+/* OwnerLayout.css - Responsive Layout for Owner Interface */
+
+.app-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header-container {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.layout-row {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  height: 100%;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  height: 100%;
+  background: #f8fafc;
+}
+
+.content-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+}
+
+/* Mobile Styles - Main content takes full width */
+@media (max-width: 768px) {
+  .layout-row {
+    flex-direction: row; /* Keep flex row to maintain layout structure */
+  }
+  
+  .main-content {
+    width: 100%;
+    flex: 1;
+    margin-left: 0; /* No margin since navigation is positioned absolutely */
+  }
+  
+  .content-body {
+    padding: 0.75rem;
+  }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .main-content {
+    margin-left: 0px; /* Space for sidebar */
+    width: calc(100% - 240px);
+  }
+}
+
+/* Desktop Styles */
+@media (min-width: 1025px) {
+  .main-content {
+    margin-left: 0px; /* Space for sidebar */
+    width: calc(100% - 240px);
+  }
+}
+
+/* Ensure proper stacking */
+.app-layout * {
+  box-sizing: border-box;
+}

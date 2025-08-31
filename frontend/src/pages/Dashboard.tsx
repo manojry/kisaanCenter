@@ -198,27 +198,27 @@ const Dashboard: React.FC = () => {
           title="Today's Revenue"
           value={`₹${stats.todayRevenue.toLocaleString()}`}
           icon={<TrendingUp className="h-6 w-6 text-white" />}
-          color="bg-green-500"
+          color="bg-emerald-600"
           trend="+12% from yesterday"
         />
         <StatCard
           title="Monthly Revenue"
           value={`₹${stats.monthlyRevenue.toLocaleString()}`}
           icon={<DollarSign className="h-6 w-6 text-white" />}
-          color="bg-blue-500"
+          color="bg-green-700"
           trend="+8% from last month"
         />
         <StatCard
           title="Commission Earned"
           value={`₹${stats.totalCommission.toLocaleString()}`}
           icon={<CreditCard className="h-6 w-6 text-white" />}
-          color="bg-purple-500"
+          color="bg-teal-600"
         />
         <StatCard
           title="Pending Credits"
           value={`₹${stats.pendingCredits.toLocaleString()}`}
           icon={<AlertCircle className="h-6 w-6 text-white" />}
-          color="bg-orange-500"
+          color="bg-amber-600"
           urgent={stats.pendingCredits > 10000}
         />
       </div>
@@ -233,24 +233,24 @@ const Dashboard: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="text-center">
-            <div className="bg-red-100 p-4 rounded-lg mb-3">
-              <Clock className="h-8 w-8 text-red-600 mx-auto" />
+            <div className="bg-emerald-100 p-4 rounded-lg mb-3">
+              <Clock className="h-8 w-8 text-emerald-600 mx-auto" />
             </div>
-            <p className="text-2xl font-bold text-red-600">{stats.pendingBuyerPayments}</p>
+            <p className="text-2xl font-bold text-emerald-600">{stats.pendingBuyerPayments}</p>
             <p className="text-sm text-gray-600">Buyer Payments Pending</p>
           </div>
           <div className="text-center">
-            <div className="bg-yellow-100 p-4 rounded-lg mb-3">
-              <DollarSign className="h-8 w-8 text-yellow-600 mx-auto" />
+            <div className="bg-amber-100 p-4 rounded-lg mb-3">
+              <DollarSign className="h-8 w-8 text-amber-600 mx-auto" />
             </div>
-            <p className="text-2xl font-bold text-yellow-600">{stats.pendingFarmerPayments}</p>
+            <p className="text-2xl font-bold text-amber-600">{stats.pendingFarmerPayments}</p>
             <p className="text-sm text-gray-600">Farmer Payments Pending</p>
           </div>
           <div className="text-center">
-            <div className="bg-blue-100 p-4 rounded-lg mb-3">
-              <CheckCircle className="h-8 w-8 text-blue-600 mx-auto" />
+            <div className="bg-teal-100 p-4 rounded-lg mb-3">
+              <CheckCircle className="h-8 w-8 text-teal-600 mx-auto" />
             </div>
-            <p className="text-2xl font-bold text-blue-600">{stats.pendingCommissionConfirmations}</p>
+            <p className="text-2xl font-bold text-teal-600">{stats.pendingCommissionConfirmations}</p>
             <p className="text-sm text-gray-600">Commission Confirmations</p>
           </div>
           <div className="text-center">

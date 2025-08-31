@@ -2,8 +2,9 @@
 import { Product } from './types';
 import { apiClient } from '../../services/api';
 
-export async function fetchAllProducts(): Promise<Product[]> {
-  const response = await apiClient.get<Product[]>('/products');
+export async function fetchAllProducts(shopId?: number): Promise<Product[]> {
+  const params = shopId ? { shop_id: shopId } : {};
+  const response = await apiClient.get<Product[]>('/products', { params });
   if (!response.data) throw new Error('No product data returned');
   return response.data;
 }

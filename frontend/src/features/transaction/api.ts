@@ -1,8 +1,9 @@
 import { Transaction, CreateTransactionRequest, UpdateTransactionRequest, TransactionSummary } from './types';
 import { apiClient } from '../../services/api';
 
-export async function fetchAllTransactions(): Promise<Transaction[]> {
-  const response = await apiClient.get<Transaction[]>('/transactions');
+export async function fetchAllTransactions(shopId?: string): Promise<Transaction[]> {
+  const params = shopId ? { shop_id: shopId } : {};
+  const response = await apiClient.get<Transaction[]>('/transactions', { params });
   if (!response.data) throw new Error('No transaction data returned');
   return response.data;
 }

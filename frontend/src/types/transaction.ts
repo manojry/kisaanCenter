@@ -44,6 +44,7 @@ export interface TransactionFilters {
   date_from: string
   date_to: string
   buyer_id: string
+  // Removed: category_id, user_id - these don't exist in the actual filter interface
 }
 
 export interface TransactionAnalytics {

@@ -25,7 +25,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Log new stock from farmers',
       icon: <Package className="h-6 w-6" />,
       route: '/stock/add',
-      color: 'bg-green-500 hover:bg-green-600',
+      color: 'bg-emerald-600 hover:bg-emerald-700',
       category: 'primary',
       shortcut: 'Ctrl+D'
     },
@@ -35,7 +35,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Create new transaction',
       icon: <ShoppingCart className="h-6 w-6" />,
       route: '/transactions/create',
-      color: 'bg-blue-500 hover:bg-blue-600',
+      color: 'bg-green-600 hover:bg-green-700',
       category: 'primary',
       shortcut: 'Ctrl+S'
     },
@@ -55,7 +55,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Register new farmer/buyer',
       icon: <Users className="h-6 w-6" />,
       route: '/users/create',
-      color: 'bg-purple-500 hover:bg-purple-600',
+      color: 'bg-teal-600 hover:bg-teal-700',
       category: 'primary'
     },
 
@@ -66,7 +66,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Daily/monthly analytics',
       icon: <TrendingUp className="h-6 w-6" />,
       route: '/reports',
-      color: 'bg-indigo-500 hover:bg-indigo-600',
+      color: 'bg-green-700 hover:bg-green-800',
       category: 'secondary'
     },
     {
@@ -75,7 +75,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Add/edit product catalog',
       icon: <Package className="h-6 w-6" />,
       route: '/products',
-      color: 'bg-orange-500 hover:bg-orange-600',
+      color: 'bg-amber-600 hover:bg-amber-700',
       category: 'secondary'
     },
     {
@@ -84,7 +84,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Set commission rates',
       icon: <Settings className="h-6 w-6" />,
       route: '/commissions',
-      color: 'bg-gray-500 hover:bg-gray-600',
+      color: 'bg-stone-600 hover:bg-stone-700',
       category: 'secondary'
     },
     {
@@ -104,7 +104,7 @@ const OwnerQuickActions: React.FC = () => {
       description: 'Review overdue payments',
       icon: <AlertCircle className="h-6 w-6" />,
       route: '/payments?filter=overdue',
-      color: 'bg-red-500 hover:bg-red-600',
+      color: 'bg-red-600 hover:bg-red-700',
       category: 'urgent'
     }
   ];

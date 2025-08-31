@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: '/kisaanCenter/', // GitHub Pages repository name
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
+  base: command === 'build' ? '/kisaanCenter/' : '/', // Use /kisaanCenter/ for production build, / for development
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -31,4 +37,4 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom']
   }
-})
+}))

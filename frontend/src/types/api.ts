@@ -1,22 +1,47 @@
-// API response types
+// Import types for specific response structures
+import { Transaction } from './transaction'
+import { User } from './user.types'
+import { Product } from '../features/product/types'
+
+// API response types - CENTRALIZED FOR CONSISTENT TYPING
 export interface APIResponse<T = any> {
   success: boolean
   message: string
-  data?: T
+  data: T
   pagination?: PaginationInfo
   errors?: string[]
 }
 
+// Standardized pagination from backend
 export interface PaginationInfo {
   page: number
   limit: number
   total: number
-  pages: number
+  total_pages: number  // Backend uses total_pages, not pages
 }
 
+// Frontend pagination parameters
 export interface PaginationParams {
   page?: number
   limit?: number
+}
+
+// Transactions API specific response structure
+export interface TransactionListResponse {
+  transactions: Transaction[]  // Backend wraps in transactions array
+  pagination: PaginationInfo
+}
+
+// Users API specific response structure  
+export interface UserListResponse {
+  users: User[]  // Backend wraps in users array
+  pagination: PaginationInfo
+}
+
+// Products API specific response structure
+export interface ProductListResponse {
+  products: Product[]  // Backend wraps in products array
+  pagination: PaginationInfo
 }
 
 // Dashboard data types

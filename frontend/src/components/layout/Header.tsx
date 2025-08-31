@@ -1,49 +1,41 @@
 import React from 'react'
 import { useAuth } from '@/context/AuthContext'
-import Button from '@/components/ui/Button'
-import ThemeToggle from '@/components/theme/ThemeToggle'
-import { LogOut, User, Bell } from 'lucide-react'
+import { Bell, LogOut } from 'lucide-react'
 import { UserRole } from '@/types/enums'
+import './Header.css'
 
-const Header: React.FC = () => {
+
+interface HeaderProps {
+  onMenuToggle?: () => void;
+  isMobileNavOpen?: boolean;
+}
+
+const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMobileNavOpen }) => {
   const { user, logout } = useAuth()
 
-  const getRoleIcon = (role: UserRole) => {
-    switch (role) {
-      case UserRole.OWNER:
-        return <span className="text-green-600">🌾</span>
-      case UserRole.FARMER:
-        return <span className="text-green-600">🌾</span>
-      case UserRole.BUYER:
-        return <span className="text-blue-600">🛒</span>
-      default:
-        return <User className="w-4 h-4" />
-    }
-  }
-
-  const getRoleBadgeColor = (role: UserRole) => {
-    switch (role) {
-      case UserRole.SUPERADMIN:
-        return 'bg-purple-100 text-purple-800'
-      case UserRole.OWNER:
-        return 'bg-blue-100 text-blue-800'
-      case UserRole.EMPLOYEE:
-        return 'bg-gray-100 text-gray-800'
-      case UserRole.FARMER:
-        return 'bg-green-100 text-green-800'
-      case UserRole.BUYER:
-        return 'bg-orange-100 text-orange-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
+          {/* Logo and Mobile Menu */}
           <div className="flex items-center">
+            {/* Mobile menu button */}
+            {onMenuToggle && (
+              <button
+                className="md:hidden mr-2 p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-100"
+                aria-label={isMobileNavOpen ? 'Close menu' : 'Open menu'}
+                onClick={onMenuToggle}
+              >
+                <span className="sr-only">Toggle navigation</span>
+                {/* Hamburger icon */}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="block md:hidden">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
             <span className="brand-icon text-3xl">🌾</span>
             <span className="ml-2 text-xl font-bold text-gray-900">
               KisaanCenter
@@ -53,9 +45,6 @@ const Header: React.FC = () => {
 
           {/* User Info & Actions */}
           <div className="flex items-center space-x-4">
-            {/* Theme Toggle */}
-            <ThemeToggle />
-
             {/* Notifications */}
             <button className="p-2 text-gray-400 hover:text-gray-600 relative">
               <Bell className="w-5 h-5" />
@@ -66,27 +55,49 @@ const Header: React.FC = () => {
 
             {/* User Info */}
             {user && (
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user.username}
-                  </p>
-                  <div className="flex items-center space-x-1">
-                    {getRoleIcon(user.role)}
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
-                      {user.role.toUpperCase()}
+              <div className="flex items-center space-x-3 header-user-profile">
+                {/* User Profile - Similar to sidebar style */}
+                <div className="flex items-center space-x-2">
+                  <div className="user-avatar" style={{
+                    position: 'relative',
+                    width: '36px',
+                    height: '36px',
+                    background: '#f3f4f6',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #e5e7eb',
+                    flexShrink: 0
+                  }}>
+                    <span className="avatar-icon text-lg">
+                      {user.role === UserRole.OWNER && '🏪'}
+                      {user.role === UserRole.EMPLOYEE && '👨‍💼'}
+                      {user.role === UserRole.FARMER && '👨‍🌾'}
+                      {user.role === UserRole.BUYER && '🛒'}
                     </span>
+                    {user.role === UserRole.OWNER && (
+                      <span className="owner-crown" style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        fontSize: '0.75rem',
+                        filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+                      }}>👑</span>
+                    )}
+                  </div>
+                  <div className="user-details text-right">
+                    <div className="user-name text-sm font-medium text-gray-900">{user.username}</div>
+                    <div className="user-role text-xs text-gray-500 capitalize">{user.role.toLowerCase()}</div>
                   </div>
                 </div>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={logout}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="logout-btn flex items-center justify-center p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Logout"
                 >
                   <LogOut className="w-4 h-4" />
-                </Button>
+                </button>
               </div>
             )}
           </div>

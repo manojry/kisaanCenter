@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useTransactions } from '@/features/transaction/hooks/useTransactions'
 import { useProducts } from '@/features/product/hooks/useProducts'
 import { useUsers } from '@/features/user/hooks/useUsers'
+import { useAuth } from '@/context/AuthContext'
 import TransactionFilters from '@/features/transaction/components/TransactionFilters'
 import TransactionTable from '@/features/transaction/components/TransactionTable'
 import TransactionDetailsModal from '@/features/transaction/components/TransactionDetailsModal'
@@ -9,6 +10,7 @@ import { Transaction } from '@/types/transaction'
 import { Link } from 'react-router-dom'
 
 const Transactions: React.FC = () => {
+  const { user } = useAuth()
   const {
     transactions,
     analytics,
@@ -23,10 +25,10 @@ const Transactions: React.FC = () => {
     refreshAnalytics
   } = useTransactions()
 
-  const productsQuery = useProducts();
+  const productsQuery = useProducts(user?.shop_id || undefined);
   const products = Array.isArray(productsQuery.data) ? productsQuery.data : [];
 
-  const usersQuery = useUsers();
+  const usersQuery = useUsers(user?.shop_id ? { shop_id: user.shop_id } : undefined);
   const users = Array.isArray(usersQuery.data?.data) ? usersQuery.data.data : [];
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)

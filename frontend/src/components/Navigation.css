@@ -94,8 +94,27 @@
   overflow-y: auto;
 }
 
-.navigation.mobile-open {
-  left: 0;
+/* Mobile-specific positioning */
+@media (max-width: 768px) {
+  .navigation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .navigation.mobile-open {
+    transform: translateX(0);
+  }
+}
+
+/* Desktop positioning */
+@media (min-width: 769px) {
+  .navigation {
+    position: static;
+    transform: none;
+  }
 }
 
 /* Desktop Brand */

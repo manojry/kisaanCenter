@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiClient } from '@/services/api'
 import { Transaction, TransactionFilters, TransactionFormData, TransactionAnalytics } from '@/types/transaction'
+import { APIResponse, TransactionListResponse } from '@/types/api'
+import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
 
 interface UseTransactionsReturn {
@@ -33,11 +35,11 @@ const initialFilters: TransactionFilters = {
   payment_status: '',
   date_from: '',
   date_to: '',
-  category_id: '',
-  user_id: ''
+  buyer_id: ''
 }
 
 export const useTransactions = (): UseTransactionsReturn => {
+  const { user } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [analytics, setAnalytics] = useState<TransactionAnalytics | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
@@ -59,35 +61,67 @@ export const useTransactions = (): UseTransactionsReturn => {
   }, [])
 
   const fetchTransactions = useCallback(async () => {
+    if (!user?.shop_id) {
+      setError('No shop association found')
+      return
+    }
+
     setLoading(true)
     setError(null)
     
     try {
       const params = {
         ...filters,
+        shop_id: user.shop_id,
         page: pagination.page,
         limit: pagination.limit
       }
       
-      const response = await apiClient.get('/transactions', { params })
-      setTransactions(response.data.transactions)
-      setPagination({
-        page: response.data.pagination.page,
-        limit: response.data.pagination.limit,
-        total: response.data.pagination.total,
-        totalPages: response.data.pagination.totalPages
-      })
-    } catch (err) {
+      const response = await apiClient.get<APIResponse<TransactionListResponse>>('/transactions', { params })
+      
+      // Handle the APIResponse wrapper structure
+      if (response.data.success && response.data.data) {
+        const transactionData = response.data.data
+        
+        // Check if data has the expected structure
+        if (Array.isArray(transactionData)) {
+          // If data is directly an array
+          setTransactions(transactionData)
+          setPagination(prev => ({ 
+            ...prev, 
+            total: response.data.pagination?.total || 0,
+            totalPages: response.data.pagination?.total_pages || 1,
+            page: response.data.pagination?.page || 1,
+            limit: response.data.pagination?.limit || 10
+          }))
+        } else if (transactionData && typeof transactionData === 'object' && 'transactions' in transactionData) {
+          // If data is wrapped in transactions property
+          const wrappedData = transactionData as TransactionListResponse
+          setTransactions(wrappedData.transactions || [])
+          setPagination({
+            page: wrappedData.pagination?.page || 1,
+            limit: wrappedData.pagination?.limit || 10,
+            total: wrappedData.pagination?.total || 0,
+            totalPages: wrappedData.pagination?.total_pages || 1
+          })
+        } else {
+          console.warn('Unexpected transaction data structure:', transactionData)
+          setTransactions([])
+        }
+      } else {
+        setError(response.data.message || 'Failed to fetch transactions')
+      }
+    } catch (err: any) {
       setError('Failed to fetch transactions')
       console.error('Error fetching transactions:', err)
     } finally {
       setLoading(false)
     }
-  }, [filters, pagination.page, pagination.limit])
+  }, [user?.shop_id, filters, pagination.page, pagination.limit])
 
   const createTransaction = useCallback(async (data: TransactionFormData): Promise<boolean> => {
     try {
-      const response = await apiClient.post('/transactions', data)
+      await apiClient.post<APIResponse<Transaction>>('/transactions', data)
       toast.success('Transaction created successfully')
       return true
     } catch (err) {
@@ -99,7 +133,7 @@ export const useTransactions = (): UseTransactionsReturn => {
 
   const updateTransaction = useCallback(async (id: number, data: TransactionFormData): Promise<boolean> => {
     try {
-      const response = await apiClient.put(`/transactions/${id}`, data)
+      await apiClient.put<APIResponse<Transaction>>(`/transactions/${id}`, data)
       toast.success('Transaction updated successfully')
       return true
     } catch (err) {
@@ -111,7 +145,7 @@ export const useTransactions = (): UseTransactionsReturn => {
 
   const updatePayment = useCallback(async (id: number, paymentData: { amount: number }): Promise<boolean> => {
     try {
-      const response = await apiClient.put(`/transactions/${id}/payment`, paymentData)
+      await apiClient.put<APIResponse<Transaction>>(`/transactions/${id}/payment`, paymentData)
       toast.success('Payment updated successfully')
       return true
     } catch (err) {
@@ -123,7 +157,7 @@ export const useTransactions = (): UseTransactionsReturn => {
 
   const confirmCommission = useCallback(async (id: number): Promise<boolean> => {
     try {
-      const response = await apiClient.post(`/transactions/${id}/confirm-commission`)
+      await apiClient.post<APIResponse<Transaction>>(`/transactions/${id}/confirm-commission`)
       toast.success('Commission confirmed successfully')
       return true
     } catch (err) {
@@ -135,8 +169,10 @@ export const useTransactions = (): UseTransactionsReturn => {
 
   const refreshAnalytics = useCallback(async () => {
     try {
-      const response = await apiClient.get('/transactions/analytics')
-      setAnalytics(response.data)
+      const response = await apiClient.get<APIResponse<TransactionAnalytics>>('/transactions/analytics')
+      if (response.data.success && response.data.data) {
+        setAnalytics(response.data.data)
+      }
     } catch (err) {
       console.error('Error fetching analytics:', err)
     }

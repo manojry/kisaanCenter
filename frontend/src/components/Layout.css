@@ -105,6 +105,10 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+  .layout-row {
+    flex-direction: column;
+  }
+  
   .main-content {
     margin-left: 0;
     width: 100%;
@@ -122,30 +126,17 @@
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .main-content {
-    margin-left: 60px;
-    width: calc(100% - 60px);
+    margin-left: 0px;
+    /* width: calc(100% - 60px); */
   }
   
   .main-content.sidebar-collapsed {
-    margin-left: 60px;
-    width: calc(100% - 60px);
+    margin-left: 0px;
+    /* width: calc(100% - 60px); */
   }
 }
 
 /* Ensure proper stacking */
 .app-layout * {
   box-sizing: border-box;
-}
-
-/* Debug styles - remove these after testing */
-.main-content {
-  border: 2px solid red; /* Temporary - to see main content boundaries */
-}
-
-.app-header {
-  border: 2px solid blue; /* Temporary - to see header boundaries */
-}
-
-.page-content {
-  border: 2px solid green; /* Temporary - to see page content boundaries */
 }

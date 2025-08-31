@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/services/api';
+import { APIResponse, UserListResponse } from '@/types/api';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface User {
   id: number;
@@ -15,37 +17,84 @@ interface User {
 }
 
 const Users: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState({ username: '', role: 'farmer', shop_id: 1 as number | undefined });
+  const [formData, setFormData] = useState({ 
+    username: '', 
+    role: 'farmer', 
+    shop_id: currentUser?.shop_id || 1 
+  });
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (currentUser?.shop_id) {
+      fetchUsers();
+    }
+  }, [currentUser?.shop_id]);
 
   const fetchUsers = async () => {
+    if (!currentUser?.shop_id) {
+      toast.error('No shop associated with your account');
+      return;
+    }
+
     try {
-      const response = await apiClient.get('/users');
-      setUsers((response.data as any)?.users || []);
+      // Filter users by current user's shop_id
+      const response = await apiClient.get<APIResponse<UserListResponse>>('/users', {
+        params: { shop_id: currentUser.shop_id }
+      });
+      
+      // Handle the APIResponse wrapper structure
+      if (response.data.success && response.data.data) {
+        const userData = response.data.data;
+        
+        // Check if data has the expected structure
+        if (Array.isArray(userData)) {
+          // If data is directly an array
+          setUsers(userData);
+        } else if (userData && typeof userData === 'object' && 'users' in userData) {
+          // If data is wrapped in users property
+          const wrappedData = userData as UserListResponse;
+          setUsers(wrappedData.users || []);
+        } else {
+          console.warn('Unexpected user data structure:', userData);
+          setUsers([]);
+        }
+      } else {
+        toast.error(response.data.message || 'Failed to fetch users');
+        setUsers([]);
+      }
     } catch (error) {
       toast.error('Failed to fetch users');
+      setUsers([]);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser?.shop_id) {
+      toast.error('No shop associated with your account');
+      return;
+    }
+
     try {
+      const submitData = { ...formData, shop_id: currentUser.shop_id };
+      
       if (editingUser) {
-        await apiClient.put(`/users/${editingUser.id}`, formData);
+        await apiClient.put(`/users/${editingUser.id}`, submitData);
         toast.success('User updated successfully');
       } else {
-        await apiClient.post('/users', formData);
+        await apiClient.post('/users', submitData);
         toast.success('User created successfully');
       }
       setShowForm(false);
       setEditingUser(null);
-      setFormData({ username: '', role: 'farmer', shop_id: 1 as number | undefined });
+      setFormData({ 
+        username: '', 
+        role: 'farmer', 
+        shop_id: currentUser.shop_id 
+      });
       fetchUsers();
     } catch (error) {
       toast.error('Operation failed');
@@ -54,7 +103,11 @@ const Users: React.FC = () => {
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
-    setFormData({ username: user.username, role: user.role, shop_id: user.shop_id || undefined });
+    setFormData({ 
+      username: user.username, 
+      role: user.role, 
+      shop_id: user.shop_id || currentUser?.shop_id || 1 
+    });
     setShowForm(true);
   };
 

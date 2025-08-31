@@ -32,11 +32,17 @@ export const ProductList: React.FC<ProductListProps> = () => {
   }, [pagination.current, pagination.pageSize, searchTerm]);
 
   const loadProducts = async () => {
+    if (!user?.shop_id) {
+      setError('No shop association found');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       
-      const allProducts = await fetchAllProducts();
+      const allProducts = await fetchAllProducts(user.shop_id);
       console.log('Received products:', allProducts);
       
       // Apply search filter
