@@ -1,4 +1,66 @@
+
 # KisaanCenter Master Documentation
+
+## 🌾 Core Concept: Transforming Agricultural Markets
+
+KisaanCenter is an enterprise-grade Agricultural Market Management System designed to digitize and streamline the traditional agricultural marketplace. At its core, KisaanCenter addresses the fundamental challenges in agricultural commerce by creating a transparent, efficient, and fair digital ecosystem connecting farmers, buyers, and market operators.
+
+## 🎯 The Vision
+
+In many agricultural markets, especially in developing regions, the traditional marketplace operates with limited transparency, inefficient record-keeping, and complex multi-party transactions. KisaanCenter transforms this ecosystem by:
+
+1. **Digitizing the entire marketplace** - From farmer stock delivery to final buyer payment
+2. **Creating transparency** - Clear tracking of prices, commissions, and payments
+3. **Ensuring fair compensation** - Proper accounting for all parties involved
+4. **Streamlining operations** - Efficient management of stock, sales, and payments
+5. **Building trust** - Complete audit trails and transaction verification
+
+## 🧩 The Three-Party Completion Model
+
+The heart of KisaanCenter is its unique **Three-Party Completion Model** for transactions:
+
+1. **Farmer** delivers products → recorded in system → awaits payment
+2. **Buyer** purchases products → may pay in full, partial, or on credit
+3. **Shop Owner** manages the marketplace → collects commission → ensures proper settlement
+
+A transaction is only considered complete when all three checkboxes are ticked:
+- ✅ Buyer payment complete
+- ✅ Farmer payment complete
+- ✅ Commission confirmed
+
+This model ensures that no party is forgotten in the transaction lifecycle and creates accountability at every step.
+
+## 👥 Key Stakeholders and Their Journeys
+
+### 1. Farmers
+**Journey**: From product delivery to payment receipt
+- Deliver agricultural products to the market
+- Track sales of their products in real-time
+- Request advances or settlements
+- View complete payment history and outstanding amounts
+- Manage their product portfolio based on market demand
+
+### 2. Buyers
+**Journey**: From product selection to payment
+- Browse available products from multiple farmers
+- Make purchases with flexible payment options
+- Track credit and outstanding payments
+- Build relationships with trusted farmers and shops
+- Access purchase history and receipts
+
+### 3. Shop Owners
+**Journey**: From market management to profit generation
+- Manage the marketplace operations
+- Set commission rates and business rules
+- Process farmer payments and buyer credits
+- Track expenses and generate financial reports
+- Analyze business performance and optimize operations
+
+### 4. Employees
+**Journey**: From daily operations to customer service
+- Process transactions on behalf of the shop
+
+---
 
 ## 1. Schema Overview
 
