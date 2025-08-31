@@ -1,6 +1,5 @@
 import { 
   DashboardStats, 
-  OwnerDashboard, 
   FarmerDashboard, 
   BuyerDashboard, 
   EmployeeDashboard, 
@@ -30,8 +29,8 @@ export async function getShopDashboardSummary(shopId: string): Promise<any> {
 
 export async function getShopDashboardAlerts(shopId: string): Promise<any[]> {
   const response = await apiClient.get(`/dashboard/shop/${shopId}/alerts`);
-  if (!response.data) throw new Error('Failed to get shop dashboard alerts');
-  return response.data;
+  if (!response.data || !Array.isArray(response.data)) throw new Error('Failed to get shop dashboard alerts');
+  return response.data as any[];
 }
 
 export async function getFarmerDashboard(farmerId: string): Promise<FarmerDashboard> {

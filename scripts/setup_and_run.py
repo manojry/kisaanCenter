@@ -8,39 +8,7 @@ Dependencies: requests, API server running at http://127.0.0.1:8000
 import requests
 import json
 
-import os
-
 # 1. Create Superadmin
-
-# --- Owner creation from owner.json (merged from create_owner.py) ---
-def create_owner_from_file():
-    if os.path.exists("owner.json"):
-        with open("owner.json", "r") as f:
-            data = json.load(f)
-        url = "http://127.0.0.1:8000/api/v1/users/"
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(url, headers=headers, json=data)
-        print("Owner (from file):", response.status_code)
-        print(response.text)
-    else:
-        print("owner.json not found.")
-
-# --- Shop creation from shop.json (merged from create_shop.py) ---
-def create_shop_from_file():
-    if os.path.exists("shop.json"):
-        with open("shop.json", "r") as f:
-            data = json.load(f)
-        url = "http://127.0.0.1:8000/api/v1/shops/"
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(url, headers=headers, json=data)
-        print("Shop (from file):", response.status_code)
-        print(response.text)
-    else:
-        print("shop.json not found.")
-
-# Example usage:
-# create_owner_from_file()
-# create_shop_from_file()
 superadmin_payload = {
     "username": "superadmin_terminal",
     "password": "superpass123",
