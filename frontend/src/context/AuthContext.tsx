@@ -61,6 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const user = authApi.getCurrentUser()
+    const token = localStorage.getItem('auth_token')
+    console.log('Initializing auth:', { user, hasToken: !!token })
     dispatch({ type: 'INIT_AUTH', payload: user })
   }, [])
 
@@ -68,15 +70,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'LOGIN_START' })
     try {
       const response = await authApi.login({ username, password })
+      console.log('Login response:', response) // Debug log
       if (response.success && response.data) {
-        const token = 'mock_token' // In real app, get from response
-        authApi.setAuthData(response.data, token)
+        // Token is already stored by authApi.login
+        console.log('Dispatching LOGIN_SUCCESS with:', response.data)
         dispatch({ type: 'LOGIN_SUCCESS', payload: response.data })
+        // Force a re-render by updating localStorage and re-initializing
+        setTimeout(() => {
+          const user = authApi.getCurrentUser()
+          console.log('Re-initializing with user:', user)
+          dispatch({ type: 'INIT_AUTH', payload: user })
+        }, 100)
       } else {
+        console.error('Login failed:', response)
         dispatch({ type: 'LOGIN_ERROR' })
-        throw new Error(response.message)
+        throw new Error(response.message || 'Login failed')
       }
     } catch (error) {
+      console.error('Login error:', error)
       dispatch({ type: 'LOGIN_ERROR' })
       throw error
     }

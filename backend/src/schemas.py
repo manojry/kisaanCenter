@@ -182,6 +182,7 @@ class TransactionItemBase(BaseSchema):
 
 class TransactionItemCreate(TransactionItemBase):
     status: RecordStatusEnum = RecordStatusEnum.ACTIVE
+    farmer_user_id: Optional[int] = None  # Needed for on-the-fly stock creation
 
 class TransactionItemUpdate(BaseSchema):
     quantity: Optional[Decimal] = Field(None, gt=0, decimal_places=3)

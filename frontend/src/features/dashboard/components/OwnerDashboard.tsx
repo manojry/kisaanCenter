@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import Button from '@/components/ui/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductAssignmentWizard } from '../../product/components/ProductAssignmentWizard';
 import { FarmersProductsManager } from '../../product/components/FarmersProductsManager';
 import { productManagementApi } from '../../product/api/productManagementApi';
-import { User } from '../../auth/types';
+import { AuthUser } from '../../auth/types';
 
 interface OwnerDashboardProps {
-  user: User;
+  user: AuthUser;
 }
 
 export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
@@ -58,6 +57,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
         shopId={user.shop_id!}
         mode="shop-setup"
         onComplete={handleProductSetupComplete}
+        onCancel={() => setShowProductSetup(false)}
       />
     );
   }
@@ -69,6 +69,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
         farmerId={selectedFarmerId}
         mode="farmer-assignment"
         onComplete={handleFarmerAssignmentComplete}
+        onCancel={() => setShowFarmerAssignment(false)}
       />
     );
   }
@@ -83,7 +84,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
         </div>
         <div className="flex space-x-2">
           <Button 
-            variant="outline" 
+            variant="secondary" 
             onClick={() => setShowProductSetup(true)}
           >
             Manage Shop Products
@@ -92,31 +93,31 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{totalProducts}</div>
-            <p className="text-sm text-gray-600">Products Available</p>
+          <CardContent className="p-3">
+            <div className="text-lg font-semibold">{totalProducts}</div>
+            <p className="text-xs text-gray-600">Products Available</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">{farmersCount}</div>
-            <p className="text-sm text-gray-600">Active Farmers</p>
+          <CardContent className="p-3">
+            <div className="text-lg font-semibold">{farmersCount}</div>
+            <p className="text-xs text-gray-600">Active Farmers</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">
+          <CardContent className="p-3">
+            <div className="text-lg font-semibold">
               {Object.keys(shopProducts.products_by_category || {}).length}
             </div>
-            <p className="text-sm text-gray-600">Product Categories</p>
+            <p className="text-xs text-gray-600">Product Categories</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="text-2xl font-bold">₹0</div>
-            <p className="text-sm text-gray-600">Today's Revenue</p>
+          <CardContent className="p-3">
+            <div className="text-lg font-semibold">₹0</div>
+            <p className="text-xs text-gray-600">Today's Revenue</p>
           </CardContent>
         </Card>
       </div>

@@ -22,6 +22,8 @@ const TransactionFiltersComponent: React.FC<TransactionFiltersProps> = ({
   onClearFilters,
   onApplyFilters
 }) => {
+  // Ensure users is always an array
+  const safeUsers = Array.isArray(users) ? users : [];
   return (
     <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-lg shadow-lg mb-6">
       <h3 className="text-white text-lg font-semibold mb-4">Filter Transactions</h3>
@@ -108,7 +110,7 @@ const TransactionFiltersComponent: React.FC<TransactionFiltersProps> = ({
             className="w-full px-3 py-2 rounded-md border border-white/30 bg-white/90 text-gray-900 focus:outline-none focus:ring-2 focus:ring-white"
           >
             <option value="">All Buyers</option>
-            {users.filter(user => user.role === 'buyer').map(user => (
+            {safeUsers.filter(user => user.role === 'buyer').map(user => (
               <option key={user.id} value={user.id}>{user.username}</option>
             ))}
           </select>

@@ -375,6 +375,78 @@ def get_shop_dashboard(shop_id: int, db: Session = Depends(get_db)):
         logger.error(f"Error getting shop dashboard: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve dashboard data")
 
+@router.get("/completion-status/{status}")
+def get_transactions_by_completion_status(
+    status: str,
+    shop_id: Optional[int] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get transactions by completion status"""
+    try:
+        offset = (page - 1) * limit
+        
+        # Build WHERE clause
+        where_conditions = ["t.completion_status = :status"]
+        params = {"status": status, "limit": limit, "offset": offset}
+        
+        if shop_id:
+            where_conditions.append("t.shop_id = :shop_id")
+            params["shop_id"] = shop_id
+        
+        where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        # Get transactions
+        result = db.execute(text(f"""
+            SELECT t.id, t.shop_id, t.buyer_id, t.commission_rate, t.commission_amount,
+                   t.payment_status, t.completion_status, t.date, t.status,
+                   u.username as buyer_name, s.name as shop_name
+            FROM transactions t
+            LEFT JOIN users u ON t.buyer_id = u.id
+            LEFT JOIN shops s ON t.shop_id = s.id
+            {where_clause}
+            ORDER BY t.created_at DESC
+            LIMIT :limit OFFSET :offset
+        """), params)
+        
+        transactions = []
+        for trans in result.fetchall():
+            transactions.append({
+                "id": trans.id,
+                "shop_id": trans.shop_id,
+                "shop_name": trans.shop_name,
+                "buyer_id": trans.buyer_id,
+                "buyer_name": trans.buyer_name,
+                "commission_rate": float(trans.commission_rate),
+                "commission_amount": float(trans.commission_amount or 0),
+                "payment_status": trans.payment_status,
+                "completion_status": trans.completion_status,
+                "date": trans.date.isoformat(),
+                "status": trans.status
+            })
+        
+        # Get total count
+        count_result = db.execute(text(f"""
+            SELECT COUNT(*) as total FROM transactions t {where_clause}
+        """), params)
+        total = count_result.fetchone().total
+        
+        return success_response(f"Transactions with completion status '{status}' retrieved", {
+            "transactions": transactions,
+            "completion_status": status,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "total_pages": (total + limit - 1) // limit
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting transactions by completion status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve transactions")
+
 @router.get("/{transaction_id}/summary")
 def get_transaction_summary(transaction_id: int, db: Session = Depends(get_db)):
     """Get financial summary for a transaction"""

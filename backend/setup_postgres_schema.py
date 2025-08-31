@@ -13,14 +13,14 @@ from datetime import datetime, date
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-# Database connection details from .env
+# Load DB config from environment variables
 DB_CONFIG = {
-    'host': 'manoj-test.dev.ea.mpi-internal.com',
-    'port': 5432,
-    'database': 'postgres',
-    'user': 'postgres',
-    'password': 'yd2A4TKG1d7J',
-    'sslmode': 'require'
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', 5432)),
+    'database': os.getenv('DB_NAME', 'postgres'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', ''),
+    'sslmode': os.getenv('DB_SSLMODE', 'require')
 }
 
 def hash_password(password):
@@ -64,14 +64,14 @@ def setup_database():
         # 2. Create tables
         print("Creating tables...")
         
-        # Superadmin table
+        # Superadmin table (matches actual schema)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS superadmin (
                 id SERIAL PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
+                username VARCHAR(50) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -87,7 +87,7 @@ def setup_database():
             )
         """)
         
-        # Plans table
+        # Plans table (matches actual schema)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS plans (
                 id SERIAL PRIMARY KEY,
@@ -102,8 +102,8 @@ def setup_database():
                 data_retention_months INTEGER NOT NULL,
                 features JSONB,
                 status record_status DEFAULT 'active',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -329,11 +329,11 @@ def setup_database():
                 ON CONFLICT (name) DO NOTHING
             """, (name, desc))
         
-        # Insert plans
+        # Insert plans (with explicit timestamps)
         cursor.execute("""
-            INSERT INTO plans (name, description, monthly_price, max_farmers, max_buyers, max_transactions, data_retention_months, features) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
-            ON CONFLICT DO NOTHING
+            INSERT INTO plans (name, description, monthly_price, max_farmers, max_buyers, max_transactions, data_retention_months, features, created_at, updated_at) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) 
+            ON CONFLICT (name) DO NOTHING
         """, ('Basic Plan', 'Basic subscription plan', 999.00, 50, 100, 1000, 12, '{"basic_features": true}'))
         
         # Insert shops
@@ -406,11 +406,13 @@ def setup_database():
             """, (name, desc))
         
         # Insert subscription
-        cursor.execute("""
-            INSERT INTO subscriptions (shop_id, plan_id, start_date, end_date, amount) 
-            VALUES (%s, %s, %s, %s, %s) 
-            ON CONFLICT DO NOTHING
-        """, (1, 1, date.today(), date.today().replace(month=date.today().month+1), 999.00))
+        try:
+            cursor.execute("""
+                INSERT INTO subscriptions (shop_id, plan_id, start_date, end_date, amount) 
+                VALUES (%s, %s, %s, %s, %s)
+            """, (1, 1, date.today(), date.today().replace(month=date.today().month+1), 999.00))
+        except psycopg2.errors.UniqueViolation:
+            pass  # Subscription already exists
         
         print("✅ Test data inserted successfully")
         

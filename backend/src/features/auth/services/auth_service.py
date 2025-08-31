@@ -15,47 +15,68 @@ class AuthService:
     
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> APIResponse:
-        """Authenticate user credentials - check both superadmin and user tables"""
+        """Authenticate user credentials and generate tokens."""
         try:
-            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            from ....core.security import SecurityUtils
+            from datetime import timedelta
             
             # First check superadmin table
             superadmin = db.query(Superadmin).filter(
                 Superadmin.username == username,
-                Superadmin.password_hash == password_hash,
                 Superadmin.status == RecordStatus.ACTIVE
             ).first()
             
-            if superadmin:
-                return APIResponse(
-                    success=True,
-                    message="Authentication successful",
-                    data={
-                        "user_id": superadmin.id,
-                        "username": superadmin.username,
-                        "role": "superadmin",
-                        "shop_id": None
-                    }
-                )
+            user = None
+            if superadmin and SecurityUtils.verify_password(password, superadmin.password_hash):
+                user_data = {
+                    "user_id": superadmin.id,
+                    "username": superadmin.username,
+                    "role": "superadmin",
+                    "shop_id": None
+                }
+            else:
+                # Check user table
+                user = db.query(User).filter(
+                    User.username == username,
+                    User.status == RecordStatus.ACTIVE
+                ).first()
+                
+                if not user or not SecurityUtils.verify_password(password, user.password_hash):
+                    return APIResponse(
+                        success=False, 
+                        message="Invalid credentials",
+                        data=None
+                    )
+                    
+                user_data = {
+                    "user_id": user.id,
+                    "username": user.username,
+                    "role": user.role.value,
+                    "shop_id": user.shop_id
+                }
             
-            # Then check user table
-            user = db.query(User).filter(
-                User.username == username,
-                User.password_hash == password_hash,
-                User.status == RecordStatus.ACTIVE
-            ).first()
+            # Generate tokens
+            access_token = SecurityUtils.create_access_token(
+                subject=user_data["user_id"],
+                additional_claims=user_data,
+                token_type="access"
+            )
             
-            if not user:
-                return APIResponse(success=False, message="Invalid credentials")
+            refresh_token = SecurityUtils.create_access_token(
+                subject=user_data["user_id"],
+                expires_delta=timedelta(days=7),
+                additional_claims={"token_type": "refresh"},
+                token_type="refresh"
+            )
             
             return APIResponse(
                 success=True,
                 message="Authentication successful",
                 data={
-                    "user_id": user.id,
-                    "username": user.username,
-                    "role": user.role.value,
-                    "shop_id": user.shop_id
+                    **user_data,
+                    "access_token": access_token,
+                    "refresh_token": refresh_token,
+                    "token_type": "bearer"
                 }
             )
             

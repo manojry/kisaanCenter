@@ -40,7 +40,7 @@ class FarmerStock(Base):
     __tablename__ = "farmer_stock"
     
     id = Column(Integer, primary_key=True)
-    farmer_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    farmer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
     shop_id = Column(Integer, ForeignKey("shop.id", ondelete="CASCADE"), nullable=False)
     
@@ -70,7 +70,7 @@ class FarmerStock(Base):
     status = Column(Enum(StockStatus), nullable=False, default=StockStatus.active)
     
     # Relationships
-    farmer_user = relationship("User", foreign_keys=[farmer_user_id])
+    farmer = relationship("User", foreign_keys=[farmer_id])
     declared_by = relationship("User", foreign_keys=[declared_by_id])
     product = relationship("Product")
     shop = relationship("Shop")
@@ -113,7 +113,7 @@ class FarmerStock(Base):
         return declared_qty
     
     __table_args__ = (
-        UniqueConstraint('farmer_user_id', 'product_id', 'shop_id', 'entry_date', name='uq_farmer_stock_daily_product'),
+    UniqueConstraint('farmer_id', 'product_id', 'shop_id', 'entry_date', name='uq_farmer_stock_daily_product'),
         CheckConstraint('declared_qty IS NULL OR declared_qty > 0', name='chk_declared_qty_positive'),
         CheckConstraint('sold_qty >= 0', name='chk_sold_qty_non_negative'),
         CheckConstraint('unit_price IS NULL OR unit_price > 0', name='chk_unit_price_positive'),
@@ -125,11 +125,11 @@ class FarmerStock(Base):
             "(carry_forward = true AND carried_from_date IS NOT NULL) OR (carry_forward = false AND carried_from_date IS NULL)",
             name='chk_carry_forward_consistency'
         ),
-        Index('idx_farmer_stock_lookup', 'farmer_user_id', 'product_id', 'entry_date'),
+    Index('idx_farmer_stock_lookup', 'farmer_id', 'product_id', 'entry_date'),
         Index('idx_farmer_stock_shop_date', 'shop_id', 'entry_date'),
         Index('idx_farmer_stock_mode', 'mode', 'entry_date'),
         Index('idx_farmer_stock_shop_date_status', 'shop_id', 'entry_date', 'status'),
-        Index('idx_farmer_stock_farmer_date', 'farmer_user_id', 'entry_date'),
+    Index('idx_farmer_stock_farmer_date', 'farmer_id', 'entry_date'),
     )
 
         from datetime import datetime
@@ -202,7 +202,7 @@ class FarmerStock(Base):
             op.create_table(
                 'farmer_stock',
                 sa.Column('id', sa.Integer(), nullable=False),
-                sa.Column('farmer_user_id', sa.Integer(), nullable=False),
+                sa.Column('farmer_id', sa.Integer(), nullable=False),
                 sa.Column('product_id', sa.Integer(), nullable=False),
                 sa.Column('shop_id', sa.Integer(), nullable=False),
                 sa.Column('declared_qty', sa.DECIMAL(precision=10, scale=3), nullable=True),
@@ -218,12 +218,12 @@ class FarmerStock(Base):
                 sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
                 sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
                 sa.Column('status', sa.Enum('active', 'inactive', 'archived', name='stock_status'), nullable=False, server_default='active'),
-                sa.ForeignKeyConstraint(['farmer_user_id'], ['users.id'], ondelete='CASCADE'),
+                sa.ForeignKeyConstraint(['farmer_id'], ['users.id'], ondelete='CASCADE'),
                 sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='RESTRICT'),
                 sa.ForeignKeyConstraint(['shop_id'], ['shop.id'], ondelete='CASCADE'),
                 sa.ForeignKeyConstraint(['declared_by_id'], ['users.id'], ondelete='SET NULL'),
                 sa.PrimaryKeyConstraint('id'),
-                sa.UniqueConstraint('farmer_user_id', 'product_id', 'shop_id', 'entry_date', name='uq_farmer_stock_daily_product'),
+                sa.UniqueConstraint('farmer_id', 'product_id', 'shop_id', 'entry_date', name='uq_farmer_stock_daily_product'),
                 sa.CheckConstraint('declared_qty IS NULL OR declared_qty > 0', name='chk_declared_qty_positive'),
                 sa.CheckConstraint('sold_qty >= 0', name='chk_sold_qty_non_negative'),
                 sa.CheckConstraint('unit_price IS NULL OR unit_price > 0', name='chk_unit_price_positive'),
@@ -238,11 +238,11 @@ class FarmerStock(Base):
             )
             
             # Create indexes on farmer_stock
-            op.create_index('idx_farmer_stock_lookup', 'farmer_stock', ['farmer_user_id', 'product_id', 'entry_date'], unique=False)
+            op.create_index('idx_farmer_stock_lookup', 'farmer_stock', ['farmer_id', 'product_id', 'entry_date'], unique=False)
             op.create_index('idx_farmer_stock_shop_date', 'farmer_stock', ['shop_id', 'entry_date'], unique=False)
             op.create_index('idx_farmer_stock_mode', 'farmer_stock', ['mode', 'entry_date'], unique=False)
             op.create_index('idx_farmer_stock_shop_date_status', 'farmer_stock', ['shop_id', 'entry_date', 'status'], unique=False)
-            op.create_index('idx_farmer_stock_farmer_date', 'farmer_stock', ['farmer_user_id', 'entry_date'], unique=False)
+            op.create_index('idx_farmer_stock_farmer_date', 'farmer_stock', ['farmer_id', 'entry_date'], unique=False)
             
             # Create farmer_stock_audit table
             op.create_table(
@@ -364,13 +364,13 @@ init.py
                     return stock
                     
                 @staticmethod
-                def create_implicit_stock(db: Session, farmer_user_id: int, product_id: int, shop_id: int, entry_date: datetime.date = None):
+                def create_implicit_stock(db: Session, farmer_id: int, product_id: int, shop_id: int, entry_date: datetime.date = None):
                     """Create a new implicit stock entry."""
                     entry_date = entry_date or datetime.utcnow().date()
                     
                     # Check if stock already exists
                     existing_stock = db.query(FarmerStock).filter(
-                        FarmerStock.farmer_user_id == farmer_user_id,
+                        FarmerStock.farmer_id == farmer_id,
                         FarmerStock.product_id == product_id,
                         FarmerStock.shop_id == shop_id,
                         FarmerStock.entry_date == entry_date,
@@ -382,7 +382,7 @@ init.py
                     
                     # Create implicit stock
                     stock = FarmerStock(
-                        farmer_user_id=farmer_user_id,
+                        farmer_id=farmer_id,
                         product_id=product_id,
                         shop_id=shop_id,
                         mode="implicit",
@@ -506,7 +506,7 @@ init.py
                     
                     # Get or create farmer stock
                     farmer_stock = db.query(FarmerStock).filter(
-                        FarmerStock.farmer_user_id == item_data.farmer_user_id,
+                        FarmerStock.farmer_id == item_data.farmer_id,
                         FarmerStock.product_id == item_data.product_id,
                         FarmerStock.shop_id == item_data.shop_id,
                         FarmerStock.entry_date == datetime.utcnow().date(),
@@ -516,7 +516,7 @@ init.py
                     if not farmer_stock:
                         farmer_stock = FarmerStockService.create_implicit_stock(
                             db=db,
-                            farmer_user_id=item_data.farmer_user_id,
+                            farmer_id=item_data.farmer_id,
                             product_id=item_data.product_id,
                             shop_id=item_data.shop_id
                         )
@@ -559,7 +559,7 @@ init.py
                         archived = "archived"
                     
                     class FarmerStockBase(BaseModel):
-                        farmer_user_id: int
+                        farmer_id: int
                         product_id: int
                         shop_id: int
                         entry_date: Optional[date] = None
@@ -570,7 +570,7 @@ init.py
                         unit_price: Optional[Decimal] = None
                     
                     class FarmerStockLateDeclaration(BaseModel):
-                        farmer_user_id: int
+                        farmer_id: int
                         product_id: int
                         shop_id: int
                         entry_date: date
@@ -593,7 +593,7 @@ init.py
                     
                     class FarmerStockOut(BaseModel):
                         id: int
-                        farmer_user_id: int
+                        farmer_id: int
                         product_id: int
                         shop_id: int
                         declared_qty: Optional[Decimal] = None

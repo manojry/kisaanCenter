@@ -15,7 +15,7 @@ class FarmerStock(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Foreign Keys
-    farmer_user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    farmer_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False, index=True)
     shop_id = Column(Integer, ForeignKey('shop.id'), nullable=False, index=True)
     
@@ -45,7 +45,7 @@ class FarmerStock(Base):
     status = Column(SQLEnum(RecordStatus), default=RecordStatus.ACTIVE, nullable=False)
     
     # Relationships
-    farmer_user = relationship('User', foreign_keys=[farmer_user_id], back_populates='farmer_stocks')
+    farmer = relationship('User', foreign_keys=[farmer_id], back_populates='farmer_stocks')
     declared_by = relationship('User', foreign_keys=[declared_by_id])
     product = relationship('Product', back_populates='farmer_stocks')
     shop = relationship('Shop', back_populates='farmer_stocks')
@@ -90,10 +90,10 @@ class FarmerStock(Base):
     # Constraints
     __table_args__ = (
         # Unique constraint: one record per farmer+product+date+shop
-        UniqueConstraint('farmer_user_id', 'product_id', 'entry_date', 'shop_id', 
+    UniqueConstraint('farmer_id', 'product_id', 'entry_date', 'shop_id', 
                         name='uq_farmer_stock_daily'),
         # Index for performance
-        Index('idx_farmer_stock_lookup', 'farmer_user_id', 'product_id', 'entry_date'),
+    Index('idx_farmer_stock_lookup', 'farmer_id', 'product_id', 'entry_date'),
         Index('idx_farmer_stock_shop_date', 'shop_id', 'entry_date'),
         Index('idx_farmer_stock_mode', 'mode', 'entry_date'),
     )

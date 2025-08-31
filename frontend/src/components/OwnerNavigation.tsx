@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '../types/enums';
-import './Navigation.css';
+import { useAuth } from '@/context/AuthContext';
+import './OwnerNavigation.css';
 
 interface NavItem {
   id: string;
@@ -24,7 +24,7 @@ const ownerNavigationItems: NavItem[] = [
     roles: [UserRole.OWNER, UserRole.EMPLOYEE, UserRole.FARMER, UserRole.BUYER]
   },
   
-  // OWNER PRIORITY WORKFLOW - Three-Party Management
+  // Core business operations
   {
     id: 'transactions',
     label: 'Transactions',
@@ -48,8 +48,6 @@ const ownerNavigationItems: NavItem[] = [
     route: '/stock',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
-  
-  // USER MANAGEMENT
   {
     id: 'users',
     label: 'Users',
@@ -57,8 +55,6 @@ const ownerNavigationItems: NavItem[] = [
     route: '/users',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
-  
-  // BUSINESS MANAGEMENT
   {
     id: 'products',
     label: 'Products',
@@ -80,8 +76,6 @@ const ownerNavigationItems: NavItem[] = [
     route: '/credits',
     roles: [UserRole.OWNER, UserRole.EMPLOYEE]
   },
-  
-  // ANALYTICS & REPORTS
   {
     id: 'reports',
     label: 'Reports',
@@ -96,40 +90,6 @@ const ownerNavigationItems: NavItem[] = [
     route: '/audit',
     roles: [UserRole.OWNER]
   },
-  
-  // FARMER-SPECIFIC VIEWS
-  {
-    id: 'farmer-stock',
-    label: 'My Deliveries',
-    icon: '🚚',
-    route: '/farmer/stock',
-    roles: [UserRole.FARMER]
-  },
-  {
-    id: 'farmer-payments',
-    label: 'My Payments',
-    icon: '💰',
-    route: '/farmer/payments',
-    roles: [UserRole.FARMER]
-  },
-  
-  // BUYER-SPECIFIC VIEWS
-  {
-    id: 'buyer-purchases',
-    label: 'My Purchases',
-    icon: '🛒',
-    route: '/buyer/purchases',
-    roles: [UserRole.BUYER]
-  },
-  {
-    id: 'buyer-credits',
-    label: 'My Credits',
-    icon: '💳',
-    route: '/buyer/credits',
-    roles: [UserRole.BUYER]
-  },
-  
-  // SYSTEM
   {
     id: 'settings',
     label: 'Settings',
@@ -149,13 +109,18 @@ const ownerNavigationItems: NavItem[] = [
 interface OwnerNavigationProps {
   currentRole: UserRole;
   currentRoute: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ currentRole, currentRoute }) => {
+export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ 
+  currentRole, 
+  currentRoute,
+  isCollapsed = false,
+  onToggleCollapse
+}) => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
-  const [pendingActions, setPendingActions] = useState(0);
 
   if (!user) return null;
 
@@ -169,17 +134,6 @@ export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ currentRole, c
     setIsMobileMenuOpen(false);
   }, [currentRoute]);
 
-  // Toggle compact mode on medium screens
-  useEffect(() => {
-    const handleResize = () => {
-      setIsCompact(window.innerWidth >= 768 && window.innerWidth < 1024);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const handleNavClick = () => {
     setIsMobileMenuOpen(false);
   };
@@ -190,9 +144,9 @@ export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ currentRole, c
 
   return (
     <>
-      {/* Floating Mobile Menu Button */}
+      {/* Mobile Menu Button */}
       <button
-        className="mobile-menu-btn"
+        className="mobile-menu-toggle"
         onClick={toggleMobileMenu}
         aria-label="Toggle navigation"
       >
@@ -206,85 +160,97 @@ export const OwnerNavigation: React.FC<OwnerNavigationProps> = ({ currentRole, c
       {/* Mobile Backdrop */}
       {isMobileMenuOpen && (
         <div 
-          className="mobile-nav-backdrop"
+          className={`mobile-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Navigation Sidebar */}
-      <nav className={`navigation ${isMobileMenuOpen ? 'mobile-open' : ''} ${isCompact ? 'compact' : ''}`}>
-        {/* Desktop Brand */}
-        <div className="nav-brand">
-          <div className="brand-logo">🌾</div>
-          {!isCompact && <h2>KisaanCenter</h2>}
+      <nav className={`owner-navigation ${isMobileMenuOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+        {/* Navigation Header - no brand logo, just collapse button if present */}
+        {onToggleCollapse && (
+          <button 
+            className="collapse-toggle"
+            onClick={onToggleCollapse}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? '→' : '←'}
+          </button>
+        )}
+        {/* Navigation Content */}
+        <div className="nav-content">
+          <div className="nav-section">
+            <ul className="nav-list">
+              {visibleNavItems.map(item => (
+                <li key={item.id}>
+                  <Link
+                    to={item.route}
+                    className={`nav-item ${currentRoute === item.route ? 'active' : ''} ${item.urgent ? 'urgent' : ''}`}
+                    onClick={handleNavClick}
+                    title={isCollapsed ? item.label : undefined}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    <span className="nav-label">{item.label}</span>
+                    <div className="nav-indicators">
+                      {item.badge && (
+                        <span className={`nav-badge ${item.badge.toLowerCase()}`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
-        {/* Navigation Items */}
-        <ul className="nav-items">
-          {visibleNavItems.map(item => (
-            <li key={item.id}>
-              <Link
-                to={item.route}
-                className={`nav-item ${currentRoute === item.route ? 'active' : ''} ${item.urgent ? 'urgent' : ''}`}
-                onClick={handleNavClick}
-                title={isCompact ? item.label : undefined}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {!isCompact && (
-                  <>
-                    <span className="nav-label">{item.label}</span>
-                    {item.badge && (
-                      <span className="nav-badge">{item.badge}</span>
-                    )}
-                  </>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        {/* Owner Quick Stats - Only for Owner */}
-        {user.role === UserRole.OWNER && !isCompact && (
+        {/* Quick Stats - Only for Owner */}
+        {user.role === UserRole.OWNER && !isCollapsed && (
           <div className="nav-quick-stats">
-            <div className="quick-stat">
-              <span className="stat-label">Today's Revenue</span>
-              <span className="stat-value">₹12,500</span>
+            <div className="stats-header">
+              <span className="stats-icon">📊</span>
+              <span className="stats-title">Today's Overview</span>
             </div>
-            <div className="quick-stat">
-              <span className="stat-label">Pending Actions</span>
-              <span className="stat-value urgent">5</span>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-value">₹12.5K</span>
+                <span className="stat-label">Revenue</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value urgent">5</span>
+                <span className="stat-label">Pending</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* User Info & Actions */}
+        {/* User Profile & Logout */}
         <div className="nav-footer">
-          <div className="user-info">
+          <div className="user-profile">
             <div className="user-avatar">
-              {user.role === UserRole.OWNER && '🏪'}
-              {user.role === UserRole.EMPLOYEE && '👨💼'}
-              {user.role === UserRole.FARMER && '👨🌾'}
-              {user.role === UserRole.BUYER && '🛒'}
+              <span className="avatar-icon">
+                {user.role === UserRole.OWNER && '🏪'}
+                {user.role === UserRole.EMPLOYEE && '👨‍💼'}
+                {user.role === UserRole.FARMER && '👨‍🌾'}
+                {user.role === UserRole.BUYER && '🛒'}
+              </span>
+              {user.role === UserRole.OWNER && (
+                <span className="owner-crown">👑</span>
+              )}
             </div>
-            {!isCompact && (
-              <div className="user-details">
-                <span className="user-role">{user.role.toLowerCase()}</span>
-                <span className="user-name">{user.username}</span>
-                {user.role === UserRole.OWNER && (
-                  <span className="user-shop">Shop Owner</span>
-                )}
-              </div>
-            )}
+            <div className="user-details">
+              <div className="user-name">{user.username}</div>
+              <div className="user-role">{user.role.toLowerCase()}</div>
+            </div>
+            <button
+              className="logout-btn"
+              onClick={logout}
+              title={isCollapsed ? 'Logout' : undefined}
+            >
+              🚪
+            </button>
           </div>
-          
-          <button
-            className="nav-item logout-btn"
-            onClick={logout}
-            title={isCompact ? 'Logout' : undefined}
-          >
-            <span className="nav-icon">🚪</span>
-            {!isCompact && <span className="nav-label">Logout</span>}
-          </button>
         </div>
       </nav>
     </>

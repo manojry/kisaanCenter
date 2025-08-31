@@ -5,8 +5,14 @@ This module contains all configuration settings for the application,
 including database settings, API settings, and environment-specific configurations.
 """
 import os
+from pathlib import Path
 from typing import List
 from functools import lru_cache
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 class Settings:

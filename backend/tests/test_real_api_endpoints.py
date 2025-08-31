@@ -221,9 +221,25 @@ class TestRealAPIEndpoints:
     
     @classmethod
     def teardown_class(cls):
-        """Cleanup test data"""
-        if hasattr(cls, 'db_conn'):
-            cls.db_conn.close()
+        """Cleanup test data from database after tests"""
+        try:
+            cursor = cls.db_conn.cursor()
+            # Remove test users
+            cursor.execute("DELETE FROM users WHERE id IN (?, ?)", (2, 3))
+            # Remove test shop
+            cursor.execute("DELETE FROM shops WHERE id = ?", (1,))
+            # Remove test product
+            cursor.execute("DELETE FROM products WHERE id = ?", (1,))
+            # Remove test category
+            cursor.execute("DELETE FROM categories WHERE id = ?", (cls.test_data.get('category_id', 1),))
+            # Remove payment methods
+            cursor.execute("DELETE FROM payment_methods WHERE id IN (1, 2, 3)")
+            cls.db_conn.commit()
+        except Exception as e:
+            print(f"Warning: Test data cleanup failed: {e}")
+        finally:
+            if hasattr(cls, 'db_conn'):
+                cls.db_conn.close()
         print("--- Test cleanup complete ---")
     
     def make_request(self, method, url, **kwargs):
@@ -462,29 +478,60 @@ class TestRealAPIEndpoints:
     
     # Transaction Endpoints (5)
     def test_18_create_transaction(self):
-        """Test transaction creation with real data"""
+        """Improved: Test transaction creation, validation, and error handling"""
         transaction_data = {
             "shop_id": self.test_data['shop_id'],
-            "buyer_id": self.test_data['buyer_id'],  # Use real buyer ID
+            "buyer_id": self.test_data['buyer_id'],
             "transaction_type": "sale",
             "items": [
                 {
                     "product_id": self.test_data['product_id'],
-                    "farmer_id": self.test_data['farmer_id'],  # Use real farmer ID
+                    "farmer_id": self.test_data['farmer_id'],
                     "quantity": 10.0,
                     "rate": 50.0
                 }
             ],
             "commission_rate": 5.0
         }
-        
+
+        # Create transaction
         response = self.make_request("POST", f"{BASE_URL}/transactions/", json=transaction_data, headers=self.headers)
-        if response.status_code == 201:
-            data = self.assert_success_response(response, 201)
-            self.test_data['transaction_id'] = data["data"]["id"]
-            print(f"✅ Transaction created: ID {self.test_data['transaction_id']}")
-        else:
-            pytest.skip("Transaction creation endpoint not available")
+        assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
+        data = self.assert_success_response(response, 201)
+        tx = data["data"]
+        self.test_data['transaction_id'] = tx["id"]
+
+        # Validate all fields
+        assert tx["shop_id"] == transaction_data["shop_id"]
+        assert tx["buyer_id"] == transaction_data["buyer_id"]
+        assert tx["transaction_type"] == transaction_data["transaction_type"]
+        assert tx["commission_rate"] == transaction_data["commission_rate"]
+        assert "items" in tx and isinstance(tx["items"], list) and len(tx["items"]) == 1
+        item = tx["items"][0]
+        assert item["product_id"] == transaction_data["items"][0]["product_id"]
+        assert item["farmer_id"] == transaction_data["items"][0]["farmer_id"]
+        assert item["quantity"] == transaction_data["items"][0]["quantity"]
+        assert item["rate"] == transaction_data["items"][0]["rate"]
+
+        # Check DB state via GET
+        get_resp = self.make_request("GET", f"{BASE_URL}/transactions/{tx['id']}", headers=self.headers)
+        assert get_resp.status_code == 200, f"Transaction GET failed: {get_resp.text}"
+        get_data = self.assert_success_response(get_resp)
+        assert get_data["data"]["id"] == tx["id"]
+
+        # Test error: missing required field
+        bad_data = transaction_data.copy()
+        del bad_data["shop_id"]
+        bad_resp = self.make_request("POST", f"{BASE_URL}/transactions/", json=bad_data, headers=self.headers)
+        assert bad_resp.status_code in [400, 422], f"Expected validation error, got {bad_resp.status_code}: {bad_resp.text}"
+
+        # Test error: invalid quantity
+        invalid_data = transaction_data.copy()
+        invalid_data["items"] = [{**transaction_data["items"][0], "quantity": -5}]
+        inv_resp = self.make_request("POST", f"{BASE_URL}/transactions/", json=invalid_data, headers=self.headers)
+        assert inv_resp.status_code in [400, 422], f"Expected validation error for quantity, got {inv_resp.status_code}: {inv_resp.text}"
+
+        print(f"✅ Transaction created and validated: ID {self.test_data['transaction_id']}")
     
     def test_19_get_transaction(self):
         """Test get transaction by ID"""
@@ -527,6 +574,28 @@ class TestRealAPIEndpoints:
             print("✅ Shop dashboard working")
         else:
             pytest.skip("Shop dashboard endpoint not available")
+
+        def test_22a_get_dashboard_summary(self):
+            """Test dashboard summary endpoint"""
+            response = self.make_request("GET", f"{BASE_URL}/dashboard/summary", headers=self.headers)
+            if response.status_code == 200:
+                data = self.assert_success_response(response)
+                assert "total_shops" in data["data"]
+                assert "total_users" in data["data"]
+                assert "total_products" in data["data"]
+                print("✅ Dashboard summary working")
+            else:
+                pytest.skip("Dashboard summary endpoint not available")
+
+        def test_22b_get_dashboard_alerts(self):
+            """Test dashboard alerts endpoint"""
+            response = self.make_request("GET", f"{BASE_URL}/dashboard/alerts", headers=self.headers)
+            if response.status_code == 200:
+                data = self.assert_success_response(response)
+                assert isinstance(data["data"], list)
+                print("✅ Dashboard alerts working")
+            else:
+                pytest.skip("Dashboard alerts endpoint not available")
     
     # Payment Endpoints (2)
     def test_23_get_payments_list(self):

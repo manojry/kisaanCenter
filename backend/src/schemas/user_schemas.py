@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
 
@@ -42,3 +42,7 @@ class UserReadWithRelations(UserRead):
     shop: Optional[dict] = None
     transactions: Optional[list] = None
     credits: Optional[list] = None
+
+class UserLogin(BaseModel):
+    username: str
+    password: str

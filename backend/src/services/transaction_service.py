@@ -19,6 +19,7 @@ class TransactionService:
                 return APIResponse(success=False, message="Shop not found.")
             if user_role not in [UserRole.SUPERADMIN.value, UserRole.OWNER.value]:
                 return APIResponse(success=False, message="Permission denied: Only superadmin or owner can create transactions.")
+            from ..crud.farmer_stock_crud import create_farmer_stock
 
             # 2. Validate commission rate, buyer/farmer existence, etc.
             if transaction_data.commission_rate is not None and (transaction_data.commission_rate < 0 or transaction_data.commission_rate > 100):
@@ -32,9 +33,32 @@ class TransactionService:
                 db.commit()
             except SQLAlchemyError as e:
                 db.rollback()
+                for item in transaction_data.transaction_items:
+                    if not item.farmer_stock_id:
+                        # Use or create FarmerStock for farmer/product/date
+                        if not hasattr(item, 'farmer_user_id') or not item.farmer_user_id:
+                            return APIResponse(success=False, message=f"Missing farmer_user_id for product {item.product_id}")
+                        from ..crud.farmer_stock_crud import create_or_update_farmer_stock
+                        stock = create_or_update_farmer_stock(
+                            db=db,
+                            shop_id=transaction_data.shop_id,
+                            farmer_user_id=item.farmer_user_id,
+                            product_id=item.product_id,
+                            quantity=float(item.quantity),
+                            stock_date=getattr(transaction_data, 'date', None)
+                        )
+                        item.farmer_stock_id = stock.id
+
+            # 4. Atomic DB transaction for three-party completion fields
+            from sqlalchemy.exc import SQLAlchemyError
+            try:
+                transaction = TransactionCRUD.create(db, transaction_data)
+                db.commit()
+            except SQLAlchemyError as e:
+                db.rollback()
                 return APIResponse(success=False, message=f"Database error: {str(e)}")
 
-            # 4. Audit logging (stub)
+            # 5. Audit logging (stub)
             # TODO: Implement audit log entry for transaction creation
 
             return APIResponse(success=True, message="Transaction created successfully.", data={"transaction_id": transaction.id})

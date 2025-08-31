@@ -1,4 +1,3 @@
-
 export interface Transaction {
   id: number
   buyer_user_id: number
@@ -16,13 +15,14 @@ export interface Transaction {
 }
 
 export interface TransactionItem {
-  id: number
+  id?: number
   product_id: number
   product_name?: string
   quantity: number
   price: number
+  farmer_user_id: number
   farmer_stock_id?: number
-  status: string
+  status?: string
 }
 
 export interface TransactionFormData {
@@ -30,12 +30,10 @@ export interface TransactionFormData {
   type: 'sale' | 'return' | 'adjustment'
   commission_rate: number
   date: string
-  items: {
-    product_id: number
-    quantity: number
-    price: number
-    farmer_stock_id?: number
-  }[]
+  items: TransactionItem[]
+  farmer_paid_amount: number
+  commission_confirmed: boolean
+  buyer_paid_amount: number
 }
 
 export interface TransactionFilters {

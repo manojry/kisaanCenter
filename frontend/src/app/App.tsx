@@ -25,6 +25,7 @@ import ShopOverview from '@/pages/ShopOverview'
 import Commissions from '@/pages/Commissions'
 import ResetPassword from '@/pages/ResetPassword'
 import LogFarmerSales from '@/pages/LogFarmerSales'
+import { TransactionEntryPage } from '@/features/transaction/TransactionEntryPage'
 import '../styles/global.css'
 import './App.css'
 
@@ -256,6 +257,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <LogFarmerSales />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transaction-entry"
+        element={
+          <ProtectedRoute>
+            <TransactionEntryPage />
           </ProtectedRoute>
         }
       />

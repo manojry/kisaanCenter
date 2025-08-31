@@ -1,3 +1,25 @@
+// TransactionFormData for frontend form compatibility
+export interface TransactionFormData {
+  shop_id: number;
+  buyer_user_id: number;
+  type: 'sale' | 'return' | 'adjustment';
+  commission_rate: number;
+  items: TransactionItemCreate[];
+  date: string;
+  notes?: string;
+  // Optional payment/commission status fields
+  buyer_paid_amount?: number;
+  farmer_paid_amount?: number;
+  commission_confirmed?: boolean;
+}
+
+export interface TransactionItemCreate {
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  farmer_id: number;
+  farmer_user_id?: number;
+}
 import { Product } from '../product/types';
 import { Payment } from '../payment/types';
 
@@ -23,6 +45,7 @@ export interface TransactionItem {
   unit_price: number;
   total_price: number;
   farmer_id: string;
+  farmer_user_id?: number;
   product?: Product;
   created_at: string;
   updated_at: string;
@@ -56,7 +79,11 @@ export interface CreateTransactionRequest {
     quantity: number;
     unit_price: number;
     farmer_id: string;
+    farmer_user_id?: number;
   }[];
+  buyer_paid_amount?: number;
+  farmer_paid_amount?: number;
+  commission_confirmed?: boolean;
   notes?: string;
 }
 

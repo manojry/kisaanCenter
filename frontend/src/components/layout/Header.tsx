@@ -2,7 +2,7 @@ import React from 'react'
 import { useAuth } from '@/context/AuthContext'
 import Button from '@/components/ui/Button'
 import ThemeToggle from '@/components/theme/ThemeToggle'
-import { Building2, LogOut, User, Bell } from 'lucide-react'
+import { LogOut, User, Bell } from 'lucide-react'
 import { UserRole } from '@/types/enums'
 
 const Header: React.FC = () => {
@@ -11,7 +11,7 @@ const Header: React.FC = () => {
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
       case UserRole.OWNER:
-        return <Building2 className="w-4 h-4" />
+        return <span className="text-green-600">🌾</span>
       case UserRole.FARMER:
         return <span className="text-green-600">🌾</span>
       case UserRole.BUYER:
@@ -44,10 +44,11 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Building2 className="h-8 w-8 text-primary-600" />
+            <span className="brand-icon text-3xl">🌾</span>
             <span className="ml-2 text-xl font-bold text-gray-900">
-              Kisaan Center
+              KisaanCenter
             </span>
+            <span className="ml-2 text-xs text-gray-500 font-medium">AgriTech Platform</span>
           </div>
 
           {/* User Info & Actions */}

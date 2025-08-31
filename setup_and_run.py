@@ -205,7 +205,8 @@ def install_dependencies():
         'werkzeug>=3.0.0',
         'alembic>=1.12.0',
         'pytest>=7.4.0',
-        'requests>=2.31.0'
+        'requests>=2.31.0',
+        'python-multipart>=0.0.6'
     ]
     
     for dep in dependencies:

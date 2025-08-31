@@ -1,5 +1,10 @@
 /* Navigation.css - Mobile-First Navigation Design */
 
+:root {
+  --nav-width: 240px;
+  --nav-width-compact: 64px;
+}
+
 /* Floating Mobile Menu Button */
 .mobile-menu-btn {
   position: fixed;
@@ -77,10 +82,7 @@
 
 /* Navigation Sidebar */
 .navigation {
-  position: fixed;
-  top: 0;
-  left: -100%;
-  width: 280px;
+  width: 240px;
   height: 100vh;
   background: white;
   border-right: 1px solid var(--neutral-200);
@@ -88,7 +90,7 @@
   z-index: 1002;
   display: flex;
   flex-direction: column;
-  transition: left 0.3s ease;
+  transition: width 0.3s ease;
   overflow-y: auto;
 }
 
@@ -100,23 +102,24 @@
 .nav-brand {
   display: none;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
   border-bottom: 1px solid var(--neutral-200);
   background: var(--neutral-50);
+  height: 56px;
 }
 
 .brand-logo {
-  font-size: 2rem;
-  width: 48px;
-  height: 48px;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--primary-color);
   color: white;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-brand h2 {
@@ -129,10 +132,29 @@
 /* Navigation Items */
 .nav-items {
   flex: 1;
-  padding: 1rem 0;
+  padding: 0.5rem;
   margin: 0;
   list-style: none;
   overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--neutral-100);
+}
+
+.nav-section:last-child {
+  border-bottom: none;
+}
+
+.nav-section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--neutral-500);
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .nav-items li {
@@ -142,12 +164,13 @@
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   width: 100%;
-  padding: 1rem 1.5rem;
+  padding: 0.5rem 0.75rem;
   border: none;
   background: none;
   color: var(--neutral-700);
+  font-size: 0.875rem;
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -335,39 +358,36 @@
   }
 
   .navigation {
-    position: sticky;
-    top: 0;
-    left: 0;
-    width: 280px;
-    box-shadow: none;
-    border-right: 1px solid var(--neutral-200);
-    transition: width 0.3s ease;
-  }
+  width: 240px;
+  box-shadow: none;
+  border-right: 1px solid var(--neutral-200);
+  transition: width 0.3s ease;
+}
 
-  .navigation.compact {
-    width: 80px;
-  }
+.navigation.compact {
+  width: 64px;
+}
 
-  .nav-brand {
-    display: flex;
-  }
+.nav-brand {
+  display: flex;
+  padding: 0.75rem;
+  height: 56px;
+}
 
-  .navigation.compact .nav-brand h2 {
-    display: none;
-  }
+.navigation.compact .nav-brand h2 {
+  display: none;
+}
 
-  .navigation.compact .nav-label,
-  .navigation.compact .user-details,
-  .navigation.compact .nav-badge {
-    display: none;
-  }
+.navigation.compact .nav-label,
+.navigation.compact .user-details,
+.navigation.compact .nav-badge {
+  display: none;
+}
 
-  .navigation.compact .nav-item {
-    justify-content: center;
-    padding: 1rem;
-  }
-
-  .navigation.compact .user-info {
+.navigation.compact .nav-item {
+  justify-content: center;
+  padding: 0.75rem;
+}  .navigation.compact .user-info {
     justify-content: center;
   }
 

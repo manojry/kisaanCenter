@@ -40,44 +40,66 @@ class SecurityUtils:
     
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash a password."""
+        """Hash a password using bcrypt or secure SHA256."""
         if not pwd_context:
-            # Fallback to basic hashing if passlib not available
-            import hashlib
-            return hashlib.sha256(password.encode()).hexdigest()
+            # If bcrypt not available, use SHA256 with salt
+            import hashlib, os
+            salt = os.urandom(16)  # 16 bytes = 128 bits
+            salted = password.encode() + salt
+            hashed = hashlib.sha256(salted).hexdigest()
+            return f"{salt.hex()}:{hashed}"  # Store salt with hash
         return pwd_context.hash(password)
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash."""
         if not pwd_context:
-            # Fallback to basic hashing comparison
+            # Handle salted SHA256
             import hashlib
-            return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+            try:
+                salt_hex, hash_value = hashed_password.split(":")
+                salt = bytes.fromhex(salt_hex)
+                salted = plain_password.encode() + salt
+                return hashlib.sha256(salted).hexdigest() == hash_value
+            except ValueError:
+                # Handle old-style unsalted hashes for backwards compatibility
+                return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
         return pwd_context.verify(plain_password, hashed_password)
     
     @staticmethod
     def create_access_token(
         subject: Union[str, Any], 
         expires_delta: Optional[timedelta] = None,
-        additional_claims: Optional[dict] = None
+        additional_claims: Optional[dict] = None,
+        token_type: str = "access"
     ) -> str:
-        """Create a JWT access token."""
+        """Create a JWT token with expiry."""
         if not jwt:
-            # Fallback to simple token if JWT library not available
-            return f"simple_token_{subject}_{datetime.utcnow().timestamp()}"
+            # Fallback with secure token format
+            from secrets import token_urlsafe
+            from base64 import b64encode
+            import json
             
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(
-                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-            )
-        
+            exp = int((datetime.utcnow() + (expires_delta or timedelta(minutes=30))).timestamp())
+            claims = {
+                "sub": str(subject),
+                "exp": exp,
+                "type": token_type,
+                "jti": token_urlsafe(32)  # Unique token ID
+            }
+            if additional_claims:
+                claims.update(additional_claims)
+                
+            token_data = b64encode(json.dumps(claims).encode()).decode()
+            signature = SecurityUtils.hash_password(token_data)[:32]  # Use first 32 chars
+            return f"{token_data}.{signature}"
+            
+        expires = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
         to_encode = {
-            "exp": expire,
+            "exp": expires,
             "sub": str(subject),
-            "type": "access"
+            "type": token_type,
+            "jti": token_urlsafe(32)  # Unique token ID
         }
         
         if additional_claims:

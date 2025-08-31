@@ -8,7 +8,7 @@ class FarmerStock(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
-    farmer_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    farmer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(DECIMAL(10, 3), nullable=False)
     status = Column(Enum(StockStatus), nullable=False, default=StockStatus.IN_STOCK)

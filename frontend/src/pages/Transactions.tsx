@@ -1,24 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useTransactions } from '@/features/transaction/hooks/useTransactions'
+import { useProducts } from '@/features/product/hooks/useProducts'
+import { useUsers } from '@/features/user/hooks/useUsers'
 import TransactionFilters from '@/features/transaction/components/TransactionFilters'
 import TransactionTable from '@/features/transaction/components/TransactionTable'
-import TransactionForm from '@/features/transaction/components/TransactionForm'
 import TransactionDetailsModal from '@/features/transaction/components/TransactionDetailsModal'
-import { Transaction, TransactionFormData } from '@/types/transaction'
-import { apiClient } from '@/services/api'
-import toast from 'react-hot-toast'
-
-interface User {
-  id: number
-  username: string
-  role: string
-}
-
-interface Product {
-  id: number
-  name: string
-  price: number
-}
+import { Transaction } from '@/types/transaction'
+import { Link } from 'react-router-dom'
 
 const Transactions: React.FC = () => {
   const {
@@ -31,125 +19,27 @@ const Transactions: React.FC = () => {
     setFilters,
     setPage,
     fetchTransactions,
-    createTransaction,
-    updateTransaction,
-    updatePayment,
     confirmCommission,
     refreshAnalytics
   } = useTransactions()
 
-  const [showForm, setShowForm] = useState(false)
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const productsQuery = useProducts();
+  const products = Array.isArray(productsQuery.data) ? productsQuery.data : [];
+
+  const usersQuery = useUsers();
+  const users = Array.isArray(usersQuery.data?.data) ? usersQuery.data.data : [];
+
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [showDetails, setShowDetails] = useState(false)
-  const [users, setUsers] = useState<User[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [formLoading, setFormLoading] = useState(false)
-
-  const initialFormData: TransactionFormData = {
-    buyer_user_id: 0,
-    type: 'sale',
-    commission_rate: 10,
-    date: new Date().toISOString().split('T')[0],
-    items: []
-  }
-
-  const [formData, setFormData] = useState<TransactionFormData>(initialFormData)
-
-  // Fetch users and products on component mount
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [usersResponse, productsResponse] = await Promise.all([
-          apiClient.get('/users'),
-          apiClient.get('/products')
-        ])
-        setUsers(usersResponse.data)
-        setProducts(productsResponse.data)
-      } catch (err) {
-        console.error('Error fetching initial data:', err)
-        toast.error('Failed to load form data')
-      }
-    }
-
-    fetchInitialData()
-    refreshAnalytics()
-  }, [refreshAnalytics])
-
-  const handleCreateNew = () => {
-    setFormData(initialFormData)
-    setEditingTransaction(null)
-    setShowForm(true)
-  }
-
-  const handleEdit = (transaction: Transaction) => {
-    setFormData({
-      buyer_user_id: transaction.buyer_user_id,
-      type: transaction.type,
-      commission_rate: transaction.commission_rate,
-      date: transaction.date,
-      items: transaction.items || []
-    })
-    setEditingTransaction(transaction)
-    setShowForm(true)
-  }
 
   const handleViewDetails = (transaction: Transaction) => {
     setSelectedTransaction(transaction)
     setShowDetails(true)
   }
 
-  const handleFormSubmit = async (data: TransactionFormData) => {
-    setFormLoading(true)
-    
-    try {
-      let success = false
-      
-      if (editingTransaction) {
-        success = await updateTransaction(editingTransaction.id, data)
-      } else {
-        success = await createTransaction(data)
-      }
-      
-      if (success) {
-        setShowForm(false)
-        setEditingTransaction(null)
-        setFormData(initialFormData)
-        await fetchTransactions()
-        await refreshAnalytics()
-      }
-    } catch (err) {
-      console.error('Error submitting form:', err)
-    } finally {
-      setFormLoading(false)
-    }
-  }
-
-  const handleFormCancel = () => {
-    setShowForm(false)
-    setEditingTransaction(null)
-    setFormData(initialFormData)
-  }
-
-  const handlePaymentUpdate = async (transactionId: number, paymentData: { amount: number }) => {
-    const success = await updatePayment(transactionId, paymentData)
-    if (success) {
-      await fetchTransactions()
-      await refreshAnalytics()
-    }
-  }
-
-  const handleCommissionConfirm = async (transactionId: number) => {
-    const success = await confirmCommission(transactionId)
-    if (success) {
-      await fetchTransactions()
-      await refreshAnalytics()
-    }
-  }
-
   const handleFiltersApply = (newFilters: any) => {
     setFilters(newFilters)
-    setPage(1) // Reset to first page when applying filters
+    setPage(1)
   }
 
   const handleFiltersClear = () => {
@@ -160,7 +50,6 @@ const Transactions: React.FC = () => {
       payment_status: '',
       date_from: '',
       date_to: '',
-      category_id: '',
       user_id: ''
     })
     setPage(1)
@@ -200,12 +89,12 @@ const Transactions: React.FC = () => {
               <p className="mt-2 text-gray-600">Manage and track all transactions</p>
             </div>
             <div className="mt-4 sm:mt-0">
-              <button
-                onClick={handleCreateNew}
-                className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors font-medium"
+              <Link
+                to="/transaction-entry"
+                className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors font-medium inline-block"
               >
                 + New Transaction
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -276,10 +165,10 @@ const Transactions: React.FC = () => {
           <div className="p-6">
             <TransactionFilters
               filters={filters}
-              onApply={handleFiltersApply}
-              onClear={handleFiltersClear}
               users={users}
-              products={products}
+              onFilterChange={handleFiltersApply}
+              onClearFilters={handleFiltersClear}
+              onApplyFilters={fetchTransactions}
             />
           </div>
         </div>
@@ -292,31 +181,11 @@ const Transactions: React.FC = () => {
               loading={loading}
               pagination={pagination}
               onPageChange={setPage}
-              onEdit={handleEdit}
               onViewDetails={handleViewDetails}
-              onPaymentUpdate={handlePaymentUpdate}
-              onCommissionConfirm={handleCommissionConfirm}
+              onCommissionConfirm={confirmCommission}
             />
           </div>
         </div>
-
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <TransactionForm
-                formData={formData}
-                users={users}
-                products={products}
-                loading={formLoading}
-                onSubmit={handleFormSubmit}
-                onCancel={handleFormCancel}
-                onChange={setFormData}
-                isEditing={!!editingTransaction}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Details Modal */}
         <TransactionDetailsModal

@@ -14,9 +14,23 @@ import {
 import { apiClient } from '../../services/api';
 
 // Role-based dashboard data
-export async function getOwnerDashboard(shopId: string): Promise<OwnerDashboard> {
-  const response = await apiClient.get<OwnerDashboard>(`/dashboard/owner/${shopId}`);
-  if (!response.data) throw new Error('Failed to get owner dashboard data');
+
+// --- NEW SHOP DASHBOARD ENDPOINTS ---
+export async function getShopDashboard(shopId: string): Promise<any> {
+  const response = await apiClient.get(`/dashboard/shop/${shopId}`);
+  if (!response.data) throw new Error('Failed to get shop dashboard data');
+  return response.data;
+}
+
+export async function getShopDashboardSummary(shopId: string): Promise<any> {
+  const response = await apiClient.get(`/dashboard/shop/${shopId}/summary`);
+  if (!response.data) throw new Error('Failed to get shop dashboard summary');
+  return response.data;
+}
+
+export async function getShopDashboardAlerts(shopId: string): Promise<any[]> {
+  const response = await apiClient.get(`/dashboard/shop/${shopId}/alerts`);
+  if (!response.data) throw new Error('Failed to get shop dashboard alerts');
   return response.data;
 }
 

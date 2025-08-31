@@ -26,16 +26,10 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   return (
     <div className="layout">
-      <Navigation
-        currentRole={currentRole}
-        currentRoute={currentRoute}
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-      />
-      
-      <main className="main-content">
-        {(title || subtitle || actions) && (
-          <header className="content-header">
+      <div className="app-layout">
+        {/* Header row at the top */}
+        { (title || subtitle || actions) && (
+          <header className="app-header">
             <div className="header-text">
               {title && <h1 className="page-title">{title}</h1>}
               {subtitle && <p className="page-subtitle">{subtitle}</p>}
@@ -47,11 +41,21 @@ export const Layout: React.FC<LayoutProps> = ({
             )}
           </header>
         )}
-        
-        <div className="content-body">
-          {children}
+        {/* Two columns below header: nav and main */}
+        <div className="layout-row">
+          <Navigation
+            currentRole={currentRole}
+            currentRoute={currentRoute}
+            onNavigate={onNavigate}
+            onLogout={onLogout}
+          />
+          <main className="main-content">
+            <div className="content-body">
+              {children}
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

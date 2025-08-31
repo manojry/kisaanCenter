@@ -4,7 +4,9 @@ from .base import Base
 from .enums import UserRole, RecordStatus
 
 class User(Base):
+    """User model for application users."""
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False)

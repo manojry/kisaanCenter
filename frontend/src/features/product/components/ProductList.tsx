@@ -252,10 +252,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   onSave
 }) => {
+  // Get shop_id from context (owner's shop)
+  const { user } = useAuth();
+  const shopId = user?.shop_id || 1;
   const [formData, setFormData] = useState({
     name: product?.name || '',
-    price: product?.price || 0,
-    shop_id: product?.shop_id || 1
+    price: product?.price || 0
   });
 
   const [saving, setSaving] = useState(false);
@@ -283,9 +285,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
       newErrors.price = 'Price must be greater than 0';
     }
 
-    if (!formData.shop_id) {
-      newErrors.shop_id = 'Shop ID is required';
-    }
+  // shop_id is set from context, not user input
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -305,14 +305,14 @@ const ProductModal: React.FC<ProductModalProps> = ({
         const updateData: Partial<Product> = {
           name: formData.name,
           price: formData.price,
-          shop_id: formData.shop_id
+          shop_id: shopId
         };
         await updateProduct(product.id.toString(), updateData);
       } else {
         const createData: Partial<Product> = {
           name: formData.name,
           price: formData.price,
-          shop_id: formData.shop_id
+          shop_id: shopId
         };
         await createProduct(createData);
       }
@@ -327,8 +327,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="modal-content" style={{ background: '#fff' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{product ? 'Edit Product' : 'Add New Product'}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
@@ -358,17 +358,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
             placeholder="Enter product price"
           />
 
-          <InputField
-            name="shop_id"
-            label="Shop ID"
-            type="number"
-            min={1}
-            value={formData.shop_id.toString()}
-            onChange={handleInputChange}
-            required
-            error={errors.shop_id}
-            placeholder="Enter shop ID"
-          />
+          {/* Shop ID is set from context and not editable by user */}
 
           {errors.submit && (
             <div className="alert alert-error">

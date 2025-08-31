@@ -57,7 +57,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   }
 
   const addItem = () => {
-    const newItem = { product_id: 0, quantity: 0, price: 0 }
+    const newItem = { product_id: 0, quantity: 0, price: 0, farmer_user_id: 0 }
     const updatedData = {
       ...localFormData,
       items: [...localFormData.items, newItem]
@@ -116,7 +116,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
               required
             >
               <option value="">Select Buyer</option>
-              {users.filter(user => user.role === 'buyer').map(user => (
+              {(Array.isArray(users) ? users : []).filter(user => user.role === 'buyer').map(user => (
                 <option key={user.id} value={user.id}>
                   {user.username}
                 </option>
@@ -186,7 +186,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           <div className="space-y-4">
             {localFormData.items.map((item, index) => (
               <div key={index} className="item-row bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Product *
@@ -236,6 +236,23 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                       placeholder="0.00"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Farmer *
+                    </label>
+                    <select
+                      value={item.farmer_user_id}
+                      onChange={(e) => handleItemChange(index, 'farmer_user_id', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select Farmer</option>
+                      {users.filter(user => user.role === 'farmer').map(user => (
+                        <option key={user.id} value={user.id}>{user.username}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex items-end">
@@ -291,8 +308,45 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
         )}
 
+        {/* Payment/Commission Status Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-200">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Farmer Paid</label>
+            <select
+              value={localFormData.farmer_paid_amount > 0 ? 'paid' : 'pending'}
+              onChange={e => handleInputChange('farmer_paid_amount', e.target.value === 'paid' ? calculateTotal() : 0)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Commission Received</label>
+            <select
+              value={localFormData.commission_confirmed ? 'received' : 'pending'}
+              onChange={e => handleInputChange('commission_confirmed', e.target.value === 'received')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="pending">Pending</option>
+              <option value="received">Received</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Buyer Paid</label>
+            <select
+              value={localFormData.buyer_paid_amount > 0 ? 'paid' : 'pending'}
+              onChange={e => handleInputChange('buyer_paid_amount', e.target.value === 'paid' ? calculateTotal() : 0)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+        </div>
+
         {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-3 pt-6">
           <button
             type="submit"
             disabled={loading || localFormData.items.length === 0}

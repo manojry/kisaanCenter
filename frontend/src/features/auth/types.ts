@@ -1,4 +1,3 @@
-import { User } from '@/types/entities'
 import { UserRole } from '@/types/enums'
 
 export interface LoginCredentials {
@@ -6,7 +5,12 @@ export interface LoginCredentials {
   password: string
 }
 
-export interface AuthUser extends User {
+export interface AuthUser {
+  id: number
+  username: string
+  role: UserRole
+  shop_id: number | null
+  user_id: number
   token?: string
 }
 
@@ -54,6 +58,5 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'read:transaction',
     'read:payment',
     'read:credit'
-  ],
-  [UserRole.GUEST]: ['read:public']
+  ]
 }

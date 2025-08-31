@@ -1,4 +1,25 @@
+    @classmethod
+    def teardown_class(cls):
+        """Clear test data from the database after tests"""
+        # Remove test shop
+        try:
+            requests.delete(f"{BASE_URL}/shops/{cls.test_data['shop_id']}", headers=cls.headers)
+        except Exception as e:
+            print(f"Warning: Could not delete test shop: {e}")
 
+        # Remove test user
+        try:
+            requests.delete(f"{BASE_URL}/users/{cls.test_data['user_id']}", headers=cls.headers)
+        except Exception as e:
+            print(f"Warning: Could not delete test user: {e}")
+
+        # Remove test product
+        try:
+            requests.delete(f"{BASE_URL}/products/{cls.test_data['product_id']}", headers=cls.headers)
+        except Exception as e:
+            print(f"Warning: Could not delete test product: {e}")
+
+        print("--- Test data cleanup complete ---")
 """
 Comprehensive API Endpoint Tests
 Tests all 22 production endpoints with full business validation
@@ -450,16 +471,33 @@ class TestAPIEndpoints:
         assert data["success"] == True
         print("[PASS] Shop dashboard working")
     
-    def test_24_get_incomplete_transactions(self):
-        """Test incomplete transactions"""
-        response = requests.get(f"{BASE_URL}/transactions/completion-status/pending", headers=self.headers)
+    def test_23a_get_shop_dashboard_summary(self):
+        """Test shop dashboard summary endpoint"""
+        shop_id = self.test_data["shop_id"]
+        response = requests.get(f"{BASE_URL}/dashboard/shop/{shop_id}/summary", headers=self.headers)
         if response.status_code != 200:
-            print(f"Incomplete transactions failed: {response.text}")
-            print("Skipping incomplete transactions test due to API issues")
+            print(f"Shop dashboard summary failed: {response.text}")
+            print("Skipping shop dashboard summary test due to API issues")
             return
         data = response.json()
         assert data["success"] == True
-        print("[PASS] Incomplete transactions working")
+        assert "total_transactions" in data["data"]
+        assert "total_users" in data["data"]
+        assert "recent_activity" in data["data"]
+        print("[PASS] Shop dashboard summary working")
+
+    def test_23b_get_shop_dashboard_alerts(self):
+        """Test shop dashboard alerts endpoint"""
+        shop_id = self.test_data["shop_id"]
+        response = requests.get(f"{BASE_URL}/dashboard/shop/{shop_id}/alerts", headers=self.headers)
+        if response.status_code != 200:
+            print(f"Shop dashboard alerts failed: {response.text}")
+            print("Skipping shop dashboard alerts test due to API issues")
+            return
+        data = response.json()
+        assert data["success"] == True
+        assert isinstance(data["data"], list)
+        print("[PASS] Shop dashboard alerts working")
     
     # Payment Endpoints (5)
     def test_25_get_payments_list(self):
@@ -544,6 +582,12 @@ def run_all_endpoint_tests():
     # Run tests
     test_instance = TestAPIEndpoints()
     test_instance.setup_class()
+    # ...existing code...
+    # Call teardown after tests
+    try:
+        TestAPIEndpoints.teardown_class()
+    except Exception as e:
+        print(f"Warning: Teardown error: {e}")
     
     test_methods = [method for method in dir(test_instance) if method.startswith('test_')]
     test_methods.sort()

@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from ..database import get_db
 # Import user schemas from the schemas package
-from ..schemas.user_schemas import UserCreate, UserUpdate, UserRead, UserReadWithRelations
+from ..schemas.user_schemas import UserCreate, UserUpdate, UserRead, UserReadWithRelations, UserLogin
 # Import API schemas from separate file to avoid circular imports
 from ..api_schemas import PaginationParams, APIResponse, ErrorResponse
 from ..services.user_service import UserService
+from ..features.auth.services.auth_service import AuthService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -329,29 +330,36 @@ def delete_user(
              response_model=APIResponse,
              summary="Authenticate user",
              description="Authenticate user credentials")
-def login_user(
-    username: str = Query(..., description="Username"),
-    password: str = Query(..., description="Password"),
-    db: Session = Depends(get_db)
-):
+async def login_for_access_token(credentials: UserLogin, db: Session = Depends(get_db)):
     """
-    Authenticate user credentials:
-    
-    - **username**: Valid username
-    - **password**: User password
-    - **Returns**: User data if authentication successful
-    - **Security**: Password is hashed and verified securely
+    Authenticate user and return a JWT access token.
+    - **username**: User's username or email
+    - **password**: User's password
     """
-    result = UserService.authenticate_user(db, username, password)
-    
-    if not result.success:
+    user, token = await AuthService.authenticate_user(
+        db=db, 
+        username=credentials.username, 
+        password=credentials.password
+    )
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=result.message,
-            headers={"WWW-Authenticate": "Bearer"}
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    return result
+    return APIResponse(
+        success=True,
+        message="Login successful",
+        data={
+            "id": user.id,
+            "user_id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "shop_id": user.shop_id,
+            "access_token": token,
+        }
+    )
 
 @router.post("/auth/logout",
              response_model=APIResponse,
@@ -610,5 +618,11 @@ class UserCreate(BaseModel):
         if credit_limit is not None and credit_limit < 0:
             raise ValueError('Credit limit must be >= 0')
         return credit_limit
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
     model_config = ConfigDict(from_attributes=True)

@@ -10,7 +10,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 class BackupManager:
-    def __init__(self, db_config: dict, backup_dir: str = "backups"):
+    def __init__(self, db_config: dict = None, backup_dir: str = "backups"):
+        # Load db_config from environment variables if not provided
+        if db_config is None:
+            db_config = {
+                'host': os.getenv('DB_HOST', 'localhost'),
+                'port': int(os.getenv('DB_PORT', 5432)),
+                'name': os.getenv('DB_NAME', 'postgres'),
+                'user': os.getenv('DB_USER', 'postgres'),
+                'password': os.getenv('DB_PASSWORD', ''),
+                'sslmode': os.getenv('DB_SSLMODE', 'require')
+            }
         self.db_config = db_config
         self.backup_dir = backup_dir
         self.ensure_backup_dir()

@@ -13,12 +13,12 @@ from ..database import get_db
 logger = logging.getLogger(__name__)
 
 # Create routers for different endpoint groups
-users_router = APIRouter(prefix="/users", tags=["Users"])
-shops_router = APIRouter(prefix="/shops", tags=["Shops"])
-products_router = APIRouter(prefix="/products", tags=["Products"])
-transactions_router = APIRouter(prefix="/transactions", tags=["Transactions"])
-payments_router = APIRouter(prefix="/payments", tags=["Payments"])
-credits_router = APIRouter(prefix="/credits", tags=["Credits"])
+users_router = APIRouter(tags=["Users"])
+shops_router = APIRouter(tags=["Shops"])
+products_router = APIRouter(tags=["Products"])
+transactions_router = APIRouter(tags=["Transactions"])
+payments_router = APIRouter(tags=["Payments"])
+credits_router = APIRouter(tags=["Credits"])
 
 def success_response(message: str, data: Any = None) -> Dict:
     """Standard success response format"""
@@ -243,14 +243,45 @@ def update_user(
         logger.error(f"Error updating user: {e}")
         raise HTTPException(status_code=500, detail="Failed to update user")
 
+import base64
+import json
+from datetime import datetime, timedelta
+
+def create_access_token(user_id: int, username: str, role: str, shop_id: int = None) -> str:
+    """Create simple access token"""
+    payload = {
+        "user_id": user_id,
+        "username": username,
+        "role": role,
+        "shop_id": shop_id,
+        "exp": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+        "iat": datetime.utcnow().isoformat()
+    }
+    return base64.b64encode(json.dumps(payload).encode()).decode()
+
+from pydantic import BaseModel
+from typing import Union
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 @users_router.post("/auth/login")
 def login_user(
-    username: str = Query(...),
-    password: str = Query(...),
+    request: Union[LoginRequest, None] = None,
+    username: str = Query(None),
+    password: str = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Authenticate user"""
+    """Authenticate user and return access token"""
     try:
+        # Handle both JSON body and query parameters
+        if request:
+            username = request.username
+            password = request.password
+        elif not username or not password:
+            raise HTTPException(status_code=400, detail="Username and password required")
+        
         password_hash = hash_password(password)
         
         # Check superadmin first
@@ -261,12 +292,25 @@ def login_user(
         
         superadmin = result.fetchone()
         if superadmin:
-            return success_response("Authentication successful", {
-                "id": superadmin.id,
-                "username": superadmin.username,
-                "role": "superadmin",
-                "user_id": superadmin.id
-            })
+            # Create access token
+            access_token = create_access_token(
+                user_id=superadmin.id,
+                username=superadmin.username,
+                role="superadmin"
+            )
+            
+            return {
+                "success": True,
+                "message": "Authentication successful",
+                "data": {
+                    "id": superadmin.id,
+                    "username": superadmin.username,
+                    "role": "superadmin",
+                    "shop_id": None,
+                    "user_id": superadmin.id,
+                    "access_token": access_token
+                }
+            }
         
         # Check regular users
         result = db.execute(text("""
@@ -278,13 +322,26 @@ def login_user(
         if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        return success_response("Authentication successful", {
-            "id": user.id,
-            "username": user.username,
-            "role": user.role,
-            "shop_id": user.shop_id,
-            "user_id": user.id
-        })
+        # Create access token
+        access_token = create_access_token(
+            user_id=user.id,
+            username=user.username,
+            role=user.role,
+            shop_id=user.shop_id
+        )
+        
+        return {
+            "success": True,
+            "message": "Authentication successful",
+            "data": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "shop_id": user.shop_id,
+                "user_id": user.id,
+                "access_token": access_token
+            }
+        }
         
     except HTTPException:
         raise
