@@ -1,59 +1,46 @@
 #!/bin/bash
 
-# GitHub Secrets Setup Scri# Get Terraform outputs
-echo "📋 Getting Azure resource information from Terraform..."
-
-# Check if we're in the right directory structure
-if [ ! -d "terraform" ]; then
-    echo "❌ terraform directory not found. Please run this script from the project root."
-    exit 1
-fi
-
-# Change to terraform directory
-cd terraform
-
-# Check if Terraform is initialized with remote state
-if [ ! -d ".terraform" ]; then
-    echo "❌ Terraform not initialized. Please run 'terraform init' first."
-    exit 1
-fi
-
-# Try to get outputs from remote state
-if ! terraform output &> /dev/null; then
-    echo "❌ Cannot access Terraform outputs. Please ensure:"
-    echo "   1. You're logged into Azure: az login"
-    echo "   2. Terraform is initialized: terraform init"
-    echo "   3. Infrastructure is deployed: terraform apply"
-    exit 1
-fiAzure Deployment
-# This script helps you set up all required GitHub secrets for CI/CD
-
+# GitHub Secrets Setup Script for FREE Tier Architecture
 set -e
 
-echo "� Setting up GitHub Secrets for Azure Deployment"
-echo "================================================"
+echo "🔐 Setting up GitHub Secrets for FREE Tier Azure Deployment"
+echo "==========================================================="
 
-# Check if GitHub CLI is installed
-if ! command -v gh &> /dev/null; then
-    echo "❌ GitHub CLI is not installed. Please install it first:"
-    echo "   https://cli.github.com/"
-    exit 1
-fi
+# Function to check command existence
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        echo "❌ $1 is not installed. Please install it first."
+        exit 1
+    fi
+}
 
-# Check if user is logged in to GitHub CLI
+# Function to get terraform output safely
+get_terraform_output() {
+    local output_name="$1"
+    local value
+    value=$(terraform output -raw "$output_name" 2>/dev/null || echo "")
+    if [ -z "$value" ]; then
+        echo "❌ Terraform output '$output_name' not found"
+        return 1
+    fi
+    echo "$value"
+}
+
+# Check prerequisites
+echo "🔍 Checking prerequisites..."
+
+check_command "gh"
+check_command "az"
+check_command "terraform"
+
+# Check GitHub CLI login
 if ! gh auth status &> /dev/null; then
     echo "❌ Please login to GitHub CLI first:"
     echo "   gh auth login"
     exit 1
 fi
 
-# Check if Azure CLI is installed and logged in
-if ! command -v az &> /dev/null; then
-    echo "❌ Azure CLI is not installed. Please install it first:"
-    echo "   https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
-    exit 1
-fi
-
+# Check Azure CLI login
 if ! az account show &> /dev/null; then
     echo "❌ Please login to Azure CLI first:"
     echo "   az login"
@@ -61,103 +48,135 @@ if ! az account show &> /dev/null; then
 fi
 
 # Navigate to terraform directory
+echo "📁 Navigating to terraform directory..."
 cd "$(dirname "$0")/../terraform"
 
-# Get Terraform outputs
-echo "� Getting Azure resource information from Terraform..."
-
-if [ ! -f "terraform.tfstate" ]; then
-    echo "❌ terraform.tfstate not found. Please run 'terraform apply' first."
+# Check terraform initialization
+if [ ! -d ".terraform" ]; then
+    echo "❌ Terraform not initialized. Please run:"
+    echo "   cd terraform && terraform init"
     exit 1
 fi
 
-# Extract values from Terraform outputs
+# Check if terraform state is accessible
+if ! terraform show &> /dev/null; then
+    echo "❌ Cannot access Terraform state. Please ensure:"
+    echo "   1. You're logged into Azure: az login"
+    echo "   2. Infrastructure is deployed: terraform apply"
+    exit 1
+fi
+
+echo "✅ Prerequisites check passed!"
+echo ""
+
+# Get basic Azure information
+echo "🔍 Getting Azure information..."
 AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)
-AZURE_RESOURCE_GROUP="kisaancenter-rg"
-AZURE_CONTAINER_REGISTRY=$(terraform output -raw container_registry_name 2>/dev/null || echo "")
-AZURE_CONTAINER_APP_NAME="kisaancenter-backend"
-AZURE_CONTAINER_APP_ENVIRONMENT="kisaancenter-env"
-
-# Get ACR credentials
-if [ -n "$AZURE_CONTAINER_REGISTRY" ]; then
-    AZURE_REGISTRY_USERNAME=$(az acr credential show --name $AZURE_CONTAINER_REGISTRY --query username -o tsv)
-    AZURE_REGISTRY_PASSWORD=$(az acr credential show --name $AZURE_CONTAINER_REGISTRY --query passwords[0].value -o tsv)
-    AZURE_REGISTRY_LOGIN_SERVER="${AZURE_CONTAINER_REGISTRY}.azurecr.io"
-else
-    echo "❌ Container registry not found in Terraform outputs"
-    exit 1
-fi
-
-# Create Azure Service Principal for GitHub Actions
-echo "� Creating Azure Service Principal for GitHub Actions..."
 GITHUB_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 
-# Create service principal
-SP_OUTPUT=$(az ad sp create-for-rbac \
-    --name "github-actions-${AZURE_CONTAINER_REGISTRY}" \
-    --role contributor \
-    --scopes "/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}" \
-    --sdk-auth)
+echo "✅ Azure Subscription: $AZURE_SUBSCRIPTION_ID"
+echo "✅ Azure Tenant: $AZURE_TENANT_ID"
+echo "✅ GitHub Repository: $GITHUB_REPO"
+echo ""
 
-AZURE_CLIENT_ID=$(echo $SP_OUTPUT | jq -r .clientId)
-AZURE_CLIENT_SECRET=$(echo $SP_OUTPUT | jq -r .clientSecret)
+# Get Terraform outputs
+echo "🔍 Getting Terraform outputs..."
 
-# Get database password from Key Vault
-KEY_VAULT_NAME=$(terraform output -raw key_vault_name 2>/dev/null || echo "")
-if [ -n "$KEY_VAULT_NAME" ]; then
-    DB_PASSWORD=$(az keyvault secret show --name postgresql-admin-password --vault-name $KEY_VAULT_NAME --query value -o tsv)
+AZURE_RESOURCE_GROUP=$(get_terraform_output "resource_group_name") || exit 1
+KEY_VAULT_NAME=$(get_terraform_output "key_vault_name") || exit 1
+BACKEND_APP_NAME=$(get_terraform_output "backend_container_app_name") || exit 1
+CONTAINER_ENV_NAME=$(get_terraform_output "container_app_environment_name") || exit 1
+
+echo "✅ Resource Group: $AZURE_RESOURCE_GROUP"
+echo "✅ Key Vault: $KEY_VAULT_NAME"
+echo "✅ Container App: $BACKEND_APP_NAME"
+echo "✅ Container Environment: $CONTAINER_ENV_NAME"
+echo ""
+
+# Create Azure Service Principal for GitHub Actions
+echo "🔍 Creating/Getting Azure Service Principal..."
+
+# Check if service principal already exists
+SP_NAME="github-actions-kisaancenter-free"
+EXISTING_SP=$(az ad sp list --display-name "$SP_NAME" --query "[0].appId" -o tsv 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_SP" ]; then
+    echo "✅ Using existing Service Principal: $SP_NAME"
+    AZURE_CLIENT_ID="$EXISTING_SP"
+    
+    # Reset credentials
+    echo "🔄 Resetting Service Principal credentials..."
+    AZURE_CLIENT_SECRET=$(az ad sp credential reset --id "$AZURE_CLIENT_ID" --query password -o tsv)
 else
-    echo "❌ Key Vault not found in Terraform outputs"
-    exit 1
+    echo "🔄 Creating new Service Principal: $SP_NAME"
+    SP_OUTPUT=$(az ad sp create-for-rbac \
+        --name "$SP_NAME" \
+        --role contributor \
+        --scopes "/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}" \
+        --query '{clientId: appId, clientSecret: password}' \
+        -o json)
+    
+    AZURE_CLIENT_ID=$(echo "$SP_OUTPUT" | jq -r .clientId)
+    AZURE_CLIENT_SECRET=$(echo "$SP_OUTPUT" | jq -r .clientSecret)
 fi
 
-# Go back to project root
-cd ..
-
-echo "✅ Retrieved Azure resource information"
+echo "✅ Service Principal ID: $AZURE_CLIENT_ID"
 echo ""
-echo "� Setting GitHub Secrets..."
 
-# Navigate back to root directory
-cd ..
+# Get database password from Key Vault
+echo "🔍 Getting database password from Key Vault..."
+DB_PASSWORD=$(az keyvault secret show --name postgresql-admin-password --vault-name "$KEY_VAULT_NAME" --query value -o tsv)
+echo "✅ Database password retrieved"
+echo ""
 
 # Set GitHub secrets
-gh secret set AZURE_SUBSCRIPTION_ID --body "$AZURE_SUBSCRIPTION_ID"
-gh secret set AZURE_TENANT_ID --body "$AZURE_TENANT_ID"
-gh secret set AZURE_CLIENT_ID --body "$AZURE_CLIENT_ID"
-gh secret set AZURE_CLIENT_SECRET --body "$AZURE_CLIENT_SECRET"
-gh secret set AZURE_RESOURCE_GROUP --body "$AZURE_RESOURCE_GROUP"
-gh secret set AZURE_CONTAINER_REGISTRY --body "$AZURE_CONTAINER_REGISTRY"
-gh secret set AZURE_REGISTRY_USERNAME --body "$AZURE_REGISTRY_USERNAME"
-gh secret set AZURE_REGISTRY_PASSWORD --body "$AZURE_REGISTRY_PASSWORD"
-gh secret set AZURE_REGISTRY_LOGIN_SERVER --body "$AZURE_REGISTRY_LOGIN_SERVER"
-gh secret set AZURE_CONTAINER_APP_NAME --body "$AZURE_CONTAINER_APP_NAME"
-gh secret set AZURE_CONTAINER_APP_ENVIRONMENT --body "$AZURE_CONTAINER_APP_ENVIRONMENT"
-gh secret set DB_PASSWORD --body "$DB_PASSWORD"
+echo "🔐 Setting GitHub Secrets..."
 
-echo "✅ All GitHub secrets have been set successfully!"
+# Set each secret with error handling
+secrets=(
+    "AZURE_SUBSCRIPTION_ID:$AZURE_SUBSCRIPTION_ID"
+    "AZURE_TENANT_ID:$AZURE_TENANT_ID"
+    "AZURE_CLIENT_ID:$AZURE_CLIENT_ID"
+    "AZURE_CLIENT_SECRET:$AZURE_CLIENT_SECRET"
+    "AZURE_RESOURCE_GROUP:$AZURE_RESOURCE_GROUP"
+    "AZURE_CONTAINER_APP_NAME:$BACKEND_APP_NAME"
+    "AZURE_CONTAINER_APP_ENVIRONMENT:$CONTAINER_ENV_NAME"
+    "DB_PASSWORD:$DB_PASSWORD"
+    "KEY_VAULT_NAME:$KEY_VAULT_NAME"
+)
+
+for secret in "${secrets[@]}"; do
+    secret_name="${secret%%:*}"
+    secret_value="${secret#*:}"
+    
+    if gh secret set "$secret_name" --body "$secret_value"; then
+        echo "✅ Set secret: $secret_name"
+    else
+        echo "❌ Failed to set secret: $secret_name"
+        exit 1
+    fi
+done
+
 echo ""
-echo "🚀 You can now push to main branch to trigger deployment"
+echo "🎉 All GitHub secrets have been set successfully!"
 echo ""
 echo "📋 Set secrets:"
-echo "   - AZURE_SUBSCRIPTION_ID"
-echo "   - AZURE_TENANT_ID"
-echo "   - AZURE_CLIENT_ID"
-echo "   - AZURE_CLIENT_SECRET"
-echo "   - AZURE_RESOURCE_GROUP"
-echo "   - AZURE_CONTAINER_REGISTRY"
-echo "   - AZURE_REGISTRY_USERNAME"
-echo "   - AZURE_REGISTRY_PASSWORD"
-echo "   - AZURE_REGISTRY_LOGIN_SERVER"
-echo "   - AZURE_CONTAINER_APP_NAME"
-echo "   - AZURE_CONTAINER_APP_ENVIRONMENT"
-echo "   - DB_PASSWORD"
+for secret in "${secrets[@]}"; do
+    secret_name="${secret%%:*}"
+    echo "   ✅ $secret_name"
+done
 echo ""
-echo "� Next steps:"
-echo "   1. Commit and push your code to main branch"
-echo "   2. GitHub Actions will automatically build and deploy"
-echo "   3. Check the Actions tab in your GitHub repository"
+echo "🔍 Verify secrets:"
+echo "   gh secret list"
 echo ""
-echo "� Service Principal created: github-actions-${AZURE_CONTAINER_REGISTRY}"
-echo "   You can manage this in Azure Portal > Azure Active Directory > App registrations"
+echo "🚀 Next steps:"
+echo "   1. Push backend changes to trigger deployment"
+echo "   2. GitHub Actions will build image and deploy to Container Apps"
+echo "   3. Check the Actions tab: https://github.com/$GITHUB_REPO/actions"
+echo ""
+echo "🛠️ Service Principal created: $SP_NAME"
+echo "   Manage in: Azure Portal > Azure Active Directory > App registrations"
+echo ""
+echo "🌐 Your backend will be available at:"
+echo "   https://$(get_terraform_output "backend_container_app_fqdn" 2>/dev/null || echo "your-app.region.azurecontainerapps.io")"
