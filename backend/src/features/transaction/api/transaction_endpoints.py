@@ -34,7 +34,26 @@ def create_transaction(
     result = TransactionService.create_transaction(db, transaction)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
-    return result
+    # Add paid/unpaid breakdowns for farmer and buyer in response
+    data = result.data or {}
+    transaction_obj = data.get('transaction') or data
+    response_data = {
+        "transaction_id": transaction_obj.get("id"),
+        "shop_id": transaction_obj.get("shop_id"),
+        "farmer_id": transaction_obj.get("farmer_id"),
+        "buyer_id": transaction_obj.get("buyer_id"),
+        "total_amount": float(transaction_obj.get("total_amount", 0)),
+        "commission_amount": float(transaction_obj.get("commission_amount", 0)),
+        "commission_confirmed": transaction_obj.get("commission_confirmed", False),
+        "farmer_paid": float(transaction_obj.get("farmer_paid_amount", 0)),
+        "farmer_unpaid": float(transaction_obj.get("total_amount", 0)) - float(transaction_obj.get("commission_amount", 0)) - float(transaction_obj.get("farmer_paid_amount", 0)),
+        "buyer_paid": float(transaction_obj.get("buyer_paid_amount", 0)),
+        "buyer_unpaid": float(transaction_obj.get("total_amount", 0)) - float(transaction_obj.get("buyer_paid_amount", 0)),
+        "payment_status": transaction_obj.get("payment_status"),
+        "date": str(transaction_obj.get("date")),
+        "items": transaction_obj.get("items", []),
+    }
+    return APIResponse(success=True, message=result.message, data=response_data)
 
 
 @router.get("/{transaction_id}", response_model=APIResponse)
@@ -157,4 +176,23 @@ def get_transaction_summary(
     result = TransactionService.get_transaction_summary(db, transaction_id)
     if not result.success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result.message)
-    return result
+    # Add paid/unpaid breakdowns for farmer and buyer in summary response
+    data = result.data or {}
+    transaction_obj = data.get('transaction') or data
+    summary_data = {
+        "transaction_id": transaction_obj.get("id"),
+        "shop_id": transaction_obj.get("shop_id"),
+        "farmer_id": transaction_obj.get("farmer_id"),
+        "buyer_id": transaction_obj.get("buyer_id"),
+        "total_amount": float(transaction_obj.get("total_amount", 0)),
+        "commission_amount": float(transaction_obj.get("commission_amount", 0)),
+        "commission_confirmed": transaction_obj.get("commission_confirmed", False),
+        "farmer_paid": float(transaction_obj.get("farmer_paid_amount", 0)),
+        "farmer_unpaid": float(transaction_obj.get("total_amount", 0)) - float(transaction_obj.get("commission_amount", 0)) - float(transaction_obj.get("farmer_paid_amount", 0)),
+        "buyer_paid": float(transaction_obj.get("buyer_paid_amount", 0)),
+        "buyer_unpaid": float(transaction_obj.get("total_amount", 0)) - float(transaction_obj.get("buyer_paid_amount", 0)),
+        "payment_status": transaction_obj.get("payment_status"),
+        "date": str(transaction_obj.get("date")),
+        "items": transaction_obj.get("items", []),
+    }
+    return APIResponse(success=True, message=result.message, data=summary_data)

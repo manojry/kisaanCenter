@@ -10,6 +10,8 @@ class FarmerStockBase(BaseModel):
     declared_qty: Optional[Decimal] = None
     sold_qty: Optional[Decimal] = Field(default=0.000)
     balance_qty: Optional[Decimal] = None
+    expired_qty: Optional[Decimal] = Field(default=0.000)  # New
+    correction_qty: Optional[Decimal] = Field(default=0.000)  # New
     price: Decimal
     status: Optional[StockStatus] = None
     record_status: Optional[RecordStatus] = None

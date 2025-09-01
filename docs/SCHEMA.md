@@ -251,6 +251,8 @@ Possible values:
 | declared_qty | numeric(10,3) | YES | NULL | |
 | sold_qty | numeric(10,3) | YES | 0.000 | |
 | balance_qty | numeric(10,3) | YES | NULL | |
+| expired_qty | numeric(10,3) | YES | 0.000 | |
+| correction_qty | numeric(10,3) | YES | 0.000 | |
 | price | numeric(10,2) | NO | | |
 | status | enum(StockStatus) | YES | in_stock | |
 | record_status | enum(RecordStatus) | YES | active | |
@@ -273,7 +275,19 @@ Possible values:
 | farmer_paid_amount | numeric(12,2) | YES | 0.00 | |
 | commission_confirmed | boolean | YES | false | |
 | completion_status | enum(CompletionStatus) | YES | pending | |
+| payment_type | enum(PaymentType) | YES | NULL | |
+| is_cancelled | boolean | YES | false | |
+| cancelled_at | datetime | YES | NULL | |
 | date | date | NO | | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+# farmer_ledger
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| farmer_id | integer | NO | | FK users.id |
+| balance | numeric(12,2) | NO | 0.00 | |
+| last_settlement | datetime | YES | NULL | |
 | created_at | datetime | YES | now | |
 | updated_at | datetime | YES | now | |
 

@@ -7,6 +7,34 @@ from ..schemas import APIResponse, PaginationParams
 from fastapi import Depends, HTTPException
 
 class UserService:
+
+    @staticmethod
+    def add_users_to_shop(shop_id: int, users_data: list, db: Session):
+        """Add farmers/buyers to a shop. Only owner can add to their shop."""
+        responses = []
+        for user_data in users_data:
+            # Only allow farmer/buyer roles
+            if user_data.role not in ["farmer", "buyer"]:
+                responses.append(APIResponse(success=False, message=f"Role '{user_data.role}' not allowed", errors=["INVALID_ROLE"]))
+                continue
+            # Set shop_id
+            user_data.shop_id = shop_id
+            # Hash password
+            import hashlib
+            password_hash = hashlib.sha256(user_data.password.encode()).hexdigest() if hasattr(user_data, 'password') else None
+            # Use create_user for validation and creation
+            resp = UserService.create_user(
+                db=db,
+                username=user_data.username,
+                password_hash=password_hash,
+                role=user_data.role,
+                shop_id=shop_id,
+                contact=user_data.contact,
+                credit_limit=float(user_data.credit_limit) if user_data.credit_limit else 0.0,
+                status=user_data.status if hasattr(user_data, 'status') else "active"
+            )
+            responses.append(resp)
+        return responses
     @staticmethod
     def get_users(
         db: Session,

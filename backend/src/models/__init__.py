@@ -1,32 +1,37 @@
 # models/__init__.py
 from .base import Base
-from .enums import *
 from .user import User
 from .shop import Shop
-from .product import Product
+from .product import Product, Category
 from .transaction import Transaction, TransactionItem
+from .payment import Payment, PaymentMethod, FarmerPayment
 from .credit import Credit
-from .farmer_stock import FarmerStock
-from .plan import Plan
-from .subscription import Subscription
+from .stock import FarmerStock, FarmerStockAudit
+from .subscription import Plan, Subscription, FeatureControl
+from .superadmin import SuperAdmin
+from .audit import UserActivity, AuditLog
 
-# Export all models for easy importing
 __all__ = [
     "Base",
     "User",
     "Shop", 
     "Product",
+    "Category",
     "Transaction",
     "TransactionItem",
+    "Payment",
+    "PaymentMethod",
+    "FarmerPayment",
     "Credit",
     "FarmerStock",
+    "FarmerStockAudit",
     "Plan",
     "Subscription",
-    # Enums
-    "UserRole",
-    "RecordStatus",
-    "TransactionStatus",
-    "PaymentStatus",
+    "FeatureControl",
+    "SuperAdmin",
+    "UserActivity",
+    "AuditLog"
+]
     "CreditStatus",
     "StockStatus",
     "StockMode",

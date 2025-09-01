@@ -36,6 +36,10 @@ security = HTTPBearer()
 
 
 class SecurityUtils:
+    @staticmethod
+    def validate_token(token: str, token_type: str = "access") -> dict:
+        """Validate and decode a JWT token (alias for verify_token for compatibility)."""
+        return SecurityUtils.verify_token(token, token_type)
     """Security utility class."""
     
     @staticmethod

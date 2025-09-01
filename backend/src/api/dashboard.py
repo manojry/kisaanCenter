@@ -260,3 +260,45 @@ async def get_system_health(db: Session = Depends(get_db)):
         return APIResponse(success=True, message="System health retrieved successfully", data=health_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get system health: {str(e)}")
+
+@router.get("/owner", response_model=APIResponse, summary="Owner dashboard", description="Get owner dashboard data")
+def owner_dashboard(db: Session = Depends(get_db)):
+    # Dummy data, replace with real analytics
+    data = {
+        "total_shops": 3,
+        "total_users": 25,
+        "total_transactions": 120,
+        "commission_earned": 5000.0,
+        "alerts": ["Low stock on Carrot", "Pending payment from Buyer #12"]
+    }
+    return APIResponse(success=True, message="Owner dashboard data", data=data)
+
+@router.get("/farmer", response_model=APIResponse, summary="Farmer dashboard", description="Get farmer dashboard data")
+def farmer_dashboard(db: Session = Depends(get_db)):
+    data = {
+        "total_stock": 1500,
+        "total_sales": 45,
+        "pending_payments": 3,
+        "alerts": ["New order for Rose", "Payment pending for Sale #22"]
+    }
+    return APIResponse(success=True, message="Farmer dashboard data", data=data)
+
+@router.get("/buyer", response_model=APIResponse, summary="Buyer dashboard", description="Get buyer dashboard data")
+def buyer_dashboard(db: Session = Depends(get_db)):
+    data = {
+        "total_purchases": 60,
+        "outstanding_credits": 1200.0,
+        "recent_orders": 5,
+        "alerts": ["Credit limit reached", "New products available"]
+    }
+    return APIResponse(success=True, message="Buyer dashboard data", data=data)
+
+@router.get("/employee", response_model=APIResponse, summary="Employee dashboard", description="Get employee dashboard data")
+def employee_dashboard(db: Session = Depends(get_db)):
+    data = {
+        "assigned_tasks": 8,
+        "stock_checks": 12,
+        "transactions_processed": 30,
+        "alerts": ["Stock adjustment needed", "Task overdue"]
+    }
+    return APIResponse(success=True, message="Employee dashboard data", data=data)

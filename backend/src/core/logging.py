@@ -61,6 +61,16 @@ class StructuredFormatter(logging.Formatter):
         return json.dumps(log_data, default=str)
 
 class AuditLogger:
+    def log_error(self, error: str, **extra):
+        """Log error events."""
+        self.logger.error(
+            f"Error event: {error}",
+            extra={
+                'audit_type': 'error_event',
+                'error': error,
+                **extra
+            }
+        )
     """Specialized logger for audit events."""
     
     def __init__(self):

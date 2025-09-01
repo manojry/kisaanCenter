@@ -13,3 +13,5 @@ class QuickSaleRequest(BaseModel):
     items: List[QuickSaleItem]
     commission_rate: Decimal  # Commission rate for this transaction
     payment_type: str  # e.g., 'cash', 'digital'
+    is_cancelled: Optional[bool] = False  # New
+    cancelled_at: Optional[str] = None  # New (should be datetime)

@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from ..database import get_db
 from ..services.superadmin_service import SuperAdminControlService, ShopAnalyticsService
 from ..services.superadmin_service import BusinessError, ComplianceError, ResourceError
+from ..schemas import APIResponse, ShopCreateRequest, UserCreateRequest, ProductAssignRequest
 
 router = APIRouter(prefix="/admin", tags=["super-admin"])
 
@@ -135,6 +136,50 @@ def remove_shop_override(
         return {"message": f"Override for {feature_name} removed successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+# Shop Management Endpoints (Superadmin only)
+
+@router.post("/shops", response_model=APIResponse)
+def create_shop(
+    shop_data: ShopCreateRequest,
+    db: Session = Depends(get_db)
+):
+    """Superadmin creates a new shop"""
+    from ..services.shop_service import ShopService
+    result = ShopService(db).create_shop(shop_data)
+    return result
+
+@router.post("/shops/{shop_id}/users", response_model=APIResponse)
+def add_users_to_shop(
+    shop_id: int,
+    users_data: list[UserCreateRequest],
+    db: Session = Depends(get_db)
+):
+    """Superadmin adds users to shop"""
+    from ..services.user_service import UserService
+    result = UserService(db).add_users_to_shop(shop_id, users_data)
+    return result
+
+@router.post("/shops/{shop_id}/products", response_model=APIResponse)
+def assign_products_to_shop(
+    shop_id: int,
+    product_data: ProductAssignRequest,
+    db: Session = Depends(get_db)
+):
+    """Superadmin assigns products to shop"""
+    from ..services.product_service import ProductService
+    result = ProductService(db).assign_products_to_shop(shop_id, product_data)
+    return result
+
+@router.post("/shops/{shop_id}/activate", response_model=APIResponse)
+def activate_shop(
+    shop_id: int,
+    db: Session = Depends(get_db)
+):
+    """Superadmin activates a shop"""
+    from ..services.shop_service import ShopService
+    result = ShopService(db).activate_shop(shop_id)
+    return result
 
 # Account Management Endpoints
 
