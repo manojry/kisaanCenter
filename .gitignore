@@ -177,4 +177,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
+.pytest_cache/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
