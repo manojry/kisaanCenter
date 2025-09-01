@@ -23,7 +23,7 @@ class AuthService:
             # First check superadmin table
             superadmin = db.query(Superadmin).filter(
                 Superadmin.username == username,
-                Superadmin.status == RecordStatus.ACTIVE
+                Superadmin.status == 'active'
             ).first()
             
             user = None
@@ -38,7 +38,7 @@ class AuthService:
                 # Check user table
                 user = db.query(User).filter(
                     User.username == username,
-                    User.status == RecordStatus.ACTIVE
+                    User.status == 'active'
                 ).first()
                 
                 if not user or not SecurityUtils.verify_password(password, user.password_hash):
@@ -99,7 +99,7 @@ class AuthService:
         """Get active user by ID"""
         return db.query(User).filter(
             User.id == user_id,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).first()
     
     @staticmethod
@@ -107,5 +107,5 @@ class AuthService:
         """Get active user by username"""
         return db.query(User).filter(
             User.username == username,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).first()

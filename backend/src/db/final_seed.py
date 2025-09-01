@@ -147,6 +147,9 @@ def seed_basic_data():
         ]
         
         for plan_data in plans:
+            # Ensure status is always lowercase 'active'
+            if 'status' in plan_data and plan_data['status'] == 'ACTIVE':
+                plan_data['status'] = 'active'
             # Check if plan already exists
             existing = session.query(Plan).filter(Plan.name == plan_data["name"]).first()
             if not existing:

@@ -7,7 +7,7 @@ from src.models import User, UserRole, RecordStatus
 def test_superadmin_exists(db_session):
     user = db_session.query(User).filter_by(role=UserRole.SUPERADMIN).first()
     assert user is not None, "No superadmin user found"
-    assert user.status == RecordStatus.ACTIVE
+    assert user.status == 'active'
 
 def test_owner_and_employees(db_session):
     owner = db_session.query(User).filter_by(role=UserRole.OWNER).first()
@@ -15,7 +15,7 @@ def test_owner_and_employees(db_session):
     employees = db_session.query(User).filter_by(role=UserRole.EMPLOYEE).all()
     assert len(employees) >= 1, "No employees found"
     for emp in employees:
-        assert emp.status == RecordStatus.ACTIVE
+        assert emp.status == 'active'
 
 def test_farmers_and_buyers(db_session):
     farmers = db_session.query(User).filter_by(role=UserRole.FARMER).all()
@@ -23,6 +23,6 @@ def test_farmers_and_buyers(db_session):
     assert len(farmers) >= 1, "No farmers found"
     assert len(buyers) >= 1, "No buyers found"
     for farmer in farmers:
-        assert farmer.status == RecordStatus.ACTIVE
+        assert farmer.status == 'active'
     for buyer in buyers:
-        assert buyer.status == RecordStatus.ACTIVE
+        assert buyer.status == 'active'

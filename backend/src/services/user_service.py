@@ -103,6 +103,21 @@ class UserService:
     
     @staticmethod
     def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: Optional[int] = None, contact: str = None, credit_limit: float = 0.0, status: str = "active"):
+        # Explicit validation before DB insert
+        errors = []
+        if not username or len(username) < 3:
+            errors.append("Username must be at least 3 characters long.")
+        if not password_hash:
+            errors.append("Password is required.")
+        if not role:
+            errors.append("Role is required.")
+        if role not in ["superadmin", "owner", "farmer", "buyer", "employee"]:
+            errors.append(f"Role '{role}' is not valid.")
+        if role not in ["owner", "superadmin"] and not shop_id:
+            errors.append("shop_id is required for non-owner/non-superadmin roles.")
+        if errors:
+            return APIResponse(success=False, message="Validation failed.", errors=errors)
+
         from sqlalchemy.exc import IntegrityError
         import logging
         logger = logging.getLogger(__name__)

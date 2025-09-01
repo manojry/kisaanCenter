@@ -13,7 +13,8 @@ This package contains all Pydantic models for request/response validation
 """
 
 # Import individual schema modules
-from .user_schemas import *
+from .user import *
+from .farmer_stock_schemas import *
 from .shop_schemas import *
 from .subscription_schemas import *
 from .plan_schemas import *

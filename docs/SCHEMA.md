@@ -1,63 +1,56 @@
 # Database Schema Documentation
 
-Generated on: 2025-08-30 20:54:55.603184
+Generated on: 2025-09-01
 
 ## Enums
 
-### recordstatus_old
+### RecordStatus
 Possible values:
-- ACTIVE
-- INACTIVE
-- DELETED
+- active
+- inactive
+- deleted
 
-### userrole
+### UserRole
 Possible values:
-- SUPERADMIN
-- OWNER
-- EMPLOYEE
-- FARMER
-- BUYER
-- GUEST
+- superadmin
+- owner
+- farmer
+- buyer
+- employee
 
-### transactionstatus
+### TransactionStatus
 Possible values:
-- PENDING
-- CONFIRMED
-- CANCELLED
+- pending
+- processing
+- completed
+- cancelled
 
-### paymentstatus
+### PaymentStatus
 Possible values:
-- PENDING
-- PARTIAL
-- COMPLETE
+- pending
+- partial
+- completed
+- failed
 
-### completionstatus
+### CompletionStatus
 Possible values:
-- PENDING
-- PARTIAL
-- COMPLETE
-- CANCELLED
+- incomplete
+- complete
 
-### stockstatus
+### CreditStatus
 Possible values:
-- ACTIVE
-- CLOSED
-- RETURNED
-- DISCARDED
+- outstanding
+- partial
+- paid
+- overdue
 
-### transactiontype
+### PaymentType
 Possible values:
-- SALE
-- RETURN
-- ADJUSTMENT
+- full_payment
+- partial_payment
+- advance
+- cancelled
 
-### creditstatus
-Possible values:
-- OUTSTANDING
-- PARTIAL
-- SETTLED
-
-### paymenttype
 Possible values:
 - PAYMENT
 - ADVANCE
@@ -197,67 +190,196 @@ Possible values:
 
 ## Tables
 
-### subscription
-
-#### Columns
-
+### users
 | Name | Type | Nullable | Default | Constraints |
-|------|------|----------|----------|-------------|
-| id | integer | NO | nextval('subscription_id_seq'::regclass) | PRIMARY KEY |
-| shop_id | integer | NO | NULL | None |
-| plan_id | integer | NO | NULL | REFERENCES plan(id) |
-| billing_cycle | USER-DEFINED | YES | NULL | None |
-| start_date | date | NO | NULL | None |
-| end_date | date | NO | NULL | None |
-| auto_renew | boolean | YES | NULL | None |
-| status | USER-DEFINED | YES | NULL | None |
-| payment_status | USER-DEFINED | YES | NULL | None |
-| amount | numeric | NO | NULL | None |
-| discount_amount | numeric | YES | NULL | None |
-| created_at | timestamp without time zone | YES | NULL | None |
-| updated_at | timestamp without time zone | YES | NULL | None |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| username | varchar(50) | NO | | UNIQUE, INDEX |
+| password_hash | varchar(255) | NO | | |
+| role | enum(UserRole) | NO | | |
+| contact | varchar(15) | YES | | |
+| shop_id | integer | YES | | FK shops.id |
+| credit_limit | numeric(12,2) | YES | 0.00 | |
+| status | enum(RecordStatus) | YES | active | |
+| created_by | integer | YES | | FK users.id |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
 
-### category
-
-#### Columns
-
+### shops
 | Name | Type | Nullable | Default | Constraints |
-|------|------|----------|----------|-------------|
-| id | integer | NO | nextval('category_id_seq'::regclass) | PRIMARY KEY |
-| name | character varying | NO | NULL | None |
-| description | text | YES | NULL | None |
-| created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP | None |
-| updated_at | timestamp without time zone | YES | CURRENT_TIMESTAMP | None |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| name | varchar(100) | NO | | |
+| address | text | YES | | |
+| location | varchar(255) | YES | | |
+| contact | varchar(15) | YES | | |
+| commission_rate | numeric(5,2) | YES | 0.00 | |
+| owner_user_id | integer | YES | | FK users.id |
+| plan_id | integer | YES | | FK plans.id |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
 
-### transaction
-
-#### Columns
-
+### categories
 | Name | Type | Nullable | Default | Constraints |
-|------|------|----------|----------|-------------|
-| id | integer | NO | nextval('transaction_id_seq'::regclass) | PRIMARY KEY |
-| shop_id | integer | NO | NULL | None |
-| buyer_user_id | integer | NO | NULL | None |
-| parent_transaction_id | integer | YES | NULL | REFERENCES transaction(id) |
-| type | character varying | YES | 'sale'::character varying | None |
-| status | character varying | YES | 'active'::character varying | None |
-| commission_rate | numeric | YES | 0.00 | None |
-| commission_amount | numeric | YES | 0.00 | None |
-| payment_status | character varying | YES | 'pending'::character varying | None |
-| buyer_paid_amount | numeric | YES | 0.00 | None |
-| farmer_paid_amount | numeric | YES | 0.00 | None |
-| commission_confirmed | boolean | YES | false | None |
-| completion_status | character varying | YES | 'pending'::character varying | None |
-| date | date | NO | NULL | None |
-| created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP | None |
-| updated_at | timestamp without time zone | YES | CURRENT_TIMESTAMP | None |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| name | varchar(100) | NO | | UNIQUE |
+| description | text | YES | | |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
 
-### transaction_item
-
-#### Columns
-
+### products
 | Name | Type | Nullable | Default | Constraints |
-|------|------|----------|----------|-------------|
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| name | varchar(100) | NO | | |
+| description | text | YES | | |
+| category_id | integer | YES | | FK categories.id |
+| price | numeric(10,2) | YES | | |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### farmer_stock
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| farmer_user_id | integer | YES | | FK users.id |
+| product_id | integer | YES | | FK products.id |
+| declared_qty | numeric(10,3) | YES | NULL | |
+| sold_qty | numeric(10,3) | YES | 0.000 | |
+| balance_qty | numeric(10,3) | YES | NULL | |
+| price | numeric(10,2) | NO | | |
+| status | enum(StockStatus) | YES | in_stock | |
+| record_status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### transactions
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| shop_id | integer | YES | | FK shops.id |
+| buyer_id | integer | YES | | FK users.id |
+| parent_transaction_id | integer | YES | | FK transactions.id |
+| type | enum(TransactionType) | YES | sale | |
+| status | enum(TransactionStatus) | YES | pending | |
+| commission_rate | numeric(5,2) | YES | 0.00 | |
+| commission_amount | numeric(12,2) | YES | 0.00 | |
+| payment_status | enum(PaymentStatus) | YES | unpaid | |
+| buyer_paid_amount | numeric(12,2) | YES | 0.00 | |
+| farmer_paid_amount | numeric(12,2) | YES | 0.00 | |
+| commission_confirmed | boolean | YES | false | |
+| completion_status | enum(CompletionStatus) | YES | pending | |
+| date | date | NO | | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### transaction_items
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| transaction_id | integer | YES | | FK transactions.id |
+| product_id | integer | YES | | FK products.id |
+| farmer_id | integer | YES | | FK users.id |
+| farmer_stock_id | integer | YES | | FK farmer_stock.id |
+| quantity | numeric(10,3) | NO | | |
+| price | numeric(10,2) | NO | | |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+
+### payment_methods
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| name | varchar(50) | NO | | UNIQUE |
+| description | text | YES | | |
+| is_active | boolean | YES | true | |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### payments
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| transaction_id | integer | YES | | FK transactions.id |
+| credit_id | integer | YES | | FK credits.id |
+| amount | numeric(12,2) | NO | | |
+| payment_method_id | integer | YES | | FK payment_methods.id |
+| type | enum(PaymentType) | NO | | |
+| status | enum(RecordStatus) | YES | active | |
+| date | date | NO | | |
+| reference_number | varchar(100) | YES | | |
+| notes | text | YES | | |
+| processed_by | integer | YES | | FK users.id |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### farmer_payments
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| transaction_id | integer | YES | | FK transactions.id |
+| farmer_stock_id | integer | YES | | FK farmer_stock.id |
+| farmer_user_id | integer | YES | | FK users.id |
+| amount | numeric(12,2) | NO | | |
+| payment_type | enum(FarmerPaymentType) | NO | | |
+| payment_method_id | integer | YES | | FK payment_methods.id |
+| remarks | text | YES | | |
+| date | date | NO | | |
+| reference_number | varchar(100) | YES | | |
+| approved_by | integer | YES | | FK users.id |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### credits
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| user_id | integer | YES | | FK users.id |
+| amount | numeric(12,2) | NO | | |
+| status | enum(CreditStatus) | YES | outstanding | |
+| record_status | enum(RecordStatus) | YES | active | |
+| address | text | YES | | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### plans
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| name | varchar(100) | NO | | |
+| description | text | YES | | |
+| monthly_price | numeric(10,2) | NO | | |
+| max_farmers | integer | NO | | |
+| max_buyers | integer | NO | | |
+| max_transactions | integer | NO | | |
+| data_retention_months | integer | NO | | |
+| features | json | YES | | |
+| status | enum(RecordStatus) | YES | active | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
+
+### subscriptions
+| Name | Type | Nullable | Default | Constraints |
+|------|------|----------|---------|-------------|
+| id | integer | NO | | PRIMARY KEY |
+| shop_id | integer | YES | | FK shops.id |
+| plan_id | integer | YES | | FK plans.id |
+| billing_cycle | enum(BillingCycle) | YES | monthly | |
+| auto_renew | boolean | YES | true | |
+| start_date | date | YES | | |
+| end_date | date | YES | | |
+| status | enum(SubscriptionStatus) | YES | active | |
+| payment_status | enum(PaymentStatus) | YES | unpaid | |
+| amount | numeric(10,2) | YES | | |
+| discount_amount | numeric(10,2) | YES | | |
+| created_at | datetime | YES | now | |
+| updated_at | datetime | YES | now | |
 | id | integer | NO | nextval('transaction_item_id_seq'::regclass) | PRIMARY KEY |
 | transaction_id | integer | NO | NULL | REFERENCES transaction(id) |
 | product_id | integer | NO | NULL | REFERENCES product(id) |

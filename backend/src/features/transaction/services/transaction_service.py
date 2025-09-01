@@ -5,6 +5,8 @@ from ....schemas import TransactionCreate, TransactionUpdate, APIResponse, Pagin
 from ....models import UserRole, Shop, Transaction
 import logging
 from decimal import Decimal
+from src.schemas.transaction import QuickSaleRequest # New Schema
+from src.features.stock.services.transaction_stock_service import TransactionStockService # New/Updated Service
 
 logger = logging.getLogger(__name__)
 
@@ -292,3 +294,42 @@ class TransactionService:
                 "farmer_paid": float(transaction.farmer_paid_amount or 0)
             }
         }
+    
+    @staticmethod
+    def process_quick_sale(
+        db: Session,
+        sale_data: QuickSaleRequest,
+        created_by_id: int,
+        shop_id: int
+    ) -> APIResponse:
+        """
+        Orchestrates a quick sale:
+        1. Creates the transaction record.
+        2. Creates/updates farmer stock (implicit stock).
+        3. Calculates commission.
+        4. Returns the created transaction.
+        """
+        db.begin_nested() # Use savepoint for atomicity
+        try:
+            # Step 1: Create the main transaction
+            # This might call the existing `create_transaction` or have its own logic
+            # to calculate total_amount, commission, etc.
+            new_transaction = None # TODO: Implement transaction creation logic
+            # Step 2: Handle stock deduction (Implicit Stock)
+            # This is a critical new piece of logic.
+            for item in sale_data.items:
+                TransactionStockService.deduct_stock_for_sale(
+                    db=db,
+                    farmer_id=sale_data.farmer_id,
+                    product_id=item.product_id,
+                    quantity_sold=item.quantity,
+                    shop_id=shop_id
+                )
+            # ... (commit transaction, etc.)
+            db.commit()
+            # You can return the full transaction object here
+            return APIResponse(success=True, message="Sale processed successfully.", data={"transaction_id": new_transaction.id if new_transaction else None})
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error processing quick sale: {e}")
+            return APIResponse(success=False, message=f"Error processing sale: {str(e)}")

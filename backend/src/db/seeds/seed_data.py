@@ -87,7 +87,7 @@ class DatabaseSeeder:
             "password_hash": "hashed_password_superadmin",
             "email": "admin@kisaancenter.com",
             "contact": "+91-9876543210",
-            "status": RecordStatus.ACTIVE
+            "status": 'active'
         }]
         return self._seed_data(Superadmin, superadmin_data, 'superadmins')
 
@@ -106,7 +106,7 @@ class DatabaseSeeder:
                 "billing_cycle": "monthly",
                 "max_users": 5,
                 "max_transactions": 500,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "name": "Standard",
@@ -115,7 +115,7 @@ class DatabaseSeeder:
                 "billing_cycle": "monthly",
                 "max_users": 15,
                 "max_transactions": 2000,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "name": "Premium",
@@ -124,7 +124,7 @@ class DatabaseSeeder:
                 "billing_cycle": "monthly",
                 "max_users": 50,
                 "max_transactions": 10000,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             }
         ]
         
@@ -181,7 +181,7 @@ class DatabaseSeeder:
                 "location": "123 Market Street, Test City",
                 "plan_id": plan.id,
                 "created_by": superadmin.id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             }
         ]
         
@@ -229,7 +229,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000001",
                 "credit_limit": Decimal("0.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             # Farmers
             {
@@ -239,7 +239,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000002",
                 "credit_limit": Decimal("0.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "username": "farmer2",
@@ -248,7 +248,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000003",
                 "credit_limit": Decimal("0.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             # Buyers
             {
@@ -258,7 +258,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000004",
                 "credit_limit": Decimal("10000.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "username": "buyer2",
@@ -267,7 +267,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000005",
                 "credit_limit": Decimal("5000.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             # Employee
             {
@@ -277,7 +277,7 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "contact": "+91-9000000006",
                 "credit_limit": Decimal("0.00"),
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             }
         ]
         
@@ -296,31 +296,31 @@ class DatabaseSeeder:
                 "shop_id": shop.id,
                 "name": "Basmati Rice",
                 "category_id": self.created_objects['categories'][0].id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "shop_id": shop.id,
                 "name": "Wheat",
                 "category_id": self.created_objects['categories'][0].id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "shop_id": shop.id,
                 "name": "Tomatoes",
                 "category_id": self.created_objects['categories'][1].id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "shop_id": shop.id,
                 "name": "Onions",
                 "category_id": self.created_objects['categories'][1].id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             },
             {
                 "shop_id": shop.id,
                 "name": "Apples",
                 "category_id": self.created_objects['categories'][2].id,
-                "status": RecordStatus.ACTIVE
+                "status": 'active'
             }
         ]
         
@@ -405,7 +405,7 @@ class DatabaseSeeder:
                         farmer_stock_id=stock.id,
                         quantity=quantity,
                         price=price,
-                        status=RecordStatus.ACTIVE
+                        status='active'
                     )
                     session.add(transaction_item)
                     

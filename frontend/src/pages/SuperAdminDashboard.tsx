@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plan, Shop, User } from '../types/entities';
 import { fetchAllPlans } from '../services/planApi';
+import { apiClient } from '../services/api';
 import AuditLogViewer from '../features/audit/components/AuditLogViewer';
 import PlanManager from '../features/shop/components/PlanManager';
 import PlanEditor from '../components/PlanEditor';
@@ -27,22 +28,17 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load shops, plans, and owners
+      // Load shops, plans, and owners using apiClient
       const [shopsRes, usersRes] = await Promise.all([
-        fetch('/api/v1/shops'),
-        fetch('/api/v1/users?role=owner')
-      ]);
-
-      const [shopsData, usersData] = await Promise.all([
-        shopsRes.json(),
-        usersRes.json()
+        apiClient.get<Shop[]>('/shops'),
+        apiClient.get<User[]>('/users?role=owner')
       ]);
 
       // Load plans using the dedicated API function
       const plansData = await fetchAllPlans();
 
-      if (shopsData.success && Array.isArray(shopsData.data)) setShops(shopsData.data);
-      if (usersData.success && Array.isArray(usersData.data)) setOwners(usersData.data);
+      if (shopsRes.success && Array.isArray(shopsRes.data)) setShops(shopsRes.data);
+      if (usersRes.success && Array.isArray(usersRes.data)) setOwners(usersRes.data);
       setPlans(plansData);
     } catch (error) {
       console.error('Failed to load data:', error);

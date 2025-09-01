@@ -1,36 +1,29 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
-class CreditCreate(BaseModel):
-    user_id: int = Field(..., gt=0)
-    shop_id: int = Field(..., gt=0)
-    amount: Decimal = Field(..., gt=0)
-    credit_type: Optional[str] = Field("buyer_credit", max_length=50)
-    description: Optional[str] = Field(None, max_length=255)
-    status: Optional[str] = Field("active", max_length=20)
+class CreditBase(BaseModel):
+    transaction_id: int
+    buyer_user_id: int
+    shop_id: int
+    total_amount: Decimal = Field(..., gt=0)
+    due_date: Optional[date] = None
+
+class CreditCreate(CreditBase):
+    pass
 
 class CreditUpdate(BaseModel):
-    amount: Optional[Decimal] = Field(None, gt=0)
-    credit_type: Optional[str] = Field(None, max_length=50)
-    description: Optional[str] = Field(None, max_length=255)
-    status: Optional[str] = Field(None, max_length=20)
+    paid_amount: Optional[Decimal] = Field(None, ge=0)
+    due_date: Optional[date] = None
+    status: Optional[str] = None
 
-class CreditRead(BaseModel):
+class CreditRead(CreditBase):
     id: int
-    user_id: int
-    shop_id: int
-    amount: Decimal
-    credit_type: str
-    description: Optional[str] = None
+    paid_amount: Decimal
+    outstanding_amount: Decimal
     status: str
     created_at: datetime
     updated_at: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
-
-class CreditReadWithRelations(CreditRead):
-    """Credit read schema with relationship data"""
-    user: Optional[dict] = None
-    shop: Optional[dict] = None
+    class Config:
+        from_attributes = True

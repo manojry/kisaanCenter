@@ -91,7 +91,7 @@ class SubscriptionService:
             
             # Get new plan
             new_plan = session.query(Plan).filter(Plan.id == new_plan_id).first()
-            if not new_plan or new_plan.status != RecordStatus.ACTIVE:
+            if not new_plan or new_plan.status != RecordStatus.ACTIVE.value:
                 raise ValueError(f"Plan {new_plan_id} not found or inactive")
             
             # Record subscription history

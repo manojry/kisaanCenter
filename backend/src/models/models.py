@@ -22,11 +22,14 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), nullable=False)
+    role = Column(
+        Enum(UserRole, name="user_role", values_callable=lambda obj: [e.value.lower() for e in obj]),
+        nullable=False
+    )
     contact = Column(String(15))
     shop_id = Column(Integer, ForeignKey("shops.id"))
     credit_limit = Column(Numeric(12,2), default=0.00)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -49,7 +52,10 @@ class Shop(Base):
     commission_rate = Column(Numeric(5,2), default=0.00)
     owner_user_id = Column(Integer, ForeignKey("users.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value.lower() for e in obj]),
+        default='active'
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -66,7 +72,10 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value for e in obj]),
+        default='active'
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -81,7 +90,10 @@ class Product(Base):
     description = Column(Text)
     category_id = Column(Integer, ForeignKey("categories.id"))
     price = Column(Numeric(10,2))
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value for e in obj]),
+        default='active'
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -96,10 +108,20 @@ class FarmerStock(Base):
     id = Column(Integer, primary_key=True, index=True)
     farmer_user_id = Column(Integer, ForeignKey("users.id"))
     product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Numeric(10,3), default=0.000)
+    declared_qty = Column(Numeric(10,3), nullable=True)
+    sold_qty = Column(Numeric(10,3), default=0.000)
+    balance_qty = Column(Numeric(10,3), nullable=True)
+    expired_qty = Column(Numeric(10,3), default=0.000)  # New: track expired stock
+    correction_qty = Column(Numeric(10,3), default=0.000)  # New: track corrections
     price = Column(Numeric(10,2), nullable=False)
-    status = Column(Enum(StockStatus), default=StockStatus.IN_STOCK)
-    record_status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(
+        Enum(StockStatus, name="stock_status", values_callable=lambda obj: [e.value for e in obj]),
+        default=StockStatus.IN_STOCK
+    )
+    record_status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value for e in obj]),
+        default='active'
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -120,6 +142,9 @@ class Transaction(Base):
     status = Column(Enum(TransactionStatus), default=TransactionStatus.PENDING)
     commission_rate = Column(Numeric(5,2), default=0.00)
     commission_amount = Column(Numeric(12,2), default=0.00)
+    payment_type = Column(Enum(PaymentType), nullable=False)  # New: track payment type
+    is_cancelled = Column(Boolean, default=False)  # New: support cancellation
+    cancelled_at = Column(DateTime, nullable=True)  # New: support cancellation
     payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.UNPAID)
     buyer_paid_amount = Column(Numeric(12,2), default=0.00)
     farmer_paid_amount = Column(Numeric(12,2), default=0.00)
@@ -147,7 +172,7 @@ class TransactionItem(Base):
     farmer_stock_id = Column(Integer, ForeignKey("farmer_stock.id"))
     quantity = Column(Numeric(10,3), nullable=False)
     price = Column(Numeric(10,2), nullable=False)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -163,7 +188,7 @@ class PaymentMethod(Base):
     name = Column(String(50), unique=True, nullable=False)
     description = Column(Text)
     is_active = Column(Boolean, default=True)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -180,7 +205,7 @@ class Payment(Base):
     amount = Column(Numeric(12,2), nullable=False)
     payment_method_id = Column(Integer, ForeignKey("payment_methods.id"))
     type = Column(Enum(PaymentType), nullable=False)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     date = Column(Date, nullable=False)
     reference_number = Column(String(100))
     notes = Column(Text)
@@ -208,7 +233,7 @@ class FarmerPayment(Base):
     date = Column(Date, nullable=False)
     reference_number = Column(String(100))
     approved_by = Column(Integer, ForeignKey("users.id"))
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -226,7 +251,7 @@ class Credit(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     amount = Column(Numeric(12,2), nullable=False)
     status = Column(Enum(CreditStatus), default=CreditStatus.OUTSTANDING)
-    record_status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    record_status = Column(Enum(RecordStatus), default='active')
     address = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -247,7 +272,7 @@ class Plan(Base):
     max_transactions = Column(Integer, nullable=False)
     data_retention_months = Column(Integer, nullable=False)
     features = Column(JSON)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(Enum(RecordStatus), default='active')
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -262,6 +287,17 @@ class Subscription(Base):
     shop_id = Column(Integer, ForeignKey("shops.id"))
     plan_id = Column(Integer, ForeignKey("plans.id"))
     billing_cycle = Column(Enum(BillingCycle), default=BillingCycle.MONTHLY)
+# FarmerLedger (new model for farmer-wise ledger aggregation)
+class FarmerLedger(Base):
+    __tablename__ = "farmer_ledger"
+    id = Column(Integer, primary_key=True)
+    farmer_id = Column(Integer, ForeignKey("users.id"))
+    balance = Column(Numeric(12,2), default=0.00)
+    last_settlement = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Relationships
+    farmer = relationship("User")
     auto_renew = Column(Boolean, default=True)
     start_date = Column(Date)
     end_date = Column(Date)

@@ -488,13 +488,13 @@ class SuperAdminControlService:
             return self.db.query(User).filter(
                 User.shop_id == shop_id,
                 User.role.in_(['farmer']),
-                User.status == RecordStatus.ACTIVE
+                User.status == 'active'
             ).count()
         elif resource_type == 'max_buyers':
             return self.db.query(User).filter(
                 User.shop_id == shop_id,
                 User.role.in_(['buyer']),
-                User.status == RecordStatus.ACTIVE
+                User.status == 'active'
             ).count()
         return 0
     
@@ -551,13 +551,13 @@ class ShopAnalyticsService:
         farmer_count = self.db.query(User).filter(
             User.shop_id == shop_id,
             User.role.in_(['farmer']),
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).count()
         
         buyer_count = self.db.query(User).filter(
             User.shop_id == shop_id,
             User.role.in_(['buyer']),
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).count()
         
         # Get transaction metrics (would need Transaction model)

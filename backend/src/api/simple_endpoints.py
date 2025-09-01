@@ -32,7 +32,32 @@ def hash_password(password: str) -> str:
     """Hash password for storage"""
     return hashlib.sha256(password.encode()).hexdigest()
 
+from ..features.auth.services.auth_service import AuthService
+from ..schemas import APIResponse
+from fastapi import Body
+
 # USER ENDPOINTS
+
+@users_router.post("/login", response_model=APIResponse, summary="Login with JSON body")
+def login_user_json(
+    payload: dict = Body(..., examples={
+        "default": {
+            "summary": "Superadmin login",
+            "value": {"username": "superadmin", "password": "admin123"}
+        }
+    }),
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate user credentials from JSON body and get access token.
+    """
+    username = payload.get("username")
+    password = payload.get("password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    result = AuthService.authenticate_user(db, username, password)
+    return result
+
 @users_router.post("/")
 def create_user(
     username: str,
@@ -48,7 +73,6 @@ def create_user(
     """Create a new user"""
     try:
         password_hash = hash_password(password)
-        
         # Insert user
         result = db.execute(text("""
             INSERT INTO users (username, password_hash, role, shop_id, contact, credit_limit, status, created_by)
@@ -64,10 +88,8 @@ def create_user(
             "status": status,
             "created_by": created_by
         })
-        
         user = result.fetchone()
         db.commit()
-        
         return success_response("User created successfully", {
             "id": user.id,
             "username": user.username,
@@ -78,7 +100,6 @@ def create_user(
             "status": user.status,
             "created_by": user.created_by
         })
-        
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating user: {e}")

@@ -12,7 +12,7 @@ from typing import Optional, Union, Any
 
 # Try to import optional security libraries with fallbacks
 try:
-    import jwt
+    from jose import jwt
 except ImportError:
     jwt = None
 
@@ -67,48 +67,19 @@ class SecurityUtils:
         return pwd_context.verify(plain_password, hashed_password)
     
     @staticmethod
-    def create_access_token(
-        subject: Union[str, Any], 
-        expires_delta: Optional[timedelta] = None,
-        additional_claims: Optional[dict] = None,
-        token_type: str = "access"
-    ) -> str:
-        """Create a JWT token with expiry."""
-        if not jwt:
-            # Fallback with secure token format
-            from secrets import token_urlsafe
-            from base64 import b64encode
-            import json
-            
-            exp = int((datetime.utcnow() + (expires_delta or timedelta(minutes=30))).timestamp())
-            claims = {
-                "sub": str(subject),
-                "exp": exp,
-                "type": token_type,
-                "jti": token_urlsafe(32)  # Unique token ID
-            }
-            if additional_claims:
-                claims.update(additional_claims)
-                
-            token_data = b64encode(json.dumps(claims).encode()).decode()
-            signature = SecurityUtils.hash_password(token_data)[:32]  # Use first 32 chars
-            return f"{token_data}.{signature}"
-            
-        expires = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-        to_encode = {
-            "exp": expires,
-            "sub": str(subject),
-            "type": token_type,
-            "jti": token_urlsafe(32)  # Unique token ID
-        }
-        
-        if additional_claims:
-            to_encode.update(additional_claims)
-            
+    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        """Create a JWT token with expiry using python-jose. No fallback allowed."""
+        from jose import jwt
+        expire = datetime.utcnow() + (expires_delta or timedelta(minutes=60))
+        to_encode = data.copy()
+        to_encode.update({
+            "exp": expire,
+            "sub": str(data.get("user_id", data.get("sub", "")))
+        })
         encoded_jwt = jwt.encode(
-            to_encode, 
-            settings.SECRET_KEY, 
-            algorithm=settings.ALGORITHM
+            to_encode,
+            settings.security.secret_key.get_secret_value(),
+            algorithm=settings.security.algorithm
         )
         return encoded_jwt
     
@@ -126,8 +97,8 @@ class SecurityUtils:
         }
         encoded_jwt = jwt.encode(
             to_encode, 
-            settings.SECRET_KEY, 
-            algorithm=settings.ALGORITHM
+            settings.security.secret_key.get_secret_value(), 
+            algorithm=settings.security.algorithm
         )
         return encoded_jwt
     
@@ -148,8 +119,8 @@ class SecurityUtils:
         try:
             payload = jwt.decode(
                 token, 
-                settings.SECRET_KEY, 
-                algorithms=[settings.ALGORITHM]
+                settings.security.secret_key.get_secret_value(), 
+                algorithms=[settings.security.algorithm]
             )
             
             if payload.get("type") != token_type:
@@ -170,6 +141,11 @@ class SecurityUtils:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials"
             )
+    
+    @staticmethod
+    def validate_token(token: str, token_type: str = "access") -> dict:
+        """Validate and decode a JWT token (alias for verify_token for compatibility)."""
+        return SecurityUtils.verify_token(token, token_type)
     
     @staticmethod
     def get_user_id_from_token(token: str) -> str:

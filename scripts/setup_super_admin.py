@@ -6,14 +6,17 @@ Creates a default super admin user with known credentials for initial access
 
 import sys
 import os
-import hashlib
 from datetime import datetime
 
 # Add the backend src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend', 'src'))
 
-from db.connection import get_db_session
-from models import Superadmin, RecordStatus
+from src.db.connection import get_db_session
+from src.models import Superadmin
+
+# Use passlib for bcrypt hashing (recommended for python-jose setups)
+from passlib.context import CryptContext
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_super_admin():
     """Create default super admin account"""
@@ -22,8 +25,8 @@ def create_super_admin():
     email = "admin@kisaancenter.com"
     contact = "+91-9876543210"
     
-    # Hash the password using the same method as the authentication system
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    # Hash the password using bcrypt
+    password_hash = pwd_context.hash(password)
     
     try:
         with get_db_session() as session:
@@ -41,9 +44,7 @@ def create_super_admin():
             super_admin = Superadmin(
                 username=username,
                 password_hash=password_hash,
-                email=email,
-                contact=contact,
-                status=RecordStatus.ACTIVE,
+                    status='active',
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -78,5 +79,5 @@ if __name__ == "__main__":
         print("   • API: http://localhost:8000")
         print("   • Docs: http://localhost:8000/docs")
     else:
-        print("\n❌ Setup failed. Please check the error messages above.")
+        print("\n❌ Setup failed. Please check the errors above.")
         sys.exit(1)
