@@ -6,6 +6,7 @@ import AuditLogViewer from '../features/audit/components/AuditLogViewer';
 import PlanManager from '../features/shop/components/PlanManager';
 import PlanEditor from '../components/PlanEditor';
 import OwnerCreator from '../features/user/components/OwnerCreator';
+import VirtualizedTable from '../components/VirtualizedTable';
 
 interface SuperAdminDashboardProps {
   user: User;
@@ -196,40 +197,29 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
                 
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4">Existing Owners</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shop</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {owners.map((owner) => (
-                          <tr key={owner.id}>
-                            <td className="px-6 py-4 whitespace-nowrap font-medium">{owner.username}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-900">{owner.contact || 'N/A'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                              {Array.isArray(shops) ? shops.find(s => s.owner_user_id === owner.id)?.name || 'No shop assigned' : 'No shop assigned'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                owner.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {owner.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                              {new Date(owner.created_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <VirtualizedTable
+                    data={owners}
+                    columns={[
+                      { key: 'username', label: 'Username' },
+                      { key: 'contact', label: 'Contact', render: (value: unknown) => String(value) || 'N/A' },
+                      { key: 'id', label: 'Shop', render: (_, owner) => Array.isArray(shops) ? shops.find(s => s.owner_user_id === owner.id)?.name || 'No shop assigned' : 'No shop assigned' },
+                      { key: 'status', label: 'Status', render: (value) => (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          value === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {String(value)}
+                        </span>
+                      ) },
+                      { key: 'created_at', label: 'Created', render: (value: unknown) => {
+                        if (typeof value === 'string' || typeof value === 'number' || value instanceof Date) {
+                          return new Date(value).toLocaleDateString();
+                        }
+                        return 'N/A';
+                      } },
+                    ]}
+                    height={400}
+                    rowHeight={48}
+                  />
                 </div>
               </div>
             )}

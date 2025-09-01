@@ -1,11 +1,22 @@
 // API endpoint constants matching backend
 export const ENDPOINTS = {
-  // Health
+  LOGIN: '/users/auth/login',
+  LOGOUT: '/users/auth/logout',
+  REFRESH_TOKEN: '/users/auth/refresh',
+  OWNER_RESET_PASSWORD: (shopId: number, userId: number) => `/owner-admin/shops/${shopId}/users/${userId}/password`,
+  OWNER_COMMISSION: (shopId: number) => `/owner-admin/shops/${shopId}/commission`,
+  OWNER_ASSIGN_PRODUCTS: (shopId: number) => `/owner-admin/shops/${shopId}/products`,
+  OWNER_SHOP_PRODUCTS: (shopId: number) => `/owner-admin/shops/${shopId}/products`,
+  DASHBOARD_OWNER: (shopId: number) => `/dashboard/shop/${shopId}`,
+  DASHBOARD_SUMMARY: (shopId: number) => `/dashboard/shop/${shopId}/summary`,
+  DASHBOARD_ALERTS: (shopId: number) => `/dashboard/shop/${shopId}/alerts`,
+  STOCK_FARMER: '/farmer-stock/',
+  STOCK_STATUS: (shopId: number) => `/farmer-stock/status/${shopId}`,
+  TRANSACTION_CONFIRM_COMMISSION: (transactionId: number) => `/transactions/${transactionId}/confirm-commission`,
+  TRANSACTION_SUMMARY: (transactionId: number) => `/transactions/${transactionId}/summary`,
+  TRANSACTION_INCOMPLETE: '/transactions/completion-status/pending',
   HEALTH: '/health',
   API_INFO: '/info',
-
-  // Authentication
-  LOGIN: '/users/auth/login',
 
   // Users
   USERS: '/users',
@@ -27,7 +38,6 @@ export const ENDPOINTS = {
   TRANSACTIONS: '/transactions',
   TRANSACTION_BY_ID: (id: number) => `/transactions/${id}`,
   CONFIRM_COMMISSION: (id: number) => `/transactions/${id}/confirm-commission`,
-  TRANSACTION_SUMMARY: (id: number) => `/transactions/${id}/summary`,
   SHOP_DASHBOARD: (shopId: number) => `/transactions/shop/${shopId}/dashboard`,
   INCOMPLETE_TRANSACTIONS: '/transactions/completion-status/pending',
 

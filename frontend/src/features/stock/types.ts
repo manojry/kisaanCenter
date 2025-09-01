@@ -1,3 +1,38 @@
+export interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+}
+
+export interface StockParams {
+  shop_id?: number;
+  farmer_id?: number;
+  status?: string;
+}
+
+export interface AddStockData {
+  shop_id: number;
+  farmer_user_id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  status?: string;
+  harvest_date?: string;
+  expiry_date?: string;
+  location?: string;
+  quality_grade?: string;
+  notes?: string;
+}
+
+export interface UpdateStockData {
+  quantity?: number;
+  unit_price?: number;
+  status?: string;
+  expiry_date?: string;
+  location?: string;
+  quality_grade?: string;
+  notes?: string;
+}
 import { User } from '../user/types';
 import { Product } from '../product/types';
 import { Shop } from '../shop/types';

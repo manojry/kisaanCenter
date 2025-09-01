@@ -60,43 +60,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   })
 
   useEffect(() => {
-    const user = authApi.getCurrentUser()
-    const token = localStorage.getItem('auth_token')
-    console.log('Initializing auth:', { user, hasToken: !!token })
-    dispatch({ type: 'INIT_AUTH', payload: user })
-  }, [])
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      let user: AuthUser | null = null;
+      if (token) {
+        const response = await authApi.getCurrentUser();
+        if (response.success && response.data) {
+          // Map User to AuthUser (add user_id, token)
+          user = {
+            ...response.data,
+            user_id: response.data.id,
+            token,
+            shop_id: response.data.shop_id ?? null,
+          };
+        }
+      }
+      dispatch({ type: 'INIT_AUTH', payload: user });
+    };
+    initializeAuth();
+  }, []);
 
   const login = async (username: string, password: string) => {
-    dispatch({ type: 'LOGIN_START' })
+    dispatch({ type: 'LOGIN_START' });
     try {
-      const response = await authApi.login({ username, password })
-      console.log('Login response:', response) // Debug log
+      const response = await authApi.login({ username, password });
       if (response.success && response.data) {
-        // Token is already stored by authApi.login
-        console.log('Dispatching LOGIN_SUCCESS with:', response.data)
-        dispatch({ type: 'LOGIN_SUCCESS', payload: response.data })
-        // Force a re-render by updating localStorage and re-initializing
-        setTimeout(() => {
-          const user = authApi.getCurrentUser()
-          console.log('Re-initializing with user:', user)
-          dispatch({ type: 'INIT_AUTH', payload: user })
-        }, 100)
+        localStorage.setItem('auth_token', response.data.access_token);
+        // Map User to AuthUser (add user_id, token)
+        const authUser: AuthUser = {
+          ...response.data.user,
+          user_id: response.data.user.id,
+          token: response.data.access_token,
+          shop_id: response.data.user.shop_id ?? null,
+        };
+        dispatch({ type: 'LOGIN_SUCCESS', payload: authUser });
       } else {
-        console.error('Login failed:', response)
-        dispatch({ type: 'LOGIN_ERROR' })
-        throw new Error(response.message || 'Login failed')
+        dispatch({ type: 'LOGIN_ERROR' });
       }
     } catch (error) {
-      console.error('Login error:', error)
-      dispatch({ type: 'LOGIN_ERROR' })
-      throw error
+      dispatch({ type: 'LOGIN_ERROR' });
     }
-  }
+  };
 
-  const logout = () => {
-    authApi.logout()
-    dispatch({ type: 'LOGOUT' })
-  }
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Optionally log error
+    } finally {
+      dispatch({ type: 'LOGOUT' });
+      localStorage.removeItem('auth_token');
+    }
+  };
 
   const hasPermission = (action: string, resource: string): boolean => {
     if (!state.user) return false

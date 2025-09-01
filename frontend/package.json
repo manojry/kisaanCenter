@@ -11,9 +11,13 @@
     "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
+    "@types/axios": "^0.9.36",
+    "axios": "^1.11.0",
+    "lucide-react": "^0.542.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.15.0"
+    "react-router-dom": "^6.15.0",
+    "react-window": "^2.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

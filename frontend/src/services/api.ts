@@ -1,9 +1,10 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios'
+import axios from 'axios'
 import { APIResponse } from '@/types/api'
+// @ts-ignore: No type declarations for react-hot-toast
 import toast from 'react-hot-toast'
 
 class ApiClient {
-  private client: AxiosInstance
+  private client: any
 
   constructor() {
     this.client = axios.create({
@@ -20,20 +21,20 @@ class ApiClient {
   private setupInterceptors() {
     // Request interceptor for auth token
     this.client.interceptors.request.use(
-      (config) => {
+  (config: any) => {
         const token = localStorage.getItem('auth_token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
         return config
       },
-      (error) => Promise.reject(error)
+  (error: any) => Promise.reject(error)
     )
 
     // Response interceptor for error handling
     this.client.interceptors.response.use(
-      (response: AxiosResponse<APIResponse>) => response,
-      (error) => {
+  (response: any) => response,
+  (error: any) => {
         const errorMessage = error.response?.data?.message || 'An error occurred'
         
         if (error.response?.status === 401) {
@@ -49,22 +50,27 @@ class ApiClient {
   }
 
   async get<T>(url: string, params?: any): Promise<APIResponse<T>> {
-    const response = await this.client.get<APIResponse<T>>(url, { params })
+  const response = await this.client.get(url, { params })
     return response.data
   }
 
   async post<T>(url: string, data?: any): Promise<APIResponse<T>> {
-    const response = await this.client.post<APIResponse<T>>(url, data)
+  const response = await this.client.post(url, data)
     return response.data
   }
 
   async put<T>(url: string, data?: any): Promise<APIResponse<T>> {
-    const response = await this.client.put<APIResponse<T>>(url, data)
+  const response = await this.client.put(url, data)
     return response.data
   }
 
+  async patch<T>(url: string, data?: any): Promise<APIResponse<T>> {
+  const response = await this.client.patch(url, data);
+    return response.data;
+  }
+
   async delete<T>(url: string): Promise<APIResponse<T>> {
-    const response = await this.client.delete<APIResponse<T>>(url)
+  const response = await this.client.delete(url)
     return response.data
   }
 }

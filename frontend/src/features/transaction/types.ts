@@ -1,3 +1,38 @@
+export interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+}
+
+export interface CreateTransactionData {
+  shop_id: number;
+  buyer_user_id: number;
+  type: string;
+  commission_rate: number;
+  items: TransactionItemCreate[];
+  date: string;
+  notes?: string;
+}
+
+export interface TransactionParams {
+  shop_id?: number;
+  buyer_user_id?: number;
+  status?: string;
+}
+
+export interface IncompleteTransaction {
+  id: string;
+  shop_id: number;
+  status: string;
+  reason?: string;
+}
+
+export interface TransactionDashboard {
+  shopId: number;
+  totalTransactions: number;
+  totalRevenue: number;
+  pendingTransactions: number;
+}
 // TransactionFormData for frontend form compatibility
 export interface TransactionFormData {
   shop_id: number;

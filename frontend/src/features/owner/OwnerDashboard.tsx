@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { 
   Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp, 
   AlertCircle, CheckCircle, Clock, RefreshCw, Eye, Settings,
   BarChart3, PieChart, Activity
 } from 'lucide-react'
-import { getShopDashboard, getShopDashboardSummary, getShopDashboardAlerts } from '@/features/dashboard/api'
+import { dashboardApi } from '@/features/dashboard/api'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { useLoading, useNotifications } from '@/context/AppStateContext'
 
 interface OwnerDashboardStats {
   todayRevenue: number
@@ -25,6 +26,8 @@ interface OwnerDashboardStats {
 
 const OwnerDashboard: React.FC = () => {
   const { user } = useAuth()
+  const { setLoading, isLoading } = useLoading()
+  const { addNotification } = useNotifications()
   const [stats, setStats] = useState<OwnerDashboardStats>({
     todayRevenue: 0,
     monthlyRevenue: 0,
@@ -39,20 +42,35 @@ const OwnerDashboard: React.FC = () => {
     totalBuyers: 0,
     totalEmployees: 0
   })
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoadingState] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
 
   useEffect(() => {
     fetchOwnerDashboardData()
   }, [])
 
+  type DashboardApiResponse = {
+    today_revenue?: number;
+    monthly_revenue?: number;
+    total_commission?: number;
+    pending_credits?: number;
+    pending_buyer_payments?: number;
+    pending_farmer_payments?: number;
+    pending_commission_confirmations?: number;
+    completed_transactions?: number;
+    active_stock?: number;
+    total_farmers?: number;
+    total_buyers?: number;
+    total_employees?: number;
+  };
+
   const fetchOwnerDashboardData = async () => {
-    if (!user?.shop_id) return
+    if (!user?.shop_id) return;
     try {
-      setLoading(true)
-      const shopId = String(user.shop_id)
-      const dashboardRes = await getShopDashboard(shopId)
-      const d = dashboardRes.data || {}
+      setLoading('dashboard', true);
+      const shopId = String(user.shop_id);
+      const dashboardRes = await dashboardApi.getShopDashboard(shopId);
+      const d = dashboardRes.data as DashboardApiResponse || {};
       setStats({
         todayRevenue: d.today_revenue || 0,
         monthlyRevenue: d.monthly_revenue || 0,
@@ -66,14 +84,20 @@ const OwnerDashboard: React.FC = () => {
         totalFarmers: d.total_farmers || 0,
         totalBuyers: d.total_buyers || 0,
         totalEmployees: d.total_employees || 0
-      })
-      setLastUpdated(new Date())
+      });
+      setLastUpdated(new Date());
     } catch (error) {
-      console.error('Failed to fetch owner dashboard data:', error)
+      addNotification({
+        type: 'error',
+        title: 'Dashboard Error',
+        message: 'Failed to load dashboard data. Please refresh the page.'
+      });
+      console.error('Failed to fetch owner dashboard data:', error);
     } finally {
-      setLoading(false)
+      setLoading('dashboard', false);
+      setLoadingState(false);
     }
-  }
+  };
 
   const StatCard: React.FC<{
     title: string
@@ -138,7 +162,7 @@ const OwnerDashboard: React.FC = () => {
     </button>
   )
 
-  if (loading) {
+  if (isLoading('dashboard') || loading) {
     return (
       <div className="p-6 space-y-6">
         <div className="animate-pulse">
@@ -169,10 +193,10 @@ const OwnerDashboard: React.FC = () => {
           </span>
           <button
             onClick={fetchOwnerDashboardData}
-            disabled={loading}
+            disabled={isLoading('dashboard')}
             className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading('dashboard') ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>

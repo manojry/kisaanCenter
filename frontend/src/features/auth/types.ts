@@ -1,3 +1,21 @@
+export interface AuthResponse {
+  user: User;
+  access_token: string;
+  refresh_token?: string;
+}
+
+export interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  role: UserRole;
+  shop_id?: number | null;
+}
 import { UserRole } from '@/types/enums'
 
 export interface LoginCredentials {
@@ -12,6 +30,9 @@ export interface AuthUser {
   shop_id: number | null
   user_id: number
   token?: string
+  status?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface AuthState {
