@@ -22,7 +22,6 @@
     "react-hot-toast": "^2.6.0",
     "react-query": "^3.39.3",
     "react-router-dom": "^6.15.0",
-    "tailwindcss": "^4.1.12",
     "yup": "^1.7.0"
   },
   "devDependencies": {
