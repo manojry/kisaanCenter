@@ -42,7 +42,8 @@ class Payment(Base):
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
     credit_id = Column(Integer, ForeignKey('credits.id'), nullable=True)
     amount = Column(DECIMAL(12,2), nullable=False)
-    payment_method = Column(String(20), nullable=False)  # cash/digital/upi/card
+    payment_method_id = Column(Integer, ForeignKey('payment_methods.id'), nullable=False)
+    payment_method = relationship('PaymentMethod', back_populates='payments')
     type = Column(
         Enum(PaymentType, name="payment_type", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False
@@ -99,14 +100,14 @@ class FarmerPayment(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
-    farmer_stock_id = Column(Integer, ForeignKey('farmer_stocks.id'), nullable=True)
     farmer_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     amount = Column(DECIMAL(12,2), nullable=False)
     payment_type = Column(
         Enum(FarmerPaymentType, name="farmer_payment_type", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False
     )
-    payment_method = Column(String(20), nullable=False)  # cash/digital/upi/card
+    payment_method_id = Column(Integer, ForeignKey('payment_methods.id'), nullable=False)
+    payment_method = relationship('PaymentMethod', back_populates='farmer_payments')
     remarks = Column(Text, nullable=True)
     date = Column(Date, nullable=False)
     reference_number = Column(String(100), nullable=True)
@@ -120,7 +121,6 @@ class FarmerPayment(Base):
     
     # Relationships
     transaction = relationship('Transaction', back_populates='farmer_payments')
-    farmer_stock = relationship('FarmerStock', back_populates='farmer_payments')
     farmer_user = relationship('User', foreign_keys=[farmer_user_id])
     payment_method = relationship('PaymentMethod', back_populates='farmer_payments')
     approved_by_user = relationship('User', foreign_keys=[approved_by])
@@ -130,7 +130,6 @@ class FarmerPayment(Base):
         return {
             'id': self.id,
             'transaction_id': self.transaction_id,
-            'farmer_stock_id': self.farmer_stock_id,
             'farmer_user_id': self.farmer_user_id,
             'amount': float(self.amount) if self.amount else 0,
             'payment_type': self.payment_type.value if self.payment_type else None,

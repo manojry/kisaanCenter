@@ -18,7 +18,7 @@ class Plan(Base):
 	max_transactions = Column(Integer, nullable=False)
 	data_retention_months = Column(Integer, default=12)
 	features = Column(JSONB, nullable=True)
-	status = Column(SQLEnum(RecordStatus), nullable=True, default=RecordStatus.ACTIVE)
+	status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=True, default=RecordStatus.ACTIVE)
 	created_at = Column(DateTime, nullable=True, default=func.now())
 	updated_at = Column(DateTime, nullable=True, default=func.now(), onupdate=func.now())
 

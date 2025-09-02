@@ -1,11 +1,11 @@
 from enum import Enum
 
 class UserRole(str, Enum):
-    SUPERADMIN = "superadmin"
-    OWNER = "owner"
-    FARMER = "farmer"
-    BUYER = "buyer"
-    EMPLOYEE = "employee"
+    superadmin = "superadmin"
+    owner = "owner"
+    farmer = "farmer"
+    buyer = "buyer"
+    employee = "employee"
 
 class RecordStatus(str, Enum):
     ACTIVE = "active"

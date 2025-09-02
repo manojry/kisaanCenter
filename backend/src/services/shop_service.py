@@ -59,13 +59,13 @@ class ShopService:
         return APIResponse(success=True, message="Shop created successfully", data={"shop_id": shop.id})
 
     def activate_shop(self, shop_id: int) -> APIResponse:
-        """Activate a shop by setting status to active"""
+        """Activate a shop by setting record_status to active"""
         try:
             shop = self.db.query(Shop).filter(Shop.id == shop_id).first()
             if not shop:
                 return APIResponse(success=False, message="Shop not found")
             
-            shop.status = "active"
+            shop.record_status = "active"  # Use record_status not status
             self.db.commit()
             return APIResponse(success=True, message="Shop activated successfully", data={"shop_id": shop_id})
         except Exception as e:

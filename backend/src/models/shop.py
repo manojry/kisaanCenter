@@ -21,6 +21,7 @@ class Shop(Base):
 	updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
 	# Relationships
+	users = relationship("User", back_populates="shop", foreign_keys="User.shop_id")
 	subscriptions = relationship("Subscription", back_populates="shop")
 	farmer_stocks = relationship("FarmerStock", back_populates="shop")
 	credits = relationship("Credit", back_populates="shop")

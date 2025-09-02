@@ -91,6 +91,7 @@ def upgrade():
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('name', sa.String(100), nullable=False),
         sa.Column('description', sa.String(255)),
+        sa.Column('status', record_status_enum, server_default='active'),
         sa.Column('created_at', sa.DateTime),
         sa.Column('updated_at', sa.DateTime),
     )

@@ -19,56 +19,36 @@ class AuthService:
         try:
             from ....core.security import SecurityUtils
             from datetime import timedelta
-            
-            # First check superadmin table
-            superadmin = db.query(Superadmin).filter(
-                Superadmin.username == username,
-                Superadmin.status == 'active'
+
+            # Only check users table for all logins, including superadmin
+            user = db.query(User).filter(
+                User.username == username,
+                User.record_status == 'active'
             ).first()
-            
-            user = None
-            if superadmin and SecurityUtils.verify_password(password, superadmin.password_hash):
-                user_data = {
-                    "user_id": superadmin.id,
-                    "username": superadmin.username,
-                    "role": "superadmin",
-                    "shop_id": None
-                }
-            else:
-                # Check user table
-                user = db.query(User).filter(
-                    User.username == username,
-                    User.status == 'active'
-                ).first()
-                
-                if not user or not SecurityUtils.verify_password(password, user.password_hash):
-                    return APIResponse(
-                        success=False, 
-                        message="Invalid credentials",
-                        data=None
-                    )
-                    
+            if user and SecurityUtils.verify_password(password, user.password_hash):
                 user_data = {
                     "user_id": user.id,
                     "username": user.username,
-                    "role": user.role.value,
-                    "shop_id": user.shop_id
+                    "role": user.role,
+                    "shop_id": getattr(user, 'shop_id', None)
                 }
-            
+            else:
+                return APIResponse.error("Authentication failed", error_code="HTTP_401")
+
             # Generate tokens
             access_token = SecurityUtils.create_access_token(
                 subject=user_data["user_id"],
                 additional_claims=user_data,
                 token_type="access"
             )
-            
+
             refresh_token = SecurityUtils.create_access_token(
                 subject=user_data["user_id"],
                 expires_delta=timedelta(days=7),
                 additional_claims={"token_type": "refresh"},
                 token_type="refresh"
             )
-            
+
             return APIResponse(
                 success=True,
                 message="Authentication successful",
@@ -79,7 +59,6 @@ class AuthService:
                     "token_type": "bearer"
                 }
             )
-            
         except Exception as e:
             logger.error(f"Authentication failed for {username}: {str(e)}")
             return APIResponse(success=False, message="Authentication failed")
@@ -99,7 +78,7 @@ class AuthService:
         """Get active user by ID"""
         return db.query(User).filter(
             User.id == user_id,
-            User.status == 'active'
+            User.record_status == 'active'
         ).first()
     
     @staticmethod
@@ -107,5 +86,5 @@ class AuthService:
         """Get active user by username"""
         return db.query(User).filter(
             User.username == username,
-            User.status == 'active'
+            User.record_status == 'active'
         ).first()

@@ -28,7 +28,7 @@ CREATE TABLE users (
     contact VARCHAR(50),
     email VARCHAR(255),
     credit_limit NUMERIC(12,2),
-        status VARCHAR(50) DEFAULT 'ACTIVE',
+    record_status record_status DEFAULT 'active',
     created_by INTEGER,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
@@ -39,6 +39,7 @@ CREATE TABLE shops (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     owner_id INTEGER REFERENCES users(id),
+    plan_id INTEGER REFERENCES plans(id),
     location VARCHAR(255),
     commission_rate NUMERIC(5,2) DEFAULT 0.00,
     record_status record_status DEFAULT 'active',
@@ -51,8 +52,29 @@ CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(255),
+    record_status record_status DEFAULT 'active',
     created_at TIMESTAMP,
     updated_at TIMESTAMP
+);
+
+-- PAYMENT_METHODS
+CREATE TABLE payment_methods (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- EXPENSE_CATEGORIES
+CREATE TABLE expense_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
+    record_status record_status DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- PLANS
@@ -68,7 +90,7 @@ CREATE TABLE plans (
     max_transactions INTEGER NOT NULL,
     data_retention_months INTEGER NOT NULL,
     features JSONB,
-    status record_status DEFAULT 'active',
+    record_status record_status DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

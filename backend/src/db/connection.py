@@ -37,6 +37,13 @@ class DatabaseConfig:
         print(f"[DEBUG] .env loaded from: {dotenv_path}")
         load_dotenv(dotenv_path)
 
+        # Check if DATABASE_URL is set (for SQLite testing)
+        self.DATABASE_URL = os.getenv("DATABASE_URL")
+        if self.DATABASE_URL:
+            print(f"[DEBUG] Using DATABASE_URL: {self.DATABASE_URL}")
+            self.ENVIRONMENT = os.getenv("ENVIRONMENT", "test")
+            return
+            
         # Environment variables - all required from environment or .env file
         self.DB_HOST = os.getenv("DB_HOST")
         self.DB_PORT = os.getenv("DB_PORT", "5432")
@@ -70,6 +77,10 @@ class DatabaseConfig:
     @property
     def database_url(self) -> str:
         """Generate database URL with proper SSL and timeout settings"""
+        # If DATABASE_URL is set, use it directly (for SQLite testing)
+        if hasattr(self, 'DATABASE_URL') and self.DATABASE_URL:
+            return self.DATABASE_URL
+            
         base_url = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         
         # Add SSL and timeout parameters for all environments
@@ -117,26 +128,39 @@ class DatabaseManager:
         if self._engine is None:
             logger.info(f"Initializing database engine for environment: {config.ENVIRONMENT}")
             
-            # Engine configuration with better reliability settings
-            engine_kwargs = {
-                "poolclass": QueuePool,
-                "pool_size": config.POOL_SIZE,
-                "max_overflow": config.MAX_OVERFLOW,
-                "pool_recycle": config.POOL_RECYCLE,
-                "pool_pre_ping": config.POOL_PRE_PING,
-                "pool_timeout": 20,  # Timeout when getting connection from pool
-                "pool_reset_on_return": "commit",  # Reset connection state on return
-                "echo": config.ENVIRONMENT == "development",
-                "echo_pool": config.ENVIRONMENT == "development",
-                "connect_args": {
-                    "connect_timeout": config.CONNECT_TIMEOUT
+            # Check if using SQLite
+            is_sqlite = hasattr(config, 'DATABASE_URL') and config.DATABASE_URL and config.DATABASE_URL.startswith('sqlite')
+            
+            if is_sqlite:
+                # SQLite configuration
+                engine_kwargs = {
+                    "echo": config.ENVIRONMENT == "development",
+                    "connect_args": {"check_same_thread": False}
                 }
-            }
+                logger.info("Using SQLite database for testing")
+            else:
+                # PostgreSQL configuration
+                engine_kwargs = {
+                    "poolclass": QueuePool,
+                    "pool_size": config.POOL_SIZE,
+                    "max_overflow": config.MAX_OVERFLOW,
+                    "pool_recycle": config.POOL_RECYCLE,
+                    "pool_pre_ping": config.POOL_PRE_PING,
+                    "pool_timeout": 20,  # Timeout when getting connection from pool
+                    "pool_reset_on_return": "commit",  # Reset connection state on return
+                    "echo": config.ENVIRONMENT == "development",
+                    "echo_pool": config.ENVIRONMENT == "development",
+                    "connect_args": {
+                        "connect_timeout": config.CONNECT_TIMEOUT
+                    }
+                }
+                logger.info("Using PostgreSQL database")
             
             self._engine = create_engine(config.database_url, **engine_kwargs)
             
-            # Add event listeners for connection management
-            self._setup_event_listeners()
+            # Add event listeners only for PostgreSQL
+            if not is_sqlite:
+                self._setup_event_listeners()
             
             logger.info("Database engine initialized successfully")
             

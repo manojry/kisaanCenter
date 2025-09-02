@@ -14,7 +14,7 @@ class Subscription(Base):
 	start_date = Column(Date, nullable=True)
 	end_date = Column(Date, nullable=True)
 	status = Column(SQLEnum(SubscriptionStatus), nullable=False, default=SubscriptionStatus.ACTIVE)
-	payment_status = Column(SQLEnum(PaymentStatus), nullable=False, default=PaymentStatus.UNPAID)
+	payment_status = Column(SQLEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
 	amount = Column(Numeric(12,2), nullable=True)
 	discount_amount = Column(Numeric(12,2), nullable=True)
 	created_at = Column(DateTime, nullable=True, default=func.now())

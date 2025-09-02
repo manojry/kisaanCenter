@@ -4,6 +4,7 @@ from .base import Base
 from .enums import TransactionType, TransactionStatus, PaymentStatus, CompletionStatus, RecordStatus
 
 class Transaction(Base):
+	farmer_payments = relationship("FarmerPayment", back_populates="transaction")
 	__tablename__ = "transactions"
 
 	id = Column(Integer, primary_key=True, index=True)
@@ -26,7 +27,7 @@ class Transaction(Base):
 
 	# Relationships
 	shop = relationship("Shop", back_populates="transactions")
-	buyer = relationship("User", back_populates="transactions_as_buyer")
+	buyer = relationship("User")
 	parent_transaction = relationship("Transaction", remote_side=[id])
 	items = relationship("TransactionItem", back_populates="transaction")
 	payments = relationship("Payment", back_populates="transaction")

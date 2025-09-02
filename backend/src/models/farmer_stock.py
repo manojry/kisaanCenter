@@ -25,7 +25,6 @@ class FarmerStock(Base):
 	farmer = relationship("User", foreign_keys=[farmer_id])
 	product = relationship("Product", back_populates="farmer_stocks")
 	shop = relationship("Shop", back_populates="farmer_stocks")
-	transaction_items = relationship("TransactionItem", foreign_keys="TransactionItem.farmer_stock_id")
 
 	def __repr__(self):
 		return f"<FarmerStock(id={self.id}, farmer_id={self.farmer_id}, product_id={self.product_id}, mode='{self.mode}', balance_qty={self.balance_qty})>"

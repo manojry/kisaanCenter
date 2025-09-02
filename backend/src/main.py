@@ -58,6 +58,7 @@ main_router = APIRouter()
 from .api.simple_endpoints import users_router, shops_router, products_router, payments_router, credits_router
 from .features.transaction.api.transaction_endpoints import router as transactions_router
 from .api.owner_admin import router as superadmin_router
+from .api.owner_products import router as owner_products_router
 
 # Create the FastAPI app
 app = FastAPI(
@@ -83,6 +84,8 @@ main_router.include_router(payments_router, prefix="/api/v1/payments")
 main_router.include_router(credits_router, prefix="/api/v1/credits")
 main_router.include_router(transactions_router, prefix="/api/v1")
 main_router.include_router(superadmin_router, prefix="/api/v1")
+main_router.include_router(owner_products_router, prefix="/api/v1")
+main_router.include_router(owner_products_router, prefix="/api/v1")
 
 # Include the main router in the app
 app.include_router(main_router)
