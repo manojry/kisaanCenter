@@ -1,3 +1,5 @@
+import { TransactionStatus, PaymentStatus, TransactionType } from './enums';
+
 export interface Pagination {
   page: number;
   limit: number;
@@ -13,27 +15,14 @@ export interface TransactionTableProps {
   onViewDetails: (transaction: Transaction) => void;
   onCommissionConfirm: (id: number) => Promise<void>;
 }
-export enum TransactionStatus {
-  Pending = 'pending',
-  Active = 'active',
-  Completed = 'completed',
-  Cancelled = 'cancelled',
-}
 
-export enum PaymentStatus {
-  Pending = 'pending',
-  Partial = 'partial',
-  Paid = 'paid',
-  Unpaid = 'unpaid',
-  Refunded = 'refunded',
-}
 export interface Transaction {
   id: number
   buyer_user_id: number
   buyer_username?: string
-  type: 'sale' | 'return' | 'adjustment'
-  status: 'pending' | 'completed' | 'cancelled'
-  payment_status: 'pending' | 'partial' | 'paid'
+  type: TransactionType
+  status: TransactionStatus
+  payment_status: PaymentStatus
   date: string
   commission_rate: number
   commission_amount: number
@@ -56,7 +45,7 @@ export interface TransactionItem {
 
 export interface TransactionFormData {
   buyer_user_id: number
-  type: 'sale' | 'return' | 'adjustment'
+  type: TransactionType
   commission_rate: number
   date: string
   items: TransactionItem[]
@@ -87,8 +76,17 @@ export interface TransactionAnalytics {
   total_revenue: number
   total_commission: number
   average_transaction_value: number
-  growth_percentage?: number
+  growth_percentage?: {
+    transactions?: number
+    revenue?: number 
+    commission?: number
+  }
   daily_revenue?: Array<{date: string, amount: number}>
   transaction_by_type?: Array<{type: string, count: number}>
   daily_commission?: Array<{date: string, amount: number}>
+}
+
+export interface TransactionListResponse {
+  transactions: Transaction[];
+  pagination: Pagination;
 }

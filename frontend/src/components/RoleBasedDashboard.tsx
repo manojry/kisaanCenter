@@ -47,8 +47,9 @@ const convertToUser = (authUser: any): EntityUser => {
     return {
       id: 0,
       username: 'Unknown',
+      password_hash: '',
       role: UserRole.SUPERADMIN,
-      status: 'inactive',
+      record_status: 'inactive',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -56,9 +57,10 @@ const convertToUser = (authUser: any): EntityUser => {
   return {
     id: authUser.id,
     username: authUser.username,
+    password_hash: authUser.password_hash ?? '',
     role: authUser.role,
     shop_id: authUser.shop_id === null ? undefined : authUser.shop_id,
-    status: authUser.status ?? 'active',
+    record_status: authUser.record_status ?? 'active',
     created_at: authUser.created_at ?? new Date().toISOString(),
     updated_at: authUser.updated_at ?? new Date().toISOString(),
   };

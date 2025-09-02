@@ -30,11 +30,12 @@ export interface LoginCredentials {
 export interface AuthUser {
   id: number
   username: string
+  password_hash?: string
   role: UserRole
   shop_id: number | null
   user_id: number
   token?: string
-  status?: string
+  record_status?: string
   created_at?: string
   updated_at?: string
 }

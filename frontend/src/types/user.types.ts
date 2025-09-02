@@ -1,15 +1,4 @@
-export enum UserRole {
-  SuperAdmin = 'superadmin',
-  Owner = 'owner',
-  Buyer = 'buyer',
-  Farmer = 'farmer',
-}
-
-export enum RecordStatus {
-  Active = 'active',
-  Inactive = 'inactive',
-  Deleted = 'deleted',
-}
+import { UserRole, RecordStatus } from './enums';
 
 export interface Shop {
   id: number;
@@ -54,6 +43,10 @@ export interface User {
   created_at: string;
   updated_at: string;
   status: RecordStatus;
+  // Backend fields that should be included
+  email?: string;
+  password_hash?: string;
+  created_by?: number;
 }
 
 export interface UserWithRelations extends User {
@@ -72,6 +65,7 @@ export interface CreateUserRequest {
   contact?: string;
   credit_limit?: number;
   created_by?: number;
+  email?: string;
 }
 
 export interface UpdateUserRequest {
@@ -82,6 +76,7 @@ export interface UpdateUserRequest {
   contact?: string;
   credit_limit?: number;
   status?: RecordStatus;
+  email?: string;
 }
 
 export interface UserFilters {
