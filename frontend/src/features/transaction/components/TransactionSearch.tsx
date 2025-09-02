@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Transaction } from '@/types/transaction'
 import { transactionService } from '@/services/transactionService'
 import { formatCurrency, formatDate } from '@/utils/transactionUtils'
-import { useDebounce } from '@/hooks/useDebounce'
+// import { useDebounce } from '@/hooks/useDebounce'
 
 interface TransactionSearchProps {
   onSelect: (transaction: Transaction) => void
@@ -20,7 +20,8 @@ const TransactionSearch: React.FC<TransactionSearchProps> = ({
   const [results, setResults] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(false)
   const [showResults, setShowResults] = useState(false)
-  const debouncedQuery = useDebounce(query, 300)
+  // const debouncedQuery = useDebounce(query, 300)
+  const debouncedQuery = query;
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -48,6 +49,12 @@ const TransactionSearch: React.FC<TransactionSearchProps> = ({
     try {
       const response = await transactionService.getTransactions({
         search: searchQuery,
+        type: '',
+        status: '',
+        payment_status: '',
+        date_from: '',
+        date_to: '',
+        buyer_id: '',
         page: 1,
         limit: 10
       })

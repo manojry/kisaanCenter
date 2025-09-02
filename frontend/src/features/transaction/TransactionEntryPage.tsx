@@ -11,7 +11,7 @@ export const TransactionEntryPage: React.FC = () => {
   const usersQuery = useUsers();
   const productsQuery = useProducts();
   const users = Array.isArray(usersQuery.data?.data) ? usersQuery.data.data : [];
-  const products = productsQuery.data?.data ?? [];
+    const products = productResponse || [];
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState<TransactionFormData>({
@@ -278,7 +278,7 @@ export const TransactionEntryPage: React.FC = () => {
                 
                 {formData.items.map((item, idx) => {
                   const product = products.find((p: { id: number }) => p.id === item.product_id);
-                  const farmer = users.find((u: { id: number }) => u.id === item.farmer_user_id);
+                  // const farmer = users.find((u: { id: number }) => u.id === item.farmer_user_id);
                   const itemTotal = item.quantity * item.price;
                   
                   return (

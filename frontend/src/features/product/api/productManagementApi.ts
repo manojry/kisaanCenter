@@ -1,5 +1,5 @@
 
-import { apiClient } from '@/lib/api';
+import { apiClient } from '@/services/api';
 
 export interface ProductCategory {
   id: number;

@@ -1,0 +1,60 @@
+
+> kisaancenter-frontend@1.0.0 build
+> tsc && vite build
+
+src/components/Layout.tsx(49,13): error TS2322: Type '{ currentRole: UserRole; currentRoute: string; onNavigate: (route: string) => void; onLogout: (() => void) | undefined; }' is not assignable to type 'IntrinsicAttributes & NavigationProps'.
+  Property 'onNavigate' does not exist on type 'IntrinsicAttributes & NavigationProps'.
+src/components/OwnerWorkflow.tsx(59,90): error TS2339: Property 'data' does not exist on type '{}'.
+src/components/OwnerWorkflow.tsx(60,89): error TS2339: Property 'data' does not exist on type '{}'.
+src/components/OwnerWorkflow.tsx(61,92): error TS2339: Property 'data' does not exist on type '{}'.
+src/features/dashboard/components/Dashboard.tsx(20,16): error TS2345: Argument of type '{ data: {}; }' is not assignable to parameter of type 'SetStateAction<DashboardStats | null>'.
+src/features/dashboard/components/Dashboard.tsx(54,13): error TS2741: Property 'user' is missing in type '{}' but required in type 'OwnerDashboardProps'.
+src/features/dashboard/components/OwnerDashboard.tsx(63,23): error TS18046: 'summaryResponse.data' is of type 'unknown'.
+src/features/product/components/FarmersProductsManager.tsx(53,18): error TS18046: 'response.data' is of type 'unknown'.
+src/features/product/components/ProductAssignmentWizard.tsx(70,24): error TS18046: 'response.data' is of type 'unknown'.
+src/features/product/components/ProductAssignmentWizard.tsx(73,25): error TS18046: 'response.data' is of type 'unknown'.
+src/features/transaction/components/SmartTransactionEntry.tsx(48,24): error TS18046: 'response.data' is of type 'unknown'.
+src/features/transaction/components/TransactionAnalytics.tsx(90,58): error TS2339: Property 'revenue' does not exist on type '{ date: string; amount: number; }'.
+src/features/transaction/components/TransactionAnalytics.tsx(118,61): error TS2339: Property 'commission' does not exist on type '{ date: string; amount: number; }'.
+src/features/transaction/components/TransactionAnalytics.tsx(186,50): error TS2339: Property 'transactions' does not exist on type 'number'.
+src/features/transaction/components/TransactionAnalytics.tsx(203,50): error TS2339: Property 'revenue' does not exist on type 'number'.
+src/features/transaction/components/TransactionAnalytics.tsx(220,50): error TS2339: Property 'commission' does not exist on type 'number'.
+src/features/transaction/components/TransactionBulkActions.tsx(118,59): error TS2345: Argument of type '"pending"' is not assignable to parameter of type 'TransactionStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(124,59): error TS2345: Argument of type '"active"' is not assignable to parameter of type 'TransactionStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(130,59): error TS2345: Argument of type '"completed"' is not assignable to parameter of type 'TransactionStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(136,59): error TS2345: Argument of type '"cancelled"' is not assignable to parameter of type 'TransactionStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(153,60): error TS2345: Argument of type '"pending"' is not assignable to parameter of type 'PaymentStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(159,60): error TS2345: Argument of type '"partial"' is not assignable to parameter of type 'PaymentStatus'.
+src/features/transaction/components/TransactionBulkActions.tsx(165,60): error TS2345: Argument of type '"paid"' is not assignable to parameter of type 'PaymentStatus'.
+src/features/transaction/components/TransactionExport.tsx(1,1): error TS2304: Cannot find name 'imp'.
+src/features/transaction/components/TransactionExport.tsx(4,10): error TS2305: Module '"@/utils/transactionUtils"' has no exported member 'exportTransactionsToCSV'.
+src/features/transaction/components/TransactionExport.tsx(13,33): error TS2304: Cannot find name 'useState'.
+src/features/transaction/components/TransactionExport.tsx(14,43): error TS2304: Cannot find name 'useState'.
+src/features/transaction/components/TransactionExport.tsx(15,37): error TS2304: Cannot find name 'useState'.
+src/features/transaction/TransactionEntryPage.tsx(12,9): error TS6133: 'productsQuery' is declared but its value is never read.
+src/features/transaction/TransactionEntryPage.tsx(14,22): error TS2304: Cannot find name 'productResponse'.
+src/features/transactions/components/TransactionForm.tsx(29,36): error TS18046: 'response.data' is of type 'unknown'.
+src/features/transactions/components/TransactionForm.tsx(46,9): error TS2353: Object literal may only specify known properties, and 'autoClose' does not exist in type 'Omit<Notification, "id">'.
+src/hooks/useOptimizedQuery.ts(34,38): error TS2345: Argument of type '{ cacheTime: number; staleTime: number; refetchOnWindowFocus: boolean; refetchOnMount: boolean; retry: number; enabled?: boolean; refetchInterval?: number | false | ((data: T | undefined, query: Query<...>) => number | false) | undefined; ... 27 more ...; meta?: QueryMeta; }' is not assignable to parameter of type 'Omit<UseQueryOptions<T, unknown, T, string[]>, "queryKey" | "queryFn">'.
+  Types of property 'refetchInterval' are incompatible.
+    Type 'number | false | ((data: T | undefined, query: Query<T, unknown, T, QueryKey>) => number | false) | undefined' is not assignable to type 'number | false | ((data: T | undefined, query: Query<T, unknown, T, string[]>) => number | false) | undefined'.
+      Type '(data: T | undefined, query: Query<T, unknown, T, QueryKey>) => number | false' is not assignable to type 'number | false | ((data: T | undefined, query: Query<T, unknown, T, string[]>) => number | false) | undefined'.
+        Type '(data: T | undefined, query: Query<T, unknown, T, QueryKey>) => number | false' is not assignable to type '(data: T | undefined, query: Query<T, unknown, T, string[]>) => number | false'.
+          Types of parameters 'query' and 'query' are incompatible.
+            Type 'Query<T, unknown, T, string[]>' is not assignable to type 'Query<T, unknown, T, QueryKey>'.
+              The types of 'options.queryFn' are incompatible between these types.
+                Type 'QueryFunction<T, string[]> | undefined' is not assignable to type 'QueryFunction<T, QueryKey> | undefined'.
+                  Type 'QueryFunction<T, string[]>' is not assignable to type 'QueryFunction<T, QueryKey>'.
+                    Type 'QueryKey' is not assignable to type 'string[]'.
+                      Type 'string' is not assignable to type 'string[]'.
+src/pages/SuperAdminDashboard.tsx(221,21): error TS2322: Type '{ data: User[]; columns: ({ key: "username"; label: string; } | { key: "contact"; label: string; render: (value: unknown) => string; } | { key: "id"; label: string; render: (_: unknown, owner: User) => string; } | { ...; } | { ...; })[]; height: number; rowHeight: number; }' is not assignable to type 'IntrinsicAttributes & VirtualizedTableProps<User>'.
+  Property 'rowHeight' does not exist on type 'IntrinsicAttributes & VirtualizedTableProps<User>'. Did you mean 'height'?
+src/services/transactionService.ts(26,5): error TS2322: Type 'unknown' is not assignable to type 'TransactionListResponse'.
+src/services/transactionService.ts(31,5): error TS2322: Type 'unknown' is not assignable to type 'Transaction'.
+src/services/transactionService.ts(36,5): error TS2322: Type 'unknown' is not assignable to type 'Transaction'.
+src/services/transactionService.ts(41,5): error TS2322: Type 'unknown' is not assignable to type 'Transaction'.
+src/services/transactionService.ts(50,5): error TS2322: Type 'unknown' is not assignable to type 'Transaction'.
+src/services/transactionService.ts(55,5): error TS2322: Type 'unknown' is not assignable to type 'Transaction'.
+src/services/transactionService.ts(60,5): error TS2322: Type 'unknown' is not assignable to type 'TransactionAnalytics'.
+src/services/transactionService.ts(68,5): error TS2322: Type 'unknown' is not assignable to type 'Blob'.
+src/services/transactionService.ts(77,5): error TS2322: Type 'unknown' is not assignable to type 'TransactionListResponse'.

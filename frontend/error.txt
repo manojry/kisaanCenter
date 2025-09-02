@@ -2,52 +2,23 @@
 > kisaancenter-frontend@1.0.0 build
 > tsc && vite build
 
-src/components/__tests__/UserForm.test.tsx(5,22): error TS2307: Cannot find module '../UserForm' or its corresponding type declarations.
-src/components/__tests__/UserForm.test.tsx(27,48): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(28,48): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(29,44): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(30,47): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(40,57): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(41,57): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/__tests__/UserForm.test.tsx(55,75): error TS2339: Property 'toBeInTheDocument' does not exist on type 'JestMatchers<HTMLElement>'.
-src/components/common/ErrorBoundary.tsx(22,21): error TS6133: 'error' is declared but its value is never read.
-src/components/common/ErrorBoundary.tsx(22,35): error TS6133: 'info' is declared but its value is never read.
-src/components/DashboardErrorBoundary.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
 src/components/Layout.tsx(49,13): error TS2322: Type '{ currentRole: UserRole; currentRoute: string; onNavigate: (route: string) => void; onLogout: (() => void) | undefined; }' is not assignable to type 'IntrinsicAttributes & NavigationProps'.
   Property 'onNavigate' does not exist on type 'IntrinsicAttributes & NavigationProps'.
-src/components/OwnerNavigation.tsx(1,17): error TS6133: 'useState' is declared but its value is never read.
-src/components/OwnerNavigation.tsx(1,27): error TS6133: 'useEffect' is declared but its value is never read.
-src/components/OwnerQuickActions.tsx(4,3): error TS6133: 'Plus' is declared but its value is never read.
 src/components/OwnerWorkflow.tsx(59,90): error TS2339: Property 'data' does not exist on type '{}'.
 src/components/OwnerWorkflow.tsx(60,89): error TS2339: Property 'data' does not exist on type '{}'.
 src/components/OwnerWorkflow.tsx(61,92): error TS2339: Property 'data' does not exist on type '{}'.
-src/components/TransactionErrorBoundary.tsx(2,8): error TS6133: 'React' is declared but its value is never read.
-src/features/dashboard/components/Dashboard.tsx(3,10): error TS2305: Module '"../api"' has no exported member 'getDashboardStats'.
-src/features/dashboard/components/Dashboard.tsx(6,8): error TS2613: Module '"/Users/manojreddy.yalamareddy/kisaanCenter/kisaanCenter/frontend/src/features/dashboard/components/OwnerDashboard"' has no default export. Did you mean to use 'import { OwnerDashboard } from "/Users/manojreddy.yalamareddy/kisaanCenter/kisaanCenter/frontend/src/features/dashboard/components/OwnerDashboard"' instead?
-src/features/dashboard/components/OwnerDashboard.tsx(2,1): error TS6133: 'VirtualizedTable' is declared but its value is never read.
-src/features/dashboard/components/OwnerDashboard.tsx(10,17): error TS6133: 'value' is declared but its value is never read.
-src/features/dashboard/components/OwnerDashboard.tsx(10,24): error TS6133: 'onValueChange' is declared but its value is never read.
-src/features/dashboard/components/SuperAdminDashboard.tsx(28,17): error TS6133: 'setStats' is declared but its value is never read.
-src/features/dashboard/components/SuperAdminDashboard.tsx(43,9): error TS6133: 'fetchSuperAdminStats' is declared but its value is never read.
+src/features/dashboard/components/Dashboard.tsx(20,16): error TS2345: Argument of type '{ data: {}; }' is not assignable to parameter of type 'SetStateAction<DashboardStats | null>'.
+src/features/dashboard/components/Dashboard.tsx(54,13): error TS2741: Property 'user' is missing in type '{}' but required in type 'OwnerDashboardProps'.
 src/features/product/api/productManagementApi.ts(2,27): error TS2307: Cannot find module '@/lib/api' or its corresponding type declarations.
 src/features/product/components/ProductAssignmentWizard.tsx(148,15): error TS2322: Type '{ children: (Element | Element[])[]; defaultValue: string; className: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
   Property 'defaultValue' does not exist on type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-src/features/product/components/ProductAssignmentWizard.tsx(153,24): error TS2322: Type '{ children: number; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-  Property 'variant' does not exist on type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-src/features/product/components/ProductAssignmentWizard.tsx(166,21): error TS2322: Type '"outline"' is not assignable to type '"success" | "warning" | "primary" | "secondary" | "danger" | "ghost" | undefined'.
-src/features/product/components/ProductAssignmentWizard.tsx(178,21): error TS2322: Type '"outline"' is not assignable to type '"success" | "warning" | "primary" | "secondary" | "danger" | "ghost" | undefined'.
 src/features/product/components/ProductAssignmentWizard.tsx(199,21): error TS2322: Type '{ children: Element; key: number; className: string; onClick: () => void; }' is not assignable to type 'IntrinsicAttributes & { children?: ReactNode; className?: string | undefined; }'.
   Property 'onClick' does not exist on type 'IntrinsicAttributes & { children?: ReactNode; className?: string | undefined; }'.
 src/features/product/components/ProductAssignmentWizard.tsx(208,31): error TS2322: Type '{ id: string; checked: boolean; onCheckedChange: (checked: any) => void; }' is not assignable to type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
   Property 'onCheckedChange' does not exist on type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
 src/features/product/components/ProductAssignmentWizard.tsx(208,49): error TS7006: Parameter 'checked' implicitly has an 'any' type.
-src/features/product/components/ProductAssignmentWizard.tsx(237,15): error TS2322: Type '"outline"' is not assignable to type '"success" | "warning" | "primary" | "secondary" | "danger" | "ghost" | undefined'.
-src/features/product/components/ProductAssignmentWizard.tsx(268,20): error TS2322: Type '{ children: (string | number)[]; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-  Property 'variant' does not exist on type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
 src/features/product/components/ProductAssignmentWizard.tsx(274,15): error TS2322: Type '{ children: (Element | Element[])[]; defaultValue: string; className: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
   Property 'defaultValue' does not exist on type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-src/features/product/components/ProductAssignmentWizard.tsx(279,24): error TS2322: Type '{ children: number; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
-  Property 'variant' does not exist on type 'IntrinsicAttributes & { children: ReactNode; className?: string | undefined; }'.
 src/features/product/components/ProductAssignmentWizard.tsx(295,34): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
 src/features/product/components/ProductAssignmentWizard.tsx(297,53): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
 src/features/product/components/ProductAssignmentWizard.tsx(304,57): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
@@ -72,7 +43,6 @@ src/features/product/components/ProductAssignmentWizard.tsx(353,54): error TS233
 src/features/product/components/ProductAssignmentWizard.tsx(355,70): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
 src/features/product/components/ProductAssignmentWizard.tsx(356,81): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
 src/features/product/components/ProductAssignmentWizard.tsx(358,82): error TS2339: Property 'shop_product_id' does not exist on type 'Product'.
-src/features/product/components/ProductAssignmentWizard.tsx(381,15): error TS2322: Type '"outline"' is not assignable to type '"success" | "warning" | "primary" | "secondary" | "danger" | "ghost" | undefined'.
 src/features/product/components/ProductAssignmentWizard.tsx(428,7): error TS6133: 'FarmerProductAssignmentCard' is declared but its value is never read.
 src/features/product/components/ProductAssignmentWizard.tsx(475,13): error TS2322: Type '{ id: string; checked: boolean; onCheckedChange: (selected: boolean) => void; }' is not assignable to type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
   Property 'onCheckedChange' does not exist on type 'IntrinsicAttributes & InputHTMLAttributes<HTMLInputElement>'.
