@@ -10,7 +10,7 @@ from ..database import get_db
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
+router = APIRouter(tags=["Subscriptions"])
 
 def success_response(message: str, data: Any = None) -> Dict:
     """Standard success response format"""

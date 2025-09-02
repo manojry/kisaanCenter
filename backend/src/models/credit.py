@@ -12,7 +12,7 @@ class Credit(Base):
 	shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
 	amount = Column(Numeric(12,2), nullable=False)
 	status = Column(SQLEnum(CreditStatus), nullable=False, default=CreditStatus.OUTSTANDING)
-	record_status = Column(SQLEnum(RecordStatus), nullable=False, default=RecordStatus.ACTIVE)
+	record_status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
 	address = Column(Text, nullable=True)
 	created_at = Column(DateTime, nullable=False, default=func.now())
 	updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())

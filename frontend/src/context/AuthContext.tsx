@@ -4,7 +4,7 @@ import { authApi } from '@/features/auth/api'
 import { UserRole } from '@/types/enums'
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<AuthUser | null>
   logout: () => void
   hasPermission: (action: string, resource: string) => boolean
   canAccessShop: (shopId: number) => boolean
@@ -63,19 +63,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       const token = localStorage.getItem('auth_token');
       let user: AuthUser | null = null;
-      if (token) {
+      console.log('[Auth] localStorage.auth_token:', token);
+      if (!token) {
+        // No token, user is not authenticated
+        dispatch({ type: 'INIT_AUTH', payload: null });
+        return;
+      }
+      // Token exists, try to fetch user
+      try {
         const response = await authApi.getCurrentUser();
+        console.log('[Auth] /auth/me response:', response);
         if (response.success && response.data) {
-          // Map User to AuthUser (add user_id, token)
           user = {
             ...response.data,
             user_id: response.data.id,
             token,
             shop_id: response.data.shop_id ?? null,
           };
+          dispatch({ type: 'INIT_AUTH', payload: user });
+        } else {
+          // API call failed (invalid/expired token), clear token and log out
+          localStorage.removeItem('auth_token');
+          dispatch({ type: 'LOGOUT' });
         }
+      } catch (err) {
+        console.error('[Auth] /auth/me error:', err);
+        localStorage.removeItem('auth_token');
+        dispatch({ type: 'LOGOUT' });
       }
-      dispatch({ type: 'INIT_AUTH', payload: user });
     };
     initializeAuth();
   }, []);
@@ -86,19 +101,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authApi.login({ username, password });
       if (response.success && response.data) {
         localStorage.setItem('auth_token', response.data.access_token);
-        // Map User to AuthUser (add user_id, token)
+        localStorage.setItem('userRole', response.data.role);
         const authUser: AuthUser = {
-          ...response.data.user,
-          user_id: response.data.user.id,
+          id: response.data.id,
+          username: response.data.username,
+          role: response.data.role,
+          shop_id: response.data.shop_id ?? null,
+          user_id: response.data.user_id,
           token: response.data.access_token,
-          shop_id: response.data.user.shop_id ?? null,
         };
         dispatch({ type: 'LOGIN_SUCCESS', payload: authUser });
+        return authUser;
       } else {
         dispatch({ type: 'LOGIN_ERROR' });
+        return null;
       }
     } catch (error) {
       dispatch({ type: 'LOGIN_ERROR' });
+      return null;
     }
   };
 

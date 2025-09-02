@@ -3,7 +3,7 @@ import { LoginCredentials, AuthResponse, APIResponse, User } from './types';
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<APIResponse<AuthResponse>> => {
-    return apiClient.post('/auth/login', credentials);
+    return apiClient.post('/users/auth/login', credentials);
   },
   logout: async (): Promise<APIResponse<void>> => {
     return apiClient.post('/auth/logout');

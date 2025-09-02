@@ -1,5 +1,9 @@
 export interface AuthResponse {
-  user: User;
+  id: number;
+  username: string;
+  role: UserRole;
+  shop_id?: number | null;
+  user_id: number;
   access_token: string;
   refresh_token?: string;
 }

@@ -315,7 +315,10 @@ def login_user(
             password = request.password
         elif not username or not password:
             raise HTTPException(status_code=400, detail="Username and password required")
-        
+
+        # Debug log: print received username and masked password
+        logger.info(f"Login attempt: username='{username}', password='{'*' * len(password) if password else None}'")
+
         password_hash = hash_password(password)
 
         # Check users table for all logins, including superadmin
@@ -323,11 +326,12 @@ def login_user(
             SELECT id, username, role, shop_id FROM users 
             WHERE username = :username AND password_hash = :password_hash AND record_status = 'active'
         """), {"username": username, "password_hash": password_hash})
-        
+
         user = result.fetchone()
         if not user:
+            logger.warning(f"Login failed for username='{username}' (user not found or invalid password)")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        
+
         # Create access token
         access_token = create_access_token(
             user_id=user.id,
@@ -335,7 +339,9 @@ def login_user(
             role=user.role,
             shop_id=user.shop_id
         )
-        
+
+        logger.info(f"Login successful for username='{username}' (id={user.id}, role={user.role})")
+
         return {
             "success": True,
             "message": "Authentication successful",
@@ -422,7 +428,7 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
     """Get shop by ID"""
     try:
         result = db.execute(text("""
-            SELECT id, name, address, location, contact, commission_rate, status
+            SELECT id, name, location, commission_rate, record_status as status
             FROM shops WHERE id = :shop_id
         """), {"shop_id": shop_id})
         
@@ -433,9 +439,7 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
         return success_response("Shop found", {
             "id": shop.id,
             "name": shop.name,
-            "address": shop.address,
             "location": shop.location,
-            "contact": shop.contact,
             "commission_rate": float(shop.commission_rate),
             "status": shop.status
         })
@@ -457,7 +461,7 @@ def get_shops(
         offset = (page - 1) * limit
         
         result = db.execute(text("""
-            SELECT id, name, address, location, contact, commission_rate, status
+            SELECT id, name, location, commission_rate, record_status as status
             FROM shops
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
@@ -468,9 +472,7 @@ def get_shops(
             shops.append({
                 "id": shop.id,
                 "name": shop.name,
-                "address": shop.address,
                 "location": shop.location,
-                "contact": shop.contact,
                 "commission_rate": float(shop.commission_rate),
                 "status": shop.status
             })

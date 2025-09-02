@@ -21,6 +21,18 @@ interface OwnerDashboardProps {
 }
 
 export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
+  // Top-level guard: do not render for superadmin or missing shop_id
+  if (user.role === 'superadmin' || !user.shop_id) {
+    return (
+      <div className="dashboard-container">
+        <div className="alert alert-warning">
+          <span className="warning-icon">⚠️</span>
+          Superadmin or invalid owner. You do not have access to this dashboard.
+        </div>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState('overview');
   const [shopProducts, setShopProducts] = useState<any>({});
   const [farmersCount, setFarmersCount] = useState(0);
@@ -39,7 +51,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
     if (activeTab === 'transactions') {
       fetchOwnerTransactions();
     }
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   const loadDashboardData = async () => {
     try {

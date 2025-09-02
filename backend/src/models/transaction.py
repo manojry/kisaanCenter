@@ -23,7 +23,7 @@ class Transaction(Base):
 	date = Column(Date, nullable=False)
 	created_at = Column(DateTime, nullable=False, default=func.now())
 	updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
-	record_status = Column(SQLEnum(RecordStatus), nullable=False, default=RecordStatus.ACTIVE)
+	record_status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
 
 	# Relationships
 	shop = relationship("Shop", back_populates="transactions")

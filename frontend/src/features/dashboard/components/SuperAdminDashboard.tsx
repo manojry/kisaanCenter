@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import './Dashboard.css';
 
 interface SuperAdminStats {
@@ -11,6 +12,19 @@ interface SuperAdminStats {
 }
 
 const SuperAdminDashboard: React.FC = () => {
+  const { user } = useAuth();
+  // Top-level guard: only allow superadmin
+  if (!user || user.role !== 'superadmin') {
+    return (
+      <div className="dashboard-container">
+        <div className="alert alert-warning">
+          <span className="warning-icon">⚠️</span>
+          Access denied. Only superadmin users can view this dashboard.
+        </div>
+      </div>
+    );
+  }
+
   const [stats, setStats] = useState<SuperAdminStats>({
     total_shops: 5,
     total_users: 125,
@@ -22,7 +36,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // In a real app, fetch superadmin-specific data
+    // Only fetch superadmin-specific data here, not owner/shop data
     // fetchSuperAdminStats();
   }, []);
 

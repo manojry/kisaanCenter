@@ -13,7 +13,7 @@ class User(Base):
 	shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
 	contact = Column(String(20), nullable=True)
 	credit_limit = Column(Numeric(12,2), nullable=True, default=0.0)
-	record_status = Column(SQLEnum(RecordStatus), nullable=False, default=RecordStatus.ACTIVE)
+	record_status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
 	created_by = Column(Integer, nullable=True)
 	created_at = Column(DateTime, nullable=False, default=func.now())
 	updated_at = Column(DateTime, nullable=True, onupdate=func.now())

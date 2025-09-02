@@ -121,13 +121,49 @@ class SecurityUtils:
             )
             
         try:
-            payload = jwt.decode(
-                token, 
-                settings.security.secret_key.get_secret_value(), 
-                algorithms=[settings.security.algorithm]
-            )
+            # Try to parse as base64-encoded JSON first (our simple token format)
+            import json, base64
+            try:
+                # Add padding if needed for base64 decoding
+                padded_token = token + "=" * (4 - len(token) % 4) if len(token) % 4 else token
+                decoded = base64.b64decode(padded_token).decode('utf-8')
+                payload = json.loads(decoded)
+                print(f"DEBUG: Successfully decoded JSON token: {payload}")  # Debug log
+                
+                # For simple JSON tokens, we expect user_id and username
+                if "user_id" in payload and "username" in payload:
+                    # Check expiry if present
+                    if "exp" in payload:
+                        from dateutil.parser import parse
+                        exp_time = parse(payload["exp"]) if isinstance(payload["exp"], str) else payload["exp"]
+                        if datetime.utcnow() > exp_time:
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Token has expired"
+                            )
+                    return payload
+                    
+            except (ValueError, json.JSONDecodeError, UnicodeDecodeError, TypeError):
+                print(f"DEBUG: Not a JSON token, trying JWT parsing")  # Debug log
+                # If JSON parsing fails, try JWT
+                pass
+                
+            # Try to parse as JWT if JSON parsing failed
+            if token.startswith("eyJ") and token.count('.') >= 2:
+                # This looks like a real JWT
+                print(f"DEBUG: Trying JWT decode")  # Debug log
+                payload = jwt.decode(
+                    token, 
+                    settings.security.secret_key.get_secret_value(), 
+                    algorithms=[settings.security.algorithm]
+                )
+                print(f"DEBUG: Successfully decoded JWT token: {payload}")  # Debug log
+            else:
+                # Not a JWT format, return error
+                raise jwt.JWTError("Invalid token format - not JWT or JSON")
             
-            if payload.get("type") != token_type:
+            # For proper JWT tokens, check token type if specified
+            if payload.get("type") and payload.get("type") != token_type:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail=f"Invalid token type. Expected {token_type}"
@@ -136,11 +172,19 @@ class SecurityUtils:
             return payload
             
         except jwt.ExpiredSignatureError:
+            print(f"DEBUG: JWT expired")  # Debug log
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired"
             )
-        except jwt.JWTError:
+        except jwt.JWTError as e:
+            print(f"DEBUG: JWT error: {e}")  # Debug log
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials"
+            )
+        except Exception as e:
+            print(f"DEBUG: Token validation exception: {e}")  # Debug log
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials"

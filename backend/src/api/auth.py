@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import APIResponse
@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(tags=["Authentication"])
 
 @router.post("/login",
              response_model=APIResponse,
@@ -72,3 +72,52 @@ def refresh_token(
     except Exception as e:
         logger.error(f"Token refresh failed: {str(e)}")
         return APIResponse(success=False, message="Token refresh failed")
+
+@router.get("/me", response_model=APIResponse)
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    """Get current authenticated user information."""
+    try:
+        # Get user data from request state (set by AuthenticationMiddleware)
+        if not hasattr(request.state, 'user'):
+            return APIResponse(
+                success=False, 
+                message="User not authenticated"
+            )
+        
+        user_data = request.state.user
+        user_id = user_data.get('user_id') or user_data.get('id')
+        
+        if not user_id:
+            return APIResponse(
+                success=False,
+                message="Invalid user data"
+            )
+        
+        # Get user from database
+        user = AuthService.get_user_by_id(db, user_id)
+        if not user:
+            return APIResponse(
+                success=False,
+                message="User not found"
+            )
+        
+        # Return user data (excluding sensitive info)
+        return APIResponse(
+            success=True,
+            message="User data retrieved successfully",
+            data={
+                "id": user.id,
+                "username": user.username,
+                "role": user.role.value,
+                "shop_id": user.shop_id,
+                "status": user.status.value if hasattr(user, 'status') else "active",
+                "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') else None
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Get current user failed: {str(e)}")
+        return APIResponse(
+            success=False,
+            message="Failed to get user data"
+        )

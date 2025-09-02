@@ -12,7 +12,7 @@ class Superadmin(Base):
 	contact = Column(String(15), nullable=True)
 	created_at = Column(DateTime, nullable=True, default=func.now())
 	updated_at = Column(DateTime, nullable=True, default=func.now(), onupdate=func.now())
-	status = Column(SQLEnum(RecordStatus), nullable=True, default=RecordStatus.ACTIVE)
+	status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=True, default=RecordStatus.ACTIVE)
 
 	def __repr__(self):
 		return f"<Superadmin(id={self.id}, username={self.username}, email={self.email}, status={self.status})>"

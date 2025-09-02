@@ -33,7 +33,7 @@ export async function fetchPlans(page: number = 1, limit: number = 10): Promise<
       page: number
       limit: number
       total_pages: number
-    }>(`/plans?page=${page}&limit=${limit}`)
+  }>(`/subscriptions/plans?page=${page}&limit=${limit}`)
     
     if (!response.success) {
       throw new Error(response.message || 'API request was not successful')
@@ -134,7 +134,7 @@ export interface UpdatePlanData {
 
 export async function createPlan(planData: CreatePlanData): Promise<Plan> {
   try {
-    const response = await apiClient.post<Plan>('/plans', planData)
+  const response = await apiClient.post<Plan>('/subscriptions/plans', planData)
     
     if (!response.success) {
       throw new Error(response.message || 'API request was not successful')
@@ -149,7 +149,7 @@ export async function createPlan(planData: CreatePlanData): Promise<Plan> {
 
 export async function updatePlan(planId: number, planData: UpdatePlanData): Promise<Plan> {
   try {
-    const response = await apiClient.put<Plan>(`/plans/${planId}`, planData)
+  const response = await apiClient.put<Plan>(`/subscriptions/plans/${planId}`, planData)
     
     if (!response.success) {
       throw new Error(response.message || 'API request was not successful')
@@ -164,7 +164,7 @@ export async function updatePlan(planId: number, planData: UpdatePlanData): Prom
 
 export async function deletePlan(planId: number): Promise<void> {
   try {
-    const response = await apiClient.delete<void>(`/plans/${planId}`)
+  const response = await apiClient.delete<void>(`/subscriptions/plans/${planId}`)
     
     if (!response.success) {
       throw new Error(response.message || 'Failed to delete plan')

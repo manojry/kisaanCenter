@@ -68,7 +68,7 @@ class RateLimiter:
         return True
 
 # Rate limiter instances
-auth_limiter = RateLimiter(rate_limit=5, time_window=60)  # 5 requests per minute for auth
+auth_limiter = RateLimiter(rate_limit=50, time_window=60)  # 50 requests per minute for auth
 api_limiter = RateLimiter(rate_limit=100, time_window=60)  # 100 requests per minute for API
 
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
@@ -280,6 +280,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.public_paths = [
             "/api/v1/users/auth/login",
+            "/api/v1/auth/login",  # Allow unauthenticated login
             "/api/v1/users/auth/register",
             "/api/v1/users/login",  # Exclude this for test and real login
             "/docs",
@@ -296,11 +297,11 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         if (request.url.path in self.public_paths or 
             request.url.path.startswith("/api/v1/users/auth/")):
             return await call_next(request)
-        
+
         # Skip validation for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
-        
+
         auth_header = request.headers.get("Authorization")
         print(f"DEBUG: Auth header for {request.url.path}: {auth_header}")  # Debug log
         if not auth_header or not auth_header.startswith("Bearer "):
@@ -315,25 +316,28 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 detail="Missing authentication token",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        
+
         token = auth_header.split(" ")[1]
         try:
             # Validate token and get user data
             user_data = SecurityUtils.validate_token(token)
+            print(f"DEBUG: Token validation successful for user: {user_data}")  # Debug log
             # Add user data to request state
             request.state.user = user_data
-            
+
             # Log successful authentication
             audit_logger.log_user_action(
-                user_id=user_data.get('id'),
+                user_id=user_data.get('id') or user_data.get('user_id'),
                 action="authenticated_request",
                 resource=request.url.path,
                 method=request.method
             )
-            
+
             return await call_next(request)
-            
-        except Exception as e:
+
+        except HTTPException as e:
+            # Token validation or auth errors: always return 401
+            print(f"DEBUG: Token validation failed with HTTPException: {e}")  # Debug log
             audit_logger.log_security_event(
                 f"Token validation failed: {str(e)}",
                 severity="warning",
@@ -342,9 +346,37 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e),
+                detail=str(e.detail) if hasattr(e, 'detail') else str(e),
                 headers={"WWW-Authenticate": "Bearer"}
             )
+        except Exception as e:
+            print(f"DEBUG: Token validation failed with Exception: {e}")  # Debug log
+            # If error is authentication-related, return 401 Unauthorized
+            error_message = str(e)
+            auth_related = (
+                "Could not validate credentials" in error_message or
+                "Token has expired" in error_message or
+                "Missing authentication token" in error_message or
+                "JWT" in error_message or
+                "token" in error_message
+            )
+            audit_logger.log_security_event(
+                f"Unexpected error in authentication: {error_message}",
+                severity="error",
+                endpoint=request.url.path,
+                client_ip=request.client.host if request.client else None
+            )
+            if auth_related:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=error_message,
+                    headers={"WWW-Authenticate": "Bearer"}
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request format or internal error"
+                )
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware to add security headers to responses."""

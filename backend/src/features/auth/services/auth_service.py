@@ -22,8 +22,7 @@ class AuthService:
 
             # Only check users table for all logins, including superadmin
             user = db.query(User).filter(
-                User.username == username,
-                User.record_status == 'active'
+                User.username == username
             ).first()
             if user and SecurityUtils.verify_password(password, user.password_hash):
                 user_data = {
@@ -75,16 +74,14 @@ class AuthService:
     
     @staticmethod
     def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
-        """Get active user by ID"""
+        """Get user by ID"""
         return db.query(User).filter(
-            User.id == user_id,
-            User.record_status == 'active'
+            User.id == user_id
         ).first()
     
     @staticmethod
     def get_user_by_username(db: Session, username: str) -> Optional[User]:
-        """Get active user by username"""
+        """Get user by username"""
         return db.query(User).filter(
-            User.username == username,
-            User.record_status == 'active'
+            User.username == username
         ).first()

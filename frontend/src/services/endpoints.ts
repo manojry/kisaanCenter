@@ -1,5 +1,6 @@
 // API endpoint constants matching backend
 export const ENDPOINTS = {
+  PLANS: '/subscriptions/plans',
   LOGIN: '/users/auth/login',
   LOGOUT: '/users/auth/logout',
   REFRESH_TOKEN: '/users/auth/refresh',

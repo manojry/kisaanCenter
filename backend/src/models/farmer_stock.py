@@ -16,7 +16,7 @@ class FarmerStock(Base):
 	expired_qty = Column(Numeric(10, 3), default=0.000)
 	balance_qty = Column(Numeric(10, 3), default=0.000)
 	price_per_unit = Column(Numeric(10, 2), nullable=True)
-	status = Column(SQLEnum(RecordStatus), default=RecordStatus.ACTIVE)
+	status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), default=RecordStatus.ACTIVE)
 	date = Column(Date, nullable=False)
 	created_at = Column(DateTime, nullable=True, default=func.now())
 	updated_at = Column(DateTime, nullable=True, default=func.now(), onupdate=func.now())
