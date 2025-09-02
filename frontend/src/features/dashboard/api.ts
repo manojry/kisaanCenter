@@ -1,6 +1,11 @@
 import { apiClient } from '../../services/api';
 import { APIResponse, ShopDashboardData, DashboardSummary, DashboardAlert, HealthStatus } from './types';
 
+export const getDashboardStats = async () => {
+  // TODO: Implement dashboard stats API call
+  return { data: {} };
+};
+
 export const dashboardApi = {
   getShopDashboard: async (shopId: string): Promise<APIResponse<ShopDashboardData>> => {
     return apiClient.get(`/dashboard/shop/${shopId}`);

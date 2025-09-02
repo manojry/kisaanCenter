@@ -33,7 +33,7 @@ class DatabaseConfig:
     def __init__(self):
         # Load environment variables from .env file
         from dotenv import load_dotenv
-        dotenv_path = "c:/Users/r.kowdampalli/Documents/kisaanCenter/backend/.env"
+        dotenv_path = "./backend/.env"
         print(f"[DEBUG] .env loaded from: {dotenv_path}")
         load_dotenv(dotenv_path)
 

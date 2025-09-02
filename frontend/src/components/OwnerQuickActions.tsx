@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Plus, Users, Package, ShoppingCart, DollarSign, 
+  Users, Package, ShoppingCart, DollarSign, 
   FileText, Settings, TrendingUp, AlertCircle 
 } from 'lucide-react';
 

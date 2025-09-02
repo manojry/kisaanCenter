@@ -30,6 +30,10 @@ interface ShopProduct {
   default_price?: number;
 }
 
+interface ShopProductsByCategory {
+  [category: string]: ShopProduct[];
+}
+
 interface ProductAssignmentWizardProps {
   shopId: number;
   farmerId?: number;
@@ -46,7 +50,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
   onCancel
 }) => {
   const [allProducts, setAllProducts] = useState<ProductsByCategory>({});
-  const [shopProducts, setShopProducts] = useState<ProductsByCategory>({});
+  const [shopProducts, setShopProducts] = useState<ShopProductsByCategory>({});
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [farmerAssignments, setFarmerAssignments] = useState<Map<number, any>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -139,18 +143,18 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
             Choose which products you want to sell in your shop. You can modify this later.
           </p>
           <div className="mt-4">
-                        <Badge className="text-lg px-4 py-2 border border-gray-300">
+            <Badge className="text-lg px-4 py-2 border border-gray-300">
               Step 1: Product Selection {categories.length > 0 && `(${categories.length} categories)`}
             </Badge>
           </div>
         </div>
 
-        <Tabs defaultValue={categories[0]} className="w-full">
+        <Tabs className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             {categories.map(category => (
               <TabsTrigger key={category} value={category} className="capitalize">
                 {category}
-                <Badge variant="secondary" className="ml-2">
+                <Badge className="ml-2 bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">
                   {allProducts[category]?.length || 0}
                 </Badge>
               </TabsTrigger>
@@ -163,7 +167,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
                 <h3 className="text-lg font-semibold capitalize">{category}</h3>
                 <div className="space-x-2">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => {
                       const categoryProductIds = products.map(p => p.id);
@@ -175,7 +179,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
                     Select All
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => {
                       const categoryProductIds = products.map(p => p.id);
@@ -196,7 +200,6 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
                     className={`hover:shadow-md transition-shadow cursor-pointer ${
                       selectedProducts.has(product.id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
                     }`}
-                    onClick={() => handleProductSelection(product.id, !selectedProducts.has(product.id))}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -205,7 +208,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
                             <Checkbox
                               id={`product-${product.id}`}
                               checked={selectedProducts.has(product.id)}
-                              onCheckedChange={(checked) => handleProductSelection(product.id, !!checked)}
+                              onChange={(e) => handleProductSelection(product.id, e.target.checked)}
                             />
                             <Label htmlFor={`product-${product.id}`} className="font-medium cursor-pointer">
                               {product.name}
@@ -234,7 +237,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
           </div>
           <div className="space-x-3">
             <Button 
-              variant="outline"
+              variant="secondary"
               onClick={onCancel}
               disabled={loading}
             >
@@ -265,18 +268,18 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
             Select which products you want to assign to this farmer and set preferred prices.
           </p>
           <div className="mt-4">
-            <Badge variant="outline" className="text-lg px-4 py-2">
+            <Badge className="text-lg px-4 py-2 border border-gray-300">
               {farmerAssignments.size} products assigned
             </Badge>
           </div>
         </div>
 
-        <Tabs defaultValue={categories[0]} className="w-full">
+        <Tabs className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             {categories.map(category => (
               <TabsTrigger key={category} value={category} className="capitalize">
                 {category}
-                <Badge variant="secondary" className="ml-2">
+                <Badge className="ml-2 bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">
                   {shopProducts[category]?.length || 0}
                 </Badge>
               </TabsTrigger>
@@ -303,8 +306,8 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
                           <Checkbox
                             id={`shop-product-${product.shop_product_id}`}
                             checked={farmerAssignments.has(product.shop_product_id)}
-                            onCheckedChange={(checked) => handleFarmerAssignment(product.shop_product_id, {
-                              selected: !!checked,
+                            onChange={(e) => handleFarmerAssignment(product.shop_product_id, {
+                              selected: e.target.checked,
                               preferred_price: farmerAssignments.get(product.shop_product_id)?.preferred_price || '',
                               notes: farmerAssignments.get(product.shop_product_id)?.notes || ''
                             })}
@@ -378,7 +381,7 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
           </div>
           <div className="space-x-3">
             <Button 
-              variant="outline"
+              variant="secondary"
               onClick={onCancel}
               disabled={loading}
             >
@@ -415,118 +418,5 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
       
       {mode === 'shop-setup' ? renderShopSetup() : renderFarmerAssignment()}
     </div>
-  );
-};
-
-// Farmer Product Assignment Card Component
-interface FarmerProductAssignmentCardProps {
-  product: ShopProduct;
-  assignment?: any;
-  onAssignmentChange: (assignment: any) => void;
-}
-
-const FarmerProductAssignmentCard: React.FC<FarmerProductAssignmentCardProps> = ({
-  product,
-  assignment,
-  onAssignmentChange
-}) => {
-  const [isSelected, setIsSelected] = useState(!!assignment);
-  const [preferredPrice, setPreferredPrice] = useState(assignment?.preferred_price || '');
-  const [notes, setNotes] = useState(assignment?.notes || '');
-
-  const handleSelectionChange = (selected: boolean) => {
-    setIsSelected(selected);
-    onAssignmentChange({
-      selected,
-      preferred_price: selected ? parseFloat(preferredPrice) || null : null,
-      notes: selected ? notes : ''
-    });
-  };
-
-  const handlePriceChange = (value: string) => {
-    setPreferredPrice(value);
-    if (isSelected) {
-      onAssignmentChange({
-        selected: true,
-        preferred_price: parseFloat(value) || null,
-        notes
-      });
-    }
-  };
-
-  const handleNotesChange = (value: string) => {
-    setNotes(value);
-    if (isSelected) {
-      onAssignmentChange({
-        selected: true,
-        preferred_price: parseFloat(preferredPrice) || null,
-        notes: value
-      });
-    }
-  };
-
-  return (
-    <Card className={`transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-4">
-          <Checkbox
-            id={`farmer-product-${product.shop_product_id}`}
-            checked={isSelected}
-            onCheckedChange={handleSelectionChange}
-          />
-          
-          <div className="flex-1 space-y-3">
-            <div>
-              <Label 
-                htmlFor={`farmer-product-${product.shop_product_id}`}
-                className="font-medium cursor-pointer"
-              >
-                {product.name}
-              </Label>
-              <p className="text-sm text-gray-500">
-                Unit: {product.unit}
-                {product.default_price && (
-                  <span className="ml-2">
-                    • Default Price: ₹{product.default_price}/{product.unit}
-                  </span>
-                )}
-              </p>
-            </div>
-
-            {isSelected && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`price-${product.shop_product_id}`} className="text-sm">
-                    Preferred Price (₹/{product.unit})
-                  </Label>
-                  <Input
-                    id={`price-${product.shop_product_id}`}
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter price"
-                    value={preferredPrice}
-                    onChange={(e) => handlePriceChange(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor={`notes-${product.shop_product_id}`} className="text-sm">
-                    Notes (Optional)
-                  </Label>
-                  <Input
-                    id={`notes-${product.shop_product_id}`}
-                    placeholder="Quality grade, special instructions..."
-                    value={notes}
-                    onChange={(e) => handleNotesChange(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 };

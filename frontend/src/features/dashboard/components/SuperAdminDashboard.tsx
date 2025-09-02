@@ -25,7 +25,7 @@ const SuperAdminDashboard: React.FC = () => {
     );
   }
 
-  const [stats, setStats] = useState<SuperAdminStats>({
+  const [stats] = useState<SuperAdminStats>({
     total_shops: 5,
     total_users: 125,
     total_revenue: 50000,
@@ -33,25 +33,25 @@ const SuperAdminDashboard: React.FC = () => {
     pending_approvals: 8,
     system_alerts: 2
   });
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   useEffect(() => {
     // Only fetch superadmin-specific data here, not owner/shop data
     // fetchSuperAdminStats();
   }, []);
 
-  const fetchSuperAdminStats = async () => {
-    try {
-      setLoading(true);
-      // const response = await fetch('/api/v1/admin/dashboard');
-      // const data = await response.json();
-      // setStats(data.data);
-    } catch (error) {
-      console.error('Failed to fetch superadmin stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const fetchSuperAdminStats = async () => {
+  //   try {
+  //     setLoading(true);
+  //     // const response = await fetch('/api/v1/admin/dashboard');
+  //     // const data = await response.json();
+  //     // setStats(data.data);
+  //   } catch (error) {
+  //     console.error('Failed to fetch superadmin stats:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   if (loading) {
     return (

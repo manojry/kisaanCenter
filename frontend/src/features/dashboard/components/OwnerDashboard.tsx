@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import VirtualizedTable from '../../../components/VirtualizedTable';
 import Button from '@/components/ui/Button';
 
 // Fallback Card and Tabs components
@@ -7,7 +6,7 @@ const Card = ({ children }: { children: React.ReactNode }) => <div className="bg
 const CardHeader = ({ children }: { children: React.ReactNode }) => <div className="mb-2 font-semibold">{children}</div>;
 const CardContent = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
 
-const Tabs = ({ value, onValueChange, children }: any) => <div>{children}</div>;
+const Tabs = ({ children }: any) => <div>{children}</div>;
 const TabsContent = ({ value, children, ...props }: any) => <div {...props}>{children}</div>;
 const TabsList = ({ children }: any) => <div className="flex space-x-2 mb-4">{children}</div>;
 const TabsTrigger = ({ value, children, ...props }: any) => <button className="px-3 py-1 rounded bg-gray-100" {...props}>{children}</button>;
@@ -339,3 +338,5 @@ const ProductManagementTab: React.FC<ProductManagementTabProps> = ({
     </div>
   );
 };
+
+export default OwnerDashboard;

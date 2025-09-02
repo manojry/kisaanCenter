@@ -1,4 +1,4 @@
-// Main application components index
+// Main application coimport TransactionForm from './features/transaction/components/TransactionForm';ponents index
 // This file exports all reusable components for easy importing
 
 // Layout and Navigation Components
@@ -20,7 +20,7 @@ export type { Column } from './components/DataTable';
 
 // Feature Components
 export { ProductList } from './features/product/components/ProductList';
-export { TransactionForm } from './features/transaction/components/TransactionForm';
+export { default as TransactionForm } from './features/transaction/components/TransactionForm';
 
 // Dashboard Components  
 export { default as Dashboard } from './pages/Dashboard';
