@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import Card, { CardHeader, CardContent } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
 import { Search, Plus, Edit, Eye } from 'lucide-react';
 import { productManagementApi } from '../api/productManagementApi';
 
@@ -189,7 +189,7 @@ const FarmerCard: React.FC<FarmerCardProps> = ({
 
           <div className="flex space-x-2 pt-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onViewDetails}
               className="flex-1"
@@ -237,7 +237,7 @@ const FarmerProductDetails: React.FC<FarmerProductDetailsProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="secondary" onClick={onBack}>
             ← Back
           </Button>
           <div>

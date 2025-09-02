@@ -32,6 +32,8 @@ export interface Product {
   status: string
   created_at: string
   updated_at: string
+  shop_product_id?: number
+  default_price?: number
 }
 
 export interface FarmerStock {

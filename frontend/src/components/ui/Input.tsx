@@ -1,5 +1,4 @@
 import React from 'react'
-import { clsx } from 'clsx' // Ensure this is in PascalCase if it refers to a component
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string

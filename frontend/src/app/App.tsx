@@ -88,7 +88,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             {user?.role === 'superadmin' ? (
-              <SuperAdminDashboard user={user} />
+              <SuperAdminDashboard user={{
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                shop_id: user.shop_id === null ? undefined : user.shop_id,
+                status: user.status || 'active',
+                created_at: user.created_at || new Date().toISOString(),
+                updated_at: user.updated_at || new Date().toISOString(),
+              }} />
             ) : (
               <Dashboard />
             )}

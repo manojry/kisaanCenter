@@ -1,11 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import Card, { CardHeader, CardContent } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
 import { productManagementApi } from '../../product/api/productManagementApi';
 
 interface FarmerProduct {
@@ -112,47 +110,39 @@ export const SmartTransactionEntry: React.FC<SmartTransactionEntryProps> = ({
           {/* Category Selection */}
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select 
+              id="category" 
+              value={selectedCategory} 
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="form-select block w-full mt-1 border rounded px-3 py-2"
+            >
+              <option value="">Select a category</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
           </div>
 
           {/* Product Selection */}
           <div className="space-y-2">
             <Label htmlFor="product">Product</Label>
-            <Select 
+            <select 
+              id="product"
               value={selectedProduct?.farmer_product_id.toString() || ''} 
-              onValueChange={handleProductChange}
+              onChange={(e) => handleProductChange(e.target.value)}
               disabled={!selectedCategory}
+              className="form-select block w-full mt-1 border rounded px-3 py-2"
             >
-              <SelectTrigger id="product">
-                <SelectValue placeholder={selectedCategory ? "Select a product" : "Select category first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {availableProducts.map(product => (
-                  <SelectItem 
-                    key={product.farmer_product_id} 
-                    value={product.farmer_product_id.toString()}
-                  >
-                    <div className="flex justify-between w-full">
-                      <span>{product.name}</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {product.unit}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">{selectedCategory ? "Select a product" : "Select category first"}</option>
+              {availableProducts.map(product => (
+                <option 
+                  key={product.farmer_product_id} 
+                  value={product.farmer_product_id.toString()}
+                >
+                  {product.name} ({product.unit})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Quantity */}

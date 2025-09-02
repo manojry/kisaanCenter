@@ -37,6 +37,7 @@ const initialState: TransactionState = {
     payment_status: '',
     date_from: '',
     date_to: '',
+    buyer_id: '',
     category_id: '',
     user_id: ''
   },

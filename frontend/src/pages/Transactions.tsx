@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { useTransactions } from '@/features/transaction/hooks/useTransactions'
-import { useProducts } from '@/features/product/hooks/useProducts'
 import { useUsers } from '@/features/user/hooks/useUsers'
 import { useAuth } from '@/context/AuthContext'
 import TransactionFilters from '@/features/transaction/components/TransactionFilters'
@@ -17,16 +16,11 @@ const Transactions: React.FC = () => {
     loading,
     error,
     filters,
-    pagination,
     setFilters,
     setPage,
     fetchTransactions,
-    confirmCommission,
-    refreshAnalytics
+    confirmCommission
   } = useTransactions()
-
-  const productsQuery = useProducts(user?.shop_id || undefined);
-  const products = Array.isArray(productsQuery.data) ? productsQuery.data : [];
 
   const usersQuery = useUsers(user?.shop_id ? { shop_id: user.shop_id } : undefined);
   const users = Array.isArray(usersQuery.data?.data) ? usersQuery.data.data : [];
@@ -52,6 +46,8 @@ const Transactions: React.FC = () => {
       payment_status: '',
       date_from: '',
       date_to: '',
+      buyer_id: '',
+      category_id: '',
       user_id: ''
     })
     setPage(1)
@@ -181,9 +177,9 @@ const Transactions: React.FC = () => {
             <TransactionTable
               transactions={transactions}
               loading={loading}
-              pagination={pagination}
-              onPageChange={setPage}
+              onEdit={handleViewDetails}
               onViewDetails={handleViewDetails}
+              onPaymentUpdate={(id, data) => console.log('Payment update:', id, data)}
               onCommissionConfirm={confirmCommission}
             />
           </div>

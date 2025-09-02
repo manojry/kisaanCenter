@@ -8,20 +8,23 @@ export interface Pagination {
 export interface TransactionTableProps {
   transactions: Transaction[];
   loading: boolean;
-  pagination: Pagination;
+  pagination?: Pagination;
   onPageChange: (page: number) => void;
   onViewDetails: (transaction: Transaction) => void;
   onCommissionConfirm: (id: number) => Promise<void>;
 }
 export enum TransactionStatus {
   Pending = 'pending',
+  Active = 'active',
   Completed = 'completed',
   Cancelled = 'cancelled',
 }
 
 export enum PaymentStatus {
-  Unpaid = 'unpaid',
+  Pending = 'pending',
+  Partial = 'partial',
   Paid = 'paid',
+  Unpaid = 'unpaid',
   Refunded = 'refunded',
 }
 export interface Transaction {
@@ -70,7 +73,8 @@ export interface TransactionFilters {
   date_from: string
   date_to: string
   buyer_id: string
-  // Removed: category_id, user_id - these don't exist in the actual filter interface
+  category_id?: string
+  user_id?: string
 }
 
 export interface TransactionAnalytics {
@@ -80,4 +84,11 @@ export interface TransactionAnalytics {
   commission_earned: number
   today_transactions: number
   today_amount: number
+  total_revenue: number
+  total_commission: number
+  average_transaction_value: number
+  growth_percentage?: number
+  daily_revenue?: Array<{date: string, amount: number}>
+  transaction_by_type?: Array<{type: string, count: number}>
+  daily_commission?: Array<{date: string, amount: number}>
 }

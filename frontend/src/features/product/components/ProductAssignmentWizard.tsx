@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import Card, { CardContent } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Checkbox from '@/components/ui/Checkbox';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import Badge from '@/components/ui/Badge';
+import Alert, { AlertDescription } from '@/components/ui/Alert';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { productManagementApi } from '../api/productManagementApi';
 
@@ -45,7 +45,6 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
   onComplete,
   onCancel
 }) => {
-  const [step, setStep] = useState(1);
   const [allProducts, setAllProducts] = useState<ProductsByCategory>({});
   const [shopProducts, setShopProducts] = useState<ProductsByCategory>({});
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
@@ -140,8 +139,8 @@ export const ProductAssignmentWizard: React.FC<ProductAssignmentWizardProps> = (
             Choose which products you want to sell in your shop. You can modify this later.
           </p>
           <div className="mt-4">
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              {selectedProducts.size} products selected
+                        <Badge className="text-lg px-4 py-2 border border-gray-300">
+              Step 1: Product Selection {categories.length > 0 && `(${categories.length} categories)`}
             </Badge>
           </div>
         </div>

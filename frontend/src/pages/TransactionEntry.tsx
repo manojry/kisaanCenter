@@ -21,7 +21,10 @@ const initialFormData: TransactionFormData = {
   type: 'sale',
   commission_rate: 10,
   date: new Date().toISOString().split('T')[0],
-  items: []
+  items: [],
+  farmer_paid_amount: 0,
+  commission_confirmed: false,
+  buyer_paid_amount: 0
 };
 
 const TransactionEntry: React.FC = () => {

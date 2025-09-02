@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const Tabs: React.FC<{ children: React.ReactNode; defaultValue?: string; className?: string }> = ({ children, defaultValue, className }) => (
+export const Tabs: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
 	<div className={className || ''}>{children}</div>
 );
 export const TabsList: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
