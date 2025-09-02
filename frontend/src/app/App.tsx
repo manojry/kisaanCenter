@@ -91,9 +91,10 @@ const AppRoutes: React.FC = () => {
               <SuperAdminDashboard user={{
                 id: user.id,
                 username: user.username,
+                password_hash: user.password_hash || '',
                 role: user.role,
                 shop_id: user.shop_id === null ? undefined : user.shop_id,
-                status: user.status || 'active',
+                record_status: user.record_status || 'active',
                 created_at: user.created_at || new Date().toISOString(),
                 updated_at: user.updated_at || new Date().toISOString(),
               }} />

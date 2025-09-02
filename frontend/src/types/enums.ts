@@ -1,66 +1,83 @@
-// User roles matching backend
+// User roles matching backend exactly
 export enum UserRole {
   SUPERADMIN = 'superadmin',
   OWNER = 'owner',
   FARMER = 'farmer',
   BUYER = 'buyer',
   EMPLOYEE = 'employee'
+  // Removed 'guest' as it's not in backend
 }
 
+// Record status matching backend
 export enum RecordStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  DELETED = 'DELETED'
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  DELETED = 'deleted'
+  // Removed 'suspended' as it's not in backend consistently
 }
 
-// Transaction statuses
+// Transaction statuses matching backend
 export enum TransactionStatus {
-  PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled'
+  // Removed 'failed' as it's not in backend consistently
 }
 
-// Payment statuses
+// Payment statuses matching backend
 export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PARTIAL = 'PARTIAL',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED'
+  PENDING = 'pending',
+  PARTIAL = 'partial',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+  // Updated to match backend schema
 }
 
-// Credit statuses
+// Credit statuses matching backend
 export enum CreditStatus {
-  OUTSTANDING = 'OUTSTANDING',
-  PARTIAL = 'PARTIAL',
-  PAID = 'PAID',
-  OVERDUE = 'OVERDUE'
+  OUTSTANDING = 'outstanding',
+  PARTIAL = 'partial',
+  PAID = 'paid',
+  OVERDUE = 'overdue'
+  // Updated to match backend schema
 }
 
-// Transaction completion status
+// Transaction completion status matching backend
 export enum CompletionStatus {
-  INCOMPLETE = 'INCOMPLETE',
-  COMPLETE = 'COMPLETE'
+  INCOMPLETE = 'incomplete',
+  COMPLETE = 'complete'
+  // Removed 'pending' as it's not consistently in backend
 }
 
-// Transaction types
+// Transaction types matching backend
 export enum TransactionType {
   SALE = 'sale',
   RETURN = 'return',
   ADJUSTMENT = 'adjustment'
+  // Removed 'purchase' as it's not in backend
 }
 
-// Payment methods
-export enum PaymentMethod {
+// Payment types matching backend
+export enum PaymentType {
+  FULL_PAYMENT = 'full_payment',
+  PARTIAL_PAYMENT = 'partial_payment',
+  ADVANCE = 'advance'
+  // Updated to match backend schema
+}
+
+// Farmer payment types matching backend
+export enum FarmerPaymentType {
   CASH = 'cash',
   BANK_TRANSFER = 'bank_transfer',
-  UPI = 'upi',
-  CHEQUE = 'cheque',
-  CREDIT = 'credit'
+  CHEQUE = 'cheque'
+  // Updated to match backend schema
 }
 
-export enum PaymentType {
-  FULL_PAYMENT = 'FULL_PAYMENT',
-  PARTIAL_PAYMENT = 'PARTIAL_PAYMENT',
-  ADVANCE = 'ADVANCE'
+// Stock status matching backend
+export enum StockStatus {
+  IN_STOCK = 'in_stock',
+  OUT_OF_STOCK = 'out_of_stock',
+  EXPIRED = 'expired'
+  // Updated to match backend schema
 }

@@ -16,14 +16,14 @@ export interface UpdateUserData {
   username?: string
   contact?: string
   credit_limit?: number
-  status?: string
+  record_status?: string
 }
 
 export const userApi = {
   getUsers: async (params?: PaginationParams & {
     shop_id?: number
     role?: string
-    status?: string
+    record_status?: string
     search?: string
   }): Promise<APIResponse<User[]>> => {
     return apiClient.get(ENDPOINTS.USERS, params)

@@ -87,7 +87,7 @@ const TransactionAnalytics: React.FC<TransactionAnalyticsProps> = ({ filters = {
     datasets: [
       {
         label: 'Revenue',
-        data: analytics?.daily_revenue?.map(item => item.revenue) || [],
+        data: analytics?.daily_revenue?.map(item => item.amount) || [],
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.1
@@ -115,7 +115,7 @@ const TransactionAnalytics: React.FC<TransactionAnalyticsProps> = ({ filters = {
     datasets: [
       {
         label: 'Commission',
-        data: analytics?.daily_commission?.map(item => item.commission) || [],
+        data: analytics?.daily_commission?.map(item => item.amount) || [],
         backgroundColor: 'rgba(168, 85, 247, 0.8)'
       }
     ]

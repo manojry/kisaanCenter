@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react'
-import { Transaction, TransactionStatus, PaymentStatus } from '@/types/transaction'
+import { Transaction } from '@/types/transaction'
+import { TransactionStatus, PaymentStatus } from '@/types/enums'
 import { transactionService } from '@/services/transactionService'
 import toast from 'react-hot-toast'
 
@@ -115,25 +116,19 @@ const TransactionBulkActions: React.FC<TransactionBulkActionsProps> = ({
               <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                 <div className="py-1">
                   <button
-                    onClick={() => handleBulkStatusUpdate('pending')}
+                    onClick={() => handleBulkStatusUpdate(TransactionStatus.PENDING)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mark as Pending
                   </button>
                   <button
-                    onClick={() => handleBulkStatusUpdate('active')}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Mark as Active
-                  </button>
-                  <button
-                    onClick={() => handleBulkStatusUpdate('completed')}
+                    onClick={() => handleBulkStatusUpdate(TransactionStatus.COMPLETED)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mark as Completed
                   </button>
                   <button
-                    onClick={() => handleBulkStatusUpdate('cancelled')}
+                    onClick={() => handleBulkStatusUpdate(TransactionStatus.CANCELLED)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mark as Cancelled
@@ -150,22 +145,22 @@ const TransactionBulkActions: React.FC<TransactionBulkActionsProps> = ({
               <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                 <div className="py-1">
                   <button
-                    onClick={() => handleBulkPaymentUpdate('pending')}
+                    onClick={() => handleBulkPaymentUpdate(PaymentStatus.PENDING)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mark as Pending
                   </button>
                   <button
-                    onClick={() => handleBulkPaymentUpdate('partial')}
+                    onClick={() => handleBulkPaymentUpdate(PaymentStatus.PARTIAL)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mark as Partial
                   </button>
                   <button
-                    onClick={() => handleBulkPaymentUpdate('paid')}
+                    onClick={() => handleBulkPaymentUpdate(PaymentStatus.COMPLETED)}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    Mark as Paid
+                    Mark as Completed
                   </button>
                 </div>
               </div>

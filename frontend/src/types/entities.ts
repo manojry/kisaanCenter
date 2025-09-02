@@ -4,11 +4,13 @@ import { UserRole, TransactionStatus, PaymentStatus, CreditStatus, CompletionSta
 export interface User {
   id: number
   username: string
+  password_hash: string
   role: UserRole
   shop_id?: number
   contact?: string
   credit_limit?: number
-  status: string
+  record_status: string
+  created_by?: number
   created_at: string
   updated_at: string
 }
@@ -27,13 +29,16 @@ export interface Shop {
 export interface Product {
   id: number
   name: string
-  category: string
-  unit: string
+  description?: string
+  category?: string // Keeping for backward compatibility
+  category_id?: number // From backend
+  unit?: string // Keeping for frontend compatibility
+  price?: number // From backend
+  default_price?: number // Keeping for frontend compatibility
+  shop_product_id?: number // Keeping for frontend compatibility
   status: string
   created_at: string
   updated_at: string
-  shop_product_id?: number
-  default_price?: number
 }
 
 export interface FarmerStock {
