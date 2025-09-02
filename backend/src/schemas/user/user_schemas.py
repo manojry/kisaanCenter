@@ -7,6 +7,8 @@ from ...models.enums import UserRole, RecordStatus
 # Base Schema
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
+    email: Optional[str] = None
+    full_name: Optional[str] = None
     role: UserRole
     shop_id: Optional[int] = None
     contact: Optional[str] = Field(None, max_length=20)
@@ -16,6 +18,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
     created_by: Optional[int] = None
+    status: Optional[RecordStatus] = RecordStatus.ACTIVE
 
 # Update Schema
 class UserUpdate(BaseModel):

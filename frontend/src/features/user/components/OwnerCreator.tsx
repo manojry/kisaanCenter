@@ -26,19 +26,28 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
   const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
 
   // Load available plans when component mounts
-  React.useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await apiClient.get<{items: Plan[]}>('/plans');
-        if (response.success && response.data?.items) {
-          setAvailablePlans(response.data.items);
+    React.useEffect(() => {
+      const fetchPlans = async () => {
+        try {
+          const response = await apiClient.get('/subscriptions/plans');
+          let plans: Plan[] = [];
+          if (response.success) {
+            const dataAny = response.data as any;
+            if (Array.isArray(dataAny)) {
+              plans = dataAny;
+            } else if (dataAny?.items && Array.isArray(dataAny.items)) {
+              plans = dataAny.items;
+            } else if (Array.isArray(dataAny?.data)) {
+              plans = dataAny.data;
+            }
+          }
+          setAvailablePlans(plans);
+        } catch (error) {
+          console.error('Error fetching plans:', error);
         }
-      } catch (error) {
-        console.error('Error fetching plans:', error);
-      }
-    };
+      };
 
-    fetchPlans();
+      fetchPlans();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

@@ -64,7 +64,7 @@ export async function fetchPlans(page: number = 1, limit: number = 10): Promise<
 
 export async function fetchAllPlans(): Promise<Plan[]> {
   try {
-    const response = await apiClient.get<ApiResponse<Plan[]>>('/subscriptions/plans');
+  const response = await apiClient.get<ApiResponse<Plan[]>>('/subscriptions/plans');
     // If backend sends { success, message, data: [...] }
     if (response?.data && Array.isArray(response.data.data)) {
       return response.data.data;
@@ -136,7 +136,7 @@ export interface UpdatePlanData {
 
 export async function createPlan(planData: CreatePlanData): Promise<Plan> {
   try {
-    const response = await apiClient.post<ApiResponse<Plan>>('/subscriptions/plans', planData);
+  const response = await apiClient.post<ApiResponse<Plan>>('/subscriptions/plans', planData);
     if (response?.data?.data) {
       return response.data.data;
     }
@@ -149,7 +149,7 @@ export async function createPlan(planData: CreatePlanData): Promise<Plan> {
 
 export async function updatePlan(planId: number, planData: UpdatePlanData): Promise<Plan> {
   try {
-    const response = await apiClient.put<ApiResponse<Plan>>(`/subscriptions/plans/${planId}`, planData);
+  const response = await apiClient.put<ApiResponse<Plan>>(`/subscriptions/plans/${planId}`, planData);
     if (response?.data?.data) {
       return response.data.data;
     }
@@ -162,7 +162,7 @@ export async function updatePlan(planId: number, planData: UpdatePlanData): Prom
 
 export async function deletePlan(planId: number): Promise<void> {
   try {
-    await apiClient.delete(`/subscriptions/plans/${planId}`);
+  await apiClient.delete(`/subscriptions/plans/${planId}`);
   } catch (error) {
     console.error('Error deleting plan:', error);
     throw error;

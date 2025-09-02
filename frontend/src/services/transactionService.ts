@@ -13,94 +13,80 @@ export interface TransactionListResponse {
 }
 
 export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
+  success: boolean;
+  data: T;
+  message?: string;
 }
 
 class TransactionService {
   private baseUrl = '/api/v1/transactions'
 
   async getTransactions(params: TransactionFilters & { page: number; limit: number }): Promise<TransactionListResponse> {
-    const response = await apiClient.get(this.baseUrl, { params });
-    if (response && Array.isArray(response.data)) {
-      return { transactions: response.data, pagination: { page: 1, limit: response.data.length, total: response.data.length, totalPages: 1 } };
+    const response = await apiClient.get<ApiResponse<Transaction[]>>(this.baseUrl, { params });
+    if (response?.data?.data && Array.isArray(response.data.data)) {
+      return {
+        transactions: response.data.data,
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total: response.data.data.length,
+          totalPages: 1
+        }
+      };
     }
-    if (response && response.data && Array.isArray(response.data.data)) {
-      return { transactions: response.data.data, pagination: { page: 1, limit: response.data.data.length, total: response.data.data.length, totalPages: 1 } };
-    }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async getTransaction(id: number): Promise<Transaction> {
-    const response = await apiClient.get(`${this.baseUrl}/${id}`);
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.get<ApiResponse<Transaction>>(`${this.baseUrl}/${id}`);
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async createTransaction(data: TransactionFormData): Promise<Transaction> {
-    const response = await apiClient.post(this.baseUrl, data);
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.post<ApiResponse<Transaction>>(this.baseUrl, data);
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async updateTransaction(id: number, data: TransactionFormData): Promise<Transaction> {
-    const response = await apiClient.put(`${this.baseUrl}/${id}`, data);
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.put<ApiResponse<Transaction>>(`${this.baseUrl}/${id}`, data);
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async deleteTransaction(id: number): Promise<void> {
-    const response = await apiClient.delete(`${this.baseUrl}/${id}`);
-    // No return value needed
+    await apiClient.delete(`${this.baseUrl}/${id}`);
   }
 
   async updatePayment(id: number, paymentData: { amount: number }): Promise<Transaction> {
-    const response = await apiClient.put(`${this.baseUrl}/${id}/payment`, paymentData);
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.put<ApiResponse<Transaction>>(`${this.baseUrl}/${id}/payment`, paymentData);
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async confirmCommission(id: number): Promise<Transaction> {
-    const response = await apiClient.post(`${this.baseUrl}/${id}/confirm-commission`);
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.post<ApiResponse<Transaction>>(`${this.baseUrl}/${id}/confirm-commission`);
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async getAnalytics(filters?: Partial<TransactionFilters>): Promise<TransactionAnalytics> {
-    const response = await apiClient.get(`${this.baseUrl}/analytics`, { params: filters });
-    if (response && response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-      return response.data;
-    }
-    if (response && response.data && response.data.data) {
+    const response = await apiClient.get<ApiResponse<TransactionAnalytics>>(`${this.baseUrl}/analytics`, { params: filters });
+    if (response?.data?.data) {
       return response.data.data;
     }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 
   async exportTransactions(filters?: TransactionFilters): Promise<Blob> {
@@ -108,7 +94,7 @@ class TransactionService {
       params: filters,
       responseType: 'blob'
     });
-    return response.data;
+    return response.data as Blob;
   }
 
   async bulkUpdateStatus(ids: number[], status: string): Promise<void> {
@@ -116,14 +102,19 @@ class TransactionService {
   }
 
   async getTransactionsByUser(userId: number, params?: { page: number; limit: number }): Promise<TransactionListResponse> {
-    const response = await apiClient.get(`/api/v1/users/${userId}/transactions`, { params });
-    if (response && Array.isArray(response.data)) {
-      return { transactions: response.data, pagination: { page: 1, limit: response.data.length, total: response.data.length, totalPages: 1 } };
+    const response = await apiClient.get<ApiResponse<Transaction[]>>(`/api/v1/users/${userId}/transactions`, { params });
+    if (response?.data?.data && Array.isArray(response.data.data)) {
+      return {
+        transactions: response.data.data,
+        pagination: {
+          page: params?.page ?? 1,
+          limit: params?.limit ?? response.data.data.length,
+          total: response.data.data.length,
+          totalPages: 1
+        }
+      };
     }
-    if (response && response.data && Array.isArray(response.data.data)) {
-      return { transactions: response.data.data, pagination: { page: 1, limit: response.data.data.length, total: response.data.data.length, totalPages: 1 } };
-    }
-    return response.data;
+    throw new Error('Invalid response from backend');
   }
 }
 

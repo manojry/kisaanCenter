@@ -130,7 +130,7 @@ class UserService:
         return db.query(User).filter(User.username == username).first()
     
     @staticmethod
-    def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: Optional[int] = None, contact: str = None, credit_limit: float = 0.0, status: str = "active"):
+    def create_user(db: Session, username: str, password_hash: str, role: str, shop_id: Optional[int] = None, contact: str = None, credit_limit: float = 0.0, status: str = "active", email: Optional[str] = None, full_name: Optional[str] = None):
         # Explicit validation before DB insert
         errors = []
         if not username or len(username) < 3:
@@ -161,7 +161,9 @@ class UserService:
                 role=role_enum,
                 contact=contact,
                 credit_limit=credit_limit,
-                status=status_enum
+                status=status_enum,
+                email=email,
+                full_name=full_name
             )
             # Only set shop_id for non-owner roles
             if shop_id is not None and role_enum != UserRole.OWNER:
@@ -180,6 +182,8 @@ class UserService:
                     "contact": user.contact,
                     "credit_limit": float(user.credit_limit),
                     "status": user.status,
+                    "email": user.email,
+                    "full_name": user.full_name,
                     "created_at": user.created_at.isoformat(),
                     "updated_at": user.updated_at.isoformat()
                 }
