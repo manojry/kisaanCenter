@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import axios from 'axios'
 import { APIResponse } from '@/types/api'
 // @ts-ignore: No type declarations for react-hot-toast

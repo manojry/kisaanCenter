@@ -1,3 +1,48 @@
+export enum UserRole {
+  SuperAdmin = 'superadmin',
+  Owner = 'owner',
+  Buyer = 'buyer',
+  Farmer = 'farmer',
+}
+
+export enum RecordStatus {
+  Active = 'active',
+  Inactive = 'inactive',
+  Deleted = 'deleted',
+}
+
+export interface Shop {
+  id: number;
+  name: string;
+  address: string;
+  owner_user_id: number;
+  status: RecordStatus;
+}
+
+export interface FarmerStock {
+  id: number;
+  farmer_user_id: number;
+  product_id: number;
+  quantity: number;
+}
+
+export interface Transaction {
+  id: number;
+  buyer_user_id: number;
+  farmer_user_id: number;
+  type: string;
+  status: string;
+  commission_rate: number;
+  date: string;
+  items: any[];
+}
+
+export interface Credit {
+  id: number;
+  buyer_user_id: number;
+  amount: number;
+  status: RecordStatus;
+}
 
 export interface User {
   id: number;

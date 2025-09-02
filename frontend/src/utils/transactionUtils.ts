@@ -56,10 +56,10 @@ export const calculateTransactionTotal = (transaction: Transaction): number => {
 }
 
 export const calculateCommission = (transaction: Transaction): number => {
-  if (!transaction.commission_percentage) return 0
+  if (!transaction.commission_rate) return 0
   
   const total = calculateTransactionTotal(transaction)
-  return (total * transaction.commission_percentage) / 100
+  return (total * transaction.commission_rate) / 100
 }
 
 export const calculateNetAmount = (transaction: Transaction): number => {
