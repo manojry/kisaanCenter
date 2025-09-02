@@ -1,5 +1,12 @@
-import { Plan } from '../types/entities'
-import { apiClient } from './api'
+import { Plan } from '../types/entities';
+import { apiClient } from './api';
+
+// Generic API response type
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
 
 export interface PlanApiResponse {
   success: boolean
@@ -57,24 +64,19 @@ export async function fetchPlans(page: number = 1, limit: number = 10): Promise<
 
 export async function fetchAllPlans(): Promise<Plan[]> {
   try {
-    // Fetch first page to get total count
-    const firstPage = await fetchPlans(1, 10)
-    
-    // If there are more pages, fetch all of them
-    if (firstPage.pagination.totalPages > 1) {
-      const allPages = await Promise.all(
-        Array.from({ length: firstPage.pagination.totalPages }, (_, i) =>
-          fetchPlans(i + 1, firstPage.pagination.limit)
-        )
-      )
-      
-      return allPages.flatMap(page => page.plans)
+    const response = await apiClient.get<ApiResponse<Plan[]>>('/subscriptions/plans');
+    // If backend sends { success, message, data: [...] }
+    if (response?.data && Array.isArray(response.data.data)) {
+      return response.data.data;
     }
-    
-    return firstPage.plans
+    // If backend sends just an array
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    return [];
   } catch (error) {
-    console.error('Error fetching all plans:', error)
-    throw error
+    console.error('Error fetching all plans:', error);
+    throw error;
   }
 }
 
@@ -134,43 +136,35 @@ export interface UpdatePlanData {
 
 export async function createPlan(planData: CreatePlanData): Promise<Plan> {
   try {
-  const response = await apiClient.post<Plan>('/subscriptions/plans', planData)
-    
-    if (!response.success) {
-      throw new Error(response.message || 'API request was not successful')
+    const response = await apiClient.post<ApiResponse<Plan>>('/subscriptions/plans', planData);
+    if (response?.data?.data) {
+      return response.data.data;
     }
-
-    return response.data
+    throw new Error('Invalid response from backend');
   } catch (error) {
-    console.error('Error creating plan:', error)
-    throw error
+    console.error('Error creating plan:', error);
+    throw error;
   }
 }
 
 export async function updatePlan(planId: number, planData: UpdatePlanData): Promise<Plan> {
   try {
-  const response = await apiClient.put<Plan>(`/subscriptions/plans/${planId}`, planData)
-    
-    if (!response.success) {
-      throw new Error(response.message || 'API request was not successful')
+    const response = await apiClient.put<ApiResponse<Plan>>(`/subscriptions/plans/${planId}`, planData);
+    if (response?.data?.data) {
+      return response.data.data;
     }
-
-    return response.data
+    throw new Error('Invalid response from backend');
   } catch (error) {
-    console.error('Error updating plan:', error)
-    throw error
+    console.error('Error updating plan:', error);
+    throw error;
   }
 }
 
 export async function deletePlan(planId: number): Promise<void> {
   try {
-  const response = await apiClient.delete<void>(`/subscriptions/plans/${planId}`)
-    
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to delete plan')
-    }
+    await apiClient.delete(`/subscriptions/plans/${planId}`);
   } catch (error) {
-    console.error('Error deleting plan:', error)
-    throw error
+    console.error('Error deleting plan:', error);
+    throw error;
   }
 }
