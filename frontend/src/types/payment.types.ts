@@ -1,3 +1,4 @@
+import { RecordStatus } from './user.types';
 
 export interface Payment {
   id: number;

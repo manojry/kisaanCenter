@@ -1,3 +1,32 @@
+export interface APIResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+}
+
+export interface ShopDashboardData {
+  shopId: string;
+  summary: DashboardSummary;
+  alerts: DashboardAlert[];
+  health: HealthStatus;
+}
+
+export interface DashboardSummary {
+  totalRevenue: number;
+  totalTransactions: number;
+  totalCommission: number;
+}
+
+export interface DashboardAlert {
+  id: string;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+}
+
+export interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'down';
+  lastChecked: string;
+}
 import { Transaction } from '../transaction/types';
 import { StockSummary } from '../stock/types';
 import { Payment } from '../payment/types';

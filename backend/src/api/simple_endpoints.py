@@ -32,7 +32,32 @@ def hash_password(password: str) -> str:
     """Hash password for storage"""
     return hashlib.sha256(password.encode()).hexdigest()
 
+from ..features.auth.services.auth_service import AuthService
+from ..schemas import APIResponse
+from fastapi import Body
+
 # USER ENDPOINTS
+
+@users_router.post("/login", response_model=APIResponse, summary="Login with JSON body")
+def login_user_json(
+    payload: dict = Body(..., examples={
+        "default": {
+            "summary": "Superadmin login",
+            "value": {"username": "superadmin", "password": "admin123"}
+        }
+    }),
+    db: Session = Depends(get_db)
+):
+    """
+    Authenticate user credentials from JSON body and get access token.
+    """
+    username = payload.get("username")
+    password = payload.get("password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+    result = AuthService.authenticate_user(db, username, password)
+    return result
+
 @users_router.post("/")
 def create_user(
     username: str,
@@ -42,18 +67,30 @@ def create_user(
     contact: Optional[str] = None,
     credit_limit: Optional[float] = 0.0,
     created_by: Optional[int] = 1,
-    status: str = "active",
+    record_status: str = "active",
+    current_user_id: Optional[int] = None,  # In real app, this comes from JWT
     db: Session = Depends(get_db)
 ):
-    """Create a new user"""
+    """Create a new user with authorization checks"""
     try:
-        password_hash = hash_password(password)
+        # Authorization check - only superadmin can create owners
+        if role == 'owner' and current_user_id:
+            current_user = db.execute(text("SELECT role FROM users WHERE id = :id"), {"id": current_user_id}).fetchone()
+            if current_user and current_user[0] != 'superadmin':
+                return {"success": False, "message": "Only superadmin can create owners", "data": None}
         
+        # Owner can only create users for their shop
+        if current_user_id and role in ['farmer', 'buyer', 'employee']:
+            current_user = db.execute(text("SELECT role, shop_id FROM users WHERE id = :id"), {"id": current_user_id}).fetchone()
+            if current_user and current_user[0] == 'owner' and current_user[1] != shop_id:
+                return {"success": False, "message": "You can only create users for your own shop", "data": None}
+        
+        password_hash = hash_password(password)
         # Insert user
         result = db.execute(text("""
-            INSERT INTO users (username, password_hash, role, shop_id, contact, credit_limit, status, created_by)
-            VALUES (:username, :password_hash, :role, :shop_id, :contact, :credit_limit, :status, :created_by)
-            RETURNING id, username, role, shop_id, contact, credit_limit, status, created_by
+            INSERT INTO users (username, password_hash, role, shop_id, contact, credit_limit, record_status, created_by)
+            VALUES (:username, :password_hash, :role, :shop_id, :contact, :credit_limit, :record_status, :created_by)
+            RETURNING id, username, role, shop_id, contact, credit_limit, record_status, created_by
         """), {
             "username": username,
             "password_hash": password_hash,
@@ -61,13 +98,11 @@ def create_user(
             "shop_id": shop_id,
             "contact": contact,
             "credit_limit": credit_limit,
-            "status": status,
+            "record_status": record_status,
             "created_by": created_by
         })
-        
         user = result.fetchone()
         db.commit()
-        
         return success_response("User created successfully", {
             "id": user.id,
             "username": user.username,
@@ -75,10 +110,9 @@ def create_user(
             "shop_id": user.shop_id,
             "contact": user.contact,
             "credit_limit": float(user.credit_limit),
-            "status": user.status,
+            "record_status": user.record_status,
             "created_by": user.created_by
         })
-        
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating user: {e}")
@@ -89,7 +123,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     """Get user by ID"""
     try:
         result = db.execute(text("""
-            SELECT id, username, role, shop_id, contact, credit_limit, status, created_by, created_at
+            SELECT id, username, role, shop_id, contact, credit_limit, record_status, created_by, created_at
             FROM users WHERE id = :user_id
         """), {"user_id": user_id})
         
@@ -104,7 +138,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
             "shop_id": user.shop_id,
             "contact": user.contact,
             "credit_limit": float(user.credit_limit),
-            "status": user.status,
+            "record_status": user.record_status,
             "created_by": user.created_by,
             "created_at": user.created_at.isoformat() if user.created_at else None
         })
@@ -143,7 +177,7 @@ def get_users(
         
         # Get users
         result = db.execute(text(f"""
-            SELECT id, username, role, shop_id, contact, credit_limit, status, created_by, created_at
+            SELECT id, username, role, shop_id, contact, credit_limit, record_status, created_by, created_at
             FROM users {where_clause}
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
@@ -158,7 +192,7 @@ def get_users(
                 "shop_id": user.shop_id,
                 "contact": user.contact,
                 "credit_limit": float(user.credit_limit),
-                "status": user.status,
+                "record_status": user.record_status,
                 "created_by": user.created_by,
                 "created_at": user.created_at.isoformat() if user.created_at else None
             })
@@ -188,7 +222,7 @@ def update_user(
     user_id: int,
     contact: Optional[str] = None,
     credit_limit: Optional[float] = None,
-    status: Optional[str] = None,
+    record_status: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """Update user"""
@@ -205,9 +239,9 @@ def update_user(
             set_conditions.append("credit_limit = :credit_limit")
             params["credit_limit"] = credit_limit
         
-        if status is not None:
-            set_conditions.append("status = :status")
-            params["status"] = status
+        if record_status is not None:
+            set_conditions.append("record_status = :record_status")
+            params["record_status"] = record_status
         
         if not set_conditions:
             raise HTTPException(status_code=400, detail="No fields to update")
@@ -217,7 +251,7 @@ def update_user(
         result = db.execute(text(f"""
             UPDATE users SET {set_clause}, updated_at = CURRENT_TIMESTAMP
             WHERE id = :user_id
-            RETURNING id, username, role, shop_id, contact, credit_limit, status
+            RETURNING id, username, role, shop_id, contact, credit_limit, record_status
         """), params)
         
         user = result.fetchone()
@@ -233,7 +267,7 @@ def update_user(
             "shop_id": user.shop_id,
             "contact": user.contact,
             "credit_limit": float(user.credit_limit),
-            "status": user.status
+            "record_status": user.record_status
         })
         
     except HTTPException:
@@ -281,47 +315,23 @@ def login_user(
             password = request.password
         elif not username or not password:
             raise HTTPException(status_code=400, detail="Username and password required")
-        
+
+        # Debug log: print received username and masked password
+        logger.info(f"Login attempt: username='{username}', password='{'*' * len(password) if password else None}'")
+
         password_hash = hash_password(password)
-        
-        # Check superadmin first
-        result = db.execute(text("""
-            SELECT id, username FROM superadmin 
-            WHERE username = :username AND password_hash = :password_hash
-        """), {"username": username, "password_hash": password_hash})
-        
-        superadmin = result.fetchone()
-        if superadmin:
-            # Create access token
-            access_token = create_access_token(
-                user_id=superadmin.id,
-                username=superadmin.username,
-                role="superadmin"
-            )
-            
-            return {
-                "success": True,
-                "message": "Authentication successful",
-                "data": {
-                    "id": superadmin.id,
-                    "username": superadmin.username,
-                    "role": "superadmin",
-                    "shop_id": None,
-                    "user_id": superadmin.id,
-                    "access_token": access_token
-                }
-            }
-        
-        # Check regular users
+
+        # Check users table for all logins, including superadmin
         result = db.execute(text("""
             SELECT id, username, role, shop_id FROM users 
-            WHERE username = :username AND password_hash = :password_hash AND status = 'active'
+            WHERE username = :username AND password_hash = :password_hash AND record_status = 'active'
         """), {"username": username, "password_hash": password_hash})
-        
+
         user = result.fetchone()
         if not user:
+            logger.warning(f"Login failed for username='{username}' (user not found or invalid password)")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        
+
         # Create access token
         access_token = create_access_token(
             user_id=user.id,
@@ -329,7 +339,9 @@ def login_user(
             role=user.role,
             shop_id=user.shop_id
         )
-        
+
+        logger.info(f"Login successful for username='{username}' (id={user.id}, role={user.role})")
+
         return {
             "success": True,
             "message": "Authentication successful",
@@ -354,8 +366,8 @@ def get_users_by_shop(shop_id: int, db: Session = Depends(get_db)):
     """Get users by shop"""
     try:
         result = db.execute(text("""
-            SELECT id, username, role, contact, credit_limit, status
-            FROM users WHERE shop_id = :shop_id AND status = 'active'
+            SELECT id, username, role, contact, credit_limit, record_status
+            FROM users WHERE shop_id = :shop_id AND record_status = 'active'
             ORDER BY created_at DESC
         """), {"shop_id": shop_id})
         
@@ -367,7 +379,7 @@ def get_users_by_shop(shop_id: int, db: Session = Depends(get_db)):
                 "role": user.role,
                 "contact": user.contact,
                 "credit_limit": float(user.credit_limit),
-                "status": user.status
+                "record_status": user.record_status
             })
         
         return success_response(f"Found {len(users)} users for shop {shop_id}", users)
@@ -416,7 +428,7 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
     """Get shop by ID"""
     try:
         result = db.execute(text("""
-            SELECT id, name, address, location, contact, commission_rate, status
+            SELECT id, name, location, commission_rate, record_status as status
             FROM shops WHERE id = :shop_id
         """), {"shop_id": shop_id})
         
@@ -427,9 +439,7 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
         return success_response("Shop found", {
             "id": shop.id,
             "name": shop.name,
-            "address": shop.address,
             "location": shop.location,
-            "contact": shop.contact,
             "commission_rate": float(shop.commission_rate),
             "status": shop.status
         })
@@ -451,7 +461,7 @@ def get_shops(
         offset = (page - 1) * limit
         
         result = db.execute(text("""
-            SELECT id, name, address, location, contact, commission_rate, status
+            SELECT id, name, location, commission_rate, record_status as status
             FROM shops
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
@@ -462,9 +472,7 @@ def get_shops(
             shops.append({
                 "id": shop.id,
                 "name": shop.name,
-                "address": shop.address,
                 "location": shop.location,
-                "contact": shop.contact,
                 "commission_rate": float(shop.commission_rate),
                 "status": shop.status
             })

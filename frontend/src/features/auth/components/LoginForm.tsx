@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -12,6 +13,7 @@ const LoginForm: React.FC = () => {
   })
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,10 +25,20 @@ const LoginForm: React.FC = () => {
 
     setIsLoading(true)
     try {
-      await login(credentials.username, credentials.password)
-      toast.success('Login successful!')
+      const user = await login(credentials.username, credentials.password)
+      console.log('Login response:', user)
+      console.log('localStorage.auth_token:', localStorage.getItem('auth_token'))
+      console.log('localStorage.userRole:', localStorage.getItem('userRole'))
+      if (user && user.role) {
+        localStorage.setItem('userRole', user.role)
+        toast.success('Login successful!')
+        navigate('/dashboard')
+      } else {
+        toast.error('Login failed')
+      }
     } catch (error) {
       console.error('Login failed:', error)
+      toast.error('Login error')
     } finally {
       setIsLoading(false)
     }

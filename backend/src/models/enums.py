@@ -1,86 +1,73 @@
 from enum import Enum
 
-class LimitType(str, Enum):
-    """Enum for limit types"""
-    DAILY = "daily"
-    MONTHLY = "monthly"
-    YEARLY = "yearly"
-from enum import Enum
+class UserRole(str, Enum):
+	SUPERADMIN = "superadmin"
+	OWNER = "owner"
+	FARMER = "farmer"
+	BUYER = "buyer"
+	EMPLOYEE = "employee"
 
 class RecordStatus(str, Enum):
-    """Enum for record status"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELETED = "deleted"
-
-class UserRole(str, Enum):
-    """Enum for user roles"""
-    SUPERADMIN = "superadmin"
-    OWNER = "owner"
-    MANAGER = "manager"
-    EMPLOYEE = "employee"
+	ACTIVE = "active"
+	INACTIVE = "inactive"
+	DELETED = "deleted"
 
 class TransactionStatus(str, Enum):
-    """Enum for transaction status"""
-    PENDING = "pending"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+	PENDING = "pending"
+	PROCESSING = "processing"
+	COMPLETED = "completed"
+	CANCELLED = "cancelled"
 
 class PaymentStatus(str, Enum):
-    """Enum for payment status"""
-    PENDING = "pending"
-    UNPAID = "unpaid"
-    PAID = "paid"
-    PARTIAL = "partial"
+	PENDING = "pending"
+	PARTIAL = "partial"
+	COMPLETED = "completed"
+	FAILED = "failed"
 
 class CompletionStatus(str, Enum):
-    """Enum for completion status"""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETE = "complete"
-    INCOMPLETE = "incomplete"
-
-class StockStatus(str, Enum):
-    """Enum for stock status"""
-    IN_STOCK = "in_stock"
-    OUT_OF_STOCK = "out_of_stock"
-    LOW_STOCK = "low_stock"
-
-class SubscriptionStatus(str, Enum):
-    """Enum for subscription status"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    CANCELLED = "cancelled"
-    EXPIRED = "expired"
-
-class BillingCycle(str, Enum):
-    """Enum for billing cycles"""
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    YEARLY = "yearly"
-
-class TransactionType(str, Enum):
-    """Enum for transaction types"""
-    SALE = "sale"
-    PURCHASE = "purchase"
-    RETURN = "return"
+	INCOMPLETE = "incomplete"
+	COMPLETE = "complete"
 
 class CreditStatus(str, Enum):
-    """Enum for credit status"""
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    PAID = "paid"
+	OUTSTANDING = "outstanding"
+	PARTIAL = "partial"
+	PAID = "paid"
+	OVERDUE = "overdue"
 
 class PaymentType(str, Enum):
-    """Enum for payment types"""
-    CASH = "cash"
-    CARD = "card"
-    UPI = "upi"
-    BANK_TRANSFER = "bank_transfer"
+	FULL_PAYMENT = "full_payment"
+	PARTIAL_PAYMENT = "partial_payment"
+	ADVANCE = "advance"
+
+class StockMode(str, Enum):
+	DECLARED = "declared"
+	VERIFIED = "verified"
+	ACTUAL = "actual"
+
+class StockStatus(str, Enum):
+	IN_STOCK = "in_stock"
+	OUT_OF_STOCK = "out_of_stock"
+	EXPIRED = "expired"
+
+class TransactionType(str, Enum):
+	SALE = "sale"
+	RETURN = "return"
+	ADJUSTMENT = "adjustment"
 
 class FarmerPaymentType(str, Enum):
-    """Enum for farmer payment types"""
-    ADVANCE = "advance"
-    FINAL = "final"
-    BONUS = "bonus"
+	CASH = "cash"
+	BANK_TRANSFER = "bank_transfer"
+	CHEQUE = "cheque"
+
+class BillingCycle(str, Enum):
+	MONTHLY = "monthly"
+	QUARTERLY = "quarterly"
+	YEARLY = "yearly"
+
+class SubscriptionStatus(str, Enum):
+	ACTIVE = "active"
+	INACTIVE = "inactive"
+	EXPIRED = "expired"
+	CANCELLED = "cancelled"
+
+# Add any additional enums here as needed

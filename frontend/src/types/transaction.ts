@@ -1,3 +1,29 @@
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface TransactionTableProps {
+  transactions: Transaction[];
+  loading: boolean;
+  pagination: Pagination;
+  onPageChange: (page: number) => void;
+  onViewDetails: (transaction: Transaction) => void;
+  onCommissionConfirm: (id: number) => Promise<void>;
+}
+export enum TransactionStatus {
+  Pending = 'pending',
+  Completed = 'completed',
+  Cancelled = 'cancelled',
+}
+
+export enum PaymentStatus {
+  Unpaid = 'unpaid',
+  Paid = 'paid',
+  Refunded = 'refunded',
+}
 export interface Transaction {
   id: number
   buyer_user_id: number

@@ -5,11 +5,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .enums import PaymentType, FarmerPaymentType, RecordStatus
-from ..database import Base
+from .base import Base
 
 class PaymentMethod(Base):
     """Payment method model for storing available payment options"""
-    __tablename__ = 'payment_method'
+    __tablename__ = 'payment_methods'
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False, unique=True)
@@ -36,15 +36,22 @@ class PaymentMethod(Base):
 
 class Payment(Base):
     """Payment model for buyer payments towards transactions"""
-    __tablename__ = 'payment'
+    __tablename__ = 'payments'
     
     id = Column(Integer, primary_key=True, index=True)
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
-    credit_id = Column(Integer, ForeignKey('credit.id'), nullable=True)
+    credit_id = Column(Integer, ForeignKey('credits.id'), nullable=True)
     amount = Column(DECIMAL(12,2), nullable=False)
-    payment_method_id = Column(Integer, ForeignKey('payment_method.id'), nullable=False)
-    type = Column(Enum(PaymentType), nullable=False)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    payment_method_id = Column(Integer, ForeignKey('payment_methods.id'), nullable=False)
+    payment_method = relationship('PaymentMethod', back_populates='payments')
+    type = Column(
+        Enum(PaymentType, name="payment_type", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False
+    )
+    status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value for e in obj]),
+        default=RecordStatus.ACTIVE.value
+    )
     date = Column(Date, nullable=False)
     reference_number = Column(String(100), nullable=True)
     notes = Column(Text, nullable=True)
@@ -65,7 +72,7 @@ class Payment(Base):
             'transaction_id': self.transaction_id,
             'credit_id': self.credit_id,
             'amount': float(self.amount) if self.amount else 0,
-            'payment_method_id': self.payment_method_id,
+            'payment_method': self.payment_method,
             'type': self.type.value if self.type else None,
             'status': self.status.value if self.status else None,
             'date': self.date.isoformat() if self.date else None,
@@ -78,7 +85,9 @@ class Payment(Base):
 
     def is_complete(self):
         """Check if payment is complete"""
-        return self.status == RecordStatus.ACTIVE and self.amount > 0
+    # Fix: Move this return statement inside a method, e.g. is_active_and_positive_amount
+    def is_active_and_positive_amount(self):
+        return self.status == RecordStatus.ACTIVE.value and self.amount > 0
 
     def get_display_amount(self):
         """Get formatted amount for display"""
@@ -87,26 +96,31 @@ class Payment(Base):
 
 class FarmerPayment(Base):
     """Farmer payment model for payments made to farmers"""
-    __tablename__ = 'farmer_payment'
+    __tablename__ = 'farmer_payments'
     
     id = Column(Integer, primary_key=True, index=True)
     transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=False)
-    farmer_stock_id = Column(Integer, ForeignKey('farmer_stocks.id'), nullable=True)
     farmer_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     amount = Column(DECIMAL(12,2), nullable=False)
-    payment_type = Column(Enum(FarmerPaymentType), nullable=False)
-    payment_method_id = Column(Integer, ForeignKey('payment_method.id'), nullable=False)
+    payment_type = Column(
+        Enum(FarmerPaymentType, name="farmer_payment_type", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False
+    )
+    payment_method_id = Column(Integer, ForeignKey('payment_methods.id'), nullable=False)
+    payment_method = relationship('PaymentMethod', back_populates='farmer_payments')
     remarks = Column(Text, nullable=True)
     date = Column(Date, nullable=False)
     reference_number = Column(String(100), nullable=True)
     approved_by = Column(Integer, ForeignKey('users.id'), nullable=True)
-    status = Column(Enum(RecordStatus), default=RecordStatus.ACTIVE)
+    status = Column(
+        Enum(RecordStatus, name="record_status", values_callable=lambda obj: [e.value for e in obj]),
+        default=RecordStatus.ACTIVE.value
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     transaction = relationship('Transaction', back_populates='farmer_payments')
-    farmer_stock = relationship('FarmerStock', back_populates='farmer_payments')
     farmer_user = relationship('User', foreign_keys=[farmer_user_id])
     payment_method = relationship('PaymentMethod', back_populates='farmer_payments')
     approved_by_user = relationship('User', foreign_keys=[approved_by])
@@ -116,11 +130,10 @@ class FarmerPayment(Base):
         return {
             'id': self.id,
             'transaction_id': self.transaction_id,
-            'farmer_stock_id': self.farmer_stock_id,
             'farmer_user_id': self.farmer_user_id,
             'amount': float(self.amount) if self.amount else 0,
             'payment_type': self.payment_type.value if self.payment_type else None,
-            'payment_method_id': self.payment_method_id,
+            'payment_method': self.payment_method,
             'remarks': self.remarks,
             'date': self.date.isoformat() if self.date else None,
             'reference_number': self.reference_number,

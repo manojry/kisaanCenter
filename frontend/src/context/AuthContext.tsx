@@ -4,7 +4,7 @@ import { authApi } from '@/features/auth/api'
 import { UserRole } from '@/types/enums'
 
 interface AuthContextType extends AuthState {
-  login: (username: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<AuthUser | null>
   logout: () => void
   hasPermission: (action: string, resource: string) => boolean
   canAccessShop: (shopId: number) => boolean
@@ -60,43 +60,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   })
 
   useEffect(() => {
-    const user = authApi.getCurrentUser()
-    const token = localStorage.getItem('auth_token')
-    console.log('Initializing auth:', { user, hasToken: !!token })
-    dispatch({ type: 'INIT_AUTH', payload: user })
-  }, [])
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      let user: AuthUser | null = null;
+      console.log('[Auth] localStorage.auth_token:', token);
+      if (!token) {
+        // No token, user is not authenticated
+        dispatch({ type: 'INIT_AUTH', payload: null });
+        return;
+      }
+      // Token exists, try to fetch user
+      try {
+        const response = await authApi.getCurrentUser();
+        console.log('[Auth] /auth/me response:', response);
+        if (response.success && response.data) {
+          user = {
+            ...response.data,
+            user_id: response.data.id,
+            token,
+            shop_id: response.data.shop_id ?? null,
+          };
+          dispatch({ type: 'INIT_AUTH', payload: user });
+        } else {
+          // API call failed (invalid/expired token), clear token and log out
+          localStorage.removeItem('auth_token');
+          dispatch({ type: 'LOGOUT' });
+        }
+      } catch (err) {
+        console.error('[Auth] /auth/me error:', err);
+        localStorage.removeItem('auth_token');
+        dispatch({ type: 'LOGOUT' });
+      }
+    };
+    initializeAuth();
+  }, []);
 
   const login = async (username: string, password: string) => {
-    dispatch({ type: 'LOGIN_START' })
+    dispatch({ type: 'LOGIN_START' });
     try {
-      const response = await authApi.login({ username, password })
-      console.log('Login response:', response) // Debug log
+      const response = await authApi.login({ username, password });
       if (response.success && response.data) {
-        // Token is already stored by authApi.login
-        console.log('Dispatching LOGIN_SUCCESS with:', response.data)
-        dispatch({ type: 'LOGIN_SUCCESS', payload: response.data })
-        // Force a re-render by updating localStorage and re-initializing
-        setTimeout(() => {
-          const user = authApi.getCurrentUser()
-          console.log('Re-initializing with user:', user)
-          dispatch({ type: 'INIT_AUTH', payload: user })
-        }, 100)
+        localStorage.setItem('auth_token', response.data.access_token);
+        localStorage.setItem('userRole', response.data.role);
+        const authUser: AuthUser = {
+          id: response.data.id,
+          username: response.data.username,
+          role: response.data.role,
+          shop_id: response.data.shop_id ?? null,
+          user_id: response.data.user_id,
+          token: response.data.access_token,
+        };
+        dispatch({ type: 'LOGIN_SUCCESS', payload: authUser });
+        return authUser;
       } else {
-        console.error('Login failed:', response)
-        dispatch({ type: 'LOGIN_ERROR' })
-        throw new Error(response.message || 'Login failed')
+        dispatch({ type: 'LOGIN_ERROR' });
+        return null;
       }
     } catch (error) {
-      console.error('Login error:', error)
-      dispatch({ type: 'LOGIN_ERROR' })
-      throw error
+      dispatch({ type: 'LOGIN_ERROR' });
+      return null;
     }
-  }
+  };
 
-  const logout = () => {
-    authApi.logout()
-    dispatch({ type: 'LOGOUT' })
-  }
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Optionally log error
+    } finally {
+      dispatch({ type: 'LOGOUT' });
+      localStorage.removeItem('auth_token');
+    }
+  };
 
   const hasPermission = (action: string, resource: string): boolean => {
     if (!state.user) return false

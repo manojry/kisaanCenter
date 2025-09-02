@@ -2,6 +2,25 @@
 
 ---
 
+## Database Migration Reference
+
+**All core tables for KisaanCenter (users, shops, products, categories, stock, transactions, transaction_items, payments, credits, shop_products) are created by a single Alembic migration script:**
+
+**File:** `backend/alembic/versions/20250901_full_core_tables.py`
+
+**Usage:**
+1. Run `alembic upgrade head` from the backend directory after configuring your database connection.
+2. This will create all required tables and relationships in one step.
+3. No need to look for multiple migration scripts—this file is the single source for initial schema setup.
+
+**Tip:** If you add new tables or fields, generate a new Alembic migration and document it here.
+
+---
+
+# KisaanCenter Frontend Development & API Integration Guide
+
+---
+
 ## 1. System Overview
 
 KisaanCenter is a multi-tenant agricultural market management platform supporting five roles: SUPERADMIN, OWNER, EMPLOYEE, FARMER, BUYER. The frontend is built with React + TypeScript, using a feature-based modular architecture, strict type safety, and role-based UI.
@@ -46,6 +65,214 @@ src/
 ---
 
 ## 4. API Endpoints & Models
+---
+## 4A. Request/Response Examples
+
+### User Management
+#### POST /users
+**Request:**
+```json
+{
+  "username": "john",
+  "role": "OWNER",
+  "shop_id": "123",
+  "contact": "9876543210",
+  "credit_limit": 10000
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User created",
+  "data": {
+    "id": "456",
+    "username": "john",
+    "role": "OWNER",
+    "shop_id": "123",
+    "contact": "9876543210",
+    "credit_limit": 10000,
+    "status": "active",
+    "created_at": "2025-09-01T10:00:00Z"
+  }
+}
+```
+**Error:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Credit limit must be positive"
+  }
+}
+```
+
+#### GET /users/{user_id}
+**Response:**
+```json
+{
+  "success": true,
+  "message": "User details",
+  "data": {
+    "id": "456",
+    "username": "john",
+    "role": "OWNER",
+    "shop_id": "123",
+    "contact": "9876543210",
+    "credit_limit": 10000,
+    "status": "active",
+    "created_at": "2025-09-01T10:00:00Z"
+  }
+}
+```
+
+### Authentication
+#### POST /users/auth/login
+**Request:**
+```json
+{
+  "username": "john",
+  "password": "secret123"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "jwt-token-value",
+    "user": {
+      "id": "456",
+      "role": "OWNER"
+    }
+  }
+}
+```
+**Error:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_FAILED",
+    "message": "Invalid credentials"
+  }
+}
+```
+
+### Product Management
+#### GET /products
+**Description:** Returns the global product catalog for all owners. Owners can choose products from this list to assign to their shop.
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Global products listed",
+  "data": [
+    {
+      "id": "789",
+      "name": "Wheat",
+      "category": "Grains",
+      "price": 2500,
+      "stock": 100,
+      "shop_id": "123",
+      "created_at": "2025-09-01T10:05:00Z"
+    },
+    // ...more products
+  ]
+}
+```
+#### POST /products
+**Request:**
+```json
+{
+  "name": "Wheat",
+  "category": "Grains",
+  "price": 2500,
+  "stock": 100,
+  "shop_id": "123"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Product created",
+  "data": {
+    "id": "789",
+    "name": "Wheat",
+    "category": "Grains",
+    "price": 2500,
+    "stock": 100,
+    "shop_id": "123",
+    "created_at": "2025-09-01T10:05:00Z"
+  }
+}
+```
+
+### Transaction Management
+#### POST /transactions
+**Request:**
+```json
+{
+  "shop_id": "123",
+  "buyer_user_id": "456",
+  "transaction_type": "SALE",
+  "commission_rate": 5.0,
+  "transaction_items": [
+    {
+      "product_id": "789",
+      "farmer_stock_id": "321",
+      "quantity": 10,
+      "price": 2500
+    }
+  ]
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Transaction created",
+  "data": {
+    "id": "1011",
+    "shop_id": "123",
+    "buyer_user_id": "456",
+    "transaction_type": "SALE",
+    "commission_rate": 5.0,
+    "transaction_items": [
+      {
+        "product_id": "789",
+        "farmer_stock_id": "321",
+        "quantity": 10,
+        "price": 2500
+      }
+    ],
+    "status": "pending",
+    "created_at": "2025-09-01T10:10:00Z"
+  }
+}
+```
+
+### Error Response Standard
+All endpoints return errors in the following format:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Error message",
+    "details": {
+      "field": "field_name",
+      "reason": "description"
+    }
+  },
+  "timestamp": "2025-09-01T10:30:00Z"
+}
+```
+
+---
 
 ### Health & System
 | Method | Endpoint                | Description                |
@@ -115,7 +342,7 @@ interface Shop {
 ### Product Management
 | Method | Endpoint                | Description                |
 |--------|------------------------|----------------------------|
-| POST   | /products              | Create product             |
+| POST   | /products              | Create product (superadmin/owner)             |
 | GET    | /products/{product_id} | Get product                |
 | GET    | /products              | List products              |
 | PUT    | /products/{product_id} | Update product             |
@@ -254,6 +481,10 @@ interface Credit {
 | GET    | /employee/stock        | Check stock                |
 | POST   | /employee/stock-adjust | Adjust stock               |
 | GET    | /employee/tasks        | Assigned tasks             |
+| GET    | /dashboard/owner       | Owner dashboard            |
+| GET    | /dashboard/farmer      | Farmer dashboard           |
+| GET    | /dashboard/buyer       | Buyer dashboard            |
+| GET    | /dashboard/employee    | Employee dashboard         |
 
 ---
 
@@ -313,3 +544,52 @@ interface Credit {
 ---
 
 This document is the single source of truth for frontend development and API integration. All features, endpoints, models, and business logic must be implemented as described and kept in sync with backend changes.
+
+---
+
+## Owner-Specific Features & API Updates
+
+### 1. Owner Password Reset
+| Method | Endpoint                                      | Description                |
+|--------|-----------------------------------------------|----------------------------|
+| PATCH  | /owner-admin/shops/{shop_id}/users/{user_id}/password | Owner resets user password |
+
+### 2. Shop Commission Setting
+| Method | Endpoint                                      | Description                |
+|--------|-----------------------------------------------|----------------------------|
+| PATCH  | /owner-admin/shops/{shop_id}/commission        | Owner sets shop commission |
+
+### 3. Shop-Specific Product Assignment
+| Method | Endpoint                                      | Description                |
+|--------|-----------------------------------------------|----------------------------|
+| POST   | /owner-admin/shops/{shop_id}/products          | Assign products to shop    |
+| GET    | /owner-admin/shops/{shop_id}/products          | List shop products         |
+
+- **Logic:**
+  - Central product catalog exists, but each shop can select a subset to sell.
+  - Product assignment API allows owner to select only relevant products for their shop.
+  - UI should show only assigned products in dropdowns, not the full catalog.
+
+### 4. Table/Model Updates
+- **Shop Model:** Add/ensure `commission_rate` column.
+- **ShopProduct Model:** Add/ensure `shop_id`, `product_id`, `is_active` columns.
+- **User Model:** Password reset supported via API.
+
+### 5. Example API Usage
+```ts
+// Set commission
+await api.patch(`/owner-admin/shops/${shopId}/commission`, { commission_rate: 5.0 });
+
+// Assign products
+await api.post(`/owner-admin/shops/${shopId}/products`, { selected_product_ids: [1,2,3] });
+
+// Get shop products for dropdown
+const products = await api.get(`/owner-admin/shops/${shopId}/products`);
+```
+
+### 6. UI Recommendations
+- Product selection dropdowns should show only products assigned to the shop.
+- Owner dashboard should allow commission rate editing and product assignment.
+- Password reset should be available for owner and their users.
+
+---

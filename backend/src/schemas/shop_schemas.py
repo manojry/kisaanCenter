@@ -1,30 +1,33 @@
-
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from decimal import Decimal
+from datetime import datetime
 
 class ShopBase(BaseModel):
-    name: str = Field(..., min_length=3, max_length=100)
-    address: Optional[str] = Field(None, max_length=255)
-    owner_id: int
-    plan_id: int
-    contact: Optional[str] = Field(None, max_length=15)
-    commission_rate: Optional[float] = Field(0.0, ge=0, le=100)
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    address: Optional[str] = None
+    contact: Optional[str] = Field(None, max_length=20)
+    commission_rate: Optional[Decimal] = Field(default=5.00, ge=0, le=100)
 
 class ShopCreate(ShopBase):
-    pass
+    owner_user_id: int
+    plan_id: Optional[int] = None
 
 class ShopUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=3, max_length=100)
-    address: Optional[str] = Field(None, max_length=255)
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    address: Optional[str] = None
+    contact: Optional[str] = Field(None, max_length=20)
+    commission_rate: Optional[Decimal] = Field(None, ge=0, le=100)
+    status: Optional[str] = None
 
-
-class ShopRead(BaseModel):
+class ShopRead(ShopBase):
     id: int
-    name: str
-    owner_id: int
-    plan_id: int
-    address: Optional[str] = Field(None, max_length=255)
-    contact: Optional[str] = Field(None, max_length=15)
-    commission_rate: Optional[float] = Field(0.0, ge=0, le=100)
-
-    model_config = ConfigDict(from_attributes=True)
+    owner_user_id: int
+    plan_id: Optional[int] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True

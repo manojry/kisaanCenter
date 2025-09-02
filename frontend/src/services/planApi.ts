@@ -1,4 +1,5 @@
 import { Plan } from '../types/entities'
+import { apiClient } from './api'
 
 export interface PlanApiResponse {
   success: boolean
@@ -26,24 +27,26 @@ export interface PaginatedPlansResult {
 
 export async function fetchPlans(page: number = 1, limit: number = 10): Promise<PaginatedPlansResult> {
   try {
-    const response = await fetch(`/api/v1/plans?page=${page}&limit=${limit}`)
-    const data: PlanApiResponse = await response.json()
+    const response = await apiClient.get<{
+      items: Plan[]
+      total: number
+      page: number
+      limit: number
+      total_pages: number
+  }>(`/subscriptions/plans?page=${page}&limit=${limit}`)
     
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch plans')
-    }
-    
-    if (!data.success) {
-      throw new Error(data.message || 'API request was not successful')
+    if (!response.success) {
+      throw new Error(response.message || 'API request was not successful')
     }
 
+    const data = response.data
     return {
-      plans: data.data.items || [],
+      plans: data.items || [],
       pagination: {
-        total: data.data.total || 0,
-        page: data.data.page || 1,
-        limit: data.data.limit || 10,
-        totalPages: data.data.total_pages || 1
+        total: data.total || 0,
+        page: data.page || 1,
+        limit: data.limit || 10,
+        totalPages: data.total_pages || 1
       }
     }
   } catch (error) {
@@ -131,25 +134,13 @@ export interface UpdatePlanData {
 
 export async function createPlan(planData: CreatePlanData): Promise<Plan> {
   try {
-    const response = await fetch('/api/v1/plans', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(planData),
-    })
-
-    const result = await response.json()
+  const response = await apiClient.post<Plan>('/subscriptions/plans', planData)
     
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to create plan')
+    if (!response.success) {
+      throw new Error(response.message || 'API request was not successful')
     }
 
-    if (!result.success) {
-      throw new Error(result.message || 'API request was not successful')
-    }
-
-    return result.data
+    return response.data
   } catch (error) {
     console.error('Error creating plan:', error)
     throw error
@@ -158,25 +149,13 @@ export async function createPlan(planData: CreatePlanData): Promise<Plan> {
 
 export async function updatePlan(planId: number, planData: UpdatePlanData): Promise<Plan> {
   try {
-    const response = await fetch(`/api/v1/plans/${planId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(planData),
-    })
-
-    const result = await response.json()
+  const response = await apiClient.put<Plan>(`/subscriptions/plans/${planId}`, planData)
     
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to update plan')
+    if (!response.success) {
+      throw new Error(response.message || 'API request was not successful')
     }
 
-    if (!result.success) {
-      throw new Error(result.message || 'API request was not successful')
-    }
-
-    return result.data
+    return response.data
   } catch (error) {
     console.error('Error updating plan:', error)
     throw error
@@ -185,18 +164,10 @@ export async function updatePlan(planId: number, planData: UpdatePlanData): Prom
 
 export async function deletePlan(planId: number): Promise<void> {
   try {
-    const response = await fetch(`/api/v1/plans/${planId}`, {
-      method: 'DELETE',
-    })
-
-    const result = await response.json()
+  const response = await apiClient.delete<void>(`/subscriptions/plans/${planId}`)
     
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to delete plan')
-    }
-
-    if (!result.success) {
-      throw new Error(result.message || 'API request was not successful')
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to delete plan')
     }
   } catch (error) {
     console.error('Error deleting plan:', error)

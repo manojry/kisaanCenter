@@ -1,63 +1,80 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from decimal import Decimal
-from datetime import datetime, date
+from datetime import date, datetime
+from ..models.enums import TransactionStatus, PaymentStatus
 
-class TransactionCreate(BaseModel):
-    shop_id: int = Field(..., gt=0)
-    buyer_user_id: int = Field(..., gt=0)
-    parent_transaction_id: Optional[int] = Field(None, gt=0)
-    type: Optional[str] = Field("sale", max_length=50)
-    status: Optional[str] = Field("active", max_length=50)
-    commission_rate: Optional[Decimal] = Field(None, ge=0)
-    commission_amount: Optional[Decimal] = Field(None, ge=0)
-    payment_status: Optional[str] = Field("pending", max_length=50)
-    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0)
-    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0)
-    commission_confirmed: Optional[bool] = Field(False)
-    completion_status: Optional[str] = Field("pending", max_length=50)
-    date: date
-
-class TransactionUpdate(BaseModel):
-    type: Optional[str] = Field(None, max_length=50)
-    status: Optional[str] = Field(None, max_length=50)
-    commission_rate: Optional[Decimal] = Field(None, ge=0)
-    commission_amount: Optional[Decimal] = Field(None, ge=0)
-    payment_status: Optional[str] = Field(None, max_length=50)
-    buyer_paid_amount: Optional[Decimal] = Field(None, ge=0)
-    farmer_paid_amount: Optional[Decimal] = Field(None, ge=0)
-    commission_confirmed: Optional[bool] = None
-    completion_status: Optional[str] = Field(None, max_length=50)
-
-class TransactionRead(BaseModel):
-    id: int
+# Transaction base class
+class TransactionBase(BaseModel):
     shop_id: int
     buyer_user_id: int
+    commission_rate: Decimal
     parent_transaction_id: Optional[int] = None
-    type: Optional[str] = None
-    status: Optional[str] = None
+
+class TransactionCreate(TransactionBase):
+    transaction_items: List[dict] = []
+    
+class TransactionUpdate(BaseModel):
     commission_rate: Optional[Decimal] = None
+    commission_confirmed: Optional[bool] = None
+    status: Optional[str] = None
+
+class TransactionRead(TransactionBase):
+    id: int
+    status: str
     commission_amount: Optional[Decimal] = None
-    payment_status: Optional[str] = None
+    payment_status: str
     buyer_paid_amount: Optional[Decimal] = None
     farmer_paid_amount: Optional[Decimal] = None
-    commission_confirmed: Optional[bool] = None
-    completion_status: Optional[str] = None
-    date: date
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    commission_confirmed: bool = False
+    date: datetime
+    created_at: datetime
+    updated_at: datetime
     
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
 
 class TransactionReadWithRelations(TransactionRead):
-    """Transaction read schema with relationship data"""
     buyer: Optional[dict] = None
-    farmer: Optional[dict] = None
-    shop: Optional[dict] = None
-    items: Optional[List[dict]] = None
+    items: List[dict] = []
+    payments: List[dict] = []
+    credits: List[dict] = []
+    farmer_payments: List[dict] = []
 
+# Summary schema
 class TransactionSummary(BaseModel):
     total_transactions: int
     total_amount: Decimal
-    pending_transactions: int
-    completed_transactions: int
+    pending_amount: Decimal
+    completed_amount: Decimal
+
+class TransactionItemRequest(BaseModel):
+    product_id: int
+    quantity: float
+    rate: float
+
+class QuickSaleRequest(BaseModel):
+    shop_id: int
+    farmer_id: int
+    buyer_id: int
+    items: List[TransactionItemRequest]
+    payment_mode: str = "cash"  # cash or credit
+    notes: Optional[str] = None
+
+class TransactionResponse(BaseModel):
+    id: int
+    shop_id: int
+    buyer_id: int
+    total_amount: float
+    commission_amount: float
+    payment_status: str
+    date: date
+    items: List[dict]
+    
+    class Config:
+        from_attributes = True
+
+class TransactionCancelRequest(BaseModel):
+    reason: str
+    cancelled_by: int

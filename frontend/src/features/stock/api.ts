@@ -1,104 +1,23 @@
-import { 
-  FarmerStock, 
-  StockAdjustment, 
-  CreateStockRequest, 
-  UpdateStockRequest, 
-  CreateAdjustmentRequest,
-  StockSummary,
-  StockFilter 
-} from './types';
 import { apiClient } from '../../services/api';
+import { APIResponse, FarmerStock, StockParams, AddStockData, UpdateStockData, StockSummary, StockAdjustment } from './types';
 
-// Stock management functions
-export async function fetchFarmerStock(filter?: StockFilter): Promise<FarmerStock[]> {
-  const params = new URLSearchParams();
-  if (filter) {
-    Object.entries(filter).forEach(([key, value]) => {
-      if (value !== undefined) {
-        params.append(key, value.toString());
-      }
-    });
-  }
-  const url = params.toString() ? `/farmer-stock?${params.toString()}` : '/farmer-stock';
-  const response = await apiClient.get<FarmerStock[]>(url);
-  if (!response.data) throw new Error('No farmer stock data returned');
-  return response.data;
-}
-
-export async function fetchFarmerStockById(stockId: string): Promise<FarmerStock> {
-  const response = await apiClient.get<FarmerStock>(`/farmer-stock/${stockId}`);
-  if (!response.data) throw new Error('No farmer stock found');
-  return response.data;
-}
-
-export async function fetchStockByFarmer(farmerId: string): Promise<FarmerStock[]> {
-  const response = await apiClient.get<FarmerStock[]>(`/farmer-stock/farmer/${farmerId}`);
-  if (!response.data) throw new Error('No farmer stock data returned');
-  return response.data;
-}
-
-export async function fetchAvailableStock(shopId: string): Promise<FarmerStock[]> {
-  const response = await apiClient.get<FarmerStock[]>(`/farmer-stock/available?shop_id=${shopId}`);
-  if (!response.data) throw new Error('No available stock found');
-  return response.data;
-}
-
-export async function fetchStocksByProduct(productId: string, shopId?: string): Promise<FarmerStock[]> {
-  const url = shopId 
-    ? `/farmer-stock/product/${productId}?shop_id=${shopId}` 
-    : `/farmer-stock/product/${productId}`;
-  const response = await apiClient.get<FarmerStock[]>(url);
-  if (!response.data) throw new Error('No stock data returned');
-  return response.data;
-}
-
-export async function createFarmerStock(stockData: CreateStockRequest): Promise<FarmerStock> {
-  const response = await apiClient.post<FarmerStock>('/farmer-stock', stockData);
-  if (!response.data) throw new Error('Failed to create farmer stock');
-  return response.data;
-}
-
-export async function updateFarmerStock(stockId: string, stockData: UpdateStockRequest): Promise<FarmerStock> {
-  const response = await apiClient.put<FarmerStock>(`/farmer-stock/${stockId}`, stockData);
-  if (!response.data) throw new Error('Failed to update farmer stock');
-  return response.data;
-}
-
-export async function deleteFarmerStock(stockId: string): Promise<void> {
-  await apiClient.delete<void>(`/farmer-stock/${stockId}`);
-}
-
-export async function adjustStock(stockId: string, adjustmentData: CreateAdjustmentRequest): Promise<FarmerStock> {
-  const response = await apiClient.post<FarmerStock>(`/farmer-stock/${stockId}/adjust`, adjustmentData);
-  if (!response.data) throw new Error('Failed to adjust stock');
-  return response.data;
-}
-
-export async function getStockSummary(farmerId?: string, shopId?: string): Promise<StockSummary> {
-  const params = new URLSearchParams();
-  if (farmerId) params.append('farmer_id', farmerId);
-  if (shopId) params.append('shop_id', shopId);
-  const url = params.toString() 
-    ? `/farmer-stock/summary?${params.toString()}` 
-    : '/farmer-stock/summary';
-  const response = await apiClient.get<StockSummary>(url);
-  if (!response.data) throw new Error('Failed to get stock summary');
-  return response.data;
-}
-
-// Stock adjustment functions
-export async function fetchStockAdjustments(stockId?: string): Promise<StockAdjustment[]> {
-  const url = stockId ? `/stock-adjustments?stock_id=${stockId}` : '/stock-adjustments';
-  const response = await apiClient.get<StockAdjustment[]>(url);
-  if (!response.data) throw new Error('No adjustment data returned');
-  return response.data;
-}
-
-export async function createStockAdjustment(adjustmentData: CreateAdjustmentRequest): Promise<StockAdjustment> {
-  const response = await apiClient.post<StockAdjustment>('/stock-adjustments', adjustmentData);
-  if (!response.data) throw new Error('Failed to create stock adjustment');
-  return response.data;
-}
+export const stockApi = {
+  getFarmerStock: async (params?: StockParams): Promise<APIResponse<FarmerStock[]>> => {
+    return apiClient.get('/farmer-stock/', params);
+  },
+  addFarmerStock: async (stockData: AddStockData): Promise<APIResponse<FarmerStock>> => {
+    return apiClient.post('/farmer-stock/', stockData);
+  },
+  updateFarmerStock: async (stockId: number, updates: UpdateStockData): Promise<APIResponse<FarmerStock>> => {
+    return apiClient.put(`/farmer-stock/${stockId}`, updates);
+  },
+  deleteFarmerStock: async (stockId: number): Promise<APIResponse<void>> => {
+    return apiClient.delete(`/farmer-stock/${stockId}`);
+  },
+  getStockSummary: async (farmerId?: number): Promise<APIResponse<StockSummary>> => {
+    return apiClient.get('/farmer-stock/summary', { farmer_id: farmerId });
+  },
+};
 
 export async function fetchAdjustmentById(adjustmentId: string): Promise<StockAdjustment> {
   const response = await apiClient.get<StockAdjustment>(`/stock-adjustments/${adjustmentId}`);

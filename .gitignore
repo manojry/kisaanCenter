@@ -181,3 +181,6 @@ coverage.xml
 *.tfstate
 *.tfstate.*
 crash.log
+.pytest_cache/
+backend/alembic.ini
+backend/alembic.ini

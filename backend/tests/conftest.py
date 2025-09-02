@@ -29,7 +29,7 @@ def seed_test_data(session):
         password_hash="hashed_password_superadmin",
         email="admin@kisaancenter.com",
         contact="+91-9876543210",
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(superadmin)
     session.flush()
@@ -42,7 +42,7 @@ def seed_test_data(session):
         billing_cycle="monthly",
         max_users=5,
         max_transactions=500,
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(plan)
     session.flush()
@@ -69,7 +69,7 @@ def seed_test_data(session):
         location="123 Market Street, Test City",
         plan_id=plan.id,
         created_by=superadmin.id,
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(shop)
     session.flush()
@@ -82,7 +82,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         contact="+91-9000000001",
         credit_limit=Decimal("0.00"),
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(owner)
     session.flush()
@@ -98,7 +98,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         contact="+91-9000000000",
         credit_limit=Decimal("0.00"),
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(superadmin_user)
     
@@ -109,7 +109,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         contact="+91-9000000002",
         credit_limit=Decimal("0.00"),
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(farmer)
     
@@ -120,7 +120,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         contact="+91-9000000004",
         credit_limit=Decimal("10000.00"),
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(buyer)
     
@@ -131,7 +131,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         contact="+91-9000000006",
         credit_limit=Decimal("0.00"),
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(employee)
     session.flush()
@@ -141,7 +141,7 @@ def seed_test_data(session):
         shop_id=shop.id,
         name="Basmati Rice",
         category_id=category.id,
-        status=RecordStatus.ACTIVE
+        status='active'
     )
     session.add(product)
     session.flush()
@@ -188,7 +188,7 @@ def seed_test_data(session):
             farmer_stock_id=farmer_stock.id,
             quantity=Decimal("5.00"),
             price=Decimal("200.00"),
-            status=RecordStatus.ACTIVE
+            status='active'
         )
         session.add(transaction_item)
     
@@ -226,7 +226,7 @@ def seed_test_data(session):
             amount=Decimal("500.00"),
             payment_method_id=payment_method.id,
             type=PaymentType.PAYMENT if i < 6 else PaymentType.ADVANCE if i < 7 else PaymentType.REFUND,
-            status=RecordStatus.ACTIVE,
+            status='active',
             date=date.today()
         )
         session.add(payment)

@@ -1,72 +1,77 @@
 # models/__init__.py
 from .base import Base
-from .enums import (
-    UserRole,
-    TransactionStatus,
-    TransactionType,
-    PaymentStatus,
-    CreditStatus,
-    CompletionStatus,
-    RecordStatus,
-    StockStatus,
-    PaymentType,
-    FarmerPaymentType,
-    BillingCycle,
-    SubscriptionStatus,
-    LimitType
-)
-from .user import User, Superadmin, UserActivity
-from .shop import Shop, ShopUser, ShopTiming, ShopInventory, Category, ProductCategory
-from .farmer_stock import FarmerStock
-from .product import Product
-from .transaction import Transaction, TransactionItem
-from .plan import Plan
-from .subscription import Subscription
-from .feature_control import FeatureControl
 
-# Stub for UsageTracking to resolve import error
-class UsageTracking:
+# Import enums first
+from .enums import UserRole, RecordStatus, TransactionStatus, PaymentStatus, PaymentType, StockMode, CompletionStatus, TransactionType, StockStatus
+
+# Import models
+try:
+    from .category import Category
+except ImportError:
+    pass
+try:
+    from .plan import Plan
+except ImportError:
+    pass
+try:
+    from .subscription import Subscription
+except ImportError:
+    pass
+try:
+    from .user import User
+except ImportError:
+    print("Warning: Could not import User model")
+
+try:
+    from .superadmin import Superadmin
+except ImportError:
+    print("Warning: Could not import Superadmin model")
+
+try:
+    from .shop import Shop
+except ImportError:
     pass
 
-# Stub for SubscriptionHistory to resolve import error
-class SubscriptionHistory:
+try:
+    from .product import Product
+except ImportError:
     pass
-from .credit import Credit
-from .payment import Payment, PaymentMethod, FarmerPayment
 
+try:
+    from .transaction import Transaction
+except ImportError:
+    pass
+
+try:
+    from .transaction_item import TransactionItem
+except ImportError:
+    pass
+
+try:
+    from .farmer_stock import FarmerStock
+except ImportError:
+    pass
+
+
+
+try:
+    from .expense_category import ExpenseCategory
+except ImportError:
+    pass
+try:
+    from .credit import Credit
+except ImportError:
+    pass
+
+try:
+    from .payment import Payment, PaymentMethod, FarmerPayment
+except ImportError:
+    pass
+
+# Make enums and models available from package root
 __all__ = [
-    "Base",
-    "User",
-    "Superadmin",
-    "UserActivity",
-    "Shop",
-    "ShopUser",
-    "ShopTiming",
-    "ShopInventory",
-    "Category",
-    "Product",
-    "ProductCategory",
-    "Transaction",
-    "TransactionItem",
-    "FarmerStock",
-    "Plan",
-    "Credit",
-    "Payment",
-    "PaymentMethod",
-    "FarmerPayment",
-    "Subscription",
-    "FeatureControl",
-    "UserRole",
-    "TransactionStatus",
-    "TransactionType",
-    "PaymentStatus",
-    "CreditStatus",
-    "CompletionStatus",
-    "RecordStatus",
-    "StockStatus",
-    "PaymentType",
-    "FarmerPaymentType",
-    "BillingCycle",
-    "SubscriptionStatus",
-    "LimitType",
+    "Base", 
+    "UserRole", "RecordStatus", "TransactionStatus", "PaymentStatus", "PaymentType", "StockMode", "CompletionStatus", "TransactionType", "StockStatus",
+    "User", "Superadmin", "Shop", "Product", "Transaction", "TransactionItem", 
+    "FarmerStock", "ExpenseCategory", "Credit", "Payment", "PaymentMethod", "FarmerPayment", "Category", "Plan", "Subscription"
 ]

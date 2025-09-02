@@ -20,7 +20,7 @@ def seed_initial_data(db: Session):
             "max_transactions": 1000,
             "data_retention_months": 12,
             "features": {"basic_reports": True, "email_support": True},
-            "status": "ACTIVE"
+                "status": "active"
         },
         {
             "name": "Professional",
@@ -38,7 +38,7 @@ def seed_initial_data(db: Session):
                 "api_access": True,
                 "custom_branding": True
             },
-            "status": "ACTIVE"
+                "status": "active"
         },
         {
             "name": "Enterprise",
@@ -58,12 +58,17 @@ def seed_initial_data(db: Session):
                 "dedicated_manager": True,
                 "custom_integrations": True
             },
-            "status": "ACTIVE"
+                "status": "active"
         }
     ]
     
     for plan_data in plans_data:
+        # Always use lowercase string value for status
+        if 'status' in plan_data:
+            plan_data['status'] = str(plan_data['status']).lower()
+        print(f"DEBUG: Final plan_data['status'] before insert: {plan_data['status']}")
         plan = Plan(**plan_data)
+        print(f"DEBUG: Plan status type: {type(plan.status)}, value: {plan.status}")
         db.add(plan)
     
     db.flush()  # Get plan IDs
@@ -75,8 +80,7 @@ def seed_initial_data(db: Session):
         contact="9876543210",
         commission_rate=5.0,
         plan_id=1,  # Basic plan
-        plan_start_date=date.today(),
-        status="ACTIVE"
+        status="active"
     )
     db.add(demo_shop)
     db.flush()
@@ -87,7 +91,7 @@ def seed_initial_data(db: Session):
         password_hash=hash_password("admin123"),
         role="superadmin",
         contact="1234567890",
-        status="ACTIVE"
+            status="active"
     )
     db.add(superadmin)
     
@@ -98,7 +102,7 @@ def seed_initial_data(db: Session):
         role="shop_owner",
         contact="9876543210",
         shop_id=demo_shop.id,
-        status="ACTIVE"
+            status="active"
     )
     db.add(shop_owner)
     db.flush()
@@ -114,7 +118,7 @@ def seed_initial_data(db: Session):
             "role": "farmer",
             "contact": "1111111111",
             "shop_id": demo_shop.id,
-            "status": "ACTIVE"
+                "status": "active"
         },
         {
             "username": "buyer1",
@@ -123,7 +127,7 @@ def seed_initial_data(db: Session):
             "contact": "2222222222",
             "shop_id": demo_shop.id,
             "credit_limit": 10000.00,
-            "status": "ACTIVE"
+                "status": "active"
         },
         {
             "username": "employee1",
@@ -131,7 +135,7 @@ def seed_initial_data(db: Session):
             "role": "employee",
             "contact": "3333333333",
             "shop_id": demo_shop.id,
-            "status": "ACTIVE"
+                "status": "active"
         }
     ]
     
@@ -143,8 +147,10 @@ def seed_initial_data(db: Session):
     print("Initial data seeded successfully!")
 
 if __name__ == "__main__":
-    from src.database import SessionLocal
-    db = SessionLocal()
+    from src.database import DatabaseManager
+    db_manager = DatabaseManager()
+    db_manager.initialize_engine()  # Initialize the engine before getting a session
+    db = db_manager.get_session()
     try:
         seed_initial_data(db)
     finally:

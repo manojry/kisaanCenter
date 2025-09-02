@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import VirtualizedTable from '../../../components/VirtualizedTable';
 import Button from '@/components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Fallback Card and Tabs components
+const Card = ({ children }: { children: React.ReactNode }) => <div className="bg-white rounded-lg shadow p-4 mb-2">{children}</div>;
+const CardHeader = ({ children }: { children: React.ReactNode }) => <div className="mb-2 font-semibold">{children}</div>;
+const CardContent = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+
+const Tabs = ({ value, onValueChange, children }: any) => <div>{children}</div>;
+const TabsContent = ({ value, children, ...props }: any) => <div {...props}>{children}</div>;
+const TabsList = ({ children }: any) => <div className="flex space-x-2 mb-4">{children}</div>;
+const TabsTrigger = ({ value, children, ...props }: any) => <button className="px-3 py-1 rounded bg-gray-100" {...props}>{children}</button>;
 import { ProductAssignmentWizard } from '../../product/components/ProductAssignmentWizard';
 import { FarmersProductsManager } from '../../product/components/FarmersProductsManager';
 import { productManagementApi } from '../../product/api/productManagementApi';
@@ -12,16 +21,37 @@ interface OwnerDashboardProps {
 }
 
 export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
+  // Top-level guard: do not render for superadmin or missing shop_id
+  if (user.role === 'superadmin' || !user.shop_id) {
+    return (
+      <div className="dashboard-container">
+        <div className="alert alert-warning">
+          <span className="warning-icon">⚠️</span>
+          Superadmin or invalid owner. You do not have access to this dashboard.
+        </div>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState('overview');
   const [shopProducts, setShopProducts] = useState<any>({});
   const [farmersCount, setFarmersCount] = useState(0);
   const [showProductSetup, setShowProductSetup] = useState(false);
   const [showFarmerAssignment, setShowFarmerAssignment] = useState(false);
   const [selectedFarmerId, setSelectedFarmerId] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  // Import VirtualizedTable
+  // @ts-ignore
+  const VirtualizedTable = require('../../../components/VirtualizedTable').default;
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+    // Only fetch transactions if owner tab is active
+    if (activeTab === 'transactions') {
+      fetchOwnerTransactions();
+    }
+  }, [activeTab, user]);
 
   const loadDashboardData = async () => {
     try {
@@ -34,6 +64,19 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
       setFarmersCount(summaryResponse.data.farmers?.length || 0);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
+    }
+  };
+
+  const fetchOwnerTransactions = async () => {
+    setLoadingTransactions(true);
+    try {
+      const { transactions: txs } = await (await import('@/services/transactionService')).transactionService.getTransactionsByUser(user.id, { page: 1, limit: 100 });
+      setTransactions(txs || []);
+    } catch (error) {
+      console.error('Failed to fetch owner transactions:', error);
+      setTransactions([]);
+    } finally {
+      setLoadingTransactions(false);
     }
   };
 
@@ -95,19 +138,19 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <Card>
-          <CardContent className="p-3">
+          <CardContent>
             <div className="text-lg font-semibold">{totalProducts}</div>
             <p className="text-xs text-gray-600">Products Available</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-3">
+          <CardContent>
             <div className="text-lg font-semibold">{farmersCount}</div>
             <p className="text-xs text-gray-600">Active Farmers</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-3">
+          <CardContent>
             <div className="text-lg font-semibold">
               {Object.keys(shopProducts.products_by_category || {}).length}
             </div>
@@ -115,7 +158,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-3">
+          <CardContent>
             <div className="text-lg font-semibold">₹0</div>
             <p className="text-xs text-gray-600">Today's Revenue</p>
           </CardContent>
@@ -156,8 +199,37 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
         </TabsContent>
 
         <TabsContent value="transactions">
-          <div className="text-center py-12">
-            <p className="text-gray-500">Transaction management coming soon...</p>
+          <div className="py-6">
+            {loadingTransactions ? (
+              <div className="text-center py-8 text-gray-500">Loading transactions...</div>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Your Transactions</h3>
+                <div className="bg-white rounded-lg shadow-md">
+                  <VirtualizedTable
+                    data={transactions}
+                    columns={[
+                      { key: 'id', label: 'ID' },
+                      { key: 'date', label: 'Date', render: (value: any) => new Date(value).toLocaleDateString() },
+                      { key: 'type', label: 'Type' },
+                      { key: 'status', label: 'Status', render: (value: any) => (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${value === 'completed' ? 'bg-green-100 text-green-800' : value === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>{value}</span>
+                      ) },
+                      { key: 'total_amount', label: 'Total', render: (value: any) => `₹${value}` },
+                      { key: 'commission_amount', label: 'Commission', render: (value: any) => `₹${value}` },
+                      { key: 'payment_status', label: 'Payment', render: (value: any) => (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${value === 'paid' ? 'bg-green-100 text-green-800' : value === 'partial' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>{value}</span>
+                      ) },
+                    ]}
+                    height={400}
+                    rowHeight={48}
+                  />
+                </div>
+                {transactions.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">No transactions found.</div>
+                )}
+              </>
+            )}
           </div>
         </TabsContent>
       </Tabs>
@@ -177,10 +249,10 @@ const ProductCategoriesOverview: React.FC<ProductCategoriesOverviewProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {Object.entries(productsByCategory).map(([category, products]) => (
         <Card key={category}>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <div className="flex justify-between items-center">
               <h3 className="font-semibold capitalize">{category}</h3>
-              <Badge variant="secondary">{products.length}</Badge>
+              <span className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">{products.length}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -211,7 +283,6 @@ interface ProductManagementTabProps {
 }
 
 const ProductManagementTab: React.FC<ProductManagementTabProps> = ({
-  shopId,
   productsByCategory,
   onSetupProducts
 }) => {
@@ -234,7 +305,7 @@ const ProductManagementTab: React.FC<ProductManagementTabProps> = ({
 
       {totalProducts === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
+          <CardContent>
             <h3 className="text-lg font-semibold mb-2">No Products Configured</h3>
             <p className="text-gray-600 mb-4">
               Set up your shop's product catalog to start managing inventory and transactions.
@@ -248,7 +319,7 @@ const ProductManagementTab: React.FC<ProductManagementTabProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Object.entries(productsByCategory).map(([category, products]) => (
             <Card key={category}>
-              <CardHeader className="pb-3">
+              <CardHeader>
                 <h3 className="font-semibold capitalize">{category}</h3>
               </CardHeader>
               <CardContent>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Plan } from '../../../types/entities';
 import { UserRole } from '../../../types/enums';
+import { apiClient } from '../../../services/api';
 
 interface OwnerCreatorProps {
   onOwnerCreated: (owner: User) => void;
@@ -28,10 +29,9 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
   React.useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await fetch('/api/v1/plans');
-        const result = await response.json();
-        if (result.success && result.data?.items) {
-          setAvailablePlans(result.data.items);
+        const response = await apiClient.get<{items: Plan[]}>('/plans');
+        if (response.success && response.data?.items) {
+          setAvailablePlans(response.data.items);
         }
       } catch (error) {
         console.error('Error fetching plans:', error);
@@ -56,53 +56,33 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
     setSuccess(null);
 
     try {
-      // Call API to create owner
-      const response = await fetch('/api/v1/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.full_name,
-          role: formData.role,
-          contact: formData.contact,
-          credit_limit: formData.credit_limit
-        })
+      // Call API to create owner using apiClient
+      const response = await apiClient.post<User>('/users', {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        full_name: formData.full_name,
+        role: formData.role,
+        contact: formData.contact,
+        credit_limit: formData.credit_limit
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create owner');
-      }
-
-      const result = await response.json();
       
-      if (result.success) {
-        const newUser = result.data;
+      if (response.success) {
+        const newUser = response.data;
 
         // Step 2: Create the shop with the plan if shop details provided
         if (formData.shop_name && formData.shop_location && formData.plan_id) {
           try {
-            const shopResponse = await fetch('/api/v1/shops', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                name: formData.shop_name,
-                location: formData.shop_location,
-                owner_user_id: newUser.id,
-                plan_id: parseInt(formData.plan_id),
-              }),
+            const shopResponse = await apiClient.post('/shops', {
+              name: formData.shop_name,
+              location: formData.shop_location,
+              owner_user_id: newUser.id,
+              plan_id: parseInt(formData.plan_id),
             });
-
-            const shopResult = await shopResponse.json();
             
-            if (!shopResponse.ok) {
-              console.error('Shop creation failed:', shopResult.message);
-              setError(`Owner created but shop creation failed: ${shopResult.message}`);
+            if (!shopResponse.success) {
+              console.error('Shop creation failed:', shopResponse.message);
+              setError(`Owner created but shop creation failed: ${shopResponse.message}`);
             } else {
               setSuccess(`Owner "${formData.username}" and shop "${formData.shop_name}" created successfully`);
             }
@@ -130,7 +110,7 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
           plan_id: ''
         });
       } else {
-        throw new Error(result.message || 'Failed to create owner');
+        throw new Error(response.message || 'Failed to create owner');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create owner');

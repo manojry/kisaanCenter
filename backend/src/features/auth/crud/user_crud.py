@@ -1,8 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional
-from ..models.user import User
+from ....models import User, RecordStatus
 from ..services.auth_service import AuthService
-from ....models import RecordStatus
 
 
 class UserCRUD:
@@ -13,7 +12,7 @@ class UserCRUD:
         """Get user by ID"""
         return db.query(User).filter(
             User.id == user_id,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).first()
     
     @staticmethod
@@ -21,7 +20,7 @@ class UserCRUD:
         """Get user by username"""
         return db.query(User).filter(
             User.username == username,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).first()
     
     @staticmethod
@@ -71,7 +70,7 @@ class UserCRUD:
         """Get all active users for a shop"""
         return db.query(User).filter(
             User.shop_id == shop_id,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).all()
     
     @staticmethod
@@ -79,5 +78,5 @@ class UserCRUD:
         """Get all active users by role"""
         return db.query(User).filter(
             User.role == role,
-            User.status == RecordStatus.ACTIVE
+            User.status == 'active'
         ).all()

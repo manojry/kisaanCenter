@@ -10,7 +10,7 @@ def test_shop_owner_relationship(db_session):
     
     shop = db_session.query(Shop).filter_by(owner_user_id=owner.id).first()
     assert shop is not None, "No shop found for owner"
-    assert shop.status == RecordStatus.ACTIVE
+    assert shop.status == 'active'
     assert shop.owner_user_id == owner.id
 
 def test_shop_employees(db_session):
@@ -20,4 +20,4 @@ def test_shop_employees(db_session):
     # Check that employees are associated with a shop
     for employee in employees:
         assert employee.shop_id is not None, f"Employee {employee.username} not associated with a shop"
-        assert employee.status == RecordStatus.ACTIVE
+    assert employee.status == 'active'

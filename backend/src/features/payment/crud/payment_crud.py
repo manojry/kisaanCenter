@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
-from ..models.payment import Payment, FarmerPayment, PaymentMethod
+from ....models.payment import Payment, FarmerPayment, PaymentMethod
 from ....models import RecordStatus, PaymentType, FarmerPaymentType
 
 
@@ -23,7 +23,7 @@ class PaymentCRUD:
         """Get payment by ID"""
         return db.query(Payment).filter(
             Payment.id == payment_id,
-            Payment.status == RecordStatus.ACTIVE
+            Payment.status == 'active'
         ).first()
     
     @staticmethod
@@ -36,7 +36,7 @@ class PaymentCRUD:
             joinedload(Payment.processed_by_user)
         ).filter(
             Payment.id == payment_id,
-            Payment.status == RecordStatus.ACTIVE
+            Payment.status == 'active'
         ).first()
         
         if not payment:
@@ -58,7 +58,7 @@ class PaymentCRUD:
         filters: Dict[str, Any] = None
     ) -> List[Payment]:
         """Get multiple payments with optional filters"""
-        query = db.query(Payment).filter(Payment.status == RecordStatus.ACTIVE)
+        query = db.query(Payment).filter(Payment.status == 'active')
         
         if filters:
             if 'transaction_id' in filters:
@@ -81,7 +81,7 @@ class PaymentCRUD:
         """Get all payments for a specific transaction"""
         return db.query(Payment).filter(
             Payment.transaction_id == transaction_id,
-            Payment.status == RecordStatus.ACTIVE
+            Payment.status == 'active'
         ).order_by(Payment.created_at.desc()).all()
     
     @staticmethod
@@ -113,7 +113,7 @@ class PaymentCRUD:
     @staticmethod
     def count_all(db: Session, filters: Dict[str, Any] = None) -> int:
         """Count total payments with optional filters"""
-        query = db.query(Payment).filter(Payment.status == RecordStatus.ACTIVE)
+        query = db.query(Payment).filter(Payment.status == 'active')
         
         if filters:
             if 'transaction_id' in filters:
@@ -137,7 +137,7 @@ class PaymentCRUD:
         shop_id: int = None
     ) -> Dict[str, Any]:
         """Get payment analytics summary for a period"""
-        query = db.query(Payment).filter(Payment.status == RecordStatus.ACTIVE)
+        query = db.query(Payment).filter(Payment.status == 'active')
         
         # Apply date filters
         if date_from:
@@ -190,7 +190,7 @@ class PaymentCRUD:
     @staticmethod
     def advanced_search(db: Session, search_request) -> Dict[str, Any]:
         """Advanced search for payments with complex criteria"""
-        query = db.query(Payment).filter(Payment.status == RecordStatus.ACTIVE)
+        query = db.query(Payment).filter(Payment.status == 'active')
         
         # Apply search filters from request
         if hasattr(search_request, 'transaction_id') and search_request.transaction_id:
@@ -244,7 +244,7 @@ class FarmerPaymentCRUD:
         """Get farmer payment by ID"""
         return db.query(FarmerPayment).filter(
             FarmerPayment.id == farmer_payment_id,
-            FarmerPayment.status == RecordStatus.ACTIVE
+            FarmerPayment.status == 'active'
         ).first()
     
     @staticmethod
@@ -258,7 +258,7 @@ class FarmerPaymentCRUD:
             joinedload(FarmerPayment.approved_by_user)
         ).filter(
             FarmerPayment.id == farmer_payment_id,
-            FarmerPayment.status == RecordStatus.ACTIVE
+            FarmerPayment.status == 'active'
         ).first()
         
         if not farmer_payment:
@@ -280,7 +280,7 @@ class FarmerPaymentCRUD:
         filters: Dict[str, Any] = None
     ) -> List[FarmerPayment]:
         """Get multiple farmer payments with optional filters"""
-        query = db.query(FarmerPayment).filter(FarmerPayment.status == RecordStatus.ACTIVE)
+        query = db.query(FarmerPayment).filter(FarmerPayment.status == 'active')
         
         if filters:
             if 'farmer_id' in filters:
@@ -299,7 +299,7 @@ class FarmerPaymentCRUD:
         """Get all farmer payments for a specific transaction"""
         return db.query(FarmerPayment).filter(
             FarmerPayment.transaction_id == transaction_id,
-            FarmerPayment.status == RecordStatus.ACTIVE
+            FarmerPayment.status == 'active'
         ).order_by(FarmerPayment.created_at.desc()).all()
     
     @staticmethod
@@ -307,7 +307,7 @@ class FarmerPaymentCRUD:
         """Get all farmer payments for a specific farmer"""
         return db.query(FarmerPayment).filter(
             FarmerPayment.farmer_user_id == farmer_id,
-            FarmerPayment.status == RecordStatus.ACTIVE
+            FarmerPayment.status == 'active'
         ).order_by(FarmerPayment.created_at.desc()).offset(skip).limit(limit).all()
     
     @staticmethod
@@ -339,7 +339,7 @@ class FarmerPaymentCRUD:
     @staticmethod
     def count_all(db: Session, filters: Dict[str, Any] = None) -> int:
         """Count total farmer payments with optional filters"""
-        query = db.query(FarmerPayment).filter(FarmerPayment.status == RecordStatus.ACTIVE)
+        query = db.query(FarmerPayment).filter(FarmerPayment.status == 'active')
         
         if filters:
             if 'farmer_id' in filters:
@@ -355,7 +355,7 @@ class FarmerPaymentCRUD:
     def get_pending_approvals(db: Session, skip: int = 0, limit: int = 100) -> List[FarmerPayment]:
         """Get farmer payments pending approval"""
         return db.query(FarmerPayment).filter(
-            FarmerPayment.status == RecordStatus.ACTIVE,
+            FarmerPayment.status == 'active',
             FarmerPayment.approved_by.is_(None)
         ).order_by(FarmerPayment.created_at.asc()).offset(skip).limit(limit).all()
     
@@ -369,7 +369,7 @@ class FarmerPaymentCRUD:
         
         payments = db.query(FarmerPayment).filter(
             FarmerPayment.farmer_user_id == farmer_id,
-            FarmerPayment.status == RecordStatus.ACTIVE,
+            FarmerPayment.status == 'active',
             FarmerPayment.date >= start_date,
             FarmerPayment.date <= end_date
         ).all()

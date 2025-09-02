@@ -39,8 +39,11 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    loadDashboardStats();
-  }, []);
+    // Only load dashboard stats for non-superadmin users
+    if (user?.role !== 'superadmin') {
+      loadDashboardStats();
+    }
+  }, [user]);
 
   // Route to appropriate dashboard based on user role
   if (user?.role === 'superadmin') {

@@ -1,42 +1,25 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, DECIMAL, Enum, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Enum as SQLEnum, DateTime, func
 from sqlalchemy.orm import relationship
 from .base import Base
 from .enums import UserRole, RecordStatus
 
 class User(Base):
-    """User model for application users."""
-    __tablename__ = "users"
-    __table_args__ = {'extend_existing': True}
-    
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), nullable=False)
-    contact = Column(String(15), nullable=True)
-    shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
-    credit_limit = Column(DECIMAL(12,2), nullable=True, default=0.00)
-    status = Column(Enum(RecordStatus), nullable=False, default=RecordStatus.ACTIVE)
-    created_by = Column(Integer, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    farmer_stocks = relationship("FarmerStock", back_populates="farmer")
+	__tablename__ = "users"
 
-class Superadmin(Base):
-    __tablename__ = "superadmin"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+	id = Column(Integer, primary_key=True, index=True)
+	username = Column(String(50), unique=True, nullable=False)
+	password_hash = Column(String(128), nullable=False)
+	role = Column(SQLEnum(UserRole, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
+	shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
+	contact = Column(String(20), nullable=True)
+	credit_limit = Column(Numeric(12,2), nullable=True, default=0.0)
+	record_status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
+	created_by = Column(Integer, nullable=True)
+	created_at = Column(DateTime, nullable=False, default=func.now())
+	updated_at = Column(DateTime, nullable=True, onupdate=func.now())
 
-class UserActivity(Base):
-    __tablename__ = "user_activity"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    activity = Column(String(255), nullable=False)
-    details = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
+	shop = relationship("Shop", back_populates="users", foreign_keys=[shop_id])
+	credits_as_buyer = relationship("Credit", back_populates="user")
+
+	def __repr__(self):
+		return f"<User(id={self.id}, username={self.username}, role={self.role}, shop_id={self.shop_id})>"
