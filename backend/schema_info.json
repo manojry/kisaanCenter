@@ -1,357 +1,402 @@
 {
   "enums": {
-    "recordstatus_old": [
-      "ACTIVE",
-      "INACTIVE",
-      "DELETED"
-    ],
-    "userrole": [
-      "SUPERADMIN",
-      "OWNER",
-      "EMPLOYEE",
-      "FARMER",
-      "BUYER",
-      "GUEST"
-    ],
-    "transactionstatus": [
-      "PENDING",
-      "CONFIRMED",
-      "CANCELLED"
-    ],
-    "paymentstatus": [
-      "PENDING",
-      "PARTIAL",
-      "COMPLETE"
-    ],
-    "completionstatus": [
-      "PENDING",
-      "PARTIAL",
-      "COMPLETE",
-      "CANCELLED"
-    ],
-    "stockstatus": [
-      "ACTIVE",
-      "CLOSED",
-      "RETURNED",
-      "DISCARDED"
-    ],
-    "transactiontype": [
-      "SALE",
-      "RETURN",
-      "ADJUSTMENT"
-    ],
-    "creditstatus": [
-      "OUTSTANDING",
-      "PARTIAL",
-      "SETTLED"
-    ],
-    "paymenttype": [
-      "PAYMENT",
-      "ADVANCE",
-      "REFUND"
-    ],
-    "farmerpaymenttype": [
-      "SETTLEMENT",
-      "ADVANCE"
-    ],
-    "commissionruletype": [
-      "PERCENTAGE",
-      "FIXED",
-      "TIERED"
-    ],
-    "auditaction": [
-      "INSERT",
-      "UPDATE",
-      "DELETE"
-    ],
-    "recordstatus": [
-      "active",
-      "inactive",
-      "suspended"
-    ],
-    "billingcycle": [
-      "MONTHLY",
-      "QUARTERLY",
-      "YEARLY"
-    ],
-    "subscriptionstatus": [
-      "ACTIVE",
-      "SUSPENDED",
-      "EXPIRED",
-      "CANCELLED"
-    ],
-    "limittype": [
-      "COUNT",
-      "DAYS",
-      "MONTHS",
-      "PERCENTAGE",
-      "count",
-      "months"
-    ],
-    "resetcycle": [
-      "DAILY",
-      "MONTHLY",
-      "YEARLY"
-    ],
-    "farmerstockmode": [
-      "declared",
-      "implicit"
-    ],
-    "transaction_status": [
-      "pending",
-      "completed",
-      "cancelled"
-    ],
-    "payment_status": [
-      "pending",
-      "partial",
-      "completed",
-      "unpaid"
-    ],
-    "completion_status": [
-      "incomplete",
-      "complete",
-      "pending"
-    ],
-    "record_status": [
-      "active",
-      "inactive"
-    ],
-    "payment_type": [
-      "full",
-      "partial",
-      "advance"
-    ],
-    "farmer_payment_type": [
-      "advance",
-      "settlement",
-      "bonus"
-    ],
-    "credit_status": [
-      "pending",
-      "approved",
-      "rejected"
-    ],
-    "user_role": [
-      "superadmin",
-      "owner",
-      "manager",
-      "employee",
-      "farmer",
-      "buyer"
-    ],
-    "transaction_type": [
-      "sale",
-      "purchase",
-      "return"
-    ],
-    "stock_status": [
-      "in_stock",
-      "out_of_stock",
-      "low_stock"
-    ],
-    "subscription_status": [
-      "active",
-      "inactive",
-      "cancelled",
-      "expired"
-    ],
-    "billing_cycle": [
-      "monthly",
-      "quarterly",
-      "yearly"
-    ]
-  },
-  "tables": {
-    "subscription": {
-      "columns": [
-        {
-          "name": "id",
-          "type": "integer",
-          "nullable": false,
-          "default": "nextval('subscription_id_seq'::regclass)",
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0
-        },
-        {
-          "name": "shop_id",
-          "type": "integer",
-          "nullable": false,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0
-        },
-        {
-          "name": "plan_id",
-          "type": "integer",
-          "nullable": false,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0
-        },
-        {
-          "name": "billing_cycle",
-          "type": "USER-DEFINED",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "start_date",
-          "type": "date",
-          "nullable": false,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "end_date",
-          "type": "date",
-          "nullable": false,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "auto_renew",
-          "type": "boolean",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "status",
-          "type": "USER-DEFINED",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "payment_status",
-          "type": "USER-DEFINED",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "amount",
-          "type": "numeric",
-          "nullable": false,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": 10,
-          "numeric_scale": 2
-        },
-        {
-          "name": "discount_amount",
-          "type": "numeric",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": 10,
-          "numeric_scale": 2
-        },
-        {
-          "name": "created_at",
-          "type": "timestamp without time zone",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "updated_at",
-          "type": "timestamp without time zone",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        }
-      ],
-      "foreign_keys": [
-        {
-          "column": "plan_id",
-          "references_table": "plan",
-          "references_column": "id"
-        }
-      ],
-      "primary_keys": [
-        "id"
-      ],
-      "unique_constraints": []
+    "record_status": ["active", "inactive", "suspended"],
+    "user_role": ["superadmin", "owner", "manager", "employee", "farmer", "buyer"],
+    "transaction_status": ["pending", "completed", "cancelled"],
+    "payment_status": ["pending", "partial", "completed", "unpaid"],
+    "completion_status": ["incomplete", "complete", "pending"],
+    "payment_type": ["full", "partial", "advance"],
+    "farmer_payment_type": ["advance", "settlement", "bonus"],
+    "credit_status": ["pending", "approved", "rejected"],
+    "transaction_type": ["sale", "purchase", "return"],
+    "stock_status": ["in_stock", "out_of_stock", "low_stock"],
+    "subscription_status": ["active", "inactive", "cancelled", "expired"],
+    "billing_cycle": ["monthly", "quarterly", "yearly"],
+    "limit_type": ["count", "days", "months", "percentage"],
+    "reset_cycle": ["daily", "monthly", "yearly"],
+    "farmer_stock_mode": ["declared", "implicit"],
+    "commission_rule_type": ["percentage", "fixed", "tiered"],
+    "audit_action": ["insert", "update", "delete"]
+  {
+    "enums": {
+      "user_role": ["superadmin", "owner", "farmer", "buyer", "employee"],
+      "record_status": ["active", "inactive", "deleted"],
+      "transaction_status": ["pending", "processing", "completed", "cancelled"],
+      "payment_status": ["pending", "partial", "completed", "failed"],
+      "completion_status": ["incomplete", "complete"],
+      "credit_status": ["outstanding", "partial", "paid", "overdue"],
+      "payment_type": ["full_payment", "partial_payment", "advance"],
+      "stock_mode": ["declared", "verified", "actual"],
+      "stock_status": ["in_stock", "out_of_stock", "expired"],
+      "transaction_type": ["sale", "return", "adjustment"],
+      "farmer_payment_type": ["cash", "bank_transfer", "cheque"]
     },
-    "category": {
+  {
+    "enums": {
+      "user_role": ["superadmin", "owner", "farmer", "buyer", "employee"],
+      "record_status": ["active", "inactive", "deleted"],
+      "transaction_status": ["pending", "processing", "completed", "cancelled"],
+      "payment_status": ["pending", "partial", "completed", "failed"],
+      "payment_type": ["full_payment", "partial_payment", "advance"]
+    },
+    "tables": {
+      "users": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "username", "type": "varchar(50)", "unique": true, "nullable": false},
+          {"name": "role", "type": "user_role", "nullable": false},
+          {"name": "shop_id", "type": "integer", "nullable": true, "foreign_key": "shops.id"},
+          {"name": "password_hash", "type": "varchar(255)", "nullable": true},
+          {"name": "contact", "type": "varchar(50)", "nullable": true},
+          {"name": "email", "type": "varchar(255)", "nullable": true},
+          {"name": "credit_limit", "type": "numeric(12,2)", "nullable": true},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_by", "type": "integer", "nullable": true, "foreign_key": "users.id"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "shops": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(255)", "nullable": false},
+          {"name": "owner_id", "type": "integer", "foreign_key": "users.id"},
+          {"name": "plan_id", "type": "integer", "foreign_key": "plans.id"},
+          {"name": "location", "type": "varchar(255)", "nullable": true},
+          {"name": "commission_rate", "type": "numeric(5,2)", "default": 0.00},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "categories": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(100)", "nullable": false},
+          {"name": "description", "type": "varchar(255)", "nullable": true},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "payment_methods": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(100)", "nullable": false},
+          {"name": "description", "type": "varchar(255)", "nullable": true},
+          {"name": "is_active", "type": "boolean", "default": true},
+          {"name": "created_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"},
+          {"name": "updated_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"}
+        ]
+      },
+      "expense_categories": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(100)", "nullable": false},
+          {"name": "description", "type": "varchar(255)", "nullable": true},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"},
+          {"name": "updated_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"}
+        ]
+      },
+      "plans": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(100)", "nullable": false},
+          {"name": "description", "type": "text", "nullable": true},
+          {"name": "monthly_price", "type": "numeric(10,2)", "nullable": false},
+          {"name": "quarterly_price", "type": "numeric(10,2)", "nullable": true},
+          {"name": "yearly_price", "type": "numeric(10,2)", "nullable": true},
+          {"name": "max_farmers", "type": "integer", "nullable": false},
+          {"name": "max_buyers", "type": "integer", "nullable": false},
+          {"name": "max_transactions", "type": "integer", "nullable": false},
+          {"name": "data_retention_months", "type": "integer", "nullable": false},
+          {"name": "features", "type": "jsonb", "nullable": true},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"},
+          {"name": "updated_at", "type": "timestamp", "default": "CURRENT_TIMESTAMP"}
+        ]
+      },
+      "products": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "name", "type": "varchar(255)", "nullable": false},
+          {"name": "category_id", "type": "integer", "foreign_key": "categories.id"},
+          {"name": "price", "type": "numeric(12,2)", "nullable": true},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "shop_products": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "product_id", "type": "integer", "foreign_key": "products.id"},
+          {"name": "is_active", "type": "boolean", "default": true}
+        ]
+      },
+      "shop_categories": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "category_id", "type": "integer", "foreign_key": "categories.id"}
+        ]
+      },
+      "farmer_stock": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "farmer_id", "type": "integer", "foreign_key": "users.id"},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "product_id", "type": "integer", "foreign_key": "products.id"},
+          {"name": "quantity", "type": "integer"},
+          {"name": "record_status", "type": "record_status", "default": "active"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "transactions": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "buyer_id", "type": "integer", "foreign_key": "users.id"},
+          {"name": "transaction_type", "type": "varchar(20)"},
+          {"name": "commission_rate", "type": "numeric(5,2)"},
+          {"name": "status", "type": "transaction_status"},
+          {"name": "created_at", "type": "timestamp", "nullable": true},
+          {"name": "updated_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "transaction_items": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "transaction_id", "type": "integer", "foreign_key": "transactions.id"},
+          {"name": "product_id", "type": "integer", "foreign_key": "products.id"},
+          {"name": "farmer_stock_id", "type": "integer", "foreign_key": "farmer_stock.id"},
+          {"name": "quantity", "type": "integer"},
+          {"name": "price", "type": "numeric(12,2)"}
+        ]
+      },
+      "payments": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "transaction_id", "type": "integer", "foreign_key": "transactions.id"},
+          {"name": "amount", "type": "numeric(12,2)"},
+          {"name": "payment_type", "type": "payment_type"},
+          {"name": "status", "type": "payment_status"},
+          {"name": "created_at", "type": "timestamp", "nullable": true}
+        ]
+      },
+      "credits": {
+        "columns": [
+          {"name": "id", "type": "serial", "primary_key": true},
+          {"name": "user_id", "type": "integer", "foreign_key": "users.id"},
+          {"name": "shop_id", "type": "integer", "foreign_key": "shops.id"},
+          {"name": "amount", "type": "numeric(12,2)"},
+          {"name": "status", "type": "varchar(20)"},
+          {"name": "created_at", "type": "timestamp", "nullable": true}
+        ]
+      }
+    }
+  }
+      },
+      "products": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "name", "type": "string", "nullable": false, "max_length": 100},
+          {"name": "description", "type": "text", "nullable": true},
+          {"name": "category_id", "type": "integer", "nullable": false, "foreign_key": "categories.id"},
+          {"name": "price", "type": "numeric(12,2)", "nullable": true},
+          {"name": "status", "type": "record_status", "nullable": false, "default": "active"},
+          {"name": "created_at", "type": "datetime", "nullable": false},
+          {"name": "updated_at", "type": "datetime", "nullable": false}
+        ],
+        "primary_keys": ["id"]
+      },
+      "transactions": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "shop_id", "type": "integer", "nullable": false, "foreign_key": "shops.id"},
+          {"name": "buyer_id", "type": "integer", "nullable": false, "foreign_key": "users.id"},
+          {"name": "parent_transaction_id", "type": "integer", "nullable": true, "foreign_key": "transactions.id"},
+          {"name": "type", "type": "transaction_type", "nullable": false, "default": "sale"},
+          {"name": "status", "type": "transaction_status", "nullable": false, "default": "pending"},
+          {"name": "commission_rate", "type": "numeric(5,2)", "nullable": true, "default": 0.00},
+          {"name": "commission_amount", "type": "numeric(12,2)", "nullable": true, "default": 0.00},
+          {"name": "payment_status", "type": "payment_status", "nullable": false, "default": "pending"},
+          {"name": "buyer_paid_amount", "type": "numeric(12,2)", "nullable": true, "default": 0.00},
+          {"name": "farmer_paid_amount", "type": "numeric(12,2)", "nullable": true, "default": 0.00},
+          {"name": "commission_confirmed", "type": "boolean", "nullable": true, "default": false},
+          {"name": "completion_status", "type": "completion_status", "nullable": false, "default": "incomplete"},
+          {"name": "date", "type": "date", "nullable": false},
+          {"name": "created_at", "type": "datetime", "nullable": false},
+          {"name": "updated_at", "type": "datetime", "nullable": false},
+          {"name": "record_status", "type": "record_status", "nullable": false, "default": "active"}
+        ],
+        "primary_keys": ["id"]
+      },
+      "categories": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "name", "type": "string", "nullable": false, "max_length": 100, "unique": true},
+          {"name": "description", "type": "text", "nullable": true},
+          {"name": "status", "type": "record_status", "nullable": true, "default": "active"},
+          {"name": "created_at", "type": "datetime", "nullable": false},
+          {"name": "updated_at", "type": "datetime", "nullable": false}
+        ],
+        "primary_keys": ["id"],
+        "unique_constraints": ["name"]
+      },
+      "plans": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "name", "type": "string", "nullable": false, "max_length": 100, "unique": true},
+          {"name": "description", "type": "text", "nullable": true},
+          {"name": "monthly_price", "type": "numeric(10,2)", "nullable": false},
+          {"name": "quarterly_price", "type": "numeric(10,2)", "nullable": true},
+          {"name": "yearly_price", "type": "numeric(10,2)", "nullable": true},
+          {"name": "max_farmers", "type": "integer", "nullable": false},
+          {"name": "max_buyers", "type": "integer", "nullable": false},
+          {"name": "max_transactions", "type": "integer", "nullable": false},
+          {"name": "data_retention_months", "type": "integer", "nullable": true, "default": 12},
+          {"name": "features", "type": "jsonb", "nullable": true},
+          {"name": "status", "type": "record_status", "nullable": true, "default": "active"},
+          {"name": "created_at", "type": "datetime", "nullable": true},
+          {"name": "updated_at", "type": "datetime", "nullable": true}
+        ],
+        "primary_keys": ["id"],
+        "unique_constraints": ["name"]
+      },
+      "shops": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "name", "type": "string", "nullable": false, "max_length": 100},
+          {"name": "address", "type": "text", "nullable": true},
+          {"name": "location", "type": "string", "nullable": true, "max_length": 255},
+          {"name": "contact", "type": "string", "nullable": true, "max_length": 15},
+          {"name": "commission_rate", "type": "numeric(5,2)", "nullable": false, "default": 0.00},
+          {"name": "owner_user_id", "type": "integer", "nullable": true, "foreign_key": "users.id"},
+          {"name": "plan_id", "type": "integer", "nullable": true, "foreign_key": "plans.id"},
+          {"name": "plan_start_date", "type": "date", "nullable": true},
+          {"name": "plan_end_date", "type": "date", "nullable": true},
+          {"name": "status", "type": "record_status", "nullable": false, "default": "active"},
+          {"name": "created_at", "type": "datetime", "nullable": false},
+          {"name": "updated_at", "type": "datetime", "nullable": false}
+        ],
+        "primary_keys": ["id"]
+      },
+      "superadmin": {
+        "columns": [
+          {"name": "id", "type": "integer", "nullable": false},
+          {"name": "username", "type": "string", "nullable": false, "max_length": 50, "unique": true},
+          {"name": "password_hash", "type": "string", "nullable": false, "max_length": 255},
+          {"name": "email", "type": "string", "nullable": false, "max_length": 100, "unique": true},
+          {"name": "contact", "type": "string", "nullable": true, "max_length": 15},
+          {"name": "created_at", "type": "datetime", "nullable": true},
+          {"name": "updated_at", "type": "datetime", "nullable": true},
+          {"name": "status", "type": "record_status", "nullable": true, "default": "active"}
+        ],
+        "primary_keys": ["id"],
+        "unique_constraints": ["username", "email"]
+      }
+    }
+  }
+        {"name": "contact", "type": "character varying", "nullable": true, "max_length": 20},
+        {"name": "role", "type": "USER-DEFINED", "nullable": false},
+        {"name": "status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true}
+      ],
+      "primary_keys": ["id"],
+      "unique_constraints": ["username", "email"]
+    },
+    "product": {
       "columns": [
-        {
-          "name": "id",
-          "type": "integer",
-          "nullable": false,
-          "default": "nextval('category_id_seq'::regclass)",
-          "max_length": null,
-          "numeric_precision": 32,
-          "numeric_scale": 0
-        },
-        {
-          "name": "name",
-          "type": "character varying",
-          "nullable": false,
-          "default": null,
-          "max_length": 100,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "description",
-          "type": "text",
-          "nullable": true,
-          "default": null,
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "created_at",
-          "type": "timestamp without time zone",
-          "nullable": true,
-          "default": "CURRENT_TIMESTAMP",
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        },
-        {
-          "name": "updated_at",
-          "type": "timestamp without time zone",
-          "nullable": true,
-          "default": "CURRENT_TIMESTAMP",
-          "max_length": null,
-          "numeric_precision": null,
-          "numeric_scale": null
-        }
+        {"name": "id", "type": "integer", "nullable": false},
+        {"name": "shop_id", "type": "integer", "nullable": false},
+        {"name": "name", "type": "character varying", "nullable": false, "max_length": 100},
+        {"name": "category_id", "type": "integer", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true},
+        {"name": "status", "type": "USER-DEFINED", "nullable": true}
       ],
-      "foreign_keys": [],
-      "primary_keys": [
-        "id"
-      ],
-      "unique_constraints": []
+      "primary_keys": ["id"],
+      "foreign_keys": [{"column": "category_id", "references_table": "category", "references_column": "id"}]
     },
     "transaction": {
       "columns": [
-        {
+        {"name": "id", "type": "integer", "nullable": false},
+        {"name": "shop_id", "type": "integer", "nullable": false},
+        {"name": "buyer_user_id", "type": "integer", "nullable": false},
+        {"name": "parent_transaction_id", "type": "integer", "nullable": true},
+        {"name": "type", "type": "USER-DEFINED", "nullable": true},
+        {"name": "status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "commission_rate", "type": "numeric", "nullable": true},
+        {"name": "commission_amount", "type": "numeric", "nullable": true},
+        {"name": "payment_status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "buyer_paid_amount", "type": "numeric", "nullable": true},
+        {"name": "farmer_paid_amount", "type": "numeric", "nullable": true},
+        {"name": "commission_confirmed", "type": "boolean", "nullable": true},
+        {"name": "completion_status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "date", "type": "date", "nullable": false},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true}
+      ],
+      "primary_keys": ["id"],
+      "foreign_keys": [{"column": "parent_transaction_id", "references_table": "transaction", "references_column": "id"}]
+    },
+    "transaction_item": {
+      "columns": [
+        {"name": "id", "type": "integer", "nullable": false},
+        {"name": "transaction_id", "type": "integer", "nullable": false},
+        {"name": "product_id", "type": "integer", "nullable": false},
+        {"name": "farmer_stock_id", "type": "integer", "nullable": true},
+        {"name": "quantity", "type": "numeric", "nullable": false},
+        {"name": "price", "type": "numeric", "nullable": false},
+        {"name": "status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true}
+      ],
+      "primary_keys": ["id"],
+      "foreign_keys": [
+        {"column": "transaction_id", "references_table": "transaction", "references_column": "id"},
+        {"column": "product_id", "references_table": "product", "references_column": "id"},
+        {"column": "farmer_stock_id", "references_table": "farmer_stock", "references_column": "id"}
+      ]
+    },
+    "category": {
+      "columns": [
+        {"name": "id", "type": "integer", "nullable": false},
+        {"name": "name", "type": "character varying", "nullable": false, "max_length": 100},
+        {"name": "description", "type": "text", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true}
+      ],
+      "primary_keys": ["id"],
+      "unique_constraints": ["name"]
+    },
+    "subscription": {
+      "columns": [
+        {"name": "id", "type": "integer", "nullable": false},
+        {"name": "shop_id", "type": "integer", "nullable": false},
+        {"name": "plan_id", "type": "integer", "nullable": false},
+        {"name": "billing_cycle", "type": "USER-DEFINED", "nullable": true},
+        {"name": "start_date", "type": "date", "nullable": false},
+        {"name": "end_date", "type": "date", "nullable": false},
+        {"name": "auto_renew", "type": "boolean", "nullable": true},
+        {"name": "status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "payment_status", "type": "USER-DEFINED", "nullable": true},
+        {"name": "amount", "type": "numeric", "nullable": false},
+        {"name": "discount_amount", "type": "numeric", "nullable": true},
+        {"name": "created_at", "type": "timestamp", "nullable": true},
+        {"name": "updated_at", "type": "timestamp", "nullable": true}
+      ],
+      "primary_keys": ["id"],
+      "foreign_keys": [{"column": "plan_id", "references_table": "plan", "references_column": "id"}]
+    }
+  }
+}
           "name": "id",
           "type": "integer",
           "nullable": false,

@@ -1,0 +1,96 @@
+{
+  "enums": {
+    "UserRole": ["superadmin", "owner", "farmer", "buyer", "employee", "guest"],
+    "RecordStatus": ["active", "inactive", "suspended", "deleted"],
+    "TransactionStatus": ["pending", "processing", "completed", "cancelled", "failed"],
+    "PaymentStatus": ["pending", "partial", "completed", "failed"],
+    "CreditStatus": ["outstanding", "partial", "paid", "overdue"],
+    "CompletionStatus": ["incomplete", "complete"],
+    "TransactionType": ["sale", "purchase", "return", "adjustment"],
+    "PaymentType": ["full_payment", "partial_payment", "advance"],
+    "PaymentMethod": ["cash", "bank_transfer", "upi", "cheque", "credit", "card", "wallet"],
+    "StockStatus": ["pending", "available", "sold", "expired", "damaged", "reserved"]
+  },
+  "tables": {
+    "User": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "username", "type": "string"},
+        {"name": "role", "type": "UserRole"},
+        {"name": "shop_id", "type": "number", "nullable": true},
+        {"name": "contact", "type": "string", "nullable": true},
+        {"name": "credit_limit", "type": "number", "nullable": true},
+        {"name": "status", "type": "RecordStatus"},
+        {"name": "created_by", "type": "number", "nullable": true},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    },
+    "Product": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "name", "type": "string"},
+        {"name": "category_id", "type": "number", "nullable": true},
+        {"name": "price", "type": "number", "nullable": true},
+        {"name": "shop_id", "type": "number", "nullable": true},
+        {"name": "status", "type": "RecordStatus"},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    },
+    "Transaction": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "shop_id", "type": "number"},
+        {"name": "buyer_user_id", "type": "number"},
+        {"name": "type", "type": "TransactionType"},
+        {"name": "status", "type": "TransactionStatus"},
+        {"name": "commission_rate", "type": "number", "nullable": true},
+        {"name": "commission_amount", "type": "number", "nullable": true},
+        {"name": "buyer_paid_amount", "type": "number", "nullable": true},
+        {"name": "farmer_paid_amount", "type": "number", "nullable": true},
+        {"name": "commission_confirmed", "type": "boolean", "nullable": true},
+        {"name": "completion_status", "type": "CompletionStatus", "nullable": true},
+        {"name": "date", "type": "string"},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    },
+    "TransactionItem": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "transaction_id", "type": "number"},
+        {"name": "product_id", "type": "number"},
+        {"name": "farmer_stock_id", "type": "number", "nullable": true},
+        {"name": "quantity", "type": "number"},
+        {"name": "price", "type": "number"},
+        {"name": "status", "type": "StockStatus", "nullable": true},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    },
+    "Payment": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "transaction_id", "type": "number"},
+        {"name": "user_id", "type": "number"},
+        {"name": "amount", "type": "number"},
+        {"name": "method", "type": "PaymentMethod"},
+        {"name": "status", "type": "PaymentStatus"},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    },
+    "Credit": {
+      "columns": [
+        {"name": "id", "type": "number"},
+        {"name": "user_id", "type": "number"},
+        {"name": "shop_id", "type": "number"},
+        {"name": "amount", "type": "number"},
+        {"name": "status", "type": "CreditStatus"},
+        {"name": "created_at", "type": "string"},
+        {"name": "updated_at", "type": "string"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "enum_gaps": [
+    {
+      "name": "UserRole",
+      "frontend": ["superadmin", "owner", "farmer", "buyer", "employee", "guest"],
+      "backend": ["superadmin", "owner", "farmer", "buyer", "employee"],
+      "recommendation": "Remove 'guest' from frontend or add to backend if needed."
+    },
+    {
+      "name": "RecordStatus",
+      "frontend": ["active", "inactive", "suspended", "deleted"],
+      "backend": ["active", "inactive", "deleted"],
+      "recommendation": "Remove 'suspended' from frontend or add to backend."
+    },
+    {
+      "name": "TransactionStatus",
+      "frontend": ["pending", "processing", "completed", "cancelled", "failed"],
+      "backend": ["pending", "processing", "completed", "cancelled"],
+      "recommendation": "Remove 'failed' from frontend or add to backend."
+    },
+    {
+      "name": "CompletionStatus",
+      "frontend": ["incomplete", "complete"],
+      "backend": [],
+      "recommendation": "Add to backend if needed."
+    },
+    {
+      "name": "TransactionType",
+      "frontend": ["sale", "purchase", "return", "adjustment"],
+      "backend": ["sale", "return", "adjustment"],
+      "recommendation": "Remove 'purchase' from frontend or add to backend."
+    },
+    {
+      "name": "PaymentMethod",
+      "frontend": ["cash", "bank_transfer", "upi", "cheque", "credit", "card", "wallet"],
+      "backend": [],
+      "recommendation": "Add to backend if needed."
+    },
+    {
+      "name": "StockStatus",
+      "frontend": ["pending", "available", "sold", "expired", "damaged", "reserved"],
+      "backend": [],
+      "recommendation": "Add to backend if needed."
+    }
+  ],
+  "field_gaps": {
+    "User": [
+      {"field": "password_hash", "frontend": false, "backend": true, "recommendation": "Add to frontend if needed."},
+      {"field": "email", "frontend": false, "backend": true, "recommendation": "Add to frontend if needed."}
+    ],
+    "Product": [
+      {"field": "description", "frontend": false, "backend": true, "recommendation": "Add to frontend if needed."}
+    ],
+    "Transaction": [
+      {"field": "parent_transaction_id", "frontend": false, "backend": true, "recommendation": "Add to frontend if needed."}
+    ],
+    "TransactionItem": [
+      {"field": "status", "frontend": true, "backend": false, "recommendation": "Add to backend if needed."}
+    ],
+    "Payment": [
+      {"field": "method", "frontend": true, "backend": false, "recommendation": "Add to backend if needed."},
+      {"field": "payment_type", "frontend": false, "backend": true, "recommendation": "Add to frontend if needed."}
+    ],
+    "Credit": [
+      {"field": "status", "frontend": "CreditStatus", "backend": "varchar(20)", "recommendation": "Use enum in backend if possible."}
+    ]
+  },
+  "general_recommendations": [
+    "Standardize enum values and naming conventions.",
+    "Ensure all fields used in the frontend are present in backend models and vice versa.",
+    "Use consistent types (e.g., always use 'number' for numeric fields, 'string' for dates/timestamps).",
+    "Align nullable/required status for all fields.",
+    "Remove unused fields or add them to both sides if needed for business logic.",
+    "Maintain a single source of truth for schema (ideally backend), and auto-generate frontend types from backend schema if possible."
+  ]
+}
