@@ -177,6 +177,13 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+<<<<<<< HEAD
 .pytest_cache/
 backend/alembic.ini
 backend/alembic.ini
+=======
+.pytest_cache/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+>>>>>>> 3007596 (Remove leaked tfstate and ignore state files)
