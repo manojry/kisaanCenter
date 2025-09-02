@@ -1,4 +1,8 @@
 
+from sqlalchemy import Column, Integer, DECIMAL, ForeignKey, func, DateTime
+from sqlalchemy.orm import relationship
+from .base import Base
+
 class TransactionItem(Base):
     __tablename__ = "transaction_items"
     

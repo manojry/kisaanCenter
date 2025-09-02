@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
 from datetime import datetime
-from ..enums import StockStatus, RecordStatus
+from ..models.enums import RecordStatus
 
 class FarmerStockBase(BaseModel):
     farmer_user_id: int
@@ -13,7 +13,6 @@ class FarmerStockBase(BaseModel):
     expired_qty: Optional[Decimal] = Field(default=0.000)  # New
     correction_qty: Optional[Decimal] = Field(default=0.000)  # New
     price: Decimal
-    status: Optional[StockStatus] = None
     record_status: Optional[RecordStatus] = None
 
 class FarmerStockCreate(FarmerStockBase):
@@ -24,7 +23,6 @@ class FarmerStockUpdate(BaseModel):
     sold_qty: Optional[Decimal] = None
     balance_qty: Optional[Decimal] = None
     price: Optional[Decimal] = None
-    status: Optional[StockStatus] = None
     record_status: Optional[RecordStatus] = None
 
 class FarmerStockRead(FarmerStockBase):

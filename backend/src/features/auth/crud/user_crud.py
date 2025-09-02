@@ -1,8 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional
-from ..models.user import User
+from ....models import User, RecordStatus
 from ..services.auth_service import AuthService
-from ....models import RecordStatus
 
 
 class UserCRUD:

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from backend.src.models.shop import Shop
-from backend.src.schemas import APIResponse
+from ..models.shop import Shop
+from ..schemas import APIResponse
 
 class AnalyticsService:
     def __init__(self, db: Session):

@@ -39,4 +39,35 @@ class PaymentType(str, Enum):
 	PARTIAL_PAYMENT = "partial_payment"
 	ADVANCE = "advance"
 
+class StockMode(str, Enum):
+	DECLARED = "declared"
+	VERIFIED = "verified"
+	ACTUAL = "actual"
+
+class StockStatus(str, Enum):
+	IN_STOCK = "in_stock"
+	OUT_OF_STOCK = "out_of_stock"
+	EXPIRED = "expired"
+
+class TransactionType(str, Enum):
+	SALE = "sale"
+	RETURN = "return"
+	ADJUSTMENT = "adjustment"
+
+class FarmerPaymentType(str, Enum):
+	CASH = "cash"
+	BANK_TRANSFER = "bank_transfer"
+	CHEQUE = "cheque"
+
+class BillingCycle(str, Enum):
+	MONTHLY = "monthly"
+	QUARTERLY = "quarterly"
+	YEARLY = "yearly"
+
+class SubscriptionStatus(str, Enum):
+	ACTIVE = "active"
+	INACTIVE = "inactive"
+	EXPIRED = "expired"
+	CANCELLED = "cancelled"
+
 # Add any additional enums here as needed

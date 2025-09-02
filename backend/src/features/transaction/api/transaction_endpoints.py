@@ -6,7 +6,7 @@ from ....schemas import (
     TransactionCreate, TransactionUpdate, TransactionRead, TransactionReadWithRelations,
     APIResponse, PaginationParams, TransactionSummary
 )
-from ..services.transaction_service import TransactionService
+from ....services.transaction_service import TransactionService
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 

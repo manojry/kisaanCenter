@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
-from ..models.models import User, TransactionItem, FarmerPayment, FarmerStock, Transaction, TransactionStatus
+from ..models import User, TransactionItem, FarmerPayment, FarmerStock, Transaction, TransactionStatus
 
 class FarmerLedgerService:
     def process_farmer_payment(self, farmer_id: int, payment_data) -> dict:

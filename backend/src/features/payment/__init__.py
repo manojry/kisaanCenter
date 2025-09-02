@@ -29,7 +29,7 @@ Features:
 
 from .api.payment_endpoints import router as payment_router
 from .services.payment_service import PaymentService
-from .models.payment import Payment, FarmerPayment, PaymentMethod
+from ...models.payment import Payment, FarmerPayment, PaymentMethod
 from .crud.payment_crud import PaymentCRUD, FarmerPaymentCRUD, PaymentMethodCRUD
 from .schemas.payment_schemas import (
     # Payment schemas

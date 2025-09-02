@@ -13,7 +13,8 @@ from ..schemas.transaction_schemas import (
 from ..schemas import APIResponse, PaginationParams
 from ..services.transaction_service import TransactionService
 from ..core.auth import get_current_user_id, get_current_user_role
-from ..models.enums import TransactionStatus, PaymentStatus, CompletionStatus, PaymentMethod, UserRole
+from ..models.enums import TransactionStatus, PaymentStatus, CompletionStatus, UserRole
+from ..models import PaymentMethod
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 

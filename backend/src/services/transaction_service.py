@@ -6,9 +6,9 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.src.database import get_db
-from database.models import Transaction, TransactionItem, FarmerStock, User, Shop, Payment
-from backend.src.models.enums import TransactionStatus, PaymentStatus, CompletionStatus, StockStatus
+from ..database import get_db
+from ..models import Transaction, TransactionItem, FarmerStock, User, Shop, Payment
+from ..models.enums import TransactionStatus, PaymentStatus, RecordStatus, CompletionStatus, StockStatus
 
 logger = logging.getLogger(__name__)
 

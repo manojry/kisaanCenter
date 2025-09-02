@@ -1,47 +1,54 @@
 # models/__init__.py
 from .base import Base
-from .user import User
-from .shop import Shop
-from .product import Product, Category
-from .transaction import Transaction, TransactionItem
-from .payment import Payment, PaymentMethod, FarmerPayment
-from .credit import Credit
-from .stock import FarmerStock, FarmerStockAudit
-from .subscription import Plan, Subscription, FeatureControl
-from .superadmin import SuperAdmin
-from .audit import UserActivity, AuditLog
 
+# Import enums first
+from .enums import UserRole, RecordStatus, TransactionStatus, PaymentStatus, PaymentType, StockMode
+
+# Import models
+try:
+    from .user import User
+except ImportError:
+    pass
+
+try:
+    from .superadmin import Superadmin
+except ImportError:
+    pass
+
+try:
+    from .shop import Shop
+except ImportError:
+    pass
+
+try:
+    from .product import Product
+except ImportError:
+    pass
+
+try:
+    from .transaction import Transaction
+except ImportError:
+    pass
+
+try:
+    from .transaction_item import TransactionItem
+except ImportError:
+    pass
+
+try:
+    from .farmer_stock import FarmerStock
+except ImportError:
+    pass
+
+try:
+    from .payment import Payment, PaymentMethod, FarmerPayment
+except ImportError:
+    pass
+
+# Make enums and models available from package root
 __all__ = [
-    "Base",
-    "User",
-    "Shop", 
-    "Product",
-    "Category",
-    "Transaction",
-    "TransactionItem",
-    "Payment",
-    "PaymentMethod",
-    "FarmerPayment",
-    "Credit",
-    "FarmerStock",
-    "FarmerStockAudit",
-    "Plan",
-    "Subscription",
-    "FeatureControl",
-    "SuperAdmin",
-    "UserActivity",
-    "AuditLog"
-]
-    "CreditStatus",
-    "StockStatus",
-    "StockMode",
-    "SubscriptionStatus",
-    "PlanStatus",
-    "PaymentMethod",
-    "BillingCycle",
-    "OrderStatus",
-    "LimitType",
-    "CompletionStatus",
-    "TransactionType",
-    "FarmerPaymentType"
+    "Base", 
+    "UserRole", "RecordStatus", "TransactionStatus", "PaymentStatus", "PaymentType", "StockMode",
+    "User", "Superadmin", "Shop", "Product", "Transaction", "TransactionItem", 
+    "FarmerStock", "Payment", "PaymentMethod", "FarmerPayment"
 ]

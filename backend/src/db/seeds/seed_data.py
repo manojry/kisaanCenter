@@ -36,7 +36,6 @@ class DatabaseSeeder:
     
     def __init__(self):
         self.created_objects = {
-            'superadmins': [],
             'plans': [],
             'shops': [],
             'users': [],
@@ -66,9 +65,8 @@ class DatabaseSeeder:
             
             # Seed basic operational data
             if include_test_data:
-                self.seed_superadmin()
+                self.seed_users()  # superadmin is first user
                 self.seed_shops()
-                self.seed_users()
                 self.seed_products()
                 self.seed_farmer_stocks()
                 self.seed_sample_transactions()
@@ -80,16 +78,7 @@ class DatabaseSeeder:
             logger.error(f"Database seeding failed: {str(e)}")
             return False
 
-    def seed_superadmin(self) -> bool:
-        """Seed superadmin user"""
-        superadmin_data = [{
-            "username": "superadmin",
-            "password_hash": "hashed_password_superadmin",
-            "email": "admin@kisaancenter.com",
-            "contact": "+91-9876543210",
-            "status": 'active'
-        }]
-        return self._seed_data(Superadmin, superadmin_data, 'superadmins')
+    # Removed seed_superadmin; superadmin is seeded as first user in seed_users
 
     def seed_farmer_stocks(self) -> bool:
         """Stub for seeding farmer stocks. Implement actual logic as needed."""
@@ -168,19 +157,19 @@ class DatabaseSeeder:
 
     def seed_shops(self) -> bool:
         """Seed test shops"""
-        if not self.created_objects['superadmins'] or not self.created_objects['plans']:
-            logger.warning("Superadmins or plans not seeded, skipping shops")
+        if not self.created_objects['users'] or not self.created_objects['plans']:
+            logger.warning("Users or plans not seeded, skipping shops")
             return True
 
-        superadmin = self.created_objects['superadmins'][0]
+        superadmin = next((u for u in self.created_objects['users'] if u.role == UserRole.SUPERADMIN), None)
         plan = self.created_objects['plans'][0]  # Basic plan
-        
+
         shops_data = [
             {
                 "name": "Test Market Center",
                 "location": "123 Market Street, Test City",
                 "plan_id": plan.id,
-                "created_by": superadmin.id,
+                "created_by": superadmin.id if superadmin else None,
                 "status": 'active'
             }
         ]
@@ -213,74 +202,81 @@ class DatabaseSeeder:
             return False
 
     def seed_users(self) -> bool:
-        """Seed test users with proper roles"""
-        if not self.created_objects['shops']:
-            logger.warning("Shops not seeded, skipping users")
-            return True
-
-        shop = self.created_objects['shops'][0]
-        
+        """Seed test users with proper roles (superadmin first)"""
         users_data = [
-            # Shop Owner
+            # Superadmin user (no shop_id)
             {
-                "username": "owner1",
-                "password_hash": "hashed_password_owner",
-                "role": UserRole.OWNER,
-                "shop_id": shop.id,
-                "contact": "+91-9000000001",
-                "credit_limit": Decimal("0.00"),
-                "status": 'active'
-            },
-            # Farmers
-            {
-                "username": "farmer1",
-                "password_hash": "hashed_password_farmer1",
-                "role": UserRole.FARMER,
-                "shop_id": shop.id,
-                "contact": "+91-9000000002",
-                "credit_limit": Decimal("0.00"),
-                "status": 'active'
-            },
-            {
-                "username": "farmer2",
-                "password_hash": "hashed_password_farmer2",
-                "role": UserRole.FARMER,
-                "shop_id": shop.id,
-                "contact": "+91-9000000003",
-                "credit_limit": Decimal("0.00"),
-                "status": 'active'
-            },
-            # Buyers
-            {
-                "username": "buyer1",
-                "password_hash": "hashed_password_buyer1",
-                "role": UserRole.BUYER,
-                "shop_id": shop.id,
-                "contact": "+91-9000000004",
-                "credit_limit": Decimal("10000.00"),
-                "status": 'active'
-            },
-            {
-                "username": "buyer2",
-                "password_hash": "hashed_password_buyer2",
-                "role": UserRole.BUYER,
-                "shop_id": shop.id,
-                "contact": "+91-9000000005",
-                "credit_limit": Decimal("5000.00"),
-                "status": 'active'
-            },
-            # Employee
-            {
-                "username": "employee1",
-                "password_hash": "hashed_password_employee1",
-                "role": UserRole.EMPLOYEE,
-                "shop_id": shop.id,
-                "contact": "+91-9000000006",
+                "username": "superadmin",
+                "password_hash": "hashed_password_superadmin",
+                "role": UserRole.SUPERADMIN,
+                "contact": "+91-9876543210",
                 "credit_limit": Decimal("0.00"),
                 "status": 'active'
             }
         ]
-        
+        # Add shop users if shop exists
+        if self.created_objects['shops']:
+            shop = self.created_objects['shops'][0]
+            users_data += [
+                # Shop Owner
+                {
+                    "username": "owner1",
+                    "password_hash": "hashed_password_owner",
+                    "role": UserRole.OWNER,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000001",
+                    "credit_limit": Decimal("0.00"),
+                    "status": 'active'
+                },
+                # Farmers
+                {
+                    "username": "farmer1",
+                    "password_hash": "hashed_password_farmer1",
+                    "role": UserRole.FARMER,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000002",
+                    "credit_limit": Decimal("0.00"),
+                    "status": 'active'
+                },
+                {
+                    "username": "farmer2",
+                    "password_hash": "hashed_password_farmer2",
+                    "role": UserRole.FARMER,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000003",
+                    "credit_limit": Decimal("0.00"),
+                    "status": 'active'
+                },
+                # Buyers
+                {
+                    "username": "buyer1",
+                    "password_hash": "hashed_password_buyer1",
+                    "role": UserRole.BUYER,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000004",
+                    "credit_limit": Decimal("10000.00"),
+                    "status": 'active'
+                },
+                {
+                    "username": "buyer2",
+                    "password_hash": "hashed_password_buyer2",
+                    "role": UserRole.BUYER,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000005",
+                    "credit_limit": Decimal("5000.00"),
+                    "status": 'active'
+                },
+                # Employee
+                {
+                    "username": "employee1",
+                    "password_hash": "hashed_password_employee1",
+                    "role": UserRole.EMPLOYEE,
+                    "shop_id": shop.id,
+                    "contact": "+91-9000000006",
+                    "credit_limit": Decimal("0.00"),
+                    "status": 'active'
+                }
+            ]
         return self._seed_data(User, users_data, 'users')
 
     def seed_products(self) -> bool:

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from backend.src.database import get_db
-from backend.src.schemas import ShopCreateRequest, UserCreateRequest, ProductAssignRequest, APIResponse
-from backend.src.services.shop_service import ShopService
-from backend.src.services.user_service import UserService
-from backend.src.services.product_service import ProductService
-from backend.src.services.analytics_service import AnalyticsService
+from ..database import get_db
+from ..schemas import ShopCreate, UserCreate, ProductCreate, APIResponse
+from ..services.shop_service import ShopService
+from ..services.user_service import UserService
+from ..services.product_service import ProductService
+from ..services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix="/owner-admin", tags=["Owner Admin"])
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/owner-admin", tags=["Owner Admin"])
 @router.post("/shops/{shop_id}/users", response_model=APIResponse)
 def add_users_to_shop(
 	shop_id: int,
-	users_data: list[UserCreateRequest],
+	users_data: list[UserCreate],
 	db: Session = Depends(get_db)
 ):
 	"""Owner/admin adds users to shop"""
@@ -24,7 +24,7 @@ def add_users_to_shop(
 @router.post("/shops/{shop_id}/products", response_model=APIResponse)
 def assign_products_to_shop(
 	shop_id: int,
-	product_data: ProductAssignRequest,
+	product_data: ProductCreate,
 	db: Session = Depends(get_db)
 ):
 	"""Owner/admin assigns products to shop"""

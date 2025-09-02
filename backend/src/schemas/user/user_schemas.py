@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
-from ..enums import UserRole, RecordStatus
+from ...models.enums import UserRole, RecordStatus
 
 # Base Schema
 class UserBase(BaseModel):

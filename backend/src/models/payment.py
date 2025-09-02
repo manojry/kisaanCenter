@@ -5,7 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .enums import PaymentType, FarmerPaymentType, RecordStatus
-from src.database import Base
+from .base import Base
 
 class PaymentMethod(Base):
     """Payment method model for storing available payment options"""

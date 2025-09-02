@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
-from ..models.payment import Payment, FarmerPayment, PaymentMethod
+from ....models.payment import Payment, FarmerPayment, PaymentMethod
 from ....models import RecordStatus, PaymentType, FarmerPaymentType
 
 

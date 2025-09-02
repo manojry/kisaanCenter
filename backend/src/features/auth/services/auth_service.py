@@ -5,7 +5,7 @@ from typing import Optional
 
 from ....models import User, Superadmin
 from ....schemas import APIResponse
-from ....models import RecordStatus
+from ....models.enums import RecordStatus
 
 logger = logging.getLogger(__name__)
 

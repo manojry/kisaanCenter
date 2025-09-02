@@ -56,7 +56,7 @@ main_router = APIRouter()
 
 # Import routers
 from .api.simple_endpoints import users_router, shops_router, products_router, payments_router, credits_router
-from .api.transaction_endpoints import router as transactions_router
+from .features.transaction.api.transaction_endpoints import router as transactions_router
 from .api.owner_admin import router as superadmin_router
 
 # Create the FastAPI app

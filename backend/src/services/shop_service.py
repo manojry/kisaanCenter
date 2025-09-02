@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query, FastAPI
 from sqlalchemy.orm import Session
 from typing import Optional
-from backend.src.database import get_db
-from backend.src.models.shop import Shop
-from backend.src.models.user import User
-from backend.src.models.product import Product
-from backend.src.schemas import APIResponse
+from ..database import get_db
+from ..models.shop import Shop
+from ..models.user import User
+from ..models.product import Product
+from ..schemas import APIResponse
 
 router = APIRouter()
 
@@ -44,14 +44,14 @@ async def get_shop_products(
     product_list = [{"id": p.id, "name": p.name} for p in products]
     return APIResponse(success=True, data=product_list)
 from sqlalchemy.orm import Session
-from backend.src.models.shop import Shop
-from backend.src.schemas import ShopCreateRequest, APIResponse
+from ..models.shop import Shop
+from ..schemas import ShopCreate, APIResponse
 
 class ShopService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_shop(self, shop_data: ShopCreateRequest) -> APIResponse:
+    def create_shop(self, shop_data: ShopCreate) -> APIResponse:
         # TODO: Implement shop creation logic
         shop = Shop(**shop_data.dict())
         self.db.add(shop)

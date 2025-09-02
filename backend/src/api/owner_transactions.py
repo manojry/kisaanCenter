@@ -1,9 +1,9 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from backend.src.database import get_db
-from backend.src.schemas import APIResponse
-from backend.src.services.transaction_service import TransactionService
+from ..database import get_db
+from ..schemas import APIResponse
+from ..services.transaction_service import TransactionService
 from datetime import datetime
 
 router = APIRouter(prefix="/owner-transactions", tags=["Owner Transactions"])

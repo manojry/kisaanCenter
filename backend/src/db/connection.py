@@ -32,33 +32,37 @@ class DatabaseConfig:
     
     def __init__(self):
         # Load environment variables from .env file
-        load_dotenv()
-        
+        from dotenv import load_dotenv
+        dotenv_path = "c:/Users/r.kowdampalli/Documents/kisaanCenter/backend/.env"
+        print(f"[DEBUG] .env loaded from: {dotenv_path}")
+        load_dotenv(dotenv_path)
+
         # Environment variables - all required from environment or .env file
         self.DB_HOST = os.getenv("DB_HOST")
         self.DB_PORT = os.getenv("DB_PORT", "5432")
         self.DB_NAME = os.getenv("DB_NAME")
         self.DB_USER = os.getenv("DB_USER")
         self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+        print(f"[DEBUG] DB_PASSWORD used: {self.DB_PASSWORD}")
         self.DB_SSL_MODE = os.getenv("DB_SSL_MODE", "require")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-        
+
         # Validate required environment variables
         required_vars = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"]
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
-        
+
         # Connection pool settings - more conservative for stability
         self.POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))  # Reduced pool size
         self.MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))  # Reduced overflow
         self.POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "300"))  # 5 minutes - much shorter
         self.POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
-        
+
         # Connection timeout settings
         self.CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))  # 10 seconds
         self.COMMAND_TIMEOUT = int(os.getenv("DB_COMMAND_TIMEOUT", "30"))  # 30 seconds
-        
+
         # Query timeout settings
         self.STATEMENT_TIMEOUT = os.getenv("DB_STATEMENT_TIMEOUT", "30000")  # 30 seconds
         self.LOCK_TIMEOUT = os.getenv("DB_LOCK_TIMEOUT", "10000")  # 10 seconds
