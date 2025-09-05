@@ -114,10 +114,11 @@ class ShopReadWithRelations(ShopRead):
 class ProductBase(BaseSchema):
     name: str = Field(..., min_length=2, max_length=100)
     category_id: Optional[int] = None
-    shop_id: int
+    shop_id: Optional[int] = None
+    price: Optional[float] = None
 
 class ProductCreate(ProductBase):
-    status: RecordStatusEnum = RecordStatusEnum.ACTIVE
+    record_status: RecordStatusEnum = RecordStatusEnum.ACTIVE  # aligns with DB 'record_status'
 
 class ProductUpdate(BaseSchema):
     name: Optional[str] = Field(None, min_length=2, max_length=100)

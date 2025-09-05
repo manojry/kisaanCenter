@@ -9,10 +9,10 @@ INSERT INTO users (
     created_at,
     updated_at
 ) VALUES (
-    'superadmin',
+    'superadmin1',
     '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', -- SHA256 for 'admin123'
     'superadmin',
-    'admin@kisaancenter.com',
+    'admin1@kisaancenter.com',
     '+91-9876543210',
     0.00,
     'active',

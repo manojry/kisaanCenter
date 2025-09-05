@@ -8,7 +8,9 @@ class User(Base):
 
 	id = Column(Integer, primary_key=True, index=True)
 	username = Column(String(50), unique=True, nullable=False)
+	email = Column(String(120), unique=True, nullable=False)
 	password_hash = Column(String(128), nullable=False)
+	full_name = Column(String(100), nullable=True)
 	role = Column(SQLEnum(UserRole, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
 	shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
 	contact = Column(String(20), nullable=True)

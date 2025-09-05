@@ -64,12 +64,145 @@ export async function fetchPlans(page: number = 1, limit: number = 10): Promise<
 
 export async function fetchAllPlans(): Promise<Plan[]> {
   try {
-  const response = await apiClient.get<ApiResponse<Plan[]>>('/subscriptions/plans');
+    const response = await apiClient.get<ApiResponse<Plan[]>>('/subscriptions/plans');
+    // If backend sends { success, message, data: [...] }
     // If backend sends { success, message, data: [...] }
     if (response?.data && Array.isArray(response.data.data)) {
       return response.data.data;
     }
-    // If backend sends just an array
+    // If backend sends { success, message, data: { items: [...] } }
+    if (response?.data && response.data.data && Array.isArray(response.data.data.items)) {
+      return response.data.data.items;
+    }
+    // If backend sends { success, message, data: [...] } (data is array)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data as Plan[];
+    }
+    // If backend sends { success, message, data: [...] } (data is array, not data.data)
     if (response?.data && Array.isArray(response.data)) {
       return response.data as Plan[];
     }

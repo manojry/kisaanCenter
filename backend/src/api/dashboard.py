@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 from datetime import datetime, timedelta
 from ..database import get_db
+from .auth import get_current_user
 from ..models import User, Shop, Transaction, TransactionItem, Payment, Product, RecordStatus
 from ..schemas import APIResponse
 
@@ -161,25 +162,18 @@ async def get_dashboard_summary(
             raise HTTPException(status_code=403, detail="Access denied")
 
         total_transactions = db.query(Transaction).filter(Transaction.shop_id == shop_id).count()
-        total_users = db.query(User).filter(User.shop_id == shop_id).count()
-        week_ago = datetime.now() - timedelta(days=7)
-        recent_transactions = db.query(Transaction).filter(
-            and_(
-                Transaction.shop_id == shop_id,
-                Transaction.created_at >= week_ago
-            )
-        ).count()
-
+        monthly_revenue = db.query(func.sum(Transaction.total_amount)).filter(Transaction.shop_id == shop_id).scalar() or 0
+        monthly_commission = db.query(func.sum(Transaction.commission_amount)).filter(Transaction.shop_id == shop_id).scalar() or 0
+        summary = {
+            "totalRevenue": monthly_revenue,
+            "totalTransactions": total_transactions,
+            "totalCommission": monthly_commission
+        }
         return {
             "success": True,
-            "data": {
-                "total_transactions": total_transactions,
-                "total_users": total_users,
-                "recent_activity": recent_transactions,
-                "last_updated": datetime.now().isoformat()
-            }
+            "data": summary,
+            "message": "Dashboard summary retrieved"
         }
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch summary: {str(e)}")
 
@@ -248,14 +242,9 @@ async def get_system_health(db: Session = Depends(get_db)):
             db.execute("SELECT 1")
         except:
             db_healthy = False
-        recent_users = db.query(func.count(User.id)).filter(User.created_at >= datetime.now() - timedelta(days=7)).scalar() or 0
-        recent_transactions = db.query(func.count(Transaction.id)).filter(Transaction.created_at >= datetime.now() - timedelta(days=1)).scalar() or 0
         health_data = {
-            "database_healthy": db_healthy,
-            "api_status": "operational",
-            "recent_users_7_days": recent_users,
-            "recent_transactions_24h": recent_transactions,
-            "timestamp": datetime.now().isoformat()
+            "status": "healthy" if db_healthy else "degraded",
+            "lastChecked": datetime.now().isoformat()
         }
         return APIResponse(success=True, message="System health retrieved successfully", data=health_data)
     except Exception as e:
@@ -265,11 +254,14 @@ async def get_system_health(db: Session = Depends(get_db)):
 def owner_dashboard(db: Session = Depends(get_db)):
     # Dummy data, replace with real analytics
     data = {
-        "total_shops": 3,
-        "total_users": 25,
-        "total_transactions": 120,
-        "commission_earned": 5000.0,
-        "alerts": ["Low stock on Carrot", "Pending payment from Buyer #12"]
+        "totalShops": 3,
+        "totalUsers": 25,
+        "totalTransactions": 120,
+        "commissionEarned": 5000.0,
+        "alerts": [
+            {"id": "stock-carrot", "message": "Low stock on Carrot", "severity": "warning"},
+            {"id": "payment-buyer12", "message": "Pending payment from Buyer #12", "severity": "info"}
+        ]
     }
     return APIResponse(success=True, message="Owner dashboard data", data=data)
 

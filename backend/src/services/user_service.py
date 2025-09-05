@@ -13,25 +13,47 @@ class UserService:
         """Add farmers/buyers to a shop. Only owner can add to their shop."""
         responses = []
         for user_data in users_data:
-            # Only allow farmer/buyer roles
-            if user_data.role not in ["farmer", "buyer"]:
-                responses.append(APIResponse(success=False, message=f"Role '{user_data.role}' not allowed", errors=["INVALID_ROLE"]))
+            # Handle both dict and object data
+            if isinstance(user_data, dict):
+                role = user_data.get('role')
+                username = user_data.get('username')
+                password = user_data.get('password')
+                contact = user_data.get('contact', user_data.get('email'))
+                credit_limit = user_data.get('credit_limit', 0.0)
+                status = user_data.get('status', 'active')
+                email = user_data.get('email')
+                full_name = user_data.get('full_name')
+            else:
+                role = user_data.role
+                username = user_data.username
+                password = user_data.password if hasattr(user_data, 'password') else None
+                contact = user_data.contact if hasattr(user_data, 'contact') else None
+                credit_limit = user_data.credit_limit if hasattr(user_data, 'credit_limit') else 0.0
+                status = user_data.status if hasattr(user_data, 'status') else "active"
+                email = user_data.email if hasattr(user_data, 'email') else None
+                full_name = user_data.full_name if hasattr(user_data, 'full_name') else None
+
+            # Only allow farmer/buyer/employee roles
+            if role not in ["farmer", "buyer", "employee"]:
+                responses.append(APIResponse(success=False, message=f"Role '{role}' not allowed", errors=["INVALID_ROLE"]))
                 continue
-            # Set shop_id
-            user_data.shop_id = shop_id
+            
             # Hash password
             import hashlib
-            password_hash = hashlib.sha256(user_data.password.encode()).hexdigest() if hasattr(user_data, 'password') else None
+            password_hash = hashlib.sha256(password.encode()).hexdigest() if password else None
+            
             # Use create_user for validation and creation
             resp = UserService.create_user(
                 db=db,
-                username=user_data.username,
+                username=username,
                 password_hash=password_hash,
-                role=user_data.role,
+                role=role,
                 shop_id=shop_id,
-                contact=user_data.contact,
-                credit_limit=float(user_data.credit_limit) if user_data.credit_limit else 0.0,
-                status=user_data.status if hasattr(user_data, 'status') else "active"
+                contact=contact,
+                credit_limit=float(credit_limit) if credit_limit else 0.0,
+                status=status,
+                email=email,
+                full_name=full_name
             )
             responses.append(resp)
         return responses
@@ -58,7 +80,7 @@ class UserService:
             if status:
                 # Convert status to lowercase for enum compatibility
                 status_lower = status.lower()
-                query = query.filter(User.status == status_lower)
+                query = query.filter(User.record_status == status_lower)
             if search:
                 search_filter = or_(
                     User.username.ilike(f"%{search}%"),
@@ -96,7 +118,7 @@ class UserService:
                     "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
                     "shop_id": user.shop_id,
                     "contact": user.contact,
-                    "status": user.status,
+                    "status": user.record_status.value if hasattr(user.record_status, 'value') else str(user.record_status),
                     "created_at": user.created_at.isoformat() if user.created_at else None,
                     "updated_at": user.updated_at.isoformat() if user.updated_at else None
                 }
@@ -155,14 +177,18 @@ class UserService:
             role_enum = UserRole(role) if isinstance(role, str) else role
             from ..models import RecordStatus
             status_enum = RecordStatus(status) if isinstance(status, str) else status
+            
+            # Ensure email is provided, use a default if not
+            user_email = email or f"{username}@kisaancenter.com"
+            
             user = User(
                 username=username,
+                email=user_email,
                 password_hash=password_hash,
                 role=role_enum,
                 contact=contact,
                 credit_limit=credit_limit,
-                status=status_enum,
-                email=email,
+                record_status=status_enum,  # Changed from status to record_status
                 full_name=full_name
             )
             # Only set shop_id for non-owner roles
@@ -181,11 +207,11 @@ class UserService:
                     "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
                     "contact": user.contact,
                     "credit_limit": float(user.credit_limit),
-                    "status": user.status,
+                    "record_status": user.record_status.value if hasattr(user.record_status, 'value') else str(user.record_status),
                     "email": user.email,
                     "full_name": user.full_name,
                     "created_at": user.created_at.isoformat(),
-                    "updated_at": user.updated_at.isoformat()
+                    "updated_at": user.updated_at.isoformat() if user.updated_at else None
                 }
             )
         except IntegrityError as e:

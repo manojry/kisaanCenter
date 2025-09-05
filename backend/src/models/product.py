@@ -9,15 +9,17 @@ class Product(Base):
 	id = Column(Integer, primary_key=True, index=True)
 	name = Column(String(100), nullable=False)
 	description = Column(Text, nullable=True)
-	category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+	category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
 	price = Column(Numeric(12,2), nullable=True)
-	status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
+	shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
+	record_status = Column(SQLEnum(RecordStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RecordStatus.ACTIVE)
 	created_at = Column(DateTime, nullable=False, default=func.now())
 	updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
 	# Relationships
 	farmer_stocks = relationship("FarmerStock", back_populates="product")
 	transaction_items = relationship("TransactionItem", back_populates="product")
+	shop_products = relationship("ShopProduct", back_populates="product")
 
 	def __repr__(self):
 		return f"<Product(id={self.id}, name='{self.name}', price={self.price})>"

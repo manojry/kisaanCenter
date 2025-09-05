@@ -117,7 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
     } catch (error) {
-      dispatch({ type: 'LOGIN_ERROR' });
       return null;
     }
   };

@@ -17,6 +17,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 # CRUD Operations
 # POST   /users                    # Create new user
+# POST   /users/                   # Create new user (accepts trailing slash)
 # GET    /users/{user_id}          # Get user by ID
 # GET    /users                    # Get users with pagination/filters
 # PUT    /users/{user_id}          # Update user
@@ -43,83 +44,39 @@ router = APIRouter(prefix="/users", tags=["Users"])
 # - sort_by: str (default: "created_at")
 # - sort_order: str (default: "desc")
 
-@router.post(
-    "/",
-    response_model=APIResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create a new user",
-    description="Create a new user in the system with comprehensive validation",
-    response_description="User creation result",
-    openapi_extra={
-        "requestBody": {
-            "content": {
-                "application/json": {
-                    "example": {
-                        "username": "farmer_john",
-                        "password": "secure_password",
-                        "role": "farmer",
-                        # "shop_id": 1,  # shop_id not required for owner creation
-                        "contact": "+91-9876543210",
-                        "credit_limit": 10000.00,
-                        "created_by": 2,
-                        "status": "active"
-                    }
-                }
-            }
-        },
-        "responses": {
-            "201": {
-                "description": "User created successfully",
-                "content": {
-                    "application/json": {
-                        "example": {
-                            "success": True,
-                            "message": "User created successfully",
-                            "data": {
-                                "id": 123,
-                                "username": "farmer_john",
-                                "role": "farmer",
-                                # "shop_id": 1,
-                                "contact": "+91-9876543210",
-                                "credit_limit": 10000.00,
-                                "status": "active",
-                                "created_by": 2
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-)
+@router.post("", response_model=APIResponse, status_code=status.HTTP_201_CREATED, summary="Create a new user", description="Create a new user in the system with comprehensive validation", response_description="User creation result")
+@router.post("/", response_model=APIResponse, status_code=status.HTTP_201_CREATED, summary="Create a new user", description="Create a new user in the system with comprehensive validation", response_description="User creation result")
 def create_user(
     user: UserCreate,
-    db: Session = Depends(get_db),
-    created_by_id: Optional[int] = Query(None, description="ID of user creating this record")
+    db: Session = Depends(get_db)
 ):
-    """
-    Create a new user with full business validation:
-    
-    - **username**: Unique username (3-50 characters)
-    - **password**: Secure password (min 8 characters)
-    - **role**: User role (superadmin, owner, farmer, buyer, employee)
-    - **shop_id**: Required for non-owner, non-superadmin users
-    - **contact**: Optional contact information
-    - **credit_limit**: Optional credit limit for buyers/farmers
-    """
+    """Create a new user with full business validation."""
     import hashlib
+    from fastapi import Request
+    import logging
+    logger = logging.getLogger(__name__)
+    # Log request type and body
+    try:
+        import json
+        logger.info(f"Request type: {type(user)}")
+        logger.info(f"Request body: {user}")
+    except Exception as e:
+        logger.error(f"Error logging request body: {e}")
+
     password_hash = hashlib.sha256(user.password.encode()).hexdigest()
     # Only pass shop_id for non-owner roles
     shop_id = user.shop_id if user.role not in ["owner", "superadmin"] else None
     result = UserService.create_user(
-        db,
-        user.username,
-        password_hash,
-        user.role,
-        shop_id,
-        user.contact,
-        float(user.credit_limit) if user.credit_limit is not None else 0.0,
-        user.status if hasattr(user, "status") and user.status is not None else "active"
+        db=db,
+        username=user.username,
+        password_hash=password_hash,
+        role=user.role,
+        shop_id=shop_id,
+        contact=user.contact,
+        credit_limit=float(user.credit_limit) if user.credit_limit is not None else 0.0,
+        status=user.status if hasattr(user, "status") and user.status is not None else "active",
+        email=user.email,
+        full_name=user.full_name
     )
     
     if not result.success:
@@ -175,12 +132,7 @@ def get_user(
     include_relations: bool = Query(False, description="Include related entities (shop, transactions, credits)"),
     db: Session = Depends(get_db)
 ):
-    """
-    Get user by ID with optional relationship data:
-    
-    - **user_id**: Valid user ID (positive integer)
-    - **include_relations**: Whether to include shop, transactions, and credits data
-    """
+    """Get user by ID with optional relationship data."""
     result = UserService.get_user(db, user_id, include_relations)
     
     if not result.success:

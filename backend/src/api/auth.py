@@ -102,17 +102,20 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
             )
         
         # Return user data (excluding sensitive info)
+        response_data = {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role.value,
+            "shop_id": user.shop_id,
+            "status": user.status.value if hasattr(user, 'status') else "active",
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
+        }
+        logger.info(f"/auth/me response: {response_data}")
         return APIResponse(
             success=True,
             message="User data retrieved successfully",
-            data={
-                "id": user.id,
-                "username": user.username,
-                "role": user.role.value,
-                "shop_id": user.shop_id,
-                "status": user.status.value if hasattr(user, 'status') else "active",
-                "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') else None
-            }
+            data=response_data
         )
         
     except Exception as e:

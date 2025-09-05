@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import OwnerUserCreator from '../../user/components/OwnerUserCreator';
 import Button from '@/components/ui/Button';
 
 // Fallback Card and Tabs components
@@ -188,6 +189,12 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({ user }) => {
         </TabsContent>
 
         <TabsContent value="farmers" className="space-y-6">
+          <div className="mb-6">
+            <OwnerUserCreator
+              shopId={user.shop_id!}
+              onUserCreated={loadDashboardData}
+            />
+          </div>
           <FarmersProductsManager
             shopId={user.shop_id!}
             onAssignProducts={(farmerId) => {

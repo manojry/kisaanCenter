@@ -9,11 +9,12 @@ from ..models.enums import TransactionStatus, PaymentStatus
 class TransactionBase(BaseModel):
     shop_id: int
     buyer_user_id: int
+    farmer_user_id: int
     commission_rate: Decimal
     parent_transaction_id: Optional[int] = None
 
 class TransactionCreate(TransactionBase):
-    transaction_items: List[dict] = []
+    items: List[dict] = []
     
 class TransactionUpdate(BaseModel):
     commission_rate: Optional[Decimal] = None

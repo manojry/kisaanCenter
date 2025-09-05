@@ -22,26 +22,26 @@ class ApiClient {
   private setupInterceptors() {
     // Request interceptor for auth token
     this.client.interceptors.request.use(
-  (config: any) => {
+      (config: any) => {
         const token = localStorage.getItem('auth_token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
         return config
       },
-  (error: any) => Promise.reject(error)
+      (error: any) => Promise.reject(error)
     )
 
     // Response interceptor for error handling
     this.client.interceptors.response.use(
-  (response: any) => response,
-  (error: any) => {
+      (response: any) => response,
+      (error: any) => {
         const errorMessage = error.response?.data?.message || 'An error occurred'
-        
+
         if (error.response?.status === 401) {
-          localStorage.removeItem('auth_token')
-          window.location.href = '/login'
-          return Promise.reject(error)
+          localStorage.clear(); // Clear all localStorage including userrole
+          window.location.href = '/login';
+          return Promise.reject(error);
         }
 
         toast.error(errorMessage)

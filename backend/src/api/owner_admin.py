@@ -17,8 +17,22 @@ def add_users_to_shop(
 	db: Session = Depends(get_db)
 ):
 	"""Owner/admin adds users to shop"""
-	result = UserService(db).add_users_to_shop(shop_id, users_data)
-	return result
+	try:
+		result = UserService.add_users_to_shop(shop_id, users_data, db)
+		# Count successful users
+		successful = [r for r in result if r.success]
+		failed = [r for r in result if not r.success]
+		
+		if successful:
+			return APIResponse(
+				success=True, 
+				message=f"Created {len(successful)} users successfully", 
+				data={"created": len(successful), "failed": len(failed), "users": [r.data for r in successful]}
+			)
+		else:
+			return APIResponse(success=False, message="Failed to create any users", data={"errors": [r.message for r in failed]})
+	except Exception as e:
+		return APIResponse(success=False, message=f"Error adding users: {str(e)}", data=None)
 
 # Assign products to shop
 @router.post("/shops/{shop_id}/products", response_model=APIResponse)
@@ -28,6 +42,7 @@ def assign_products_to_shop(
 	db: Session = Depends(get_db)
 ):
 	"""Owner/admin assigns products to shop"""
+	# Ensure price is handled and status aligns with DB
 	result = ProductService(db).assign_products_to_shop(shop_id, product_data)
 	return result
 
@@ -49,7 +64,7 @@ def get_shop_users(
 	db: Session = Depends(get_db)
 ):
 	"""Get users for a shop, optionally filtered by role"""
-	users = UserService(db).get_users_by_shop(shop_id, role)
+	users = UserService.get_users(db, shop_id=shop_id, role=role)
 	return APIResponse(success=True, message="Users retrieved", data=users)
 
 # Get products for a shop

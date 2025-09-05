@@ -1,13 +1,19 @@
+
 """
 Simple Working API Endpoints
 Direct database queries without complex service layers
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
+from fastapi import Request
 from sqlalchemy.orm import Session
+from ..models.user import User
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
+from ..schemas.user_schemas import UserCreate, UserRead
+from datetime import datetime
 import hashlib
 import logging
+import psycopg2
 from ..database import get_db
 
 logger = logging.getLogger(__name__)
@@ -58,64 +64,77 @@ def login_user_json(
     result = AuthService.authenticate_user(db, username, password)
     return result
 
-@users_router.post("/")
+@users_router.post("/create", response_model=UserRead)
 def create_user(
-    username: str,
-    password: str,
-    role: str,
-    shop_id: Optional[int] = None,
-    contact: Optional[str] = None,
-    credit_limit: Optional[float] = 0.0,
-    created_by: Optional[int] = 1,
-    record_status: str = "active",
+    user: UserCreate = Body(...),
     current_user_id: Optional[int] = None,  # In real app, this comes from JWT
     db: Session = Depends(get_db)
 ):
-    """Create a new user with authorization checks"""
+    """Create a new user with authorization checks.
+    Handles both /create-user and /create-user/ routes."""
+    request_id = f"legacy-create-user-{user.username}-{datetime.now().isoformat()}"
+    logger.info(f"[{request_id}] - Request started: POST /legacy-create-user | Payload: {user.dict()}")
     try:
         # Authorization check - only superadmin can create owners
-        if role == 'owner' and current_user_id:
+        logger.debug(f"[{request_id}] - Authorization check for role: {user.role}, current_user_id: {current_user_id}")
+        if user.role == 'owner' and current_user_id:
             current_user = db.execute(text("SELECT role FROM users WHERE id = :id"), {"id": current_user_id}).fetchone()
+            logger.debug(f"[{request_id}] - Current user role: {current_user[0] if current_user else None}")
             if current_user and current_user[0] != 'superadmin':
-                return {"success": False, "message": "Only superadmin can create owners", "data": None}
-        
+                logger.warning(f"[{request_id}] - Only superadmin can create owners. Attempt denied.")
+                raise HTTPException(status_code=403, detail="Only superadmin can create owners")
         # Owner can only create users for their shop
-        if current_user_id and role in ['farmer', 'buyer', 'employee']:
+        if current_user_id and user.role in ['farmer', 'buyer', 'employee']:
             current_user = db.execute(text("SELECT role, shop_id FROM users WHERE id = :id"), {"id": current_user_id}).fetchone()
-            if current_user and current_user[0] == 'owner' and current_user[1] != shop_id:
-                return {"success": False, "message": "You can only create users for your own shop", "data": None}
-        
-        password_hash = hash_password(password)
-        # Insert user
+            logger.debug(f"[{request_id}] - Current user role/shop: {current_user if current_user else None}")
+            if current_user and current_user[0] == 'owner' and current_user[1] != user.shop_id:
+                logger.warning(f"[{request_id}] - Owner can only create users for their own shop. Attempt denied.")
+                raise HTTPException(status_code=403, detail="You can only create users for your own shop")
+        password_hash = hash_password(user.password)
+        logger.debug(f"[{request_id}] - Password hashed for user: {user.username}")
         result = db.execute(text("""
             INSERT INTO users (username, password_hash, role, shop_id, contact, credit_limit, record_status, created_by)
             VALUES (:username, :password_hash, :role, :shop_id, :contact, :credit_limit, :record_status, :created_by)
-            RETURNING id, username, role, shop_id, contact, credit_limit, record_status, created_by
+            RETURNING id, username, role, shop_id, contact, credit_limit, record_status, created_by, created_at, updated_at
         """), {
-            "username": username,
-            "password_hash": password_hash,
-            "role": role,
-            "shop_id": shop_id,
-            "contact": contact,
-            "credit_limit": credit_limit,
-            "record_status": record_status,
-            "created_by": created_by
-        })
-        user = result.fetchone()
-        db.commit()
-        return success_response("User created successfully", {
-            "id": user.id,
             "username": user.username,
+            "password_hash": password_hash,
             "role": user.role,
             "shop_id": user.shop_id,
             "contact": user.contact,
-            "credit_limit": float(user.credit_limit),
-            "record_status": user.record_status,
+            "credit_limit": float(user.credit_limit) if user.credit_limit else 0.0,
+            "record_status": user.status.value if hasattr(user.status, 'value') else str(user.status),
             "created_by": user.created_by
         })
+        created_user = result.fetchone()
+        db.commit()
+        logger.info(f"[{request_id}] - User created successfully: {created_user.username} (ID: {created_user.id})")
+        logger.info(f"[{request_id}] - Request completed: POST /legacy-create-user")
+        user_data = UserRead(
+            id=created_user.id,
+            username=created_user.username,
+            email=None,
+            full_name=None,
+            role=created_user.role,
+            shop_id=created_user.shop_id,
+            contact=created_user.contact,
+            credit_limit=float(created_user.credit_limit),
+            created_at=created_user.created_at if created_user.created_at else datetime.now(),
+            updated_at=created_user.updated_at if created_user.updated_at else datetime.now(),
+            status=created_user.record_status
+        )
+        return {
+            "success": True,
+            "message": "User created successfully",
+            "data": user_data.dict()
+        }
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating user: {e}")
+        # Handle duplicate username error
+        if hasattr(e, 'orig') and isinstance(e.orig, psycopg2.errors.UniqueViolation):
+            logger.error(f"[{request_id}] - Duplicate username error: {user.username}")
+            raise HTTPException(status_code=409, detail="Username already exists")
+        logger.error(f"[{request_id}] - Error creating user: {e}")
         raise HTTPException(status_code=500, detail="Failed to create user")
 
 @users_router.get("/{user_id}")
@@ -151,6 +170,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 @users_router.get("/")
 def get_users(
+    request: Request,
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     shop_id: Optional[int] = None,
@@ -159,60 +179,91 @@ def get_users(
 ):
     """Get users with pagination"""
     try:
+        logger.info(f"[GET /api/v1/users] Query params: page={page}, limit={limit}, shop_id={shop_id}, role={role}")
         offset = (page - 1) * limit
-        
         # Build WHERE clause
         where_conditions = []
         params = {"limit": limit, "offset": offset}
-        
-        if shop_id:
-            where_conditions.append("shop_id = :shop_id")
-            params["shop_id"] = shop_id
-        
-        if role:
-            where_conditions.append("role = :role")
-            params["role"] = role
-        
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-        
-        # Get users
-        result = db.execute(text(f"""
-            SELECT id, username, role, shop_id, contact, credit_limit, record_status, created_by, created_at
-            FROM users {where_clause}
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-        """), params)
-        
-        users = []
-        for user in result.fetchall():
-            users.append({
-                "id": user.id,
-                "username": user.username,
-                "role": user.role,
-                "shop_id": user.shop_id,
-                "contact": user.contact,
-                "credit_limit": float(user.credit_limit),
-                "record_status": user.record_status,
-                "created_by": user.created_by,
-                "created_at": user.created_at.isoformat() if user.created_at else None
-            })
-        
-        # Get total count
-        count_result = db.execute(text(f"""
-            SELECT COUNT(*) as total FROM users {where_clause}
-        """), params)
-        total = count_result.fetchone().total
-        
-        return success_response("Users retrieved successfully", {
-            "users": users,
-            "pagination": {
+        user_data = getattr(request.state, 'user', None)
+        if not user_data:
+            return APIResponse(success=False, message="User not authenticated")
+
+        # Owner must send shop_id as query param
+        if user_data.get('role') == 'owner':
+            if not shop_id:
+                return APIResponse(success=False, message="Owner must provide shop_id to fetch users")
+            where_conditions = ["shop_id = :shop_id"]
+            params = {"shop_id": shop_id, "limit": limit, "offset": offset}
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+            logger.info(f"[GET /api/v1/users] OWNER WHERE clause: {where_clause} | params: {params}")
+            result = db.execute(text(f"""
+                SELECT id, username, role, shop_id, contact, credit_limit, record_status, created_by, created_at
+                FROM users {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """), params)
+            users = []
+            for user in result.fetchall():
+                users.append({
+                    "id": user.id,
+                    "username": user.username,
+                    "role": user.role,
+                    "shop_id": user.shop_id,
+                    "contact": user.contact,
+                    "credit_limit": float(user.credit_limit),
+                    "record_status": user.record_status,
+                    "created_by": user.created_by,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                })
+            count_result = db.execute(text(f"""
+                SELECT COUNT(*) as total FROM users {where_clause}
+            """), params)
+            total = count_result.fetchone().total
+            pagination = {
                 "page": page,
                 "limit": limit,
                 "total": total,
                 "total_pages": (total + limit - 1) // limit
             }
-        })
-        
+            return success_response("Users retrieved successfully", {
+                "users": users,
+                "pagination": pagination
+            })
+
+            # Superadmin and other roles can fetch all users
+            users_query = db.query(User)
+            total = users_query.count()
+            users = users_query.offset(offset).limit(limit).all()
+
+            users_data = [
+                {
+                    "id": u.id,
+                    "username": u.username,
+                    "role": u.role.value if hasattr(u.role, 'value') else u.role,
+                    "shop_id": u.shop_id,
+                    "contact": u.contact,
+                    "credit_limit": u.credit_limit,
+                    "record_status": u.record_status,
+                    "created_by": u.created_by,
+                    "created_at": u.created_at.isoformat() if u.created_at else None
+                }
+                for u in users
+            ]
+
+            pagination = {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "total_pages": (total // limit) + (1 if total % limit else 0)
+            }
+
+            return success_response(
+                "Users retrieved successfully",
+                {
+                    "users": users_data,
+                    "pagination": pagination
+                }
+            )
     except Exception as e:
         logger.error(f"Error getting users: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve users")
@@ -423,6 +474,30 @@ def update_credit_limit(
         raise HTTPException(status_code=500, detail="Failed to update credit limit")
 
 # SHOP ENDPOINTS
+@shops_router.get("/by-owner/{owner_id}")
+def get_shop_by_owner(owner_id: int, db: Session = Depends(get_db)):
+    """Get shop by owner_id"""
+    try:
+        result = db.execute(text("""
+            SELECT id, name, location, commission_rate, record_status as status
+            FROM shops WHERE owner_id = :owner_id
+        """), {"owner_id": owner_id})
+        shop = result.fetchone()
+        
+        if not shop:
+            return success_response("No shop found for owner", None)
+            
+        return success_response("Shop found", {
+            "id": shop.id,
+            "name": shop.name,
+            "location": shop.location,
+            "commission_rate": float(shop.commission_rate),
+            "status": shop.status
+        })
+    except Exception as e:
+        logger.error(f"Error getting shop by owner: {e}")
+        raise HTTPException(status_code=400, detail="Failed to retrieve shop")
+
 @shops_router.get("/{shop_id}")
 def get_shop(shop_id: int, db: Session = Depends(get_db)):
     """Get shop by ID"""
@@ -431,11 +506,11 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
             SELECT id, name, location, commission_rate, record_status as status
             FROM shops WHERE id = :shop_id
         """), {"shop_id": shop_id})
-        
         shop = result.fetchone()
+
         if not shop:
             raise HTTPException(status_code=404, detail="Shop not found")
-        
+
         return success_response("Shop found", {
             "id": shop.id,
             "name": shop.name,
@@ -443,7 +518,6 @@ def get_shop(shop_id: int, db: Session = Depends(get_db)):
             "commission_rate": float(shop.commission_rate),
             "status": shop.status
         })
-        
     except HTTPException:
         raise
     except Exception as e:
@@ -482,6 +556,57 @@ def get_shops(
     except Exception as e:
         logger.error(f"Error getting shops: {e}")
         raise HTTPException(status_code=400, detail="Failed to retrieve shops")
+
+from pydantic import BaseModel
+
+class ShopCreateRequest(BaseModel):
+    name: str
+    location: str
+    commission_rate: float = 5.0
+    owner_user_id: int
+    plan_id: int = None
+
+@shops_router.post("/", summary="Create a new shop")
+def create_shop(
+    shop: ShopCreateRequest,
+    db: Session = Depends(get_db)
+):
+    """Create a new shop"""
+    try:
+        result = db.execute(text("""
+            INSERT INTO shops (name, location, commission_rate, owner_id, plan_id, record_status, created_at)
+            VALUES (:name, :location, :commission_rate, :owner_id, :plan_id, 'active', CURRENT_TIMESTAMP)
+            RETURNING id, name, location, commission_rate, owner_id, plan_id, record_status, created_at
+        """), {
+            "name": shop.name,
+            "location": shop.location,
+            "commission_rate": shop.commission_rate,
+            "owner_id": shop.owner_user_id,
+            "plan_id": shop.plan_id
+        })
+        created_shop = result.fetchone()
+        # Update owner's shop_id in users table
+        db.execute(text("""
+            UPDATE users SET shop_id = :shop_id WHERE id = :owner_id
+        """), {
+            "shop_id": created_shop.id,
+            "owner_id": shop.owner_user_id
+        })
+        db.commit()
+        return success_response("Shop created successfully", {
+            "id": created_shop.id,
+            "name": created_shop.name,
+            "location": created_shop.location,
+            "commission_rate": float(created_shop.commission_rate),
+            "owner_id": created_shop.owner_id,
+            "plan_id": created_shop.plan_id,
+            "status": created_shop.record_status,
+            "created_at": created_shop.created_at.isoformat() if created_shop.created_at else None
+        })
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating shop: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create shop")
 
 # PRODUCT ENDPOINTS
 @products_router.get("/{product_id}")

@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { 
   Users, Package, ShoppingCart, CreditCard, DollarSign, TrendingUp, 
   AlertCircle, CheckCircle, Clock, RefreshCw, Eye, Settings,
-  BarChart3, PieChart, Activity
+  BarChart3, PieChart, Activity, Calendar
 } from 'lucide-react'
 import { dashboardApi } from '@/features/dashboard/api'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useLoading, useNotifications } from '@/context/AppStateContext'
+import OwnerTransactionManager from './OwnerTransactionManager'
 
 interface OwnerDashboardStats {
   todayRevenue: number
@@ -25,6 +26,8 @@ interface OwnerDashboardStats {
 }
 
 const OwnerDashboard: React.FC = () => {
+  const [shopInfo, setShopInfo] = useState<any | null>(null);
+  const [activeView, setActiveView] = useState<'dashboard' | 'transactions'>('dashboard');
   const { user } = useAuth()
   const { setLoading, isLoading } = useLoading()
   const { addNotification } = useNotifications()
@@ -45,24 +48,27 @@ const OwnerDashboard: React.FC = () => {
   const [loading, setLoadingState] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
 
-  useEffect(() => {
-    fetchOwnerDashboardData()
-  }, [])
-
-  type DashboardApiResponse = {
-    today_revenue?: number;
-    monthly_revenue?: number;
-    total_commission?: number;
-    pending_credits?: number;
-    pending_buyer_payments?: number;
-    pending_farmer_payments?: number;
-    pending_commission_confirmations?: number;
-    completed_transactions?: number;
-    active_stock?: number;
-    total_farmers?: number;
-    total_buyers?: number;
-    total_employees?: number;
+  const fetchOwnerShopInfo = async () => {
+    console.log('dashboard --->', user);
+    if (!user?.shop_id || !user?.id) return; // Only fetch if both are set
+    try {
+      // Send owner id as query param for backend to validate ownership
+      const shopRes = await fetch(`/shops/${user.shop_id}?owner_id=${user.id}`);
+      if (shopRes.ok) {
+        const shopData = await shopRes.json();
+        setShopInfo(shopData?.data || null);
+      } else {
+        setShopInfo(null);
+      }
+    } catch (err) {
+      setShopInfo(null);
+    }
   };
+
+  useEffect(() => {
+    fetchOwnerDashboardData();
+    fetchOwnerShopInfo();
+  }, [])
 
   const fetchOwnerDashboardData = async () => {
     if (!user?.shop_id) return;
@@ -70,20 +76,22 @@ const OwnerDashboard: React.FC = () => {
       setLoading('dashboard', true);
       const shopId = String(user.shop_id);
       const dashboardRes = await dashboardApi.getShopDashboard(shopId);
-      const d = dashboardRes.data as DashboardApiResponse || {};
+      const d = dashboardRes.data as any || {};
+      
+      // Use the new dashboard endpoint structure
       setStats({
-        todayRevenue: d.today_revenue || 0,
-        monthlyRevenue: d.monthly_revenue || 0,
-        totalCommission: d.total_commission || 0,
-        pendingCredits: d.pending_credits || 0,
-        pendingBuyerPayments: d.pending_buyer_payments || 0,
-        pendingFarmerPayments: d.pending_farmer_payments || 0,
-        pendingCommissionConfirmations: d.pending_commission_confirmations || 0,
-        completedTransactions: d.completed_transactions || 0,
-        activeStock: d.active_stock || 0,
-        totalFarmers: d.total_farmers || 0,
-        totalBuyers: d.total_buyers || 0,
-        totalEmployees: d.total_employees || 0
+        todayRevenue: d.financial_summary?.today_sales || 0,
+        monthlyRevenue: d.financial_summary?.total_sales || 0,
+        totalCommission: d.financial_summary?.total_commission || 0,
+        pendingCredits: 0,
+        pendingBuyerPayments: 0,
+        pendingFarmerPayments: 0,
+        pendingCommissionConfirmations: 0,
+        completedTransactions: d.overview?.total_transactions || 0,
+        activeStock: d.overview?.total_products || 0,
+        totalFarmers: d.users_by_role?.farmer || 0,
+        totalBuyers: d.users_by_role?.buyer || 0,
+        totalEmployees: d.users_by_role?.employee || 0
       });
       setLastUpdated(new Date());
     } catch (error) {
@@ -177,6 +185,11 @@ const OwnerDashboard: React.FC = () => {
     )
   }
 
+  // Show Transaction Manager if in transactions view
+  if (activeView === 'transactions') {
+    return <OwnerTransactionManager />
+  }
+
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -186,8 +199,46 @@ const OwnerDashboard: React.FC = () => {
           <p className="text-gray-600 mt-1">
             {user && 'shop_name' in user ? (user as any).shop_name : 'Main Shop'} • {new Date().toLocaleDateString()}
           </p>
+          {shopInfo && (
+            <div className="mt-2 p-2 border rounded bg-white">
+              <div><strong>Shop Name:</strong> {shopInfo.name}</div>
+              <div><strong>Location:</strong> {shopInfo.location}</div>
+              <div><strong>Commission Rate:</strong> {shopInfo.commission_rate}%</div>
+              <div><strong>Status:</strong> {shopInfo.status}</div>
+              <button
+                onClick={fetchOwnerShopInfo}
+                className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Refresh Shop Info
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center space-x-3">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                activeView === 'dashboard' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-600 border border-gray-300'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 inline mr-2" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveView('transactions')}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                activeView === 'transactions' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-600 border border-gray-300'
+              }`}
+            >
+              <Calendar className="h-4 w-4 inline mr-2" />
+              Transactions
+            </button>
+          </div>
           <span className="text-sm text-gray-500">
             Last updated: {lastUpdated.toLocaleTimeString()}
           </span>
@@ -298,7 +349,7 @@ const OwnerDashboard: React.FC = () => {
             title="New Transaction"
             description="Create a new sale transaction"
             icon={<ShoppingCart className="h-5 w-5 text-blue-600" />}
-            onClick={() => window.location.href = '/transactions/new'}
+            onClick={() => setActiveView('transactions')}
             variant="primary"
           />
           <QuickAction

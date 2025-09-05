@@ -26,12 +26,16 @@ def create_transaction(
     current_user_role: str = Depends(get_current_user_role)
 ):
     """Create a new transaction with items"""
-    return TransactionService.create_transaction(
-        db=db, 
-        transaction_data=transaction,
-        created_by_id=current_user_id,
-        user_role=current_user_role
+    # Use process_quick_sale for owner MVP flow
+    service = TransactionService(db)
+    txn = service.process_quick_sale(
+        shop_id=transaction.shop_id,
+        farmer_id=transaction.farmer_user_id,
+        buyer_id=transaction.buyer_user_id,
+        items=transaction.items,
+        payment_mode="cash"
     )
+    return APIResponse(success=True, message="Transaction created", data=txn)
 
 @router.get("/{transaction_id}", response_model=APIResponse)
 def get_transaction(

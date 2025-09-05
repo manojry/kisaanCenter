@@ -6,6 +6,7 @@ import AuditLogViewer from '../features/audit/components/AuditLogViewer';
 import PlanManager from '../features/shop/components/PlanManager';
 import PlanEditor from '../components/PlanEditor';
 import OwnerCreator from '../features/user/components/OwnerCreator';
+import ShopCreator from '../features/shop/components/ShopCreator';
 import VirtualizedTable from '../components/VirtualizedTable';
 
 interface SuperAdminDashboardProps {
@@ -32,14 +33,17 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
       // Load shops, plans, and owners using apiClient
       const [shopsRes, usersRes] = await Promise.all([
         apiClient.get<Shop[]>('/shops'),
-        apiClient.get<User[]>('/users?role=owner')
+        apiClient.get<any>('/users?role=owner')
       ]);
 
       // Load plans using the dedicated API function
       const plansData = await fetchAllPlans();
 
       if (shopsRes.success && Array.isArray(shopsRes.data)) setShops(shopsRes.data);
-      if (usersRes.success && Array.isArray(usersRes.data)) setOwners(usersRes.data);
+      // Fix: extract owners from usersRes.data.users
+      if (usersRes.success && usersRes.data && Array.isArray(usersRes.data.users)) {
+        setOwners(usersRes.data.users);
+      }
       setPlans(plansData);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -194,7 +198,6 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
             {activeTab === 'owners' && (
               <div className="space-y-6">
                 <OwnerCreator onOwnerCreated={handleOwnerCreated} />
-                
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4">Existing Owners</h3>
                   <VirtualizedTable
@@ -227,6 +230,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ user }) => {
             {/* Shop Management */}
             {activeTab === 'shops' && (
               <div className="space-y-6">
+                <ShopCreator
+                  owners={owners.map(o => ({ ...o, id: String(o.id) }))}
+                  onShopCreated={loadData}
+                />
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <h3 className="text-lg font-semibold mb-4">Shop Directory</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

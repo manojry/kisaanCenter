@@ -38,6 +38,11 @@ except ImportError:
     pass
 
 try:
+    from .shop_product import ShopProduct
+except ImportError:
+    pass
+
+try:
     from .transaction import Transaction
 except ImportError:
     pass
@@ -72,6 +77,6 @@ except ImportError:
 __all__ = [
     "Base", 
     "UserRole", "RecordStatus", "TransactionStatus", "PaymentStatus", "PaymentType", "StockMode", "CompletionStatus", "TransactionType", "StockStatus",
-    "User", "Superadmin", "Shop", "Product", "Transaction", "TransactionItem", 
+    "User", "Superadmin", "Shop", "Product", "ShopProduct", "Transaction", "TransactionItem", 
     "FarmerStock", "ExpenseCategory", "Credit", "Payment", "PaymentMethod", "FarmerPayment", "Category", "Plan", "Subscription"
 ]

@@ -1,5 +1,8 @@
+// Generic API response type for shop creation
+// ...existing code...
 import React, { useState } from 'react';
-import { User, Plan } from '../../../types/entities';
+import { User } from '../../../types/entities';
+import { APIResponse } from '../../../types/api';
 import { UserRole } from '../../../types/enums';
 import { apiClient } from '../../../services/api';
 
@@ -16,39 +19,12 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
     role: 'owner' as UserRole,
     contact: '',
     credit_limit: 0,
-    shop_name: '',
-    shop_location: '',
-    plan_id: ''
+    shop_id: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
-
-  // Load available plans when component mounts
-    React.useEffect(() => {
-      const fetchPlans = async () => {
-        try {
-          const response = await apiClient.get('/subscriptions/plans');
-          let plans: Plan[] = [];
-          if (response.success) {
-            const dataAny = response.data as any;
-            if (Array.isArray(dataAny)) {
-              plans = dataAny;
-            } else if (dataAny?.items && Array.isArray(dataAny.items)) {
-              plans = dataAny.items;
-            } else if (Array.isArray(dataAny?.data)) {
-              plans = dataAny.data;
-            }
-          }
-          setAvailablePlans(plans);
-        } catch (error) {
-          console.error('Error fetching plans:', error);
-        }
-      };
-
-      fetchPlans();
-  }, []);
+  // ...existing code...
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -64,63 +40,55 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
     setError(null);
     setSuccess(null);
 
+    // Validate contact number starts with country code
+    let contact = formData.contact;
+    if (contact && !contact.startsWith('+')) {
+      setError('Contact number must start with a country code, e.g., +91...');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Call API to create owner using apiClient
-      const response = await apiClient.post<User>('/users', {
+      const response: APIResponse<User> = await apiClient.post('/users', {
         username: formData.username,
         email: formData.email,
         password: formData.password,
         full_name: formData.full_name,
         role: formData.role,
-        contact: formData.contact,
-        credit_limit: formData.credit_limit
+        contact,
+        credit_limit: formData.credit_limit,
+        shop_id: formData.shop_id ? Number(formData.shop_id) : undefined
       });
-      
-      if (response.success) {
-        const newUser = response.data;
 
-        // Step 2: Create the shop with the plan if shop details provided
-        if (formData.shop_name && formData.shop_location && formData.plan_id) {
-          try {
-            const shopResponse = await apiClient.post('/shops', {
-              name: formData.shop_name,
-              location: formData.shop_location,
-              owner_user_id: newUser.id,
-              plan_id: parseInt(formData.plan_id),
-            });
-            
-            if (!shopResponse.success) {
-              console.error('Shop creation failed:', shopResponse.message);
-              setError(`Owner created but shop creation failed: ${shopResponse.message}`);
-            } else {
-              setSuccess(`Owner "${formData.username}" and shop "${formData.shop_name}" created successfully`);
-            }
-          } catch (shopError) {
-            console.error('Shop creation failed:', shopError);
-            setError(`Owner created but shop creation failed: ${shopError instanceof Error ? shopError.message : 'Unknown error'}`);
-          }
-        } else {
-          setSuccess(`Owner "${formData.username}" created successfully`);
-        }
-
-        onOwnerCreated(newUser);
-        
-        // Reset form
-        setFormData({
-          username: '',
-          email: '',
-          password: '',
-          full_name: '',
-          role: 'owner' as UserRole,
-          contact: '',
-          credit_limit: 0,
-          shop_name: '',
-          shop_location: '',
-          plan_id: ''
-        });
-      } else {
-        throw new Error(response.message || 'Failed to create owner');
+      if (!response.success || !response.data) {
+        setError(response.message || 'Owner creation failed');
+        setLoading(false);
+        return;
       }
+
+      const newUser = response.data;
+      // Type guard: check newUser is a valid User object
+      if (!newUser || typeof newUser !== 'object' || typeof newUser.id !== 'number') {
+        setError('Owner created but no valid owner ID returned.');
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(`Owner "${formData.username}" created successfully`);
+      onOwnerCreated(newUser);
+
+      // Reset form
+      setFormData({
+        username: '',
+        email: '',
+        password: '',
+        full_name: '',
+        role: 'owner' as UserRole,
+        contact: '',
+        credit_limit: 0,
+        shop_id: '',
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create owner');
     } finally {
@@ -136,7 +104,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
         {/* Owner Details Section */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="text-lg font-medium text-gray-800 mb-4">Owner Information</h3>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -152,7 +119,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="Enter full name"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Username *
@@ -167,7 +133,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="Enter username"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email *
@@ -182,7 +147,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="Enter email address"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password *
@@ -198,7 +162,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="Enter password (min 6 chars)"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Contact Number
@@ -212,7 +175,6 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="Enter contact number"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Initial Credit Limit
@@ -228,62 +190,20 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
                 placeholder="0.00"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Shop Details Section */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-gray-800 mb-4">Shop Information</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shop Name *
+                Shop ID *
               </label>
               <input
-                type="text"
-                name="shop_name"
-                value={formData.shop_name}
+                type="number"
+                name="shop_id"
+                value={formData.shop_id}
                 onChange={handleInputChange}
                 required
+                min={1}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter shop name"
+                placeholder="Enter shop ID"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shop Location *
-              </label>
-              <input
-                type="text"
-                name="shop_location"
-                value={formData.shop_location}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter shop address/location"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Subscription Plan *
-              </label>
-              <select
-                name="plan_id"
-                value={formData.plan_id}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select a subscription plan</option>
-                {availablePlans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} - ${plan.monthly_price}/month
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
         </div>
@@ -291,7 +211,7 @@ const OwnerCreator: React.FC<OwnerCreatorProps> = ({ onOwnerCreated }) => {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={loading || !formData.username || !formData.password || !formData.full_name || !formData.email || !formData.shop_name || !formData.shop_location || !formData.plan_id}
+            disabled={loading || !formData.username || !formData.password || !formData.full_name || !formData.email}
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Owner & Shop...' : 'Create Owner & Shop'}

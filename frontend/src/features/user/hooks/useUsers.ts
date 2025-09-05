@@ -9,13 +9,18 @@ export const useUsers = (params?: PaginationParams & {
   status?: string
   search?: string
 }) => {
+  // If user is owner, always send shop_id
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isOwner = user?.role === 'owner';
+  const shopId = isOwner ? user?.shop_id : params?.shop_id;
+  const queryParams = { ...params, shop_id: shopId };
   return useQuery(
-    ['users', params],
-    () => userApi.getUsers(params),
+    ['users', queryParams],
+    () => userApi.getUsers(queryParams),
     {
       keepPreviousData: true,
     }
-  )
+  );
 }
 
 export const useUser = (id: number, includeRelations = false) => {

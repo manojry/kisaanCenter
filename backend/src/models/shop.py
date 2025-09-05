@@ -26,6 +26,7 @@ class Shop(Base):
 	farmer_stocks = relationship("FarmerStock", back_populates="shop")
 	credits = relationship("Credit", back_populates="shop")
 	transactions = relationship("Transaction", back_populates="shop")
+	shop_products = relationship("ShopProduct", back_populates="shop")
 
 	def __repr__(self):
 		return f"<Shop(id={self.id}, name='{self.name}', commission_rate={self.commission_rate})>"

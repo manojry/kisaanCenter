@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import LoginForm from '@/features/auth/components/LoginForm'
+import { AppStateProvider } from '@/context/AppStateContext';
 import SuperAdminLayout from '@/components/layout/SuperAdminLayout'
 import OwnerLayout from '@/components/layout/OwnerLayout'
 import Dashboard from '@/pages/Dashboard'
@@ -377,19 +378,21 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <Router>
-            <AppRoutes />
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-              }}
-            />
-          </Router>
+          <AppStateProvider>
+            <Router>
+              <AppRoutes />
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
+                  },
+                }}
+              />
+            </Router>
+          </AppStateProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

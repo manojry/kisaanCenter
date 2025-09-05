@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getDashboardStats } from '../api';
 import { DashboardStats } from '../types';
 import SuperAdminDashboard from './SuperAdminDashboard';
-import OwnerDashboard from './OwnerDashboard';
+import OwnerDashboard from '@/features/owner/OwnerDashboard';
 import './Dashboard.css';
 
 const Dashboard: React.FC = () => {
@@ -16,8 +16,33 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getDashboardStats();
-      setStats(data);
+      const response = await getDashboardStats();
+      // Defensive: Only set stats if response has expected properties
+      if (
+        response &&
+        typeof response === 'object' &&
+        'total_users' in response &&
+        'active_users' in response &&
+        'total_shops' in response &&
+        'active_shops' in response &&
+        'total_transactions' in response &&
+        'total_revenue' in response &&
+        'total_commission' in response &&
+        'pending_payments' in response
+      ) {
+        setStats(response as DashboardStats);
+      } else {
+        setStats({
+          total_users: 0,
+          active_users: 0,
+          total_shops: 0,
+          active_shops: 0,
+          total_transactions: 0,
+          total_revenue: 0,
+          total_commission: 0,
+          pending_payments: 0,
+        });
+      }
     } catch (err) {
       console.error('Dashboard API error:', err);
       setError('Unable to load dashboard data. Please check if the backend server is running.');
@@ -38,12 +63,23 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Show loader after login and fetch APIs based on user role
   useEffect(() => {
-    // Only load dashboard stats for non-superadmin users
-    if (user?.role !== 'superadmin') {
-      loadDashboardStats();
+    if (!user) {
+      setLoading(true);
+      return;
     }
+    if (user.role === 'superadmin') {
+      // Superadmin: do not fetch owner/shop APIs
+      setLoading(false);
+      return;
+    }
+    // Owner/shop/farmer/buyer: fetch dashboard stats
+    loadDashboardStats();
   }, [user]);
+
+  // DEBUG: Log user object to verify role and shop_id
+  console.log('Dashboard user:', user);
 
   // Route to appropriate dashboard based on user role
   if (user?.role === 'superadmin') {
@@ -52,6 +88,17 @@ const Dashboard: React.FC = () => {
 
   if (user?.role === 'owner') {
     return <OwnerDashboard />;
+  }
+
+  if (!user?.shop_id) {
+    return (
+      <div className="dashboard-container">
+        <div className="alert alert-warning">
+          <span className="warning-icon">⚠️</span>
+          You do not have a shop assigned. Please contact the administrator.
+        </div>
+      </div>
+    );
   }
 
   // Default dashboard for other roles (farmer, buyer, employee)

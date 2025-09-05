@@ -31,11 +31,25 @@ class DatabaseConfig:
     """Database configuration management"""
     
     def __init__(self):
-        # Load environment variables from .env file
+        # Load environment variables from .env file - try multiple paths
         from dotenv import load_dotenv
-        dotenv_path = "./backend/.env"
-        print(f"[DEBUG] .env loaded from: {dotenv_path}")
-        load_dotenv(dotenv_path)
+        
+        env_paths = [
+            "./backend/.env",  # relative to project root
+            "./.env",  # current directory
+            os.path.join(os.path.dirname(__file__), '..', '..', '.env'),  # relative to this file
+        ]
+        
+        env_loaded = False
+        for dotenv_path in env_paths:
+            if os.path.exists(dotenv_path):
+                load_dotenv(dotenv_path)
+                print(f"[DEBUG] .env loaded from: {dotenv_path}")
+                env_loaded = True
+                break
+        
+        if not env_loaded:
+            print("[WARNING] No .env file found - using system environment variables")
 
         # Check if DATABASE_URL is set (for SQLite testing)
         self.DATABASE_URL = os.getenv("DATABASE_URL")
@@ -50,9 +64,14 @@ class DatabaseConfig:
         self.DB_NAME = os.getenv("DB_NAME")
         self.DB_USER = os.getenv("DB_USER")
         self.DB_PASSWORD = os.getenv("DB_PASSWORD")
-        print(f"[DEBUG] DB_PASSWORD used: {self.DB_PASSWORD}")
+        print(f"[DEBUG] DB_PASSWORD used: {'***' if self.DB_PASSWORD else None}")
         self.DB_SSL_MODE = os.getenv("DB_SSL_MODE", "require")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+        # Debug: Print all DB env vars (without password)
+        print(f"[DEBUG] DB_HOST: {self.DB_HOST}")
+        print(f"[DEBUG] DB_NAME: {self.DB_NAME}")
+        print(f"[DEBUG] DB_USER: {self.DB_USER}")
 
         # Validate required environment variables
         required_vars = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"]
@@ -112,8 +131,14 @@ class DatabaseConfig:
         """Generate admin database URL for database creation/management"""
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/postgres"
 
-# Global configuration instance
-config = DatabaseConfig()
+# Global configuration instance - lazy initialization
+_config = None
+
+def get_config():
+    global _config
+    if _config is None:
+        _config = DatabaseConfig()
+    return _config
 
 class DatabaseManager:
     """Centralized database management class"""
@@ -126,6 +151,7 @@ class DatabaseManager:
     def initialize_engine(self) -> Engine:
         """Initialize database engine with connection pooling and event listeners"""
         if self._engine is None:
+            config = get_config()
             logger.info(f"Initializing database engine for environment: {config.ENVIRONMENT}")
             
             # Check if using SQLite
@@ -168,6 +194,7 @@ class DatabaseManager:
 
     def _setup_event_listeners(self):
         """Setup SQLAlchemy event listeners for better connection management"""
+        config = get_config()
         
         @event.listens_for(self._engine, "connect")
         def set_postgresql_settings(dbapi_connection, connection_record):
@@ -311,6 +338,7 @@ class DatabaseManager:
     def create_database_if_not_exists(self) -> bool:
         """Create database if it doesn't exist (for initial setup)"""
         try:
+            config = get_config()
             # Connect to postgres database to create our target database
             admin_engine = create_engine(config.admin_database_url)
             
@@ -438,3 +466,9 @@ if __name__ == "__main__":
         print("Database connection test successful")
     else:
         print("Database connection test failed")
+
+import os
+print("DB_HOST from env:", os.getenv("DB_HOST"))
+print("DB_NAME from env:", os.getenv("DB_NAME"))
+print("DB_USER from env:", os.getenv("DB_USER"))
+print("DB_PASSWORD from env:", os.getenv("DB_PASSWORD"))
