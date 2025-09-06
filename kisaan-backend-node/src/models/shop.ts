@@ -5,6 +5,7 @@ interface ShopAttributes {
   id: number;
   name: string;
   owner_id: string;
+  plan_id?: number | null;
   address: string | null;
   contact: string | null;
   status: 'active' | 'inactive';
@@ -18,8 +19,9 @@ export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implemen
   public id!: number;
   public name!: string;
   public owner_id!: string;
-  public address!: string;
-  public contact!: string;
+  public plan_id!: number | null;
+  public address!: string | null;
+  public contact!: string | null;
   public status!: 'active' | 'inactive';
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -28,24 +30,32 @@ export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implemen
 Shop.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
     name: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING,
       allowNull: false,
     },
     owner_id: {
-      type: DataTypes.STRING(20),
+      type: DataTypes.STRING,
       allowNull: false,
     },
+    plan_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'plans',
+        key: 'id',
+      },
+    },
     address: {
-      type: DataTypes.STRING(200),
+      type: DataTypes.TEXT,
       allowNull: true,
     },
     contact: {
-      type: DataTypes.STRING(15),
+      type: DataTypes.STRING,
       allowNull: true,
     },
     status: {
@@ -53,25 +63,22 @@ Shop.init(
       allowNull: false,
       defaultValue: 'active',
     },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'created_at',
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      field: 'updated_at',
-    },
   },
   {
     sequelize,
-    tableName: 'kisaan_shops',
+    modelName: 'Shop',
+    tableName: 'shops',
     timestamps: true,
-    underscored: true,
     indexes: [
-      { fields: ['owner_id'], name: 'kisaan_shops_owner_id_idx' },
-      { fields: ['status'], name: 'kisaan_shops_status_idx' },
+      {
+        fields: ['owner_id'],
+      },
+      {
+        fields: ['plan_id'],
+      },
+      {
+        fields: ['status'],
+      },
     ],
   }
 );

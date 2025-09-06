@@ -5,6 +5,7 @@ export const ShopStatusEnum = z.enum(['active', 'inactive']);
 export const ShopBaseSchema = z.object({
   name: z.string().min(2).max(100),
   owner_id: z.string().max(20),
+  plan_id: z.number().int().positive().optional().nullable(),
   address: z.string().max(200).optional().nullable(),
   contact: z.string().min(10).max(15).optional().nullable(),
   status: ShopStatusEnum.default('active'),

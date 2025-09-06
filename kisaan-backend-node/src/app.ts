@@ -11,6 +11,9 @@ import './models';
 
 // Import routes
 import { shopRoutes } from './routes/shopRoutes';
+import { planRoutes } from './routes/planRoutes';
+import { categoryRoutes } from './routes/categoryRoutes';
+import { shopCategoryRoutes } from './routes/shopCategoryRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 
@@ -53,7 +56,20 @@ app.get('/api/test', (req, res) => {
       'POST /api/shops',
       'GET /api/shops/:id',
       'PUT /api/shops/:id',
-      'DELETE /api/shops/:id'
+      'DELETE /api/shops/:id',
+      'GET /api/plans',
+      'POST /api/plans',
+      'GET /api/plans/:id',
+      'PUT /api/plans/:id',
+      'DELETE /api/plans/:id',
+      'GET /api/categories',
+      'POST /api/categories',
+      'GET /api/categories/:id',
+      'PUT /api/categories/:id',
+      'DELETE /api/categories/:id',
+      'POST /api/shop-categories/assign',
+      'POST /api/shop-categories/remove',
+      'GET /api/shop-categories/shop/:shopId/categories'
     ]
   });
 });
@@ -62,6 +78,9 @@ app.get('/api/test', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
+app.use('/api/plans', planRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/shop-categories', shopCategoryRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -88,7 +107,20 @@ app.use('*', (req, res) => {
       'POST /api/shops',
       'GET /api/shops/:id',
       'PUT /api/shops/:id',
-      'DELETE /api/shops/:id'
+      'DELETE /api/shops/:id',
+      'GET /api/plans',
+      'POST /api/plans',
+      'GET /api/plans/:id',
+      'PUT /api/plans/:id',
+      'DELETE /api/plans/:id',
+      'GET /api/categories',
+      'POST /api/categories',
+      'GET /api/categories/:id',
+      'PUT /api/categories/:id',
+      'DELETE /api/categories/:id',
+      'POST /api/shop-categories/assign',
+      'POST /api/shop-categories/remove',
+      'GET /api/shop-categories/shop/:shopId/categories'
     ]
   });
 });

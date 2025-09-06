@@ -1,4 +1,7 @@
 export * from "./userService";
 export * from "./shopService";
 export * from "./authService";
-// Add future services here for centralized exports
+export * from "./planService";
+export * from "./categoryService";
+export * from "./productService";
+export * from "./shopCategoryService";

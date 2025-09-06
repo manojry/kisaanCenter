@@ -1,2 +1,7 @@
 export * from './user';
-// Add future schemas here for centralized exports
+export * from './auth';
+export * from './shop';
+export * from './plan';
+export * from './category';
+export * from './product';
+export * from './shopCategory';
