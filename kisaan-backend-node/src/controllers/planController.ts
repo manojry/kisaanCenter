@@ -31,6 +31,18 @@ export const createPlan = async (req: Request, res: Response) => {
         details: error.issues,
       });
     }
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Plan name must be unique',
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
       success: false,
       error: 'Failed to create plan',
@@ -129,15 +141,28 @@ export const updatePlan = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error updating plan:', error);
-    
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
         details: error.issues,
       });
     }
-    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Plan name must be unique',
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
+      success: false,
       error: 'Failed to update plan',
       message: error.message,
     });

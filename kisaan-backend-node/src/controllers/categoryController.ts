@@ -10,6 +10,7 @@ export const createCategory = async (req: Request, res: Response) => {
     const category = await categoryService.createCategory(validatedData);
     
     res.status(201).json({
+      success: true,
       message: 'Category created successfully',
       data: category,
     });
@@ -18,12 +19,25 @@ export const createCategory = async (req: Request, res: Response) => {
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
         details: error.issues,
       });
     }
-    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Category name must be unique',
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
+      success: false,
       error: 'Failed to create category',
       message: error.message,
     });
@@ -38,6 +52,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
     const categories = await categoryService.getAllCategories(activeOnly);
     
     res.status(200).json({
+      success: true,
       message: 'Categories retrieved successfully',
       data: categories,
       count: categories.length,
@@ -66,11 +81,12 @@ export const getCategoryById = async (req: Request, res: Response) => {
     
     if (!category) {
       return res.status(404).json({
+        success: false,
         error: 'Category not found',
       });
     }
-    
     res.status(200).json({
+      success: true,
       message: 'Category retrieved successfully',
       data: category,
     });
@@ -100,11 +116,12 @@ export const updateCategory = async (req: Request, res: Response) => {
     
     if (!category) {
       return res.status(404).json({
+        success: false,
         error: 'Category not found',
       });
     }
-    
     res.status(200).json({
+      success: true,
       message: 'Category updated successfully',
       data: category,
     });
@@ -113,12 +130,25 @@ export const updateCategory = async (req: Request, res: Response) => {
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
         details: error.issues,
       });
     }
-    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Category name must be unique',
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
+      success: false,
       error: 'Failed to update category',
       message: error.message,
     });
@@ -140,11 +170,12 @@ export const deleteCategory = async (req: Request, res: Response) => {
     
     if (!deleted) {
       return res.status(404).json({
+        success: false,
         error: 'Category not found',
       });
     }
-    
     res.status(200).json({
+      success: true,
       message: 'Category deleted successfully',
     });
   } catch (error: any) {
@@ -171,11 +202,12 @@ export const deactivateCategory = async (req: Request, res: Response) => {
     
     if (!category) {
       return res.status(404).json({
+        success: false,
         error: 'Category not found',
       });
     }
-    
     res.status(200).json({
+      success: true,
       message: 'Category deactivated successfully',
       data: category,
     });
@@ -193,6 +225,7 @@ export const getActiveCategories = async (req: Request, res: Response) => {
     const categories = await categoryService.getActiveCategories();
     
     res.status(200).json({
+      success: true,
       message: 'Active categories retrieved successfully',
       data: categories,
       count: categories.length,
@@ -212,13 +245,13 @@ export const searchCategories = async (req: Request, res: Response) => {
     
     if (!q || typeof q !== 'string') {
       return res.status(400).json({
+        success: false,
         error: 'Search query is required',
       });
     }
-    
     const categories = await categoryService.searchCategories(q);
-    
     res.status(200).json({
+      success: true,
       message: 'Categories search completed',
       data: categories,
       count: categories.length,

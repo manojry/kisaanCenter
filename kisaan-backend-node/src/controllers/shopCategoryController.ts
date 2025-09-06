@@ -1,3 +1,44 @@
+// Unassign a single category from a shop
+export const unassignCategoryFromShop = async (req: Request, res: Response) => {
+  try {
+    // Accept both DELETE with body and DELETE with query params
+    const shop_id = req.body.shop_id || req.query.shop_id;
+    const category_id = req.body.category_id || req.query.category_id;
+    const parsedShopId = parseInt(shop_id, 10);
+    const parsedCategoryId = parseInt(category_id, 10);
+    if (isNaN(parsedShopId) || isNaN(parsedCategoryId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid shop_id or category_id',
+      });
+    }
+    const deletedCount = await shopCategoryService.removeCategoriesFromShop({
+      shop_id: parsedShopId,
+      category_ids: [parsedCategoryId],
+    });
+    if (deletedCount > 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Category unassigned from shop successfully',
+        removed_count: deletedCount,
+        shop_id: parsedShopId,
+        category_id: parsedCategoryId,
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found',
+      });
+    }
+  } catch (error: any) {
+    console.error('Error unassigning category from shop:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unassign category from shop',
+      message: error.message,
+    });
+  }
+};
 import { Request, Response } from 'express';
 import * as shopCategoryService from '../services/shopCategoryService';
 import { 
@@ -13,6 +54,7 @@ export const assignCategoriesToShop = async (req: Request, res: Response) => {
     const assignments = await shopCategoryService.assignCategoriesToShop(validatedData);
     
     res.status(201).json({
+      success: true,
       message: 'Categories assigned to shop successfully',
       data: assignments,
       count: assignments.length,
@@ -22,12 +64,25 @@ export const assignCategoriesToShop = async (req: Request, res: Response) => {
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
         details: error.issues,
       });
     }
-    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Assignment already exists',
+      });
+    }
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
+      success: false,
       error: 'Failed to assign categories to shop',
       message: error.message,
     });
@@ -41,6 +96,7 @@ export const removeCategoriesFromShop = async (req: Request, res: Response) => {
     const removedCount = await shopCategoryService.removeCategoriesFromShop(validatedData);
     
     res.status(200).json({
+      success: true,
       message: 'Categories removed from shop successfully',
       removed_count: removedCount,
     });
@@ -49,12 +105,19 @@ export const removeCategoriesFromShop = async (req: Request, res: Response) => {
     
     if (error instanceof z.ZodError) {
       return res.status(400).json({
+        success: false,
         error: 'Validation failed',
         details: error.issues,
       });
     }
-    
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid foreign key reference',
+      });
+    }
     res.status(500).json({
+      success: false,
       error: 'Failed to remove categories from shop',
       message: error.message,
     });
@@ -75,6 +138,7 @@ export const getShopCategories = async (req: Request, res: Response) => {
     const categories = await shopCategoryService.getShopCategories(parsedShopId);
     
     res.status(200).json({
+      success: true,
       message: 'Shop categories retrieved successfully',
       data: categories,
       count: categories.length,
@@ -103,6 +167,7 @@ export const getCategoryShops = async (req: Request, res: Response) => {
     const shops = await shopCategoryService.getCategoryShops(parsedCategoryId);
     
     res.status(200).json({
+      success: true,
       message: 'Category shops retrieved successfully',
       data: shops,
       count: shops.length,
@@ -132,6 +197,7 @@ export const checkShopCategoryAssignment = async (req: Request, res: Response) =
     const isAssigned = await shopCategoryService.isShopCategoryAssigned(parsedShopId, parsedCategoryId);
     
     res.status(200).json({
+      success: true,
       message: 'Assignment check completed',
       is_assigned: isAssigned,
       shop_id: parsedShopId,
@@ -174,6 +240,7 @@ export const getShopCategoryAssignments = async (req: Request, res: Response) =>
     const assignments = await shopCategoryService.getShopCategoryAssignments(parsedShopId, parsedCategoryId);
     
     res.status(200).json({
+      success: true,
       message: 'Shop category assignments retrieved successfully',
       data: assignments,
       count: assignments.length,
@@ -205,6 +272,7 @@ export const removeAllCategoriesFromShop = async (req: Request, res: Response) =
     const removedCount = await shopCategoryService.removeAllCategoriesFromShop(parsedShopId);
     
     res.status(200).json({
+      success: true,
       message: 'All categories removed from shop successfully',
       removed_count: removedCount,
       shop_id: parsedShopId,

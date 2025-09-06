@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import * as shopCategoryController from '../controllers/shopCategoryController';
+import { unassignCategoryFromShop } from '../controllers/shopCategoryController';
 
 export const shopCategoryRoutes = Router();
+// Get categories for a specific shop (for /api/shop-categories/shop/:shopId)
+shopCategoryRoutes.get('/shop/:shopId', shopCategoryController.getShopCategories);
+
+// Unassign a single category from a shop (for /api/shop-categories/unassign)
+shopCategoryRoutes.delete('/unassign', unassignCategoryFromShop);
 
 // Shop-Category assignment routes
 shopCategoryRoutes.post('/assign', shopCategoryController.assignCategoriesToShop);
