@@ -5,20 +5,21 @@ interface CategoryAttributes {
   id: number;
   name: string;
   description?: string | null;
-  display_order: number;
-  is_active: boolean;
+  status?: string;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id' | 'description' | 'display_order' | 'is_active' | 'created_at' | 'updated_at'> {}
+interface CategoryCreationAttributes extends Optional<
+  CategoryAttributes,
+  'id' | 'description' | 'status' | 'created_at' | 'updated_at'
+> {}
 
 export class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
   public id!: number;
   public name!: string;
   public description!: string | null;
-  public display_order!: number;
-  public is_active!: boolean;
+  public status?: string;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -39,24 +40,18 @@ Category.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    display_order: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
+    status: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       defaultValue: DataTypes.NOW,
     },
     updated_at: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       defaultValue: DataTypes.NOW,
     },
   },
@@ -66,8 +61,6 @@ Category.init(
     timestamps: false,
     indexes: [
       { unique: true, fields: ['name'] },
-      { fields: ['is_active'] },
-      { fields: ['display_order'] },
     ],
   }
 );

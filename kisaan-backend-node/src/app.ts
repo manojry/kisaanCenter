@@ -10,10 +10,15 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import './models';
 
 // Import routes
+
 import { shopRoutes } from './routes/shopRoutes';
 import { planRoutes } from './routes/planRoutes';
 import { categoryRoutes } from './routes/categoryRoutes';
 import { shopCategoryRoutes } from './routes/shopCategoryRoutes';
+import { transactionRoutes } from './routes/transactionRoutes';
+import { paymentRoutes } from './routes/paymentRoutes';
+import { creditAdvanceRoutes } from './routes/creditAdvanceRoutes';
+import { commissionRoutes } from './routes/commissionRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 
@@ -78,9 +83,14 @@ app.get('/api/test', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
+
 app.use('/api/plans', planRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/shop-categories', shopCategoryRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/credits', creditAdvanceRoutes);
+app.use('/api/commissions', commissionRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

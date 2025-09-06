@@ -46,6 +46,8 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
+  // Drop kisaan_shop_categories first if it exists, to avoid FK constraint errors
+  await queryInterface.dropTable("kisaan_shop_categories", { force: true }).catch(() => {});
     await queryInterface.dropTable("kisaan_shops");
   },
 };

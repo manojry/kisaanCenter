@@ -5,30 +5,37 @@ interface PlanAttributes {
   id: number;
   name: string;
   description?: string | null;
-  max_users?: number | null;
-  max_products?: number | null;
-  max_transactions?: number | null;
-  price: number;
-  billing_cycle: 'monthly' | 'quarterly' | 'yearly';
+  monthly_price?: number;
+  quarterly_price?: number;
+  yearly_price?: number;
+  max_farmers?: number;
+  max_buyers?: number;
+  max_transactions?: number;
+  data_retention_months?: number;
   features: string; // JSON string of features array
-  is_active: boolean;
+  status?: string;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface PlanCreationAttributes extends Optional<PlanAttributes, 'id' | 'description' | 'max_users' | 'max_products' | 'max_transactions' | 'is_active' | 'created_at' | 'updated_at'> {}
+interface PlanCreationAttributes extends Optional<
+  PlanAttributes,
+  'id' | 'description' | 'monthly_price' | 'quarterly_price' | 'yearly_price' | 'max_farmers' | 'max_buyers' | 'max_transactions' | 'data_retention_months' | 'status' | 'created_at' | 'updated_at'
+> {}
 
 export class Plan extends Model<PlanAttributes, PlanCreationAttributes> implements PlanAttributes {
   public id!: number;
   public name!: string;
   public description!: string | null;
-  public max_users!: number | null;
-  public max_products!: number | null;
-  public max_transactions!: number | null;
-  public price!: number;
-  public billing_cycle!: 'monthly' | 'quarterly' | 'yearly';
+  public monthly_price?: number;
+  public quarterly_price?: number;
+  public yearly_price?: number;
+  public max_farmers?: number;
+  public max_buyers?: number;
+  public max_transactions?: number;
+  public data_retention_months?: number;
   public features!: string;
-  public is_active!: boolean;
+  public status?: string;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -49,11 +56,23 @@ Plan.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    max_users: {
+    monthly_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    quarterly_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    yearly_price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    max_farmers: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    max_products: {
+    max_buyers: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
@@ -61,25 +80,28 @@ Plan.init(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-      defaultValue: 0.00,
-    },
-    billing_cycle: {
-      type: DataTypes.ENUM('monthly', 'quarterly', 'yearly'),
-      allowNull: false,
-      defaultValue: 'monthly',
+    data_retention_months: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     features: {
       type: DataTypes.TEXT,
       allowNull: false,
       defaultValue: '[]',
     },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
+    status: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
@@ -88,9 +110,7 @@ Plan.init(
     timestamps: true,
     indexes: [
       { unique: true, fields: ['name'] },
-      { fields: ['is_active'] },
-      { fields: ['billing_cycle'] },
-      { fields: ['price'] },
+      { fields: ['monthly_price'] },
     ],
   }
 );

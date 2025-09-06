@@ -6,21 +6,28 @@ interface ProductAttributes {
   name: string;
   category_id: number;
   description?: string | null;
+  price?: number;
+  shop_id?: number;
+  record_status?: string;
   unit?: string | null;
-  is_active: boolean;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface ProductCreationAttributes extends Optional<ProductAttributes, 'id' | 'description' | 'unit' | 'is_active' | 'created_at' | 'updated_at'> {}
+interface ProductCreationAttributes extends Optional<
+  ProductAttributes,
+  'id' | 'description' | 'unit' | 'price' | 'shop_id' | 'record_status' | 'created_at' | 'updated_at'
+> {}
 
 export class Product extends Model<ProductAttributes, ProductCreationAttributes> implements ProductAttributes {
   public id!: number;
   public name!: string;
   public category_id!: number;
   public description!: string | null;
-  public unit!: string | null;
-  public is_active!: boolean;
+  public price?: number;
+  public shop_id?: number;
+  public record_status?: string;
+  public unit?: string | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -48,24 +55,30 @@ Product.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    shop_id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+    },
+    record_status: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     unit: {
       type: DataTypes.STRING(20),
-      allowNull: false,
-      defaultValue: 'kg',
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
+      allowNull: true,
     },
     created_at: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       defaultValue: DataTypes.NOW,
     },
     updated_at: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
       defaultValue: DataTypes.NOW,
     },
   },
@@ -75,7 +88,6 @@ Product.init(
     timestamps: false,
     indexes: [
       { fields: ['category_id'] },
-      { fields: ['is_active'] },
       { fields: ['name', 'category_id'], unique: true },
     ],
   }
