@@ -43,7 +43,7 @@ export class Plan extends Model<PlanAttributes, PlanCreationAttributes> implemen
 Plan.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },

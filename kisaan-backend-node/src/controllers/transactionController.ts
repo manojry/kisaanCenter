@@ -19,6 +19,31 @@ export const createTransaction = async (req: Request, res: Response) => {
   }
 };
 
+export const getTransactions = async (req: Request, res: Response) => {
+  try {
+    const { shop_id, date_from, date_to } = req.query;
+    
+    console.log('Getting transactions with filters:', { shop_id, date_from, date_to });
+    
+    const transactions = await transactionService.getTransactions({ 
+      shop_id: shop_id as string, 
+      date_from: date_from as string, 
+      date_to: date_to as string 
+    });
+    
+    res.status(200).json({ 
+      success: true, 
+      data: transactions,
+      count: transactions.length,
+      message: 'Transactions fetched successfully',
+      filters: { shop_id, date_from, date_to }
+    });
+  } catch (error: any) {
+    console.error('Error in getTransactions controller:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch transactions', message: error.message });
+  }
+};
+
 export const getTransaction = async (req: Request, res: Response) => {
   // TODO: Fetch and return transaction
   res.status(200).json({ message: 'Transaction details (stub)' });

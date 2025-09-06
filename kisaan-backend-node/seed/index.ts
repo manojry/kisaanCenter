@@ -13,6 +13,9 @@ async function runSeeders() {
 	await seedProducts();
 	// Add other seeders as needed, in correct order
 	await seedShopCategories();
+	// Assign all products to shop 1 as active
+	const { seedShopProducts } = await import('./seed_shop_products');
+	await seedShopProducts();
 	await seedCredits();
 	await seedTransactions();
 	await seedPayments();
@@ -30,3 +33,4 @@ import { seedShopCategories } from './seed_shop_categories';
 import { seedCredits } from './seed_credits';
 import { seedPayments } from './seed_payments';
 import { seedTransactions } from './seed_transactions';
+import { seedShopProducts } from './seed_shop_products';

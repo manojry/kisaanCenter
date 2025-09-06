@@ -10,6 +10,7 @@ import { Transaction } from './transaction';
 import { Payment } from './payment';
 import { CreditAdvance } from './creditAdvance';
 
+import ShopProducts from './shopProducts';
 // Initialize all models
 const models = {
   User,
@@ -19,6 +20,7 @@ const models = {
   Product,
   ShopCategory,
   Transaction,
+  ShopProducts,
   Payment,
   CreditAdvance,
 };

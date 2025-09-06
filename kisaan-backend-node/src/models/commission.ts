@@ -25,9 +25,9 @@ export class Commission extends Model<CommissionAttributes, CommissionCreationAt
 
 Commission.init(
   {
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    shop_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    transaction_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  shop_id: { type: DataTypes.INTEGER, allowNull: false },
+  transaction_id: { type: DataTypes.INTEGER, allowNull: false },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
     calculated_at: { type: DataTypes.DATE, allowNull: false },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },

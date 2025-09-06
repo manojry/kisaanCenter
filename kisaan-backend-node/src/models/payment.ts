@@ -31,8 +31,8 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
 
 Payment.init(
   {
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    transaction_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  transaction_id: { type: DataTypes.INTEGER, allowNull: false },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
   payment_type: { type: DataTypes.ENUM('full','partial','credit'), allowNull: false },
   type: { type: DataTypes.ENUM('full_payment','partial_payment','advance'), allowNull: false },

@@ -24,12 +24,12 @@ export class ShopCategory extends Model<ShopCategoryAttributes, ShopCategoryCrea
 ShopCategory.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
     shop_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'kisaan_shops',
@@ -37,7 +37,7 @@ ShopCategory.init(
       },
     },
     category_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       allowNull: false,
       references: {
         model: 'kisaan_categories',

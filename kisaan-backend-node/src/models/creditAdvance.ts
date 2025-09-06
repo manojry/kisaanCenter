@@ -29,7 +29,7 @@ export class CreditAdvance extends Model<CreditAdvanceAttributes, CreditAdvanceC
 
 CreditAdvance.init(
   {
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     user_id: { type: DataTypes.STRING, allowNull: false },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
     issued_date: { type: DataTypes.DATE, allowNull: false },

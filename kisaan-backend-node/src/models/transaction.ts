@@ -33,10 +33,10 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
 
 Transaction.init(
   {
-    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
-    shop_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  shop_id: { type: DataTypes.INTEGER, allowNull: false },
     buyer_id: { type: DataTypes.STRING, allowNull: false },
-    product_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+  product_id: { type: DataTypes.INTEGER, allowNull: false },
     quantity: { type: DataTypes.INTEGER, allowNull: false },
     price: { type: DataTypes.DECIMAL(10,2), allowNull: false },
     total: { type: DataTypes.DECIMAL(10,2), allowNull: false },

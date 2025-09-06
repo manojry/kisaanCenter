@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Shop } from '../models/shop';
+import { sequelize } from '../models/index';
 
 export const createShop = async (req: Request, res: Response) => {
   try {
@@ -64,9 +65,23 @@ export const getShopById = async (req: Request, res: Response) => {
         error: 'Shop not found',
       });
     }
+
+    // Also fetch users for this shop
+    let users: any[] = [];
+    try {
+      console.log(`🔍 Fetching users for shop ID: ${id}`);
+      const [userResults] = await sequelize.query(
+        `SELECT * FROM kisaan_users WHERE shop_id = :shopId AND status = 'active'`,
+        { replacements: { shopId: id } }
+      );
+      users = Array.isArray(userResults) ? userResults : [];
+      console.log(`📊 Found ${users.length} users for shop ${id}`);
+    } catch (userError) {
+      console.log('❌ Error fetching shop users:', userError);
+    }
     
     res.json({
-      shop: shop.toJSON(),
+      shop: { ...shop.toJSON(), users },
     });
   } catch (error: any) {
     console.error('Error fetching shop:', error);

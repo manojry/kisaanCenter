@@ -20,6 +20,7 @@ import { paymentRoutes } from './routes/paymentRoutes';
 import { creditAdvanceRoutes } from './routes/creditAdvanceRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
+import { productRoutes } from './routes/productRoutes';
 
 const app = express();
 
@@ -34,6 +35,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  if (req.path.startsWith('/api/products')) {
+    console.log('🔍 PRODUCTS REQUEST DETECTED:', req.method, req.path);
+  }
   next();
 });
 
@@ -56,9 +60,23 @@ app.get('/api/test', (req, res) => {
     endpoints: [
       'GET /health',
       'GET /api/test',
+      'POST /api/auth/login',
+      'POST /api/auth/register',
+      'GET /api/users',
+      'POST /api/users',
+      'GET /api/products',
+      'POST /api/products',
+      'GET /api/products/:id',
+      'PUT /api/products/:id',
+      'DELETE /api/products/:id',
+      'GET /api/products/test',
       'GET /api/shops',
       'POST /api/shops',
       'GET /api/shops/:id',
+      'GET /api/shops/:id/products',
+      'POST /api/shops/:shopId/products/:productId',
+      'DELETE /api/shops/:shopId/products/:productId',
+      'PATCH /api/shops/:shopId/products/:productId',
       'PUT /api/shops/:id',
       'DELETE /api/shops/:id',
       'GET /api/plans',
@@ -79,6 +97,11 @@ app.get('/api/test', (req, res) => {
 });
 
 // API Routes
+console.log('🔧 Registering product routes...');
+app.use('/api/products', productRoutes);
+console.log('🔧 Product routes registered successfully');
+console.log('🔧 Registered routes so far:', app._router?.stack?.length || 'unknown');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shops', shopRoutes);
@@ -111,9 +134,23 @@ app.use('*', (req, res) => {
     availableRoutes: [
       'GET /health',
       'GET /api/test',
+      'POST /api/auth/login',
+      'POST /api/auth/register',
+      'GET /api/users',
+      'POST /api/users',
+      'GET /api/products',
+      'POST /api/products',
+      'GET /api/products/:id',
+      'PUT /api/products/:id',
+      'DELETE /api/products/:id',
+      'GET /api/products/test',
       'GET /api/shops',
       'POST /api/shops',
       'GET /api/shops/:id',
+      'GET /api/shops/:id/products',
+      'POST /api/shops/:shopId/products/:productId',
+      'DELETE /api/shops/:shopId/products/:productId',
+      'PATCH /api/shops/:shopId/products/:productId',
       'PUT /api/shops/:id',
       'DELETE /api/shops/:id',
       'GET /api/plans',

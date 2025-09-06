@@ -38,7 +38,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
 User.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -60,7 +60,7 @@ User.init(
       allowNull: true, // null for superadmin/owner, required for farmer/buyer
     },
     shop_id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       allowNull: true,
     },
     contact: {
@@ -77,7 +77,7 @@ User.init(
       defaultValue: 'active',
     },
     created_by: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       allowNull: true,
     },
     created_at: {

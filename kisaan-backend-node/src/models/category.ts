@@ -27,7 +27,7 @@ export class Category extends Model<CategoryAttributes, CategoryCreationAttribut
 Category.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+  type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
