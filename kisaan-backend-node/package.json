@@ -9,14 +9,22 @@
     "start": "node dist/server.js",
     "db:test": "ts-node scripts/test_db_connection.ts",
     "db:migrate": "npx sequelize-cli db:migrate",
-    "db:seed": "ts-node scripts/seed_users.ts"
+  "db:seed": "ts-node scripts/seed_all.js",
+    "test:integration": "ts-node tests/integration/user-management.test.ts",
+    "test:auth": "ts-node scripts/integration_test_users.ts",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write src"
   },
   "dependencies": {
+    "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^17.2.2",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.14.4",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7",
     "zod": "^3.22.4"
   },

@@ -1,4 +1,4 @@
-const sequelize = require('../src/config/database').default;
+import sequelize from '../src/config/database';
 
 async function testConnection() {
   try {
