@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/index';
+import app from '../../src/index';
 
 describe('POST /api/auth/login', () => {
   it('should return 200 and a token for valid credentials', async () => {

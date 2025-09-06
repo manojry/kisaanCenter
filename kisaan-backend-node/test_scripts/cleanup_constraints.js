@@ -31,7 +31,7 @@ async function cleanupSpecificConstraints() {
       console.log('ℹ️ Table kisaan_credits not found or already dropped');
     }
   console.log('🧹 Cleaning up specific constraints causing migration issues...');
-    const config = require('./config/config.js').development;
+    const config = require('../config/config.js').development;
     const sequelize = new Sequelize(
       config.database,
       config.username,

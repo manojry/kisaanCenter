@@ -1,7 +1,7 @@
 import request from 'supertest';
-import app from '../src/app';
-import { Plan, Category, Product, Shop, ShopCategory } from '../src/models';
-import sequelize from '../src/config/database';
+import app from '../../src/app';
+import { Plan, Category, Product, Shop, ShopCategory } from '../../src/models';
+import sequelize from '../../src/config/database';
 
 describe('Plan and Category Management Flow', () => {
   let createdPlan: any;

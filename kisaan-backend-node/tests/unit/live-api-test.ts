@@ -1,16 +1,7 @@
-
 import request from 'supertest';
-import app from '../src/app';
-import { clearTestData } from './testUtils';
+import app from '../../src/app';
 
 describe('Plan and Category API - Live Data Test', () => {
-  beforeAll(async () => {
-    await clearTestData();
-  });
-
-  afterAll(async () => {
-    await clearTestData();
-  });
   describe('Plan Endpoints with Real Data', () => {
     test('GET /api/plans - Should return all plans', async () => {
       const response = await request(app)
