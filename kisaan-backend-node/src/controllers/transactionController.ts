@@ -21,23 +21,33 @@ export const createTransaction = async (req: Request, res: Response) => {
 
 export const getTransactions = async (req: Request, res: Response) => {
   try {
-    const { shop_id, date_from, date_to } = req.query;
+    const { shop_id, date_from, date_to, buyer_id, status, include_analytics } = req.query;
     
-    console.log('Getting transactions with filters:', { shop_id, date_from, date_to });
+    console.log('Getting transactions with filters:', { shop_id, date_from, date_to, buyer_id, status, include_analytics });
     
-    const transactions = await transactionService.getTransactions({ 
+    const result = await transactionService.getTransactions({ 
       shop_id: shop_id as string, 
       date_from: date_from as string, 
-      date_to: date_to as string 
+      date_to: date_to as string,
+      buyer_id: buyer_id as string,
+      status: status as string,
+      include_analytics: include_analytics as string
     });
     
-    res.status(200).json({ 
+    const response: any = {
       success: true, 
-      data: transactions,
-      count: transactions.length,
+      data: result.transactions,
+      count: result.transactions.length,
       message: 'Transactions fetched successfully',
-      filters: { shop_id, date_from, date_to }
-    });
+      filters: { shop_id, date_from, date_to, buyer_id, status }
+    };
+    
+    // Include analytics if requested
+    if (result.analytics) {
+      response.analytics = result.analytics;
+    }
+    
+    res.status(200).json(response);
   } catch (error: any) {
     console.error('Error in getTransactions controller:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch transactions', message: error.message });

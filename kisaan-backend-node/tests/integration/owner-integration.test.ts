@@ -203,6 +203,24 @@ async function fetchTodaysTransactions() {
   }
 }
 
+async function fetchTodaysTransactionsWithAnalytics() {
+  console.log("\n📅 Fetching today's transactions WITH analytics...");
+  const today = new Date().toISOString().slice(0, 10);
+  const res = await axios.get(`${API_BASE}/transactions?shop_id=${shopId}&date_from=${today}&date_to=${today}&include_analytics=true`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 200 && res.data.success) {
+    console.log(`✅ Today's transactions: ${Array.isArray(res.data.data) ? res.data.data.length : 'N/A'}`);
+    if (res.data.analytics) {
+      console.log('📊 Analytics summary:', JSON.stringify(res.data.analytics, null, 2));
+    } else {
+      console.warn('⚠️ No analytics summary returned.');
+    }
+  } else {
+    throw new Error('Fetching today\'s transactions with analytics failed');
+  }
+}
+
 async function runOwnerIntegrationTest() {
   console.log('🚀 Starting Owner Integration Test');
   console.log('='.repeat(60));
@@ -344,6 +362,7 @@ async function runOwnerIntegrationTest() {
     }
     await createTransaction(buyers, products);
     await fetchTodaysTransactions();
+    await fetchTodaysTransactionsWithAnalytics();
     console.log('\n✅ All Owner Integration Steps Passed!');
     process.exit(0);
   } catch (error: any) {
