@@ -17,7 +17,7 @@ export const createUser = async (
   try {
     const parsed = UserCreateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.errors });
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
       return;
     }
 
@@ -39,7 +39,7 @@ export const getUsers = async (
   try {
     const parsed = UserSearchSchema.safeParse(req.query);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid query parameters', details: parsed.error.errors });
+      res.status(400).json({ error: 'Invalid query parameters', details: parsed.error.issues });
       return;
     }
 
@@ -97,7 +97,7 @@ export const updateUser = async (
 
     const parsed = UserUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.errors });
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
       return;
     }
 
@@ -127,7 +127,7 @@ export const resetPassword = async (
 
     const parsed = UserPasswordResetSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.errors });
+      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
       return;
     }
 

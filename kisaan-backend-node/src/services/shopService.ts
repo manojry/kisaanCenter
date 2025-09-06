@@ -2,11 +2,21 @@ import { Shop } from '../models/shop';
 import { ShopEntity } from '../entities/ShopEntity';
 import { ShopDTO, CreateShopDTO, UpdateShopDTO } from '../dtos/ShopDTO';
 import { toShopDTO, fromCreateShopDTO, fromShopModel } from '../mappers/shopMapper';
+
 import { ShopCreate, ShopUpdate } from '../schemas/shop';
 
 export const createShop = async (data: ShopCreate): Promise<ShopDTO> => {
+
+
   const entity = fromCreateShopDTO(data);
-  const shopModel = await Shop.create(entity);
+  // Ensure required fields are present
+  const shopModel = await Shop.create({
+    name: entity.name ?? '',
+    owner_id: entity.owner_id ?? '',
+    address: entity.address ?? null,
+    contact: entity.contact ?? null,
+    status: entity.status ?? 'active',
+  });
   return toShopDTO(fromShopModel(shopModel));
 };
 
@@ -26,7 +36,11 @@ export const getShopById = async (id: number): Promise<ShopDTO | null> => {
 export const updateShop = async (id: number, data: ShopUpdate): Promise<ShopDTO | null> => {
   const shop = await Shop.findByPk(id);
   if (!shop) return null;
-  await shop.update(data);
+  await shop.update({
+    ...data,
+    address: data.address ?? null,
+    contact: data.contact ?? null,
+  });
   return toShopDTO(fromShopModel(shop));
 };
 

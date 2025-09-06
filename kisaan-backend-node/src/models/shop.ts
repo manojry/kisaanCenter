@@ -1,12 +1,12 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+import sequelize from '../config/database';
 
 interface ShopAttributes {
   id: number;
   name: string;
   owner_id: string;
-  address: string;
-  contact: string;
+  address: string | null;
+  contact: string | null;
   status: 'active' | 'inactive';
   createdAt?: Date;
   updatedAt?: Date;
@@ -33,20 +33,20 @@ Shop.init(
       primaryKey: true,
     },
     name: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false,
     },
     owner_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(20),
       allowNull: false,
     },
     address: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: DataTypes.STRING(200),
+      allowNull: true,
     },
     contact: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: DataTypes.STRING(15),
+      allowNull: true,
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive'),
@@ -56,21 +56,22 @@ Shop.init(
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      defaultValue: DataTypes.NOW,
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
-      defaultValue: DataTypes.NOW,
+      field: 'updated_at',
     },
   },
   {
     sequelize,
     tableName: 'kisaan_shops',
     timestamps: true,
+    underscored: true,
     indexes: [
-      { fields: ['owner_id'] },
-      { fields: ['status'] },
+      { fields: ['owner_id'], name: 'kisaan_shops_owner_id_idx' },
+      { fields: ['status'], name: 'kisaan_shops_status_idx' },
     ],
   }
 );

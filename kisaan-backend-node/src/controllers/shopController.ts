@@ -1,86 +1,132 @@
-import { Response, NextFunction } from 'express';
-import { ShopCreateSchema, ShopUpdateSchema } from '../schemas/shop';
-import * as shopService from '../services/shopService';
+import { Request, Response } from 'express';
+import { Shop } from '../models/shop';
 
-export const createShop = async (req: any, res: Response, next: NextFunction): Promise<void> => {
-  console.log('DEBUG: Received POST /api/v1/shops', req.body);
+export const createShop = async (req: Request, res: Response) => {
   try {
-    const parsed = ShopCreateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      console.log('DEBUG: Validation failed', parsed.error.errors);
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.errors });
-      return;
+    const { name, owner_id, address, contact, status = 'active' } = req.body;
+    
+    // Validation
+    if (!name || !owner_id || !address || !contact) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['name', 'owner_id', 'address', 'contact']
+      });
     }
-    const shop = await shopService.createShop(parsed.data);
-    console.log('DEBUG: Shop created', shop);
-    res.status(201).json({ message: 'Shop created successfully', shop });
-  } catch (err) {
-    console.error('DEBUG: Error in createShop', err);
-    next(err);
+    
+    const shop = await Shop.create({
+      name,
+      owner_id,
+      address,
+      contact,
+      status,
+    });
+    
+    res.status(201).json({
+      message: 'Shop created successfully',
+      shop: shop.toJSON(),
+    });
+  } catch (error: any) {
+    console.error('Error creating shop:', error);
+    res.status(500).json({
+      error: 'Failed to create shop',
+      message: error.message,
+    });
   }
 };
 
-export const getShops = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+export const getShops = async (req: Request, res: Response) => {
   try {
-    const { owner_id } = req.query;
-    const shops = await shopService.getAllShops(owner_id);
-    res.json({ message: 'Shops retrieved successfully', shops });
-  } catch (err) {
-    next(err);
+    const shops = await Shop.findAll({
+      order: [['createdAt', 'DESC']],
+    });
+    
+    res.json({
+      shops: shops.map(shop => shop.toJSON()),
+      count: shops.length,
+    });
+  } catch (error: any) {
+    console.error('Error fetching shops:', error);
+    res.status(500).json({
+      error: 'Failed to fetch shops',
+      message: error.message,
+    });
   }
 };
 
-export const getShopById = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+export const getShopById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid shop ID' });
-      return;
-    }
-    const shop = await shopService.getShopById(id);
+    const { id } = req.params;
+    
+    const shop = await Shop.findByPk(id);
+    
     if (!shop) {
-      res.status(404).json({ error: 'Shop not found' });
-      return;
+      return res.status(404).json({
+        error: 'Shop not found',
+      });
     }
-    res.json({ message: 'Shop retrieved successfully', shop });
-  } catch (err) {
-    next(err);
+    
+    res.json({
+      shop: shop.toJSON(),
+    });
+  } catch (error: any) {
+    console.error('Error fetching shop:', error);
+    res.status(500).json({
+      error: 'Failed to fetch shop',
+      message: error.message,
+    });
   }
 };
 
-export const updateShop = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+export const updateShop = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid shop ID' });
-      return;
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    const shop = await Shop.findByPk(id);
+    
+    if (!shop) {
+      return res.status(404).json({
+        error: 'Shop not found',
+      });
     }
-    const parsed = ShopUpdateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.errors });
-      return;
-    }
-    const shop = await shopService.updateShop(id, parsed.data);
-    res.json({ message: 'Shop updated successfully', shop });
-  } catch (err) {
-    next(err);
+    
+    await shop.update(updateData);
+    
+    res.json({
+      message: 'Shop updated successfully',
+      shop: shop.toJSON(),
+    });
+  } catch (error: any) {
+    console.error('Error updating shop:', error);
+    res.status(500).json({
+      error: 'Failed to update shop',
+      message: error.message,
+    });
   }
 };
 
-export const deleteShop = async (req: any, res: Response, next: NextFunction): Promise<void> => {
+export const deleteShop = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid shop ID' });
-      return;
+    const { id } = req.params;
+    
+    const shop = await Shop.findByPk(id);
+    
+    if (!shop) {
+      return res.status(404).json({
+        error: 'Shop not found',
+      });
     }
-    const deleted = await shopService.deleteShop(id);
-    if (!deleted) {
-      res.status(404).json({ error: 'Shop not found' });
-      return;
-    }
-    res.json({ message: 'Shop deleted successfully' });
-  } catch (err) {
-    next(err);
+    
+    await shop.destroy();
+    
+    res.json({
+      message: 'Shop deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Error deleting shop:', error);
+    res.status(500).json({
+      error: 'Failed to delete shop',
+      message: error.message,
+    });
   }
 };

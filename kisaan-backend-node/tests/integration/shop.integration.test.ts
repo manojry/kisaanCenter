@@ -61,7 +61,7 @@ async function runShopIntegrationTests() {
     console.log('⚠️  Continuing without authentication for basic tests...');
   }
 
-  let createdShopId: number;
+  let createdShopId: number | undefined;
   const shopData = {
     name: 'Test Shop Integration',
     owner_id: 'OWN123',

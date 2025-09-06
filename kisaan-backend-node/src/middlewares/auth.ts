@@ -33,14 +33,14 @@ export const authenticateToken = async (
       return;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
     // Fetch fresh user data to ensure user still exists and is active
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] },
     });
 
     if (!user || user.status !== 'active') {
+      req.user = undefined;
       res.status(401).json({ error: 'Invalid or inactive user' });
       return;
     }
@@ -54,7 +54,8 @@ export const authenticateToken = async (
 
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid token' });
+  req.user = undefined;
+  res.status(403).json({ error: 'Invalid token' });
   }
 };
 
@@ -147,4 +148,30 @@ export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
 
     next();
   };
+};
+
+/**
+ * Optional authentication middleware - continues even if no valid token
+ */
+export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    try {
+      const secret = process.env.JWT_SECRET || 'supersecret';
+      const decoded = jwt.verify(token, secret) as { id: number; username: string; role: UserRole; owner_id?: string | null };
+      req.user = {
+        id: decoded.id,
+        username: decoded.username,
+        role: decoded.role,
+        owner_id: decoded.owner_id,
+      };
+    } catch (error) {
+      // Token is invalid, but we continue without user
+      req.user = undefined;
+    }
+  }
+  
+  next();
 };

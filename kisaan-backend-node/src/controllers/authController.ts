@@ -6,7 +6,7 @@ export async function loginController(req: Request, res: Response, next: NextFun
   try {
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.errors });
+  return res.status(400).json({ error: parsed.error.issues });
     }
     const result = await loginUser(parsed.data);
     res.json(result);
