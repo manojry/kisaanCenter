@@ -16,7 +16,15 @@ export const createPlan = async (req: Request, res: Response) => {
       }
     }
     const validatedData = PlanCreateSchema.parse(input);
-    const plan = await planService.createPlan(validatedData);
+    // Stringify features if it is an array
+    const planData = {
+      ...validatedData,
+      features: Array.isArray(validatedData.features) ? JSON.stringify(validatedData.features) : validatedData.features,
+      max_users: validatedData.max_users === null ? undefined : validatedData.max_users,
+      max_products: validatedData.max_products === null ? undefined : validatedData.max_products,
+      max_transactions: validatedData.max_transactions === null ? undefined : validatedData.max_transactions
+    };
+    const plan = await planService.createPlan(planData);
     res.status(201).json({
       success: true,
       message: 'Plan created successfully',

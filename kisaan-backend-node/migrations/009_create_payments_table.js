@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("payments", {
+    await queryInterface.createTable("kisaan_payments", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
@@ -12,7 +12,7 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
-          model: "transactions",
+          model: "kisaan_transactions",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -22,7 +22,7 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
         references: {
-          model: "credits",
+          model: "kisaan_credits",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -34,13 +34,13 @@ module.exports = {
       },
       payment_method_id: {
         type: Sequelize.INTEGER.UNSIGNED,
-        allowNull: false,
+        allowNull: true,
         references: {
-          model: "payment_methods",
+          model: "kisaan_payment_methods",
           key: "id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "SET NULL",
       },
       type: {
         type: Sequelize.ENUM("full_payment", "partial_payment", "advance"),
@@ -51,21 +51,21 @@ module.exports = {
         allowNull: false,
         defaultValue: "active",
       },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
-      updated_at: {
+      updatedAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
     });
-  // Removed explicit index creation for transaction_id, credit_id, and payment_method_id to avoid duplicate index errors
+    // Removed explicit index creation for transaction_id, credit_id, and payment_method_id to avoid duplicate index errors
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("payments");
+    await queryInterface.dropTable("kisaan_payments");
   },
 };

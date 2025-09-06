@@ -1,6 +1,6 @@
 import { Product } from '../src/models/index';
 
-async function seedProducts() {
+export async function seedProducts() {
 	await Product.bulkCreate([
 		{ name: 'Apple', description: 'Fresh apples', category_id: 1, price: 50, shop_id: 1, record_status: 'active' },
 		{ name: 'Tomato', description: 'Red tomatoes', category_id: 2, price: 20, shop_id: 1, record_status: 'active' },
@@ -8,5 +8,3 @@ async function seedProducts() {
 	]);
 	console.log('Seeded products');
 }
-
-seedProducts();

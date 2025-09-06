@@ -1,16 +1,16 @@
 import { Payment } from '../src/models/index';
 
-async function seedPayments() {
+export async function seedPayments() {
 	await Payment.bulkCreate([
 		{
 			transaction_id: 1,
 			amount: 150.0,
-			payment_method_id: 1,
+			payment_type: 'full',
+			payment_date: new Date('2025-09-01'),
+			payer_id: '1',
+			payee_id: '2',
 			type: 'full_payment',
-			record_status: 'active',
 		},
 	]);
 	console.log('Seeded payments');
 }
-
-seedPayments();

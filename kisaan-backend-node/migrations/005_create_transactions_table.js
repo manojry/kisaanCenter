@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("transactions", {
+    await queryInterface.createTable("kisaan_transactions", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
@@ -12,7 +12,7 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
-          model: "shops",
+          model: "kisaan_shops",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -32,7 +32,7 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
         references: {
-          model: "transactions",
+          model: "kisaan_transactions",
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -92,22 +92,20 @@ module.exports = {
         allowNull: false,
         defaultValue: "active",
       },
-      created_at: {
-        type: Sequelize.DATE,
+      createdAt: {
         allowNull: false,
-        defaultValue: Sequelize.NOW,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
-      updated_at: {
-        type: Sequelize.DATE,
+      updatedAt: {
         allowNull: false,
-        defaultValue: Sequelize.NOW,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
-    await queryInterface.addIndex("transactions", ["shop_id"]);
-    await queryInterface.addIndex("transactions", ["buyer_id"]);
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("transactions");
+    await queryInterface.dropTable("kisaan_transactions");
   },
 };

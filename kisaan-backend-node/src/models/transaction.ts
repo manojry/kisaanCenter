@@ -5,7 +5,6 @@ interface TransactionAttributes {
   id: number;
   shop_id: number;
   buyer_id: string;
-  seller_id: string;
   product_id: number;
   quantity: number;
   price: number;
@@ -22,7 +21,6 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
   public id!: number;
   public shop_id!: number;
   public buyer_id!: string;
-  public seller_id!: string;
   public product_id!: number;
   public quantity!: number;
   public price!: number;
@@ -38,7 +36,6 @@ Transaction.init(
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     shop_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     buyer_id: { type: DataTypes.STRING, allowNull: false },
-    seller_id: { type: DataTypes.STRING, allowNull: false },
     product_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     quantity: { type: DataTypes.INTEGER, allowNull: false },
     price: { type: DataTypes.DECIMAL(10,2), allowNull: false },
@@ -50,7 +47,7 @@ Transaction.init(
   },
   {
     sequelize,
-    tableName: 'transactions',
+    tableName: 'kisaan_transactions',
     timestamps: false,
   }
 );

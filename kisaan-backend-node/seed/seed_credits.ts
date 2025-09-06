@@ -1,17 +1,15 @@
-import { Credit } from '../src/models/index';
+import { CreditAdvance } from '../src/models/index';
 
-async function seedCredits() {
-	await Credit.bulkCreate([
+export async function seedCredits() {
+	await CreditAdvance.bulkCreate([
 		{
-			user_id: 1,
-			shop_id: 1,
+			user_id: '1',
 			amount: 1000.0,
-			status: 'outstanding',
-			record_status: 'active',
-			address: '123 Main St',
+			issued_date: new Date('2025-09-01'),
+			due_date: new Date('2025-12-01'),
+			repaid_amount: 0,
+			status: 'active',
 		},
 	]);
 	console.log('Seeded credits');
 }
-
-seedCredits();

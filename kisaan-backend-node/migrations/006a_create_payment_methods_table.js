@@ -2,43 +2,40 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("categories", {
+    await queryInterface.createTable("kisaan_payment_methods", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
       name: {
-        type: Sequelize.STRING(100),
+        type: Sequelize.STRING(50),
         allowNull: false,
         unique: true,
       },
       description: {
-        type: Sequelize.TEXT,
+        type: Sequelize.STRING(255),
         allowNull: true,
       },
-      status: {
+      record_status: {
         type: Sequelize.ENUM("active", "inactive", "deleted"),
         allowNull: false,
         defaultValue: "active",
       },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
-      updated_at: {
+      updatedAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
     });
-    await queryInterface.addIndex("categories", ["name"], { unique: true });
   },
 
   down: async (queryInterface, Sequelize) => {
-  // Drop products first to resolve FK constraint
-  await queryInterface.dropTable("products", { force: true }).catch(() => {});
-  await queryInterface.dropTable("categories");
+    await queryInterface.dropTable("kisaan_payment_methods");
   },
 };

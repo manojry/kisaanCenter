@@ -1,6 +1,7 @@
 import { Category } from '../src/models/index';
 
-async function seedCategories() {
+export async function seedCategories() {
+	await Category.destroy({ where: {}, truncate: true, restartIdentity: true, cascade: true });
 	await Category.bulkCreate([
 		{ name: 'Fruits', description: 'All types of fruits', status: 'active' },
 		{ name: 'Vegetables', description: 'All types of vegetables', status: 'active' },
@@ -8,5 +9,3 @@ async function seedCategories() {
 	]);
 	console.log('Seeded categories');
 }
-
-seedCategories();

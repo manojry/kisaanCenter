@@ -35,7 +35,7 @@ Commission.init(
   },
   {
     sequelize,
-    tableName: 'commissions',
+    tableName: 'kisaan_commissions',
     timestamps: false,
   }
 );

@@ -46,21 +46,17 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
       },
-      created_at: {
-        type: Sequelize.DATE,
+      createdAt: {
         allowNull: false,
-        defaultValue: Sequelize.NOW,
-      },
-      updated_at: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.NOW,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
-    });
-  await queryInterface.addIndex('kisaan_users', ['username'], { unique: true });
-  await queryInterface.addIndex('kisaan_users', ['owner_id']);
-  await queryInterface.addIndex('kisaan_users', ['shop_id']);
-  await queryInterface.addIndex('kisaan_users', ['role']);
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
+  });
   },
 
   down: async (queryInterface, Sequelize) => {

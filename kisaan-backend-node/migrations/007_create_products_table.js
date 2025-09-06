@@ -2,66 +2,66 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("credits", {
+    await queryInterface.createTable("kisaan_products", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
         primaryKey: true,
       },
-      user_id: {
-        type: Sequelize.INTEGER.UNSIGNED,
+      name: {
+        type: Sequelize.STRING(100),
         allowNull: false,
-        references: {
-          model: "kisaan_users",
-          key: "id",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "CASCADE",
       },
-      shop_id: {
+      description: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+      category_id: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
         references: {
-          model: "shops",
+          model: "kisaan_categories",
           key: "id",
         },
         onUpdate: "CASCADE",
         onDelete: "SET NULL",
       },
-      amount: {
-        type: Sequelize.DECIMAL(12,2),
-        allowNull: false,
+      price: {
+        type: Sequelize.DECIMAL(12, 2),
+        allowNull: true,
       },
-      status: {
-        type: Sequelize.ENUM("outstanding", "settled", "overdue"),
-        allowNull: false,
-        defaultValue: "outstanding",
+      shop_id: {
+        type: Sequelize.INTEGER.UNSIGNED,
+        allowNull: true,
+        references: {
+          model: "kisaan_shops",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
       },
       record_status: {
         type: Sequelize.ENUM("active", "inactive", "deleted"),
         allowNull: false,
         defaultValue: "active",
       },
-      address: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-      },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
-      updated_at: {
+      updatedAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
     });
-    await queryInterface.addIndex("credits", ["user_id"]);
-    await queryInterface.addIndex("credits", ["shop_id"]);
+  await queryInterface.addIndex("kisaan_products", ["name"]);
+  await queryInterface.addIndex("kisaan_products", ["category_id"]);
+  await queryInterface.addIndex("kisaan_products", ["shop_id"]);
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("credits");
+    await queryInterface.dropTable("kisaan_products");
   },
 };

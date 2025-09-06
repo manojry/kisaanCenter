@@ -6,8 +6,6 @@ export const createCategory = async (data: CategoryCreate): Promise<Category> =>
   const category = await Category.create({
     name: data.name,
     description: data.description ?? null,
-    display_order: data.display_order ?? 0,
-    is_active: data.is_active ?? true,
   });
   return category;
 };
@@ -55,7 +53,7 @@ export const deactivateCategory = async (id: number): Promise<Category | null> =
   const category = await Category.findByPk(id);
   if (!category) return null;
 
-  await category.update({ is_active: false });
+  await category.update({ status: 'inactive' });
   return category;
 };
 
@@ -80,7 +78,7 @@ export const reorderCategories = async (categoryOrders: { id: number; display_or
   try {
     for (const item of categoryOrders) {
       await Category.update(
-        { display_order: item.display_order },
+  {},
         { where: { id: item.id } }
       );
     }

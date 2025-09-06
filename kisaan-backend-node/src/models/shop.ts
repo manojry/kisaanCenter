@@ -67,7 +67,7 @@ Shop.init(
   {
     sequelize,
     modelName: 'Shop',
-    tableName: 'shops',
+    tableName: 'kisaan_shops',
     timestamps: true,
     indexes: [
       {

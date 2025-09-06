@@ -6,6 +6,7 @@ interface PaymentAttributes {
   transaction_id: number;
   amount: number;
   payment_type: 'full' | 'partial' | 'credit';
+  type: 'full_payment' | 'partial_payment' | 'advance';
   payment_date: Date;
   payer_id: string;
   payee_id: string;
@@ -23,6 +24,7 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
   public payment_date!: Date;
   public payer_id!: string;
   public payee_id!: string;
+  public type!: 'full_payment' | 'partial_payment' | 'advance';
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -32,7 +34,8 @@ Payment.init(
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
     transaction_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    payment_type: { type: DataTypes.ENUM('full','partial','credit'), allowNull: false },
+  payment_type: { type: DataTypes.ENUM('full','partial','credit'), allowNull: false },
+  type: { type: DataTypes.ENUM('full_payment','partial_payment','advance'), allowNull: false },
     payment_date: { type: DataTypes.DATE, allowNull: false },
     payer_id: { type: DataTypes.STRING, allowNull: false },
     payee_id: { type: DataTypes.STRING, allowNull: false },
@@ -41,7 +44,7 @@ Payment.init(
   },
   {
     sequelize,
-    tableName: 'payments',
+    tableName: 'kisaan_payments',
     timestamps: false,
   }
 );

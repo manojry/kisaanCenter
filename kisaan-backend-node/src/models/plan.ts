@@ -18,7 +18,7 @@ interface PlanAttributes {
   updated_at?: Date;
 }
 
-interface PlanCreationAttributes extends Optional<
+export interface PlanCreationAttributes extends Optional<
   PlanAttributes,
   'id' | 'description' | 'monthly_price' | 'quarterly_price' | 'yearly_price' | 'max_farmers' | 'max_buyers' | 'max_transactions' | 'data_retention_months' | 'status' | 'created_at' | 'updated_at'
 > {}
@@ -98,20 +98,18 @@ Plan.init(
       allowNull: true,
       defaultValue: DataTypes.NOW,
     },
+
     updated_at: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,
-    },
+    }
   },
   {
     sequelize,
-    tableName: 'plans',
-    timestamps: true,
-    indexes: [
-      { unique: true, fields: ['name'] },
-      { fields: ['monthly_price'] },
-    ],
+    tableName: 'kisaan_plans',
+    timestamps: false,
+    underscored: true,
   }
 );
 

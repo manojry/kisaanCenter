@@ -9,7 +9,6 @@ export const createProduct = async (data: ProductCreate): Promise<Product> => {
     description: data.description ?? null,
     category_id: data.category_id,
     unit: data.unit ?? null,
-    is_active: data.is_active ?? true,
   });
   return product;
 };
@@ -76,7 +75,7 @@ export const deactivateProduct = async (id: number): Promise<Product | null> => 
   const product = await Product.findByPk(id);
   if (!product) return null;
 
-  await product.update({ is_active: false });
+  await product.update({ record_status: 'inactive' });
   return product;
 };
 

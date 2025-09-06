@@ -1,6 +1,6 @@
 import { ShopCategory } from '../src/models/index';
 
-async function seedShopCategories() {
+export async function seedShopCategories() {
 	await ShopCategory.bulkCreate([
 		{ shop_id: 1, category_id: 1 },
 		{ shop_id: 1, category_id: 2 },
@@ -8,5 +8,3 @@ async function seedShopCategories() {
 	]);
 	console.log('Seeded shop_categories');
 }
-
-seedShopCategories();

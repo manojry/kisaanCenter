@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-  await queryInterface.createTable("kisaan_shop_categories", {
+    await queryInterface.createTable("kisaan_shop_categories", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
@@ -22,18 +22,18 @@ module.exports = {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
-          model: "categories",
+          model: "kisaan_categories",
           key: "id",
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
       },
-      updated_at: {
+      updatedAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.NOW,
@@ -44,6 +44,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-  await queryInterface.dropTable("kisaan_shop_categories");
+    await queryInterface.dropTable("kisaan_shop_categories");
   },
 };

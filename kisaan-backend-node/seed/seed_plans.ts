@@ -1,8 +1,10 @@
 import { Plan } from '../src/models/index';
 
-async function seedPlans() {
+export async function seedPlans() {
+	await Plan.destroy({ where: {}, truncate: true, restartIdentity: true, cascade: true });
 	await Plan.bulkCreate([
 		{
+			id: 1,
 			name: 'Basic',
 			description: 'Basic plan for small shops',
 			monthly_price: 100,
@@ -16,6 +18,7 @@ async function seedPlans() {
 			status: 'active',
 		},
 		{
+			id: 2,
 			name: 'Premium',
 			description: 'Premium plan for large shops',
 			monthly_price: 500,
@@ -31,5 +34,3 @@ async function seedPlans() {
 	]);
 	console.log('Seeded plans');
 }
-
-seedPlans();

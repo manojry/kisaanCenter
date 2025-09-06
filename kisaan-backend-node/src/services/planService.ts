@@ -1,18 +1,22 @@
-import { Plan } from '../models/plan';
+import { Plan, PlanCreationAttributes } from '../models/plan';
 import { PlanCreate, PlanUpdate } from '../schemas/plan';
 import { Op } from 'sequelize';
 
-export const createPlan = async (data: PlanCreate): Promise<Plan> => {
+// Removed duplicate import of Plan
+
+export const createPlan = async (data: PlanCreationAttributes): Promise<Plan> => {
   const plan = await Plan.create({
     name: data.name,
     description: data.description ?? null,
-    price: data.price,
-    billing_cycle: data.billing_cycle,
-    max_users: data.max_users ?? null,
-    max_products: data.max_products ?? null,
-    max_transactions: data.max_transactions ?? null,
-    features: JSON.stringify(data.features || []),
-    is_active: data.is_active ?? true,
+    monthly_price: data.monthly_price ?? undefined,
+    quarterly_price: data.quarterly_price ?? undefined,
+    yearly_price: data.yearly_price ?? undefined,
+    max_farmers: data.max_farmers ?? undefined,
+    max_buyers: data.max_buyers ?? undefined,
+    max_transactions: data.max_transactions ?? undefined,
+    data_retention_months: data.data_retention_months ?? undefined,
+    features: data.features,
+    status: data.status ?? 'active',
   });
   return plan;
 };
@@ -65,7 +69,7 @@ export const deactivatePlan = async (id: number): Promise<Plan | null> => {
   const plan = await Plan.findByPk(id);
   if (!plan) return null;
 
-  await plan.update({ is_active: false });
+  await plan.update({ status: 'inactive' });
   return plan;
 };
 

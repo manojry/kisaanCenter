@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("plans", {
+    await queryInterface.createTable("kisaan_plans", {
       id: {
         type: Sequelize.INTEGER.UNSIGNED,
         autoIncrement: true,
@@ -55,21 +55,20 @@ module.exports = {
         allowNull: false,
         defaultValue: "active",
       },
-      created_at: {
-        type: Sequelize.DATE,
+      createdAt: {
         allowNull: false,
-        defaultValue: Sequelize.NOW,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
-      updated_at: {
-        type: Sequelize.DATE,
+      updatedAt: {
         allowNull: false,
-        defaultValue: Sequelize.NOW,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
-  // Removed explicit unique index creation for plans.name to avoid duplicate index error
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("plans");
+    await queryInterface.dropTable("kisaan_plans");
   },
 };

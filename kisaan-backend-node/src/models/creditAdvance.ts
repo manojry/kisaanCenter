@@ -41,7 +41,7 @@ CreditAdvance.init(
   },
   {
     sequelize,
-    tableName: 'credit_advances',
+    tableName: 'kisaan_credits',
     timestamps: false,
   }
 );
