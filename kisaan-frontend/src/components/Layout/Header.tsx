@@ -1,9 +1,10 @@
 
 import { Button } from "../ui/button"
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Leaf, Menu, UserCircle } from "lucide-react"
+import { Leaf, Menu, UserCircle, Home } from "lucide-react"
 import { useAuth } from '../../context/AuthContext';
 import { DesktopNav } from './DesktopNav';
+import { MobileNav } from './MobileNav';
 
 const Header = () => {
   const location = useLocation();
@@ -42,7 +43,21 @@ const Header = () => {
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           {/* Show nav for logged-in users, else show landing nav and login */}
           {user ? (
-            <DesktopNav />
+            <div className="flex items-center gap-4">
+              {/* Dashboard button for mobile */}
+              <Button asChild variant="ghost" size="sm" className="md:hidden">
+                <Link to={user.role === 'owner' ? '/owner' : '/dashboard'} className="flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Dashboard
+                </Link>
+              </Button>
+              
+              {/* Desktop navigation */}
+              <DesktopNav />
+              
+              {/* Mobile navigation */}
+              <MobileNav />
+            </div>
           ) : (
             <>
               <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">

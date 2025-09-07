@@ -9,6 +9,8 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import NewTransactionPage from './pages/NewTransactionPage';
 import NotFound from './pages/NotFound';
 import ProductsPage from './pages/Products';
+import UsersPage from './pages/Users';
+import ReportsPage from './pages/Reports';
 import { AuthProvider } from './context/AuthContext';
 import { AppLayout } from './components/Layout/AppLayout';
 
@@ -24,6 +26,8 @@ const App = () => (
           <Route path="/owner" element={<OwnerDashboard />} />
           <Route path="/new-transaction" element={<NewTransactionPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

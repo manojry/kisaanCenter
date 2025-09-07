@@ -21,6 +21,7 @@ import { creditAdvanceRoutes } from './routes/creditAdvanceRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import { productRoutes } from './routes/productRoutes';
+import reportRoutes from './routes/reportRoutes';
 
 const app = express();
 
@@ -120,6 +121,7 @@ app.use('/api/shop-categories', shopCategoryRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/credits', creditAdvanceRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

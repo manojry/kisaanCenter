@@ -112,32 +112,33 @@ export default function OwnerDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="mb-6 md:mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <span>KisaanCenter</span>
               <span>/</span>
-              <span>{shop?.name || 'Owner Dashboard'}</span>
+              <span className="truncate">{shop?.name || 'Owner Dashboard'}</span>
             </div>
-            <h1 className="text-3xl font-bold">{shop?.name || 'Dashboard'}</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold truncate">{shop?.name || 'Dashboard'}</h1>
+            <p className="text-muted-foreground text-sm md:text-base">
               {shop?.address || 'Complete shop management - transactions, users, products & reports'}
             </p>
           </div>
           <Button 
             onClick={() => window.location.href = '/new-transaction'}
             size="lg"
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 w-full md:w-auto"
           >
-            + Record Sale
+            <Plus className="h-4 w-4 mr-2" />
+            Record Sale
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4 mb-6 md:mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
@@ -191,8 +192,8 @@ export default function OwnerDashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="mb-8">
+      {/* Quick Actions - Hidden on mobile, shown in hamburger menu */}
+      <Card className="mb-6 md:mb-8 hidden md:block">
         <CardHeader>
           <CardTitle className="text-lg">Quick Actions</CardTitle>
           <CardDescription>Common tasks for shop management</CardDescription>
@@ -214,61 +215,67 @@ export default function OwnerDashboard() {
       {/* Main Content Tabs */}
       <Tabs defaultValue="transactions" className="w-full">
         <div className="border-b border-border mb-6">
-          <TabsList className="grid w-full grid-cols-4 bg-transparent h-auto p-0">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-transparent h-auto p-0 gap-0">
             <TabsTrigger 
               value="transactions" 
-              className="flex items-center gap-2 py-3 px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none"
+              className="flex items-center gap-1 md:gap-2 py-3 px-2 md:px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none text-xs md:text-sm"
             >
               <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Transactions</span>
-              <span className="sm:hidden">Sales</span>
+              <span className="hidden xs:inline md:hidden">Sales</span>
+              <span className="hidden md:inline">Transactions</span>
+              <span className="xs:hidden">💳</span>
             </TabsTrigger>
             <TabsTrigger 
               value="users" 
-              className="flex items-center gap-2 py-3 px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none"
+              className="flex items-center gap-1 md:gap-2 py-3 px-2 md:px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none text-xs md:text-sm"
             >
               <Users className="h-4 w-4" />
-              Users
+              <span className="hidden xs:inline">Users</span>
+              <span className="xs:hidden">👥</span>
             </TabsTrigger>
             <TabsTrigger 
               value="products" 
-              className="flex items-center gap-2 py-3 px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none"
+              className="flex items-center gap-1 md:gap-2 py-3 px-2 md:px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none text-xs md:text-sm"
             >
               <ShoppingCart className="h-4 w-4" />
-              Products
+              <span className="hidden xs:inline">Products</span>
+              <span className="xs:hidden">📦</span>
             </TabsTrigger>
             <TabsTrigger 
               value="analytics" 
-              className="flex items-center gap-2 py-3 px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none"
+              className="flex items-center gap-1 md:gap-2 py-3 px-2 md:px-4 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none text-xs md:text-sm"
             >
               <TrendingUp className="h-4 w-4" />
-              Reports
+              <span className="hidden xs:inline">Reports</span>
+              <span className="xs:hidden">📊</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="transactions" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Recent Transactions</h2>
+        <TabsContent value="transactions" className="mt-4 md:mt-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-3">
+            <h2 className="text-lg md:text-xl font-semibold">Recent Transactions</h2>
             <Button 
               onClick={() => window.location.href = '/new-transaction'}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 w-full md:w-auto"
+              size="sm"
             >
-              + New Sale
+              <Plus className="h-4 w-4 mr-2" />
+              New Sale
             </Button>
           </div>
           <TransactionsList shopId={shop?.id} onRefresh={fetchDashboardData} />
         </TabsContent>
 
-        <TabsContent value="users" className="mt-6">
+        <TabsContent value="users" className="mt-4 md:mt-6">
           <UsersManagement shopId={shop?.id} onRefresh={fetchDashboardData} />
         </TabsContent>
 
-        <TabsContent value="products" className="mt-6">
+        <TabsContent value="products" className="mt-4 md:mt-6">
           <ProductsManagement shopId={shop?.id} onRefresh={fetchDashboardData} />
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-6">
+        <TabsContent value="analytics" className="mt-4 md:mt-6">
           <ReportsAnalytics shopId={shop?.id} />
         </TabsContent>
       </Tabs>

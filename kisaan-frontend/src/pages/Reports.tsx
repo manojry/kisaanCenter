@@ -4,22 +4,25 @@ import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { 
-  Package, 
-  Plus,
+  BarChart3, 
+  TrendingUp,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  FileText
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import ProductsManagement from '../components/ProductsManagement';
-import AddProductDialog from '../components/AddProductDialog';
+import ReportsAnalytics from '../components/ReportsAnalytics';
+import PDFReportGenerator from '../components/PDFReportGenerator';
 
-export default function Products() {
+export default function Reports() {
   const { user } = useAuth();
   const [shop, setShop] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
     fetchShopData();
@@ -30,10 +33,17 @@ export default function Products() {
     
     setIsLoading(true);
     try {
-      const shopRes = await apiClient.get(`/shops?owner_id=${user.id}`);
+      const [shopRes, usersRes] = await Promise.all([
+        apiClient.get(`/shops?owner_id=${user.id}`),
+        apiClient.get('/users')
+      ]);
+      
       const shops = shopRes?.shops || [];
       const userShop = shops[0];
       setShop(userShop);
+      
+      const allUsers = Array.isArray(usersRes) ? usersRes : (usersRes?.users || []);
+      setUsers(allUsers);
       
       if (!userShop?.id) {
         setError('No shop found for this owner');
@@ -45,13 +55,13 @@ export default function Products() {
     }
   };
 
-  if (!user || (user.role !== 'owner' && user.role !== 'employee')) {
+  if (!user || (user.role !== 'owner' && user.role !== 'superadmin')) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Owner or Employee role required.
+            Access denied. Owner or SuperAdmin role required.
           </AlertDescription>
         </Alert>
       </div>
@@ -70,28 +80,38 @@ export default function Products() {
             </Link>
           </Button>
           <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Products Management</h1>
+            <BarChart3 className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl md:text-3xl font-bold">Reports & Analytics</h1>
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <p className="text-muted-foreground">
-            Manage products and inventory for {shop?.name || 'your shop'}
-          </p>
-          <Button 
-            onClick={() => setShowAddProduct(true)}
-            className="w-full md:w-auto"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
+        <p className="text-muted-foreground">
+          View detailed analytics and generate PDF reports for {shop?.name || 'your shop'}
+        </p>
       </div>
 
-      {/* Products Management Component */}
+      {/* Reports Content */}
       {shop?.id ? (
-        <ProductsManagement shopId={shop.id} onRefresh={fetchShopData} />
+        <Tabs defaultValue="analytics" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="pdf-reports" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              PDF Reports
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="analytics" className="mt-6">
+            <ReportsAnalytics shopId={shop.id} />
+          </TabsContent>
+          
+          <TabsContent value="pdf-reports" className="mt-6">
+            <PDFReportGenerator shopId={shop.id} users={users} />
+          </TabsContent>
+        </Tabs>
       ) : (
         <Card>
           <CardContent className="p-6">
@@ -105,13 +125,6 @@ export default function Products() {
           </CardContent>
         </Card>
       )}
-
-      {/* Add Product Dialog */}
-      <AddProductDialog 
-        open={showAddProduct} 
-        onOpenChange={setShowAddProduct}
-        onSuccess={fetchShopData}
-      />
     </div>
   );
 }

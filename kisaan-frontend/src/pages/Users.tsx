@@ -5,21 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
-  Package, 
-  Plus,
+  Users as UsersIcon, 
+  UserPlus,
   AlertCircle,
   ArrowLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import ProductsManagement from '../components/ProductsManagement';
-import AddProductDialog from '../components/AddProductDialog';
+import AddUserDialog from '../components/AddUserDialog';
+import UsersManagement from '../components/UsersManagement';
 
-export default function Products() {
+export default function Users() {
   const { user } = useAuth();
   const [shop, setShop] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
 
   useEffect(() => {
     fetchShopData();
@@ -45,13 +45,13 @@ export default function Products() {
     }
   };
 
-  if (!user || (user.role !== 'owner' && user.role !== 'employee')) {
+  if (!user || (user.role !== 'owner' && user.role !== 'superadmin')) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Owner or Employee role required.
+            Access denied. Owner or SuperAdmin role required.
           </AlertDescription>
         </Alert>
       </div>
@@ -70,28 +70,28 @@ export default function Products() {
             </Link>
           </Button>
           <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Products Management</h1>
+            <UsersIcon className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl md:text-3xl font-bold">Users Management</h1>
           </div>
         </div>
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <p className="text-muted-foreground">
-            Manage products and inventory for {shop?.name || 'your shop'}
+            Manage farmers, buyers, and employees for {shop?.name || 'your shop'}
           </p>
           <Button 
-            onClick={() => setShowAddProduct(true)}
+            onClick={() => setShowAddUser(true)}
             className="w-full md:w-auto"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
           </Button>
         </div>
       </div>
 
-      {/* Products Management Component */}
+      {/* Users Management Component */}
       {shop?.id ? (
-        <ProductsManagement shopId={shop.id} onRefresh={fetchShopData} />
+        <UsersManagement shopId={shop.id} onRefresh={fetchShopData} />
       ) : (
         <Card>
           <CardContent className="p-6">
@@ -106,10 +106,10 @@ export default function Products() {
         </Card>
       )}
 
-      {/* Add Product Dialog */}
-      <AddProductDialog 
-        open={showAddProduct} 
-        onOpenChange={setShowAddProduct}
+      {/* Add User Dialog */}
+      <AddUserDialog 
+        open={showAddUser} 
+        onOpenChange={setShowAddUser}
         onSuccess={fetchShopData}
       />
     </div>

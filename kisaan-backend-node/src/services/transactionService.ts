@@ -10,6 +10,7 @@ export const getTransactions = async (filters: {
   date_from?: string, 
   date_to?: string,
   buyer_id?: string,
+  farmer_id?: string,
   status?: string,
   include_analytics?: string,
   owner_id?: string
@@ -39,12 +40,17 @@ export const getTransactions = async (filters: {
       where.buyer_id = filters.buyer_id;
     }
 
+    // Add farmer_id filter if provided
+    if (filters.farmer_id && filters.farmer_id.trim() !== '' && filters.farmer_id !== 'undefined') {
+      where.farmer_id = filters.farmer_id;
+    }
+
     // Add status filter if provided
     if (filters.status && filters.status.trim() !== '' && filters.status !== 'undefined') {
       where.status = filters.status;
     }
 
-    console.log('Transaction query filters:', where);
+  // ...removed log: Transaction query filters...
 
     const { User } = await import('../models/user');
     const { Product } = await import('../models/product');
@@ -71,7 +77,6 @@ export const getTransactions = async (filters: {
 
     // Map to DTO with flat fields for frontend
     const transactionDTOs = await Promise.all(transactions.map(async (t: any) => {
-      // Manually fetch buyer and product names if associations didn't work
       let buyerName = `Buyer ${t.buyer_id}`;
       let productName = `Product ${t.product_id}`;
       let farmerName = t.farmer_id || 'Unknown Farmer';
@@ -80,13 +85,11 @@ export const getTransactions = async (filters: {
         if (t.buyer) {
           buyerName = t.buyer.username;
         } else {
-          console.log(`Looking up buyer with ID: ${t.buyer_id}`);
           const buyer = await User.findOne({ where: { id: t.buyer_id } });
           if (buyer) {
             buyerName = buyer.username;
-            console.log(`Found buyer: ${buyerName}`);
           } else {
-            console.log(`No buyer found for ID: ${t.buyer_id}`);
+           
           }
         }
         
@@ -102,7 +105,6 @@ export const getTransactions = async (filters: {
           if (farmer) farmerName = farmer.username;
         }
       } catch (error) {
-        console.log('Error fetching related data:', error);
       }
       
       return {
@@ -126,8 +128,6 @@ export const getTransactions = async (filters: {
         transaction_date: t.transaction_date
       };
     }));
-
-    console.log(`Found ${transactionDTOs.length} transactions for shop ${filters.shop_id}`);
 
     // Calculate analytics if requested
     let analytics = null;
@@ -156,7 +156,7 @@ export const getTransactions = async (filters: {
         } : null
       };
     }
-    console.log('Sample transaction DTO:', transactionDTOs[0]);
+  // ...removed log: Sample transaction DTO...
     return { transactions: transactionDTOs, analytics };
   } catch (error) {
     console.error('Error fetching transactions:', error);
