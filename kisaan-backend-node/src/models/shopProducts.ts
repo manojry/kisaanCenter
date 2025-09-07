@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
-import Product from './product';
-import Shop from './shop';
+import { Product } from './product';
+import { Shop } from './shop';
 
 interface ShopProductsAttributes {
   id: number;
@@ -68,4 +68,4 @@ ShopProducts.init(
 ShopProducts.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 ShopProducts.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
 
-export default ShopProducts;
+

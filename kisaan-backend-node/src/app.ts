@@ -26,7 +26,12 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:8080'],
+  origin: [
+    'http://localhost:5173', // Vite dev server
+    'http://localhost:3000',
+    'http://localhost:8080',
+    ...(process.env.CORS_ORIGINS?.split(',') || [])
+  ],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

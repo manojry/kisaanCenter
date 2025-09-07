@@ -3,11 +3,11 @@
  * Can easily switch between Supabase and Azure SQL backends
  */
 
-import { ApiResponse, PaginatedResponse } from '@/types';
+
 
 // Configuration - easily switchable between backends
 const API_CONFIG = {
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: 'http://localhost:3000/api',
   timeout: 10000,
   retries: 3,
 };
@@ -153,17 +153,9 @@ class ApiClient {
   }
 
   // Utility methods for common patterns
-  async getPaginated<T>(
-    url: string, 
-    params?: Record<string, any>
-  ): Promise<PaginatedResponse<T>> {
-    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.get<PaginatedResponse<T>>(`${url}${queryString}`);
-  }
+  // Remove getPaginated for now (no PaginatedResponse type found)
 
-  async postWithResponse<T>(url: string, data: any): Promise<ApiResponse<T>> {
-    return this.post<ApiResponse<T>>(url, data);
-  }
+  // Remove postWithResponse for now (no APIResponse type found or used)
 }
 
 // Create singleton instance

@@ -73,4 +73,4 @@ ShopCategory.init(
   }
 );
 
-export default ShopCategory;
+

@@ -1,16 +1,16 @@
 
 import sequelize from '../config/database';
-import User from './user';
-import Shop from './shop';
-import Plan from './plan';
-import Category from './category';
-import Product from './product';
-import ShopCategory from './shopCategory';
+import { User } from './user';
+import { Shop } from './shop';
+import { Plan } from './plan';
+import { Category } from './category';
+import { Product } from './product';
+import { ShopCategory } from './shopCategory';
 import { Transaction } from './transaction';
 import { Payment } from './payment';
 import { CreditAdvance } from './creditAdvance';
+import { ShopProducts } from './shopProducts';
 
-import ShopProducts from './shopProducts';
 // Initialize all models
 const models = {
   User,
@@ -24,6 +24,7 @@ const models = {
   Payment,
   CreditAdvance,
 };
+
 
 // Set up associations
 // Plan associations
@@ -54,5 +55,10 @@ ShopCategory.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 Shop.hasMany(ShopCategory, { foreignKey: 'shop_id', as: 'shopCategories' });
 Category.hasMany(ShopCategory, { foreignKey: 'category_id', as: 'shopCategories' });
 
-export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance };
+// Transaction associations for DTO
+Transaction.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' });
+Transaction.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+Product.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+
+export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance, ShopProducts };
 export default models;

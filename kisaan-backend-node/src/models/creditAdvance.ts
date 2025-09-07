@@ -46,4 +46,4 @@ CreditAdvance.init(
   }
 );
 
-export default CreditAdvance;
+

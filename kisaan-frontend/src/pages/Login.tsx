@@ -17,7 +17,7 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await login(formData.username, formData.password);
-    if (!error) navigate('/landing');
+    if (!error) navigate('/dashboard');
   };
 
   return (

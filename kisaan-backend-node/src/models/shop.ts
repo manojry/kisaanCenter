@@ -83,4 +83,4 @@ Shop.init(
   }
 );
 
-export default Shop;
+

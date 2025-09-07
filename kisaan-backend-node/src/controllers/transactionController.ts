@@ -21,19 +21,33 @@ export const createTransaction = async (req: Request, res: Response) => {
 
 export const getTransactions = async (req: Request, res: Response) => {
   try {
-    const { shop_id, date_from, date_to, buyer_id, status, include_analytics } = req.query;
-    
-    console.log('Getting transactions with filters:', { shop_id, date_from, date_to, buyer_id, status, include_analytics });
-    
+    const { shop_id, date_from, date_to, buyer_id, status, include_analytics, owner_id } = req.query;
+
+    // Optionally, get owner_id from req.user if you have authentication middleware
+    // const ownerId = req.user?.owner_id || (owner_id as string);
+    const ownerId = owner_id as string | undefined;
+
+    // Enforce that at least one of owner_id or shop_id must be provided
+    if (!shop_id && !ownerId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required filter',
+        message: 'You must provide either owner_id or shop_id as a query parameter.'
+      });
+    }
+
+    console.log('Getting transactions with filters:', { shop_id, date_from, date_to, buyer_id, status, include_analytics, owner_id: ownerId });
+
     const result = await transactionService.getTransactions({ 
       shop_id: shop_id as string, 
       date_from: date_from as string, 
       date_to: date_to as string,
       buyer_id: buyer_id as string,
       status: status as string,
-      include_analytics: include_analytics as string
+      include_analytics: include_analytics as string,
+      owner_id: ownerId
     });
-    
+
     const response: any = {
       success: true, 
       data: result.transactions,
@@ -41,12 +55,12 @@ export const getTransactions = async (req: Request, res: Response) => {
       message: 'Transactions fetched successfully',
       filters: { shop_id, date_from, date_to, buyer_id, status }
     };
-    
+
     // Include analytics if requested
     if (result.analytics) {
       response.analytics = result.analytics;
     }
-    
+
     res.status(200).json(response);
   } catch (error: any) {
     console.error('Error in getTransactions controller:', error);

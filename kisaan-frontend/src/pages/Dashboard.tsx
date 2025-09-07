@@ -3,11 +3,12 @@
  * Role-based dashboard with mobile-first responsive design
  */
 
-import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../services/apiClient';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Skeleton } from '../components/ui/skeleton';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   Users, 
   Store, 
@@ -93,28 +94,22 @@ function OwnerDashboard({ data }: { data: any }) {
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Today's Sales"
-          value={`₹${data?.todays_sales || 0}`}
-          description="Sales amount today"
-          icon={TrendingUp}
-        />
-        <StatCard
-          title="Active Farmers"
-          value={data?.active_farmers || 0}
-          description="Farmers with stock"
+          title="Total Users"
+          value={data?.total_users || 0}
+          description="Registered users"
           icon={Users}
         />
         <StatCard
-          title="Pending Payments"
-          value={`₹${data?.pending_payments || 0}`}
-          description="Outstanding amounts"
-          icon={CreditCard}
+          title="Total Products"
+          value={data?.total_products || 0}
+          description="Products in your shop(s)"
+          icon={Package}
         />
         <StatCard
-          title="Commission Earned"
-          value={`₹${data?.commission_earned || 0}`}
-          description="This month"
-          icon={Package}
+          title="Total Transactions"
+          value={data?.total_transactions || 0}
+          description="All time transactions"
+          icon={CreditCard}
         />
       </div>
     </>
@@ -211,50 +206,53 @@ function EmployeeDashboard({ data }: { data: any }) {
 export default function Dashboard() {
   const { user } = useAuth();
   
-  // Mock data for development - replace with real API call later
-  const getMockData = () => {
-    switch (user?.role) {
-      case 'SUPERADMIN':
-        return {
-          total_shops: 12,
-          total_users: 234,
-          total_transactions: 1156,
-          total_revenue: 245600
-        };
-      case 'OWNER':
-        return {
-          todays_sales: 18400,
-          active_farmers: 15,
-          pending_payments: 45200,
-          commission_earned: 12450
-        };
-      case 'FARMER':
-        return {
-          stock_quantity: 850,
-          monthly_sales: 45200,
-          pending_payments: 8500
-        };
-      case 'BUYER':
-        return {
-          monthly_purchases: 32100,
-          outstanding_credit: 5200,
-          credit_limit: 25000
-        };
-      case 'EMPLOYEE':
-        return {
-          todays_transactions: 15,
-          available_stock: 45,
-          pending_tasks: 3,
-          sales_amount: 18400
-        };
-      default:
-        return {};
-    }
-  };
-  
-  const data = getMockData();
-  const isLoading = false;
-  const error = null;
+
+  // State for real API data
+  const [data, setData] = useState<any>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Fetch all needed data in parallel
+        const [users, products, transactionsResp] = await Promise.all([
+          apiClient.get('/users'),
+          apiClient.get('/products'),
+          apiClient.get('/transactions'),
+        ]);
+
+        // Handle new transactions response structure
+
+        // Type guard for transactions response
+        let transactions: any[] = [];
+        if (
+          transactionsResp &&
+          typeof transactionsResp === 'object' &&
+          'transactions' in transactionsResp &&
+          Array.isArray((transactionsResp as any).transactions)
+        ) {
+          transactions = (transactionsResp as any).transactions;
+        } else if (Array.isArray(transactionsResp)) {
+          transactions = transactionsResp;
+        }
+
+        setData({
+          total_users: Array.isArray(users) ? users.length : 0,
+          total_products: Array.isArray(products) ? products.length : 0,
+          total_transactions: transactions.length,
+          transactions, // Store for possible future use (DTO fields)
+        });
+      } catch (err: any) {
+        setError(err.message || 'Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   if (!user) {
     return (
@@ -270,7 +268,7 @@ export default function Dashboard() {
   }
 
   const getRoleDisplayName = (role: string) => {
-    switch (role) {
+  switch (role?.toUpperCase()) {
       case 'SUPERADMIN':
         return 'Super Administrator';
       case 'OWNER':
@@ -287,6 +285,7 @@ export default function Dashboard() {
   };
 
   const renderDashboardContent = () => {
+
     if (isLoading) {
       return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -311,13 +310,13 @@ export default function Dashboard() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to load dashboard data. Please try again.
+            {error}
           </AlertDescription>
         </Alert>
       );
     }
 
-    switch (user.role) {
+    switch (user.role?.toUpperCase()) {
       case 'SUPERADMIN':
         return <SuperAdminDashboard data={data} />;
       case 'OWNER':
@@ -328,15 +327,7 @@ export default function Dashboard() {
         return <BuyerDashboard data={data} />;
       case 'EMPLOYEE':
         return <EmployeeDashboard data={data} />;
-      default:
-        return (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Dashboard not configured for role: {user.role}
-            </AlertDescription>
-          </Alert>
-        );
+      // No default: do not render anything for unknown roles
     }
   };
 
@@ -366,7 +357,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {user.role === 'FARMER' && (
+              {user.role?.toUpperCase() === 'FARMER' && (
                 <>
                   <Card className="p-4 hover:bg-muted/50 cursor-pointer transition-colors">
                     <div className="flex items-center gap-3">
@@ -389,7 +380,7 @@ export default function Dashboard() {
                 </>
               )}
               
-              {user.role === 'BUYER' && (
+              {user.role?.toUpperCase() === 'BUYER' && (
                 <>
                   <Card className="p-4 hover:bg-muted/50 cursor-pointer transition-colors">
                     <div className="flex items-center gap-3">

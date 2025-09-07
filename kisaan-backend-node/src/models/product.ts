@@ -93,4 +93,4 @@ Product.init(
   }
 );
 
-export default Product;
+
