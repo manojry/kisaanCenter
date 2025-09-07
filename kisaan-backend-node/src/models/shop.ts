@@ -5,23 +5,27 @@ interface ShopAttributes {
   id: number;
   name: string;
   owner_id: string;
+  category_id?: number | null;
   plan_id?: number | null;
   address: string | null;
   contact: string | null;
+  commission_rate?: number;
   status: 'active' | 'inactive';
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface ShopCreationAttributes extends Optional<ShopAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface ShopCreationAttributes extends Optional<ShopAttributes, 'id' | 'category_id' | 'createdAt' | 'updatedAt'> {}
 
 export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implements ShopAttributes {
   public id!: number;
   public name!: string;
   public owner_id!: string;
+  public category_id!: number | null;
   public plan_id!: number | null;
   public address!: string | null;
   public contact!: string | null;
+  public commission_rate?: number;
   public status!: 'active' | 'inactive';
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -42,6 +46,14 @@ Shop.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    category_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'kisaan_categories',
+        key: 'id',
+      },
+    },
     plan_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -57,6 +69,11 @@ Shop.init(
     contact: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    commission_rate: {
+      type: DataTypes.DECIMAL(5,2),
+      allowNull: true,
+      defaultValue: 10.00,
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive'),

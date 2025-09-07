@@ -16,9 +16,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // On load, restore user and token from localStorage
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('auth_user');
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('auth_token'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/auth/login`, {
+      const res = await fetch(`http://localhost:3000/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -40,6 +45,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data.user);
       setIsAuthenticated(true);
       localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      
+      // Redirect owners to their dashboard immediately
+      if (data.user.role === 'owner') {
+        window.location.href = '/owner';
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed');
       setIsAuthenticated(false);
@@ -52,12 +63,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
   };
 
   const clearError = () => setError(null);
 
-  const hasRole = (role: string) => {
-    return user?.role === role;
+  // Case-insensitive, supports single role or array of roles
+  const hasRole = (role: string | string[]) => {
+    if (!user?.role) return false;
+    const userRole = user.role.toUpperCase();
+    if (Array.isArray(role)) {
+      return role.map(r => r.toUpperCase()).includes(userRole);
+    }
+    return userRole === role.toUpperCase();
   };
 
   return (

@@ -119,3 +119,11 @@ export const bulkCreateProducts = async (products: ProductCreate[]): Promise<Pro
   );
   return createdProducts;
 };
+
+export const getProductsForShop = async (shopId: number): Promise<Product[]> => {
+  const { Shop } = await import('../models/shop');
+  const shop = await Shop.findByPk(shopId);
+  if (!shop) return [];
+  
+  return getAllProducts(false, shop.category_id || undefined);
+};

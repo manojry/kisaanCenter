@@ -32,12 +32,18 @@ export interface Product {
 export interface Transaction {
   id: number;
   shop_id: number;
+  farmer_id: string;
   buyer_id: string;
   product_id: number;
   quantity: number;
   price: number;
   total: number;
-  status: 'pending' | 'paid' | 'partial' | 'credit';
+  commission_rate?: number;
+  commission_amount?: number;
+  farmer_paid?: number;
+  buyer_paid?: number;
+  deficit?: number;
+  status: 'pending' | 'paid' | 'partial' | 'credit' | 'farmer_due';
   transaction_date: string;
   created_at: string;
   updated_at: string;

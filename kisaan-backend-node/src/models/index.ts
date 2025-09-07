@@ -56,9 +56,10 @@ Shop.hasMany(ShopCategory, { foreignKey: 'shop_id', as: 'shopCategories' });
 Category.hasMany(ShopCategory, { foreignKey: 'category_id', as: 'shopCategories' });
 
 // Transaction associations for DTO
-Transaction.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' });
+// Fix: Join buyer_id/farmer_id to User.owner_id (string) instead of User.id (integer)
+Transaction.belongsTo(User, { foreignKey: 'buyer_id', targetKey: 'owner_id', as: 'buyer' });
+Transaction.belongsTo(User, { foreignKey: 'farmer_id', targetKey: 'owner_id', as: 'farmer' });
 Transaction.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
-Product.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 
 export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance, ShopProducts };
 export default models;

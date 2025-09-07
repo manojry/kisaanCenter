@@ -41,32 +41,12 @@ const MAIN_NAV_ITEMS: NavItem[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
-    roles: ['SUPERADMIN', 'OWNER', 'EMPLOYEE', 'FARMER', 'BUYER'],
+    roles: ['SUPERADMIN', 'EMPLOYEE', 'FARMER', 'BUYER'],
   },
   {
-    label: 'Shops',
-    href: '/shops',
-    roles: ['SUPERADMIN', 'OWNER'],
-  },
-  {
-    label: 'Users',
-    href: '/users',
-    roles: ['SUPERADMIN', 'OWNER', 'EMPLOYEE'],
-  },
-  {
-    label: 'Products',
-    href: '/products',
-    roles: ['OWNER', 'EMPLOYEE', 'FARMER', 'BUYER'],
-  },
-  {
-    label: 'Transactions',
-    href: '/transactions',
-    roles: ['OWNER', 'EMPLOYEE', 'FARMER', 'BUYER'],
-  },
-  {
-    label: 'Reports',
-    href: '/reports',
-    roles: ['SUPERADMIN', 'OWNER'],
+    label: 'Dashboard',
+    href: '/owner',
+    roles: ['OWNER'],
   },
 ];
 

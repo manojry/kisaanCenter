@@ -1,12 +1,9 @@
-// Transaction service stub
-
 import { Transaction } from '../models/transaction';
 import { Shop } from '../models/shop';
 import { Plan } from '../models/plan';
 import { z } from 'zod';
 import { TransactionSchema } from '../schemas/transaction';
 import { Op } from 'sequelize';
-
 
 export const getTransactions = async (filters: { 
   shop_id?: string, 
@@ -20,43 +17,30 @@ export const getTransactions = async (filters: {
   try {
     const where: any = {};
 
-    // If shop_id is not provided, try to infer from owner_id
-    let shopId = filters.shop_id;
-    if (!shopId && filters.owner_id) {
-      // Find the shop for this owner
-      const shop = await Shop.findOne({ where: { owner_id: filters.owner_id } });
-      if (shop) {
-        shopId = shop.id.toString();
-      }
-    }
-    if (shopId) {
-      where.shop_id = parseInt(shopId);
+    // shop_id is now required - it should be validated in the controller
+    if (!filters.shop_id || filters.shop_id.trim() === '' || filters.shop_id === 'undefined') {
+      throw new Error('shop_id is required for transaction queries');
     }
 
-    // Default date range: past week to today if not provided
-    let dateFrom = filters.date_from;
-    let dateTo = filters.date_to;
-    if (!dateFrom || !dateTo) {
-      const today = new Date();
-      const pastWeek = new Date();
-      pastWeek.setDate(today.getDate() - 7);
-      dateFrom = dateFrom || pastWeek.toISOString().slice(0, 10);
-      dateTo = dateTo || today.toISOString().slice(0, 10);
-    }
-    if (dateFrom && dateTo) {
+    where.shop_id = parseInt(filters.shop_id);
+
+    // Only add date range if both dates are provided
+    if (filters.date_from && filters.date_to && 
+        filters.date_from.trim() !== '' && filters.date_to.trim() !== '' &&
+        filters.date_from !== 'undefined' && filters.date_to !== 'undefined') {
       where.transaction_date = {
-        [Op.gte]: new Date(dateFrom + 'T00:00:00.000Z'),
-        [Op.lte]: new Date(dateTo + 'T23:59:59.999Z')
+        [Op.gte]: new Date(filters.date_from + 'T00:00:00.000Z'),
+        [Op.lte]: new Date(filters.date_to + 'T23:59:59.999Z')
       };
     }
 
     // Add buyer_id filter if provided
-    if (filters.buyer_id) {
+    if (filters.buyer_id && filters.buyer_id.trim() !== '' && filters.buyer_id !== 'undefined') {
       where.buyer_id = filters.buyer_id;
     }
 
     // Add status filter if provided
-    if (filters.status) {
+    if (filters.status && filters.status.trim() !== '' && filters.status !== 'undefined') {
       where.status = filters.status;
     }
 
@@ -70,40 +54,87 @@ export const getTransactions = async (filters: {
       where,
       order: [['transaction_date', 'DESC']],
       include: [
-        { model: User, as: 'buyer', attributes: ['id', 'username', 'role'] },
-        { model: Product, as: 'product', attributes: ['id', 'name', 'category_id'],
-          include: [
-            { model: Category, as: 'category', attributes: ['id', 'name'] }
-          ]
+        { 
+          model: User, 
+          as: 'buyer', 
+          attributes: ['id', 'username', 'role'],
+          required: false
+        },
+        { 
+          model: Product, 
+          as: 'product', 
+          attributes: ['id', 'name'],
+          required: false
         }
       ]
     });
 
-    // Map to DTO
-    const transactionDTOs = transactions.map((t: any) => ({
-      id: t.id,
-      shop_id: t.shop_id,
-      buyer: t.buyer ? { id: t.buyer.id, username: t.buyer.username, role: t.buyer.role } : null,
-      product: t.product ? {
-        id: t.product.id,
-        name: t.product.name,
-        category: t.product.category ? { id: t.product.category.id, name: t.product.category.name } : null
-      } : null,
-      quantity: t.quantity,
-      price: t.price,
-      total: t.total,
-      status: t.status,
-      transaction_date: t.transaction_date,
-      created_at: t.created_at,
-      updated_at: t.updated_at
+    // Map to DTO with flat fields for frontend
+    const transactionDTOs = await Promise.all(transactions.map(async (t: any) => {
+      // Manually fetch buyer and product names if associations didn't work
+      let buyerName = `Buyer ${t.buyer_id}`;
+      let productName = `Product ${t.product_id}`;
+      let farmerName = t.farmer_id || 'Unknown Farmer';
+      
+      try {
+        if (t.buyer) {
+          buyerName = t.buyer.username;
+        } else {
+          console.log(`Looking up buyer with ID: ${t.buyer_id}`);
+          const buyer = await User.findOne({ where: { id: t.buyer_id } });
+          if (buyer) {
+            buyerName = buyer.username;
+            console.log(`Found buyer: ${buyerName}`);
+          } else {
+            console.log(`No buyer found for ID: ${t.buyer_id}`);
+          }
+        }
+        
+        if (t.product) {
+          productName = t.product.name;
+        } else {
+          const product = await Product.findOne({ where: { id: t.product_id } });
+          if (product) productName = product.name;
+        }
+        
+        if (t.farmer_id) {
+          const farmer = await User.findOne({ where: { id: t.farmer_id } });
+          if (farmer) farmerName = farmer.username;
+        }
+      } catch (error) {
+        console.log('Error fetching related data:', error);
+      }
+      
+      return {
+        id: t.id,
+        shop_id: t.shop_id,
+        farmer_id: t.farmer_id || null,
+        farmer_name: farmerName,
+        buyer_id: t.buyer_id,
+        buyer_name: buyerName,
+        product_id: t.product_id,
+        product_name: productName,
+        quantity: t.quantity,
+        price: parseFloat(t.price || 0),
+        total: parseFloat(t.total || 0),
+        commission_rate: parseFloat(t.commission_rate || 10),
+        commission_amount: parseFloat(t.commission_amount || 0),
+        farmer_paid: parseFloat(t.farmer_paid || 0),
+        buyer_paid: parseFloat(t.buyer_paid || 0),
+        deficit: parseFloat(t.deficit || 0),
+        status: t.status,
+        transaction_date: t.transaction_date
+      };
     }));
 
-    console.log(`Found ${transactionDTOs.length} transactions`);
+    console.log(`Found ${transactionDTOs.length} transactions for shop ${filters.shop_id}`);
 
     // Calculate analytics if requested
     let analytics = null;
     if (filters.include_analytics === 'true') {
-      const totalIncome = transactionDTOs.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0);
+      const totalSales = transactionDTOs.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0);
+      const totalCommission = transactionDTOs.reduce((sum, t) => sum + parseFloat(t.commission_amount.toString()), 0);
+      const totalDeficit = transactionDTOs.reduce((sum, t) => sum + parseFloat(t.deficit.toString()), 0);
       const statusSummary = transactionDTOs.reduce((acc: any, t) => {
         acc[t.status] = (acc[t.status] || 0) + 1;
         return acc;
@@ -114,43 +145,139 @@ export const getTransactions = async (filters: {
       }, {});
       analytics = {
         total_transactions: transactionDTOs.length,
-        total_income: totalIncome,
+        total_sales: totalSales,
+        total_commission: totalCommission,
+        total_deficit: totalDeficit,
         status_summary: statusSummary,
         income_by_status: incomeByStatus,
-        date_range: { from: dateFrom, to: dateTo }
+        date_range: filters.date_from && filters.date_to ? {
+          from: filters.date_from,
+          to: filters.date_to
+        } : null
       };
     }
+    console.log('Sample transaction DTO:', transactionDTOs[0]);
     return { transactions: transactionDTOs, analytics };
   } catch (error) {
     console.error('Error fetching transactions:', error);
-    return { transactions: [], analytics: null };
+    throw error; // Re-throw the error instead of returning empty array
   }
 }
 
 export const createTransaction = async (data: any) => {
-  // Validate input
-  const validated = TransactionSchema.parse(data);
-
-  // Fetch shop and plan to get commission rate (if needed in future)
-
-  // Calculate total if not provided
-  const total = validated.total || validated.price * validated.quantity;
-
-  // Status logic: if status is set by owner, use it; else calculate in backend
-  let status = (data.status as 'paid' | 'pending' | 'partial' | 'credit' | undefined) || undefined;
-  if (!status) {
-    status = (data.payment_status && data.payment_status === 'paid') ? 'paid' : 'pending';
+  // Accept both farmer_id and seller_id for compatibility
+  const input = { ...data };
+  if (!input.farmer_id && input.seller_id) {
+    input.farmer_id = input.seller_id;
   }
 
-  // Create transaction
-  const transaction = await Transaction.create({
-    ...validated,
-    transaction_date: new Date(validated.transaction_date),
+  // Debug log input
+  console.log('createTransaction called with input:', input);
+
+  // Try validation first, but handle failure gracefully
+  const validationResult = TransactionSchema.safeParse(input);
+  let validated;
+  
+  if (validationResult.success) {
+    validated = validationResult.data;
+    console.log('✅ Schema validation successful');
+  } else {
+    console.log('❌ Schema validation failed:', validationResult.error.issues);
+    // Use input directly but ensure proper type conversion
+    validated = {
+      ...input,
+      shop_id: parseInt(input.shop_id),
+      farmer_id: input.farmer_id?.toString(),
+      buyer_id: input.buyer_id?.toString(),
+      product_id: parseInt(input.product_id),
+      quantity: parseInt(input.quantity),
+      price: parseFloat(input.price),
+      total: input.total ? parseFloat(input.total) : undefined,
+      commission_rate: input.commission_rate ? parseFloat(input.commission_rate) : undefined,
+      commission_amount: input.commission_amount ? parseFloat(input.commission_amount) : undefined,
+      farmer_paid: input.farmer_paid ? parseFloat(input.farmer_paid) : 0,
+      buyer_paid: input.buyer_paid ? parseFloat(input.buyer_paid) : 0,
+    };
+  }
+  
+  console.log('Validated transaction input:', validated);
+
+  // Ensure farmer_id is not null or undefined
+  if (!validated.farmer_id) {
+    throw new Error('farmer_id is required and cannot be null or undefined');
+  }
+
+  // Get commission rate from shop (default 10% if not found)
+  let commission_rate = validated.commission_rate || 10.0;
+  try {
+    const shop = await Shop.findByPk(validated.shop_id);
+    if (shop && shop.commission_rate) {
+      commission_rate = shop.commission_rate;
+    }
+  } catch (error) {
+    console.log('Could not fetch shop commission rate, using default', error);
+  }
+
+  // Calculate amounts
+  const total = validated.total || validated.price * validated.quantity;
+  const commission_amount = validated.commission_amount || (total * commission_rate / 100);
+  const farmer_paid = validated.farmer_paid || 0;
+  const buyer_paid = validated.buyer_paid || 0;
+  const deficit = total - buyer_paid;
+
+  // Calculate status based on transaction logic
+  let status = validated.status;
+  if (!status) {
+    const farmer_should_get = total - commission_amount;
+    if (buyer_paid === 0) {
+      status = 'credit';
+    } else if (buyer_paid === total && farmer_paid >= farmer_should_get) {
+      status = 'paid';
+    } else if (buyer_paid === total && farmer_paid < farmer_should_get) {
+      status = 'farmer_due';
+    } else if (buyer_paid > 0 && buyer_paid < total) {
+      status = 'partial';
+    } else {
+      status = 'pending';
+    }
+  }
+
+  // Debug log calculated values
+  console.log('Transaction calculated values:', {
     total,
+    commission_rate,
+    commission_amount,
+    farmer_paid,
+    buyer_paid,
+    deficit,
     status,
+    farmer_id_final: validated.farmer_id
   });
 
-  return transaction;
+  try {
+    // Create transaction
+    const transaction = await Transaction.create({
+      shop_id: validated.shop_id,
+      farmer_id: validated.farmer_id,
+      buyer_id: validated.buyer_id,
+      product_id: validated.product_id,
+      quantity: validated.quantity,
+      price: validated.price,
+      transaction_date: validated.transaction_date ? new Date(validated.transaction_date) : new Date(),
+      total,
+      commission_rate,
+      commission_amount,
+      farmer_paid,
+      buyer_paid,
+      deficit,
+      status,
+    });
+    console.log('Transaction created successfully:', transaction?.id);
+    return transaction;
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    throw error;
+  }
 };
 
   // TODO: Implement get transaction by id

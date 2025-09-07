@@ -169,13 +169,13 @@ async function createTransaction(buyers: any[], products: any[]) {
   // Create transaction data matching the schema
   const txnData = {
     shop_id: Number(shopId),
+    farmer_id: userId.toString(), // Current owner/user as farmer
     buyer_id: buyer.id.toString(),
-    seller_id: userId.toString(), // Current owner/user as seller
     product_id: product.id,
     quantity: 2,
     price: 100.0,
-    total: 200.0, // quantity * price
-    transaction_date: new Date().toISOString(),
+    buyer_paid: 200.0,
+    farmer_paid: 180.0
   };
   
   console.log('Transaction data:', JSON.stringify(txnData, null, 2));
@@ -211,6 +211,32 @@ async function fetchTodaysTransactionsWithAnalytics() {
   });
   if (res.status === 200 && res.data.success) {
     console.log(`✅ Today's transactions: ${Array.isArray(res.data.data) ? res.data.data.length : 'N/A'}`);
+    
+    // Test transaction names functionality
+    if (res.data.data && res.data.data.length > 0) {
+      const transaction = res.data.data[0];
+      console.log('\n🔍 Testing transaction names:');
+      console.log('Sample transaction:', JSON.stringify(transaction, null, 2));
+      
+      if (transaction.buyer_name) {
+        console.log('✅ buyer_name found:', transaction.buyer_name);
+      } else {
+        console.log('❌ buyer_name missing, only buyer_id:', transaction.buyer_id);
+      }
+      
+      if (transaction.farmer_name) {
+        console.log('✅ farmer_name found:', transaction.farmer_name);
+      } else {
+        console.log('❌ farmer_name missing, farmer_id:', transaction.farmer_id || 'N/A');
+      }
+      
+      if (transaction.product_name) {
+        console.log('✅ product_name found:', transaction.product_name);
+      } else {
+        console.log('❌ product_name missing, only product_id:', transaction.product_id);
+      }
+    }
+    
     if (res.data.analytics) {
       console.log('📊 Analytics summary:', JSON.stringify(res.data.analytics, null, 2));
     } else {

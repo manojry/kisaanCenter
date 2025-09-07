@@ -43,6 +43,9 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/products')) {
     console.log('🔍 PRODUCTS REQUEST DETECTED:', req.method, req.path);
   }
+  if (req.path.startsWith('/api/transactions')) {
+    console.log('🔍 TRANSACTIONS REQUEST DETECTED:', req.method, req.path);
+  }
   next();
 });
 
