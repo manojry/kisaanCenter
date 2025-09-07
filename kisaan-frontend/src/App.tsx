@@ -11,6 +11,7 @@ import NotFound from './pages/NotFound';
 import ProductsPage from './pages/Products';
 import UsersPage from './pages/Users';
 import ReportsPage from './pages/Reports';
+import SettlementsPage from './pages/Settlements';
 import { AuthProvider } from './context/AuthContext';
 import { AppLayout } from './components/Layout/AppLayout';
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/settlements" element={<SettlementsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

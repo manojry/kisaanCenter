@@ -40,7 +40,7 @@ const Header = () => {
             </span>
           </a>
         </div>
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+  <div className="flex flex-1 items-center justify-end space-x-2">
           {/* Show nav for logged-in users, else show landing nav and login */}
           {user ? (
             <div className="flex items-center gap-4">

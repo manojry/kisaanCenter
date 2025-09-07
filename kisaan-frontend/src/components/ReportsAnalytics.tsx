@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
 import { BarChart3, AlertCircle, Download, Calendar } from 'lucide-react';
+import { formatCurrency } from '../lib/formatters';
 
 interface ReportsAnalyticsProps {
   shopId?: number;
@@ -58,10 +59,7 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
     setDateRange(prev => ({ ...prev, [field]: value }));
   };
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (!amount || isNaN(Number(amount))) return '₹0.00';
-    return `₹${Number(amount).toFixed(2)}`;
-  };
+
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

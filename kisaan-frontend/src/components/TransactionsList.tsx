@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Alert, AlertDescription } from './ui/alert';
-import { Calendar, Filter, RefreshCw, AlertCircle } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, AlertCircle, FileText, Download, Package } from 'lucide-react';
+import { reportService } from '../services/reportService';
+import { formatCurrency, formatNumber, formatQuantity, formatDate } from '../lib/formatters';
 
 interface Transaction {
   id: number;
@@ -114,22 +116,90 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
     );
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (!amount || isNaN(Number(amount))) return '₹0.00';
-    return `₹${Number(amount).toFixed(2)}`;
-  };
 
   const handleRefresh = () => {
     fetchTransactions();
     if (onRefresh) onRefresh();
+  };
+
+  const handleQuickExport = () => {
+    if (!shopId) return;
+    
+    // Use fallback report generation directly since backend API is not available
+    generateFallbackReport();
+  };
+
+  const generateFallbackReport = () => {
+    const reportData = {
+      shopId,
+      transactions: filteredTransactions,
+      dateRange: filters.date_from && filters.date_to ? `${filters.date_from} to ${filters.date_to}` : 'All Time',
+      totalSales: filteredTransactions.reduce((sum, t) => sum + t.total, 0),
+      totalTransactions: filteredTransactions.length
+    };
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shop Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #4CAF50; padding-bottom: 20px; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        .summary { background: #f9f9f9; padding: 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌾 KisaanCenter - Shop Report</h1>
+        <p>Period: ${reportData.dateRange}</p>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+    </div>
+    <div class="summary">
+        <h3>Summary</h3>
+        <p><strong>Total Transactions:</strong> ${reportData.totalTransactions}</p>
+        <p><strong>Total Sales:</strong> ${formatCurrency(reportData.totalSales)}</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Farmer</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Total</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${reportData.transactions.map(t => `
+            <tr>
+                <td>${formatDate(t.transaction_date)}</td>
+                <td>${t.farmer_name}</td>
+                <td>${t.product_name}</td>
+                <td>${formatQuantity(t.quantity)}</td>
+                <td>${formatCurrency(t.total)}</td>
+                <td>${t.status.toUpperCase()}</td>
+            </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `shop-report-${Date.now()}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -164,54 +234,52 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
               {filteredTransactions.length} of {transactions.length} transactions
             </CardDescription>
           </div>
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleQuickExport} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+            <Button onClick={handleRefresh} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-          <div>
-            <Input
-              placeholder="Search farmer/buyer/product..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
-          
-          <div>
-            <Select value={filters.status || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="partial">Partial</SelectItem>
-                <SelectItem value="credit">Credit</SelectItem>
-                <SelectItem value="farmer_due">Farmer Due</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Input
-              type="date"
-              placeholder="From date"
-              value={filters.date_from}
-              onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-            />
-          </div>
-
-          <div>
-            <Input
-              type="date"
-              placeholder="To date"
-              value={filters.date_to}
-              onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-            />
-          </div>
+        <div className="flex flex-wrap gap-2 mt-4 items-center">
+          <Input
+            placeholder="Search..."
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            className="w-32 sm:w-48"
+          />
+          <Select value={filters.status || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}>
+            <SelectTrigger className="w-10 px-2">
+              <Filter className="h-4 w-4" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="credit">Credit</SelectItem>
+              <SelectItem value="farmer_due">Farmer Due</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            value={filters.date_from}
+            onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
+            className="w-24"
+            title="From date"
+          />
+          <Input
+            type="date"
+            value={filters.date_to}
+            onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
+            className="w-24"
+            title="To date"
+          />
         </div>
       </CardHeader>
 
@@ -227,15 +295,9 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Farmer</TableHead>
-                  <TableHead>Buyer</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Farmer Paid</TableHead>
-                  <TableHead>Buyer Paid</TableHead>
-                  <TableHead>Outstanding</TableHead>
+                  <TableHead className="hidden xs:table-cell">Product</TableHead>
+                  <TableHead className="hidden sm:table-cell">Qty</TableHead>
+                  <TableHead className="hidden md:table-cell">Total</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -243,18 +305,15 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
                 {filteredTransactions.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>{formatDate(transaction.transaction_date)}</TableCell>
-                    <TableCell className="font-medium">{transaction.farmer_name}</TableCell>
-                    <TableCell className="font-medium">{transaction.buyer_name}</TableCell>
-                    <TableCell className="font-medium">{transaction.product_name}</TableCell>
-                    <TableCell>{transaction.quantity}</TableCell>
-                    <TableCell>{formatCurrency(transaction.price)}</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(transaction.total)}</TableCell>
-                    <TableCell>{formatCurrency(transaction.commission_amount)}</TableCell>
-                    <TableCell>{formatCurrency(transaction.farmer_paid)}</TableCell>
-                    <TableCell>{formatCurrency(transaction.buyer_paid)}</TableCell>
-                    <TableCell className="text-red-600 font-medium">
-                      {formatCurrency(transaction.deficit)}
+                    <TableCell className="font-medium truncate max-w-[80px]">{transaction.farmer_name}</TableCell>
+                    <TableCell className="font-medium hidden xs:table-cell truncate max-w-[80px]">{transaction.product_name}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">
+                      <div className="flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        {formatQuantity(transaction.quantity)}
+                      </div>
                     </TableCell>
+                    <TableCell className="hidden md:table-cell font-semibold">{formatCurrency(transaction.total)}</TableCell>
                     <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                   </TableRow>
                 ))}

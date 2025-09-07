@@ -1,5 +1,7 @@
 import { apiClient } from './apiClient';
 
+const API_BASE_URL = 'http://localhost:3000/api';
+
 interface ReportFilters {
   shop_id: string;
   user_id?: string;
@@ -25,9 +27,9 @@ export const reportService = {
       if (value) params.append(key, value);
     });
     
-    const response = await fetch(`${apiClient.defaults.baseURL}/reports/download?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/reports/download?${params.toString()}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
     });
 
@@ -53,9 +55,9 @@ export const reportService = {
     });
     params.append('format', 'pdf');
     
-    const response = await fetch(`${apiClient.defaults.baseURL}/reports/generate?${params.toString()}`, {
+    const response = await fetch(`${API_BASE_URL}/reports/generate?${params.toString()}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
     });
 

@@ -21,7 +21,8 @@ import {
   ShoppingCart,
   Truck,
   LogOut,
-  Plus
+  Plus,
+  Receipt
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -70,6 +71,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/reports',
     icon: BarChart3,
     roles: ['OWNER', 'SUPERADMIN'],
+  },
+  {
+    label: 'Settlements',
+    href: '/settlements',
+    icon: Receipt,
+    roles: ['OWNER'],
   },
 ];
 
@@ -154,15 +161,15 @@ export function MobileNav() {
                 <div className="space-y-1">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => {
                       setIsOpen(false);
                       window.location.href = '/new-transaction';
                     }}
-                    className="w-full justify-start gap-3 h-auto py-2 px-4"
+                    className="justify-center items-center h-9 w-9 p-0 rounded-full"
+                    title="Record Sale"
                   >
-                    <Plus className="h-4 w-4" />
-                    Record Sale
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </div>
               </div>

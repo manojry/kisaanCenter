@@ -4,6 +4,7 @@ import { Plan } from '../models/plan';
 import { z } from 'zod';
 import { TransactionSchema } from '../schemas/transaction';
 import { Op } from 'sequelize';
+import { createSettlement } from './settlementService';
 
 export const getTransactions = async (filters: { 
   shop_id?: string, 
@@ -224,17 +225,32 @@ export const createTransaction = async (data: any) => {
   const farmer_paid = validated.farmer_paid || 0;
   const buyer_paid = validated.buyer_paid || 0;
   const deficit = total - buyer_paid;
+  
+  // Validation: Check for reasonable payment amounts
+  const farmer_should_get = total - commission_amount;
+  
+  if (farmer_paid > total) {
+    console.warn(`⚠️ Farmer paid (${farmer_paid}) exceeds total transaction amount (${total})`);
+  }
+  
+  if (farmer_paid > farmer_should_get && buyer_paid >= total) {
+    console.warn(`⚠️ Farmer paid (${farmer_paid}) exceeds expected amount (${farmer_should_get})`);
+  }
 
   // Calculate status based on transaction logic
   let status = validated.status;
   if (!status) {
     const farmer_should_get = total - commission_amount;
+    
     if (buyer_paid === 0) {
       status = 'credit';
-    } else if (buyer_paid === total && farmer_paid >= farmer_should_get) {
-      status = 'paid';
-    } else if (buyer_paid === total && farmer_paid < farmer_should_get) {
-      status = 'farmer_due';
+    } else if (buyer_paid >= total) {
+      // Buyer has paid full amount or more
+      if (farmer_paid >= farmer_should_get) {
+        status = 'paid';
+      } else {
+        status = 'farmer_due';
+      }
     } else if (buyer_paid > 0 && buyer_paid < total) {
       status = 'partial';
     } else {
@@ -251,6 +267,7 @@ export const createTransaction = async (data: any) => {
     buyer_paid,
     deficit,
     status,
+    farmer_should_get: total - commission_amount,
     farmer_id_final: validated.farmer_id
   });
 
@@ -272,6 +289,34 @@ export const createTransaction = async (data: any) => {
       deficit,
       status,
     });
+    
+    // Handle overpayments by creating settlements
+    if (buyer_paid > total) {
+      const overpayment = buyer_paid - total;
+      await createSettlement({
+        shop_id: validated.shop_id,
+        user_id: validated.buyer_id,
+        user_type: 'buyer',
+        transaction_id: transaction.id,
+        amount: overpayment,
+        type: 'overpayment',
+        description: `Buyer overpayment for transaction #${transaction.id}`
+      });
+    }
+    
+    if (farmer_paid > farmer_should_get) {
+      const overpayment = farmer_paid - farmer_should_get;
+      await createSettlement({
+        shop_id: validated.shop_id,
+        user_id: validated.farmer_id,
+        user_type: 'farmer',
+        transaction_id: transaction.id,
+        amount: overpayment,
+        type: 'overpayment',
+        description: `Farmer advance payment for transaction #${transaction.id}`
+      });
+    }
+    
     console.log('Transaction created successfully:', transaction?.id);
     return transaction;
   } catch (error) {

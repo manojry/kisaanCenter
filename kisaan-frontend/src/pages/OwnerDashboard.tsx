@@ -17,6 +17,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import AddUserDialog from '../components/AddUserDialog';
+import { formatCurrency, formatNumber } from '../lib/formatters';
 import CreateTransactionDialog from '../components/CreateTransactionDialog';
 import TransactionsList from '../components/TransactionsList';
 import UsersManagement from '../components/UsersManagement';
@@ -114,39 +115,39 @@ export default function OwnerDashboard() {
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="mb-6 md:mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+        <div className="flex flex-row items-center justify-between gap-2 w-full">
+          <div className="flex flex-col flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2 min-w-0">
               <span>KisaanCenter</span>
               <span>/</span>
               <span className="truncate">{shop?.name || 'Owner Dashboard'}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold truncate">{shop?.name || 'Dashboard'}</h1>
-            <p className="text-muted-foreground text-sm md:text-base">
+            <p className="text-muted-foreground text-sm md:text-base truncate">
               {shop?.address || 'Complete shop management - transactions, users, products & reports'}
             </p>
           </div>
           <Button 
             onClick={() => window.location.href = '/new-transaction'}
-            size="lg"
-            className="bg-green-600 hover:bg-green-700 w-full md:w-auto"
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 px-3 py-2 text-sm flex items-center whitespace-nowrap ml-2"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Record Sale
+            <Plus className="h-4 w-4 mr-1" />
+            <span className="truncate">Record Sale</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4 mb-6 md:mb-8">
+  <div className="grid gap-2 md:gap-4 grid-cols-2 lg:grid-cols-4 mb-4 md:mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+            <CardTitle className="text-xs font-medium">Total Sales</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{stats.total_sales.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg font-bold">{formatCurrency(stats.total_sales)}</div>
+            <p className="text-[11px] text-muted-foreground">
               {stats.total_transactions} transactions
             </p>
           </CardContent>
@@ -154,12 +155,12 @@ export default function OwnerDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Commission Earned</CardTitle>
+            <CardTitle className="text-xs font-medium">Commission Earned</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{stats.total_commission.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg font-bold">{formatCurrency(stats.total_commission)}</div>
+            <p className="text-[11px] text-muted-foreground">
               From all transactions
             </p>
           </CardContent>
@@ -167,12 +168,12 @@ export default function OwnerDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+            <CardTitle className="text-xs font-medium">Outstanding</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{stats.total_deficit.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg font-bold">{formatCurrency(stats.total_deficit)}</div>
+            <p className="text-[11px] text-muted-foreground">
               To be collected
             </p>
           </CardContent>
@@ -180,12 +181,12 @@ export default function OwnerDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Users</CardTitle>
+            <CardTitle className="text-xs font-medium">Users</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_users}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg font-bold">{formatNumber(stats.total_users)}</div>
+            <p className="text-[11px] text-muted-foreground">
               {stats.farmers_count} farmers, {stats.buyers_count} buyers
             </p>
           </CardContent>
