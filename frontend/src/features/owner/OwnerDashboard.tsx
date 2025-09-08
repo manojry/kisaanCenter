@@ -50,17 +50,13 @@ const OwnerDashboard: React.FC = () => {
 
   const fetchOwnerShopInfo = async () => {
     console.log('dashboard --->', user);
-    if (!user?.shop_id || !user?.id) return; // Only fetch if both are set
+    if (!user?.shop_id || !user?.id) return;
     try {
-      // Send owner id as query param for backend to validate ownership
-      const shopRes = await fetch(`/shops/${user.shop_id}?owner_id=${user.id}`);
-      if (shopRes.ok) {
-        const shopData = await shopRes.json();
-        setShopInfo(shopData?.data || null);
-      } else {
-        setShopInfo(null);
-      }
+      const { apiClient } = await import('@/services/api');
+      const shopRes = await apiClient.get(`/shops/${user.shop_id}`);
+      setShopInfo(shopRes.data || null);
     } catch (err) {
+      console.error('Failed to fetch shop info:', err);
       setShopInfo(null);
     }
   };
@@ -71,36 +67,44 @@ const OwnerDashboard: React.FC = () => {
   }, [])
 
   const fetchOwnerDashboardData = async () => {
-    if (!user?.shop_id) return;
+    if (!user?.shop_id) {
+      console.log('No shop_id found for user:', user);
+      return;
+    }
     try {
       setLoading('dashboard', true);
       const shopId = String(user.shop_id);
+      console.log('Fetching dashboard data for shop_id:', shopId);
       const dashboardRes = await dashboardApi.getShopDashboard(shopId);
+      console.log('Dashboard API response:', dashboardRes);
       const d = dashboardRes.data as any || {};
+      console.log('Dashboard data:', d);
       
-      // Use the new dashboard endpoint structure
-      setStats({
-        todayRevenue: d.financial_summary?.today_sales || 0,
-        monthlyRevenue: d.financial_summary?.total_sales || 0,
-        totalCommission: d.financial_summary?.total_commission || 0,
-        pendingCredits: 0,
+      // Handle analytics response structure
+      const newStats = {
+        todayRevenue: d.total_sales || 0,
+        monthlyRevenue: d.total_sales || 0,
+        totalCommission: d.total_commission || 0,
+        pendingCredits: d.credit_count || 0,
         pendingBuyerPayments: 0,
         pendingFarmerPayments: 0,
         pendingCommissionConfirmations: 0,
-        completedTransactions: d.overview?.total_transactions || 0,
-        activeStock: d.overview?.total_products || 0,
-        totalFarmers: d.users_by_role?.farmer || 0,
-        totalBuyers: d.users_by_role?.buyer || 0,
-        totalEmployees: d.users_by_role?.employee || 0
-      });
+        completedTransactions: d.completed_count || 0,
+        activeStock: 0,
+        totalFarmers: 0,
+        totalBuyers: 0,
+        totalEmployees: 0
+      };
+      console.log('Setting stats:', newStats);
+      setStats(newStats);
       setLastUpdated(new Date());
     } catch (error) {
+      console.error('Dashboard API error:', error);
       addNotification({
         type: 'error',
         title: 'Dashboard Error',
         message: 'Failed to load dashboard data. Please refresh the page.'
       });
-      console.error('Failed to fetch owner dashboard data:', error);
     } finally {
       setLoading('dashboard', false);
       setLoadingState(false);

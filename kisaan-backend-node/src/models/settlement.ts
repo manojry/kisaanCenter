@@ -1,14 +1,15 @@
 import { DataTypes, Model } from 'sequelize';
-import { sequelize } from '../config/database';
+import sequelize from '../config/database';
 
 export class Settlement extends Model {
+  static associate?: (models: any) => void;
   public id!: number;
   public shop_id!: number;
   public user_id!: string;
   public user_type!: 'farmer' | 'buyer';
   public transaction_id?: number;
   public amount!: number;
-  public type!: 'overpayment' | 'underpayment' | 'settlement' | 'expense';
+  public type!: 'overpayment' | 'underpayment' | 'settlement' | 'expense' | 'payment_received' | 'payment_made';
   public description!: string;
   public status!: 'pending' | 'settled';
   public settled_amount!: number;
@@ -45,7 +46,7 @@ Settlement.init({
     allowNull: false,
   },
   type: {
-    type: DataTypes.ENUM('overpayment', 'underpayment', 'settlement', 'expense'),
+    type: DataTypes.ENUM('overpayment', 'underpayment', 'settlement', 'expense', 'payment_received', 'payment_made'),
     allowNull: false,
   },
   description: {

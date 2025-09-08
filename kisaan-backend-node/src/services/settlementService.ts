@@ -8,7 +8,7 @@ export const createSettlement = async (data: {
   user_type: 'farmer' | 'buyer';
   transaction_id?: number;
   amount: number;
-  type: 'overpayment' | 'underpayment' | 'settlement' | 'expense';
+  type: 'overpayment' | 'underpayment' | 'settlement' | 'expense' | 'payment_received' | 'payment_made';
   description: string;
 }) => {
   const settlement = await Settlement.create({

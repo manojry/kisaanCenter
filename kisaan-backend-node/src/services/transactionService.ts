@@ -166,32 +166,24 @@ export const getTransactions = async (filters: {
 }
 
 export const createTransaction = async (data: any) => {
-  // Accept both farmer_id and seller_id for compatibility
   const input = { ...data };
   if (!input.farmer_id && input.seller_id) {
     input.farmer_id = input.seller_id;
   }
 
-  // Debug log input
-  console.log('createTransaction called with input:', input);
-
-  // Try validation first, but handle failure gracefully
   const validationResult = TransactionSchema.safeParse(input);
   let validated;
   
   if (validationResult.success) {
     validated = validationResult.data;
-    console.log('✅ Schema validation successful');
   } else {
-    console.log('❌ Schema validation failed:', validationResult.error.issues);
-    // Use input directly but ensure proper type conversion
     validated = {
       ...input,
       shop_id: parseInt(input.shop_id),
       farmer_id: input.farmer_id?.toString(),
       buyer_id: input.buyer_id?.toString(),
       product_id: parseInt(input.product_id),
-      quantity: parseInt(input.quantity),
+      quantity: parseFloat(input.quantity),
       price: parseFloat(input.price),
       total: input.total ? parseFloat(input.total) : undefined,
       commission_rate: input.commission_rate ? parseFloat(input.commission_rate) : undefined,
@@ -200,15 +192,12 @@ export const createTransaction = async (data: any) => {
       buyer_paid: input.buyer_paid ? parseFloat(input.buyer_paid) : 0,
     };
   }
-  
-  console.log('Validated transaction input:', validated);
 
-  // Ensure farmer_id is not null or undefined
   if (!validated.farmer_id) {
     throw new Error('farmer_id is required and cannot be null or undefined');
   }
 
-  // Get commission rate from shop (default 10% if not found)
+  // Get commission rate from shop
   let commission_rate = validated.commission_rate || 10.0;
   try {
     const shop = await Shop.findByPk(validated.shop_id);
@@ -216,7 +205,7 @@ export const createTransaction = async (data: any) => {
       commission_rate = shop.commission_rate;
     }
   } catch (error) {
-    console.log('Could not fetch shop commission rate, using default', error);
+    console.log('Could not fetch shop commission rate, using default');
   }
 
   // Calculate amounts
@@ -226,17 +215,6 @@ export const createTransaction = async (data: any) => {
   const buyer_paid = validated.buyer_paid || 0;
   const deficit = total - buyer_paid;
   
-  // Validation: Check for reasonable payment amounts
-  const farmer_should_get = total - commission_amount;
-  
-  if (farmer_paid > total) {
-    console.warn(`⚠️ Farmer paid (${farmer_paid}) exceeds total transaction amount (${total})`);
-  }
-  
-  if (farmer_paid > farmer_should_get && buyer_paid >= total) {
-    console.warn(`⚠️ Farmer paid (${farmer_paid}) exceeds expected amount (${farmer_should_get})`);
-  }
-
   // Calculate status based on transaction logic
   let status = validated.status;
   if (!status) {
@@ -245,9 +223,8 @@ export const createTransaction = async (data: any) => {
     if (buyer_paid === 0) {
       status = 'credit';
     } else if (buyer_paid >= total) {
-      // Buyer has paid full amount or more
       if (farmer_paid >= farmer_should_get) {
-        status = 'paid';
+        status = 'completed';
       } else {
         status = 'farmer_due';
       }
@@ -258,21 +235,7 @@ export const createTransaction = async (data: any) => {
     }
   }
 
-  // Debug log calculated values
-  console.log('Transaction calculated values:', {
-    total,
-    commission_rate,
-    commission_amount,
-    farmer_paid,
-    buyer_paid,
-    deficit,
-    status,
-    farmer_should_get: total - commission_amount,
-    farmer_id_final: validated.farmer_id
-  });
-
   try {
-    // Create transaction
     const transaction = await Transaction.create({
       shop_id: validated.shop_id,
       farmer_id: validated.farmer_id,
@@ -280,6 +243,7 @@ export const createTransaction = async (data: any) => {
       product_id: validated.product_id,
       quantity: validated.quantity,
       price: validated.price,
+      type: validated.type || 'sale',
       transaction_date: validated.transaction_date ? new Date(validated.transaction_date) : new Date(),
       total,
       commission_rate,
@@ -288,9 +252,13 @@ export const createTransaction = async (data: any) => {
       buyer_paid,
       deficit,
       status,
+      payment_method: validated.payment_method,
+      notes: validated.notes
     });
     
     // Handle overpayments by creating settlements
+    const farmer_should_get = total - commission_amount;
+    
     if (buyer_paid > total) {
       const overpayment = buyer_paid - total;
       await createSettlement({
@@ -317,7 +285,6 @@ export const createTransaction = async (data: any) => {
       });
     }
     
-    console.log('Transaction created successfully:', transaction?.id);
     return transaction;
   } catch (error) {
     console.error('Error creating transaction:', error);
@@ -325,5 +292,155 @@ export const createTransaction = async (data: any) => {
   }
 };
 
-  // TODO: Implement get transaction by id
+export const updateTransaction = async (id: number, data: any) => {
+  try {
+    const transaction = await Transaction.findByPk(id);
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    // Recalculate amounts if price or quantity changed
+    if (data.price || data.quantity) {
+      const price = data.price || transaction.price;
+      const quantity = data.quantity || transaction.quantity;
+      const total = price * quantity;
+      const commission_amount = total * (transaction.commission_rate || 10) / 100;
+      const deficit = total - (data.buyer_paid || transaction.buyer_paid);
+      
+      data.total = total;
+      data.commission_amount = commission_amount;
+      data.deficit = deficit;
+    }
+
+    await transaction.update(data);
+    return transaction;
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    throw error;
+  }
+};
+
+export const updatePayment = async (id: number, paymentType: 'buyer' | 'farmer', amount: number, paymentMethod?: string) => {
+  try {
+    const transaction = await Transaction.findByPk(id);
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    const updateData: any = { payment_method: paymentMethod };
+    
+    if (paymentType === 'buyer') {
+      updateData.buyer_paid = amount;
+      updateData.deficit = transaction.total - amount;
+    } else {
+      updateData.farmer_paid = amount;
+    }
+
+    // Recalculate status
+    const farmer_should_get = transaction.total - (transaction.commission_amount || 0);
+  const buyer_paid = paymentType === 'buyer' ? amount : (transaction.buyer_paid ?? 0);
+  const farmer_paid = paymentType === 'farmer' ? amount : (transaction.farmer_paid ?? 0);
+
+    if (buyer_paid === 0) {
+      updateData.status = 'credit';
+    } else if (buyer_paid >= transaction.total) {
+      if (farmer_paid >= farmer_should_get) {
+        updateData.status = 'completed';
+      } else {
+        updateData.status = 'farmer_due';
+      }
+    } else if (buyer_paid > 0 && buyer_paid < transaction.total) {
+      updateData.status = 'partial';
+    }
+
+    await transaction.update(updateData);
+    return transaction;
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    throw error;
+  }
+};
+
+export const getTransactionById = async (id: number) => {
+  try {
+    const { User } = await import('../models/user');
+    const { Product } = await import('../models/product');
+    const { Shop } = await import('../models/shop');
+
+    const transaction = await Transaction.findByPk(id, {
+      include: [
+        { model: User, as: 'buyer', attributes: ['id', 'username'] },
+        { model: User, as: 'farmer', attributes: ['id', 'username'] },
+        { model: Product, as: 'product', attributes: ['id', 'name'] },
+        { model: Shop, as: 'shop', attributes: ['id', 'name'] }
+      ]
+    });
+
+    return transaction;
+  } catch (error) {
+    console.error('Error fetching transaction by ID:', error);
+    throw error;
+  }
+};
+
+export const deleteTransaction = async (id: number) => {
+  try {
+    const transaction = await Transaction.findByPk(id);
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+
+    if (transaction.status !== 'pending') {
+      throw new Error('Only pending transactions can be deleted');
+    }
+
+    await transaction.destroy();
+    return true;
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    throw error;
+  }
+};
+
+export const getAnalyticsSummary = async (shopId?: number, dateFrom?: string, dateTo?: string) => {
+  try {
+    const where: any = {};
+    if (shopId) where.shop_id = shopId;
+    if (dateFrom && dateTo) {
+      where.transaction_date = {
+        [Op.gte]: new Date(dateFrom),
+        [Op.lte]: new Date(dateTo)
+      };
+    }
+
+    const transactions = await Transaction.findAll({ where });
+    
+    const summary = {
+      total_transactions: transactions.length,
+      total_sales: transactions.reduce((sum, t) => sum + parseFloat(t.total.toString()), 0),
+      total_commission: transactions.reduce((sum, t) => sum + parseFloat(t.commission_amount?.toString() || '0'), 0),
+      pending_count: transactions.filter(t => t.status === 'pending').length,
+      completed_count: transactions.filter(t => t.status === 'completed').length,
+      credit_count: transactions.filter(t => t.status === 'credit').length,
+      partial_count: transactions.filter(t => t.status === 'partial').length,
+      farmer_due_count: transactions.filter(t => t.status === 'farmer_due').length,
+      cancelled_count: transactions.filter(t => t.status === 'cancelled').length,
+      by_type: transactions.reduce((acc: any, t) => {
+        acc[t.type] = (acc[t.type] || 0) + 1;
+        return acc;
+      }, {}),
+      revenue_by_type: transactions.reduce((acc: any, t) => {
+        acc[t.type] = (acc[t.type] || 0) + parseFloat(t.total.toString());
+        return acc;
+      }, {})
+    };
+
+    return summary;
+  } catch (error) {
+    console.error('Error getting analytics summary:', error);
+    throw error;
+  }
+};
+
+
 

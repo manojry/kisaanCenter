@@ -48,8 +48,9 @@ export const getUsers = async (
       return;
     }
 
-  const result = await userService.getAllUsers(parsed.data, req.user);
-  res.json({ message: 'Users retrieved successfully', ...result });
+  const includeBalance = req.query.include_balance === 'true';
+  const result = await userService.getAllUsers(parsed.data, req.user, includeBalance);
+  res.json({ success: true, data: result.users, ...result });
   } catch (err: any) {
     next(err);
   }

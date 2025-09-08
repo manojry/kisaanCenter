@@ -8,8 +8,8 @@ export const getDashboardStats = async () => {
 
 export const dashboardApi = {
   getShopDashboard: async (shopId: string): Promise<APIResponse<ShopDashboardData>> => {
-    // Use the new comprehensive dashboard endpoint
-    return apiClient.get(`/shops/${shopId}/dashboard`);
+    // Use simple analytics endpoint without path parameters
+    return apiClient.get(`/transactions/analytics?shop_id=${shopId}`);
   },
   getShopDashboardSummary: async (shopId: string): Promise<APIResponse<DashboardSummary>> => {
     // Use owner-admin endpoint for summary data

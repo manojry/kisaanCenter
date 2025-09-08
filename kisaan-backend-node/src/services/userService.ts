@@ -56,7 +56,8 @@ export const createUser = async (
 
 export const getAllUsers = async (
   searchParams: UserSearch,
-  requestingUser: { id: number; role: UserRole; owner_id?: string | null }
+  requestingUser: { id: number; role: UserRole; owner_id?: string | null },
+  includeBalance: boolean = false
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   const where: any = {};
   if (requestingUser.role === 'owner' && requestingUser.owner_id) {
@@ -74,7 +75,7 @@ export const getAllUsers = async (
     limit: searchParams.limit,
     offset,
     order: [['created_at', 'DESC']],
-    attributes: { exclude: ['password'] },
+    attributes: includeBalance ? { exclude: ['password'] } : { exclude: ['password', 'balance'] },
   });
   const users = rows.map(model => toUserDTO(fromUserModel(model)));
   return { users, total: count, page: searchParams.page, limit: searchParams.limit };

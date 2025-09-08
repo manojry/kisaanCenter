@@ -18,6 +18,7 @@ import { shopCategoryRoutes } from './routes/shopCategoryRoutes';
 import { transactionRoutes } from './routes/transactionRoutes';
 import { paymentRoutes } from './routes/paymentRoutes';
 import { creditAdvanceRoutes } from './routes/creditAdvanceRoutes';
+import { balanceRoutes } from './routes/balanceRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import { productRoutes } from './routes/productRoutes';
@@ -119,9 +120,18 @@ app.use('/api/shops', shopRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/shop-categories', shopCategoryRoutes);
-app.use('/api/transactions', transactionRoutes);
+
+console.log('🔧 Registering transaction routes...');
+try {
+  app.use('/api/transactions', transactionRoutes);
+  console.log('🔧 Transaction routes registered successfully');
+} catch (error) {
+  console.error('❌ Error registering transaction routes:', error);
+}
+
 app.use('/api/payments', paymentRoutes);
 app.use('/api/credits', creditAdvanceRoutes);
+// app.use('/api/balance', balanceRoutes); // Temporarily disabled
 app.use('/api/reports', reportRoutes);
 app.use('/api/settlements', settlementRoutes);
 

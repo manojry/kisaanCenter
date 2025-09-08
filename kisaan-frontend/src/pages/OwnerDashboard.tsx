@@ -80,17 +80,21 @@ export default function OwnerDashboard() {
       const transactionsData = transactionsRes?.data || [];
       const analytics = transactionsRes?.analytics || {};
       
-      // Use analytics data for stats
+      // Calculate clear business metrics
       const totalSales = analytics.total_sales || 0;
       const totalCommission = analytics.total_commission || 0;
-      const totalDeficit = analytics.total_deficit || 0;
+      const pendingCollections = transactionsData.filter((t: any) => ['credit', 'partial'].includes(t.status))
+        .reduce((sum: number, t: any) => sum + (t.total - t.buyer_paid), 0);
+      const farmerPaymentsDue = transactionsData.filter((t: any) => t.status === 'farmer_due')
+        .reduce((sum: number, t: any) => sum + (t.total - t.commission_amount - t.farmer_paid), 0);
 
       setStats({
         total_users: users.length,
         total_transactions: analytics.total_transactions || transactionsData.length,
         total_sales: totalSales,
         total_commission: totalCommission,
-        total_deficit: totalDeficit,
+        total_deficit: pendingCollections,
+        pending_farmer_payments: farmerPaymentsDue,
         farmers_count: users.filter((u: any) => u.role === 'farmer').length,
         buyers_count: users.filter((u: any) => u.role === 'buyer').length
       });
@@ -168,26 +172,26 @@ export default function OwnerDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium">Outstanding</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium">To Collect</CardTitle>
+            <AlertCircle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{formatCurrency(stats.total_deficit)}</div>
+            <div className="text-lg font-bold text-orange-600">{formatCurrency(stats.total_deficit)}</div>
             <p className="text-[11px] text-muted-foreground">
-              To be collected
+              From buyers (pending)
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium">Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs font-medium">To Pay Farmers</CardTitle>
+            <Users className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{formatNumber(stats.total_users)}</div>
+            <div className="text-lg font-bold text-red-600">{formatCurrency(stats.pending_farmer_payments || 0)}</div>
             <p className="text-[11px] text-muted-foreground">
-              {stats.farmers_count} farmers, {stats.buyers_count} buyers
+              Farmer payments due
             </p>
           </CardContent>
         </Card>

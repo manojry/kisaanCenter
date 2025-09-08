@@ -10,7 +10,7 @@ import { Transaction } from './transaction';
 import { Payment } from './payment';
 import { CreditAdvance } from './creditAdvance';
 import { ShopProducts } from './shopProducts';
-import { Settlement } from './settlement';
+// import { Settlement } from './settlement';
 
 // Initialize all models
 const models = {
@@ -24,7 +24,7 @@ const models = {
   ShopProducts,
   Payment,
   CreditAdvance,
-  Settlement,
+  // Settlement,
 };
 
 
@@ -63,5 +63,5 @@ Transaction.belongsTo(User, { foreignKey: 'buyer_id', targetKey: 'owner_id', as:
 Transaction.belongsTo(User, { foreignKey: 'farmer_id', targetKey: 'owner_id', as: 'farmer' });
 Transaction.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 
-export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance, ShopProducts, Settlement };
+export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance, ShopProducts };
 export default models;

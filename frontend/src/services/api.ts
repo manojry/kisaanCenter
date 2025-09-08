@@ -9,7 +9,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:8000/api/v1',
+      baseURL: process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3000/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

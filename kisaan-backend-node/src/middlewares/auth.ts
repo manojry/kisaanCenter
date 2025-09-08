@@ -13,6 +13,7 @@ export interface AuthenticatedRequest extends Request {
     username: string;
     role: UserRole;
     owner_id?: string | null;
+    shop_id?: number | null;
   };
 }
 
@@ -33,7 +34,13 @@ export const authenticateToken = async (
       return;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+    const decoded = jwt.verify(token, JWT_SECRET) as { 
+      id: number; 
+      username: string; 
+      role: UserRole; 
+      owner_id?: string | null;
+      shop_id?: number | null;
+    };
     // Fetch fresh user data to ensure user still exists and is active
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] },
@@ -50,6 +57,7 @@ export const authenticateToken = async (
       username: user.username,
       role: user.role as UserRole,
       owner_id: user.owner_id,
+      shop_id: user.shop_id,
     };
 
     next();
@@ -160,12 +168,19 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
   if (token) {
     try {
       const secret = process.env.JWT_SECRET || 'supersecret';
-      const decoded = jwt.verify(token, secret) as { id: number; username: string; role: UserRole; owner_id?: string | null };
+      const decoded = jwt.verify(token, secret) as { 
+        id: number; 
+        username: string; 
+        role: UserRole; 
+        owner_id?: string | null;
+        shop_id?: number | null;
+      };
       req.user = {
         id: decoded.id,
         username: decoded.username,
         role: decoded.role,
         owner_id: decoded.owner_id,
+        shop_id: decoded.shop_id,
       };
     } catch (error) {
       // Token is invalid, but we continue without user

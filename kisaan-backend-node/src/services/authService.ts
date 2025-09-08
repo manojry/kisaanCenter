@@ -11,9 +11,24 @@ export async function loginUser({ username, password }: LoginInput) {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw { status: 401, message: 'Invalid username or password' };
   const token = jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { 
+      id: user.id, 
+      username: user.username, 
+      role: user.role,
+      owner_id: user.owner_id,
+      shop_id: user.shop_id
+    },
     JWT_SECRET,
     { expiresIn: '1d' }
   );
-  return { token, user: { id: user.id, username: user.username, role: user.role } };
+  return { 
+    token, 
+    user: { 
+      id: user.id, 
+      username: user.username, 
+      role: user.role,
+      owner_id: user.owner_id,
+      shop_id: user.shop_id
+    } 
+  };
 }

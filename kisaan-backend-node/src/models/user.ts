@@ -11,6 +11,7 @@ export interface UserAttributes {
   contact?: string | null;
   email?: string | null;
   status: 'active' | 'inactive';
+  balance?: number;
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
@@ -28,6 +29,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public contact!: string | null;
   public email!: string | null;
   public status!: 'active' | 'inactive';
+  public balance?: number;
   public created_by!: number | null;
   public created_at!: Date;
   public updated_at!: Date;
@@ -75,6 +77,11 @@ User.init(
       type: DataTypes.ENUM('active', 'inactive'),
       allowNull: false,
       defaultValue: 'active',
+    },
+    balance: {
+      type: DataTypes.DECIMAL(12,2),
+      allowNull: false,
+      defaultValue: 0.00,
     },
     created_by: {
   type: DataTypes.INTEGER,
