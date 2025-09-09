@@ -16,4 +16,8 @@ router.put('/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentCont
 router.get('/transaction/:transactionId', paymentController.getPaymentsByTransaction.bind(paymentController));
 router.get('/outstanding', paymentController.getOutstandingPayments.bind(paymentController));
 
+// Farmer and buyer reporting endpoints (for direct access via /payments)
+router.get('/farmers/:farmerId', paymentController.getPaymentsToFarmer.bind(paymentController));
+router.get('/buyers/:buyerId', paymentController.getPaymentsByBuyer.bind(paymentController));
+
 export { router as paymentRoutes };

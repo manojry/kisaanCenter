@@ -9,12 +9,28 @@ import { Op } from 'sequelize';
 import { CreateTransactionDTO, TransactionResponseDTO, TransactionSummaryDTO } from '../dtos';
 
 export class TransactionService {
+  /**
+   * Get all transactions for a buyer, with optional date filtering and aggregation
+   */
+  async getTransactionsByBuyer(buyerId: number, filters?: { startDate?: Date; endDate?: Date }): Promise<TransactionResponseDTO[]> {
+    const where: any = { buyer_id: buyerId };
+    if (filters?.startDate && filters?.endDate) {
+      where.created_at = {
+        [Op.between]: [filters.startDate, filters.endDate]
+      };
+    }
+    const transactions = await Transaction.findAll({
+      where,
+      include: [
+        { model: User, as: 'farmer' },
+        { model: User, as: 'buyer' },
+        { model: Category, as: 'category' }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    return transactions.map(t => t.toJSON() as TransactionResponseDTO);
+  }
   async createTransaction(data: CreateTransactionDTO, userId: number): Promise<TransactionResponseDTO> {
-  // After transaction is created and variables are defined
-  // Farmer's balance increases by earning
-  await User.increment({ balance: farmerEarning }, { where: { id: data.farmer_id } });
-  // Buyer's balance decreases by total sale value
-  await User.increment({ balance: -totalSaleValue }, { where: { id: data.buyer_id } });
     // Defensive: Validate all referenced entities exist
     const shop = await Shop.findByPk(data.shop_id);
     if (!shop) throw new Error(`Shop with id ${data.shop_id} does not exist`);
@@ -44,6 +60,16 @@ export class TransactionService {
 
     if (!transaction || !transaction.id) {
       throw new Error('Transaction creation failed: No valid transaction ID returned');
+    }
+
+    // After transaction is created and variables are defined
+    // Farmer's balance increases by earning
+    await User.increment({ balance: farmerEarning, cumulative_value: farmerEarning }, { where: { id: data.farmer_id } });
+    // Buyer's balance decreases by total sale value
+    await User.increment({ balance: -totalSaleValue, cumulative_value: totalSaleValue }, { where: { id: data.buyer_id } });
+    // Owner/shop cumulative_value increases by commission (if owner exists)
+    if (shop && shop.owner_id) {
+      await User.increment({ cumulative_value: shopCommission }, { where: { id: shop.owner_id } });
     }
 
     // Create audit log

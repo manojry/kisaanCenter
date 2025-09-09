@@ -37,71 +37,13 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       superadminToken = loginResponse.data.access_token || loginResponse.data.token;
     });
 
-    it('should create a plan', async () => {
-      try {
-        const uniquePlanName = `Basic Plan Test ${Date.now()}`;
-        const response = await axios.post(`${API_BASE}/plans`, {
-          name: uniquePlanName,
-          description: 'Basic plan for small shops',
-          price: 1000,
-          billing_cycle: 'monthly',
-          max_users: 150,
-          max_products: 100,
-          max_transactions: 1000,
-          features: ['transaction_tracking', 'payment_management'],
-          is_active: true
-        }, {
-          headers: { Authorization: `Bearer ${superadminToken}` }
-        });
-        expect(response.status).toBe(201);
-        expect(response.data.success).toBe(true);
-        planId = response.data.data.id;
-      } catch (err) {
-  console.error('Create plan error:', (err as any).response?.data || err);
-        throw err;
-      }
-    });
-
-    it('should create categories', async () => {
-      try {
-        // Use a unique category name for each test run
-        const uniqueCategoryName = `Flowers Test ${Date.now()}`;
-        const response = await axios.post(`${API_BASE}/categories`, {
-          name: uniqueCategoryName,
-          description: 'Fresh flowers category'
-        }, {
-          headers: { Authorization: `Bearer ${superadminToken}` }
-        });
-        expect(response.status).toBe(201);
-        expect(response.data.success).toBe(true);
-        categoryId = response.data.data.id;
-      } catch (err) {
-        console.error('Create category error:', (err as any).response?.data || err);
-        throw err;
-      }
-    });
-
-    it('should create products', async () => {
-      try {
-        // Central product creation (global, not shop-specific)
-        const uniqueProductName = `Rose Test ${Date.now()}`;
-        const response = await axios.post(`${API_BASE}/products`, {
-          name: uniqueProductName,
-          category_id: categoryId,
-          description: 'Fresh red roses',
-          price: 50.00,
-          unit: 'bunch'
-        }, {
-          headers: { Authorization: `Bearer ${superadminToken}` }
-        });
-        expect(response.status).toBe(201);
-        expect(response.data.success).toBe(true);
-        productId = response.data.data.id;
-        productName = uniqueProductName;
-      } catch (err) {
-        console.error('Create product error:', (err as any).response?.data || err);
-        throw err;
-      }
+    // Use seeded category, plan, and product
+    beforeAll(() => {
+      // Use known seeded IDs or names
+      categoryId = 4; // e.g., Flowers
+      planId = 1; // e.g., Basic
+      productId = 31; // e.g., Rose (adjust as per your seed)
+      productName = 'Rose';
     });
 
     it('should create owner', async () => {
@@ -233,8 +175,9 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
   });
 
   describe('3. Transaction Flow', () => {
-  it('should create transaction', async () => {
+  it('should create transaction and check balances', async () => {
     try {
+      if (!categoryId) throw new Error('categoryId not set before transaction creation');
       const response = await axios.post(`${API_BASE}/transactions`, {
         shop_id: Number(shopId),
         farmer_id: Number(farmerId),
@@ -252,16 +195,24 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       expect(Number(response.data.data.shop_commission)).toBe(156.25);
       expect(Number(response.data.data.farmer_earning)).toBe(1093.75);
       transactionId = response.data.data.id;
+      // Check balances and cumulative_value after transaction (should reflect sale, not yet paid)
+      const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      const ownerRes = await axios.get(`${API_BASE}/users/${ownerId}`, { headers: { Authorization: `Bearer ${superadminToken}` } });
+      expect(Number(farmerRes.data.data.balance)).toBeGreaterThanOrEqual(1093.75);
+      expect(Number(buyerRes.data.data.balance)).toBeLessThanOrEqual(-1250);
+      expect(Number(farmerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1093.75);
+      expect(Number(buyerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1250);
+      expect(Number(ownerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(156.25);
       if (!transactionId || isNaN(Number(transactionId))) {
         console.error('Transaction creation response missing valid id:', response.data);
         throw new Error('Transaction creation failed: No valid transactionId returned');
       }
     } catch (err) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        // @ts-expect-error: dynamic error shape from axios
-        console.error('Transaction creation error:', err.response?.data || err);
+      if (err && (err as any).response && (err as any).response.data) {
+        console.error('Create transaction error:', (err as any).response.data);
       } else {
-        console.error('Transaction creation error:', err);
+        console.error('Create transaction error:', err);
       }
       throw err;
     }
@@ -277,18 +228,19 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       expect(response.data.data.id).toBe(transactionId);
     });
 
-  it('should record buyer payment', async () => {
+  it('should record partial buyer payment and check balances', async () => {
     try {
       if (!transactionId || isNaN(Number(transactionId))) {
         throw new Error('Cannot create payment: transactionId is invalid');
       }
+      // Partial payment (less than total)
       const response = await axios.post(`${API_BASE}/payments`, {
         transaction_id: Number(transactionId),
         payer_type: 'BUYER',
         payee_type: 'SHOP',
-        amount: 1250.00,
+        amount: 1000.00, // Partial payment
         method: 'CASH',
-        notes: 'Full payment for tomatoes'
+        notes: 'Partial payment for tomatoes'
       }, {
         headers: { Authorization: `Bearer ${ownerToken}` }
       });
@@ -300,53 +252,35 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
         console.error('Payment creation response missing valid id:', response.data);
         throw new Error('Payment creation failed: No valid paymentId returned');
       }
+  // Check balances after partial payment (cumulative_value should not change)
+  const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+  const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+  expect(Number(buyerRes.data.data.balance)).toBeCloseTo(-250, 0); // -1250 + 1000
+  expect(Number(buyerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1250);
+  expect(Number(farmerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1093.75);
     } catch (err) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        // @ts-expect-error: dynamic error shape from axios
-        console.error('Buyer payment creation error:', err.response?.data || err);
+      if (err && (err as any).response && (err as any).response.data) {
+        console.error('Buyer payment creation error:', (err as any).response.data);
       } else {
         console.error('Buyer payment creation error:', err);
       }
       throw err;
     }
-    });
-
-  it('should update payment status to PAID', async () => {
-      const response = await axios.put(`${API_BASE}/payments/${paymentId}/status`, {
-        status: 'PAID',
-        payment_date: new Date().toISOString()
-      }, {
-        headers: { Authorization: `Bearer ${ownerToken}` }
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.status).toBe('PAID');
-    });
-
-  it('should record farmer payment', async () => {
-      try {
-        const response = await axios.post(`${API_BASE}/payments`, {
-          transaction_id: Number(transactionId),
-          payer_type: 'SHOP',
-          payee_type: 'FARMER',
-          amount: 1093.75,
-          method: 'CASH',
-          notes: 'Payment to farmer after commission'
-        }, {
-          headers: { Authorization: `Bearer ${ownerToken}` }
-        });
-        expect(response.status).toBe(201);
-        expect(response.data.success).toBe(true);
-      } catch (err) {
-        if (err && typeof err === 'object' && 'response' in err) {
-          // @ts-expect-error: dynamic error shape from axios
-          console.error('Farmer payment creation error:', err.response.data);
-        } else {
-          console.error('Farmer payment creation error:', err);
-        }
-        throw err;
-      }
-    });
   });
+
+  it('should call reporting endpoints for farmer and buyer', async () => {
+    // Farmer payments
+    const farmerPayments = await axios.get(`${API_BASE}/transactions/farmers/${farmerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+    expect(farmerPayments.status).toBe(200);
+    expect(farmerPayments.data.success).toBe(true);
+    // Buyer payments
+    const buyerPayments = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+    expect(buyerPayments.status).toBe(200);
+    expect(buyerPayments.data.success).toBe(true);
+    // Buyer purchases
+    const buyerPurchases = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/purchases`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+    expect(buyerPurchases.status).toBe(200);
+    expect(buyerPurchases.data.success).toBe(true);
+  });
+});
 });

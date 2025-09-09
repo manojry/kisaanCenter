@@ -4,6 +4,45 @@ import { validationResult } from 'express-validator';
 import { CreatePaymentDTO, UpdatePaymentStatusDTO } from '../dtos';
 
 export class PaymentController {
+  /**
+   * GET /farmers/:farmerId/payments - All payments to a farmer, with optional date filtering and aggregation
+   */
+  async getPaymentsToFarmer(req: Request, res: Response) {
+    try {
+      const { farmerId } = req.params;
+      const { startDate, endDate } = req.query;
+      const options: any = {};
+      if (startDate && endDate) {
+        options.startDate = new Date(startDate as string);
+        options.endDate = new Date(endDate as string);
+      }
+      const result = await this.paymentService.getPaymentsToFarmer(Number(farmerId), options);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error fetching payments to farmer:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch payments to farmer', error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
+
+  /**
+   * GET /buyers/:buyerId/payments - All payments by a buyer, with optional date filtering and aggregation
+   */
+  async getPaymentsByBuyer(req: Request, res: Response) {
+    try {
+      const { buyerId } = req.params;
+      const { startDate, endDate } = req.query;
+      const options: any = {};
+      if (startDate && endDate) {
+        options.startDate = new Date(startDate as string);
+        options.endDate = new Date(endDate as string);
+      }
+      const result = await this.paymentService.getPaymentsByBuyer(Number(buyerId), options);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error fetching payments by buyer:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch payments by buyer', error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
   private paymentService = new PaymentService();
 
   async createPayment(req: Request, res: Response) {

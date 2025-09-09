@@ -3,6 +3,28 @@ import { TransactionService } from '../services/transactionService';
 import { CreateTransactionDTO } from '../dtos';
 
 export class TransactionController {
+  /**
+   * GET /buyers/:buyerId/purchases - All transactions for a buyer, with optional date filtering and aggregation
+   */
+  async getPurchasesByBuyer(req: Request, res: Response) {
+    try {
+      const { buyerId } = req.params;
+      const { startDate, endDate } = req.query;
+      const filters: any = { buyerId: Number(buyerId) };
+      if (startDate && endDate) {
+        filters.startDate = new Date(startDate as string);
+        filters.endDate = new Date(endDate as string);
+      }
+      const transactions = await this.transactionService.getTransactionsByBuyer(Number(buyerId), filters);
+      // Aggregate total purchase value
+      const totalPurchases = transactions.length;
+      const totalSpent = transactions.reduce((sum, t) => sum + Number(t.total_sale_value), 0);
+      res.json({ success: true, data: { totalPurchases, totalSpent, transactions } });
+    } catch (error) {
+      console.error('Error fetching purchases by buyer:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch purchases by buyer', error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
   private transactionService = new TransactionService();
 
   async createTransaction(req: Request, res: Response) {

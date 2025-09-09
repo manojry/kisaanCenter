@@ -17,7 +17,12 @@ router.post('/', validateSchema(CreateTransactionSchema), transactionController.
 router.get('/:id', transactionController.getTransactionById.bind(transactionController));
 router.get('/shop/:shopId', transactionController.getTransactionsByShop.bind(transactionController));
 router.get('/shop/:shopId/earnings', transactionController.getShopEarnings.bind(transactionController));
+
+// Farmer and buyer reporting endpoints
 router.get('/farmer/:farmerId/earnings', transactionController.getFarmerEarnings.bind(transactionController));
+router.get('/farmers/:farmerId/payments', paymentController.getPaymentsToFarmer.bind(paymentController));
+router.get('/buyers/:buyerId/payments', paymentController.getPaymentsByBuyer.bind(paymentController));
+router.get('/buyers/:buyerId/purchases', transactionController.getPurchasesByBuyer.bind(transactionController));
 
 // Payment routes
 router.post('/payments', validateSchema(CreatePaymentSchema), paymentController.createPayment.bind(paymentController));

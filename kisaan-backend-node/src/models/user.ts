@@ -11,6 +11,7 @@ export interface UserAttributes {
   email?: string | null;
   status: 'active' | 'inactive';
   balance: number;
+  cumulative_value: number; // total earned (farmer), spent (buyer), commission (owner)
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
@@ -28,6 +29,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public email!: string | null;
   public status!: 'active' | 'inactive';
   public balance!: number;
+  public cumulative_value!: number;
   public created_by!: number | null;
   public created_at!: Date;
   public updated_at!: Date;
@@ -75,6 +77,12 @@ User.init(
       type: DataTypes.DECIMAL(12,2),
       allowNull: false,
       defaultValue: 0.00,
+    },
+    cumulative_value: {
+      type: DataTypes.DECIMAL(18,2),
+      allowNull: false,
+      defaultValue: 0.00,
+      comment: 'Cumulative value: total earned (farmer), total spent (buyer), total commission (owner)'
     },
     created_by: {
       type: DataTypes.BIGINT,

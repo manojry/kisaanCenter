@@ -7,7 +7,7 @@ import { Op } from 'sequelize';
 
 export class PaymentService {
   async createPayment(data: CreatePaymentDTO, userId: number): Promise<PaymentResponseDTO> {
-    // Update balances based on payment direction
+    // Update balances based on payment direction (do NOT update cumulative_value)
     if (data.payer_type === 'BUYER' && data.payee_type === 'SHOP') {
       // Buyer pays shop: buyer's balance increases (toward zero)
       await User.increment({ balance: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.buyer_id } });
@@ -107,5 +107,70 @@ export class PaymentService {
     });
 
     return payments.map(p => p.toJSON());
+  }
+  /**
+   * Get all payments to a farmer (payee_type = 'FARMER'), with optional date filtering and aggregation
+   */
+  async getPaymentsToFarmer(
+    farmerId: number,
+    options?: { startDate?: Date; endDate?: Date }
+  ): Promise<{ totalPayments: number; totalPaid: number; payments: any[] }> {
+    const where: any = {
+      payee_type: 'FARMER',
+      status: { [Op.not]: 'FAILED' }
+    };
+    if (options?.startDate && options?.endDate) {
+      where.created_at = { [Op.between]: [options.startDate, options.endDate] };
+    }
+    // Join with transaction to filter by farmer_id
+    const payments = await Payment.findAll({
+      where,
+      include: [{
+        model: Transaction,
+        as: 'transaction',
+        where: { farmer_id: farmerId },
+        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_sale_value', 'farmer_earning']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+    const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    return {
+      totalPayments: payments.length,
+      totalPaid,
+      payments: payments.map(p => p.toJSON())
+    };
+  }
+
+  /**
+   * Get all payments by a buyer (payer_type = 'BUYER'), with optional date filtering and aggregation
+   */
+  async getPaymentsByBuyer(
+    buyerId: number,
+    options?: { startDate?: Date; endDate?: Date }
+  ): Promise<{ totalPayments: number; totalPaid: number; payments: any[] }> {
+    const where: any = {
+      payer_type: 'BUYER',
+      status: { [Op.not]: 'FAILED' }
+    };
+    if (options?.startDate && options?.endDate) {
+      where.created_at = { [Op.between]: [options.startDate, options.endDate] };
+    }
+    // Join with transaction to filter by buyer_id
+    const payments = await Payment.findAll({
+      where,
+      include: [{
+        model: Transaction,
+        as: 'transaction',
+        where: { buyer_id: buyerId },
+        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_sale_value', 'farmer_earning']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+    const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    return {
+      totalPayments: payments.length,
+      totalPaid,
+      payments: payments.map(p => p.toJSON())
+    };
   }
 }
