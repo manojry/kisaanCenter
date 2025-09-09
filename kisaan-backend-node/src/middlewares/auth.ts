@@ -12,7 +12,6 @@ export interface AuthenticatedRequest extends Request {
     id: number;
     username: string;
     role: UserRole;
-    owner_id?: string | null;
     shop_id?: number | null;
   };
 }
@@ -38,7 +37,6 @@ export const authenticateToken = async (
       id: number; 
       username: string; 
       role: UserRole; 
-      owner_id?: string | null;
       shop_id?: number | null;
     };
     // Fetch fresh user data to ensure user still exists and is active
@@ -56,7 +54,6 @@ export const authenticateToken = async (
       id: user.id,
       username: user.username,
       role: user.role as UserRole,
-      owner_id: user.owner_id,
       shop_id: user.shop_id,
     };
 
@@ -91,10 +88,10 @@ export const requireRole = (allowedRoles: UserRole[]) => {
 };
 
 /**
- * Middleware to check if user can access resource within their tenant
- * @param getOwnerId - Function to extract owner_id from request params
+ * Middleware to check if user can access resource within their shop
+ * @param getShopId - Function to extract shop_id from request params
  */
-export const requireTenantAccess = (getOwnerId?: (req: Request) => string) => {
+export const requireShopAccess = (getShopId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
@@ -107,20 +104,13 @@ export const requireTenantAccess = (getOwnerId?: (req: Request) => string) => {
       return;
     }
 
-    // If owner_id is provided in params, check if user has access to that tenant
-    const requestedOwnerId = getOwnerId ? getOwnerId(req) : req.params.owner_id;
+    // If shop_id is provided in params, check if user has access to that shop
+    const requestedShopId = getShopId ? getShopId(req) : parseInt(req.params.shop_id);
     
-    if (requestedOwnerId) {
-      // Owners can only access their own tenant
-      if (req.user.role === 'owner' && req.user.owner_id !== requestedOwnerId) {
-        res.status(403).json({ error: 'Access denied to this tenant' });
-        return;
-      }
-      
-      // Farmers/buyers can only access their own tenant
-      if ((req.user.role === 'farmer' || req.user.role === 'buyer') && 
-          req.user.owner_id !== requestedOwnerId) {
-        res.status(403).json({ error: 'Access denied to this tenant' });
+    if (requestedShopId) {
+      // Users can only access their own shop
+      if (req.user.shop_id !== requestedShopId) {
+        res.status(403).json({ error: 'Access denied to this shop' });
         return;
       }
     }
@@ -172,14 +162,12 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
         id: number; 
         username: string; 
         role: UserRole; 
-        owner_id?: string | null;
         shop_id?: number | null;
       };
       req.user = {
         id: decoded.id,
         username: decoded.username,
         role: decoded.role,
-        owner_id: decoded.owner_id,
         shop_id: decoded.shop_id,
       };
     } catch (error) {

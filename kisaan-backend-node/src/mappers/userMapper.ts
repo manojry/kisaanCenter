@@ -15,6 +15,7 @@ export function toUserDTO(entity: UserEntity): UserDTO {
     contact: entity.contact,
     email: entity.email,
     status: entity.status!,
+    balance: entity.balance!,
     created_by: entity.created_by,
     created_at: entity.created_at,
     updated_at: entity.updated_at,

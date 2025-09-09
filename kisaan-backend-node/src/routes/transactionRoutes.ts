@@ -1,94 +1,28 @@
 import express from 'express';
-import * as transactionController from '../controllers/transactionController';
-import { 
-  validateTransactionCreation, 
-  validateTransactionUpdate, 
-  validatePagination,
-  validateBulkTransactionCreation,
-  validatePaymentUpdate,
-  checkTransactionAccess 
-} from '../middleware/transactionMiddleware';
+import { TransactionController } from '../controllers/transactionController';
+import { PaymentController } from '../controllers/paymentController';
+import { CreateTransactionSchema, CreatePaymentSchema, UpdatePaymentStatusSchema } from '../schemas/transaction';
 import { authenticateToken } from '../middlewares/auth';
+import { validateSchema } from '../middlewares/validation';
 
 const router = express.Router();
+const transactionController = new TransactionController();
+const paymentController = new PaymentController();
 
-console.log('🔧 Transaction routes being registered...');
-
-// ===== TEST ROUTE =====
-router.get('/test', (req, res) => {
-  res.json({ success: true, message: 'Transaction routes are working!' });
-});
-
-// ===== ANALYTICS ROUTES (no auth for testing) =====
-router.get('/analytics/summary', (req, res) => {
-  res.json({ 
-    success: true, 
-    data: {
-      total_transactions: 0,
-      total_sales: 0,
-      total_commission: 0,
-      pending_count: 0,
-      completed_count: 0,
-      credit_count: 0
-    }
-  });
-});
-router.get('/analytics/daily/:date', (req, res) => {
-  res.json({ 
-    success: true, 
-    data: {
-      date: req.params.date,
-      total_transactions: 0,
-      total_sales: 0,
-      by_status: {}
-    }
-  });
-});
-
-// ===== TEST ROUTE WITHOUT AUTH =====
-router.get('/no-auth', transactionController.getTransactions);
-
-// Apply authentication to remaining routes
+// Apply authentication to all routes
 router.use(authenticateToken);
 
-// ===== CORE TRANSACTION ROUTES =====
-router.get('/', validatePagination, transactionController.getTransactions);
-router.get('/analytics', transactionController.getAnalyticsSummary);
-router.get('/:id', checkTransactionAccess, transactionController.getTransaction);
-router.post('/', validateTransactionCreation, transactionController.createTransaction);
-router.put('/:id', validateTransactionUpdate, checkTransactionAccess, transactionController.updateTransaction);
-router.delete('/:id', checkTransactionAccess, transactionController.deleteTransaction);
+// Transaction routes
+router.post('/', validateSchema(CreateTransactionSchema), transactionController.createTransaction.bind(transactionController));
+router.get('/:id', transactionController.getTransactionById.bind(transactionController));
+router.get('/shop/:shopId', transactionController.getTransactionsByShop.bind(transactionController));
+router.get('/shop/:shopId/earnings', transactionController.getShopEarnings.bind(transactionController));
+router.get('/farmer/:farmerId/earnings', transactionController.getFarmerEarnings.bind(transactionController));
 
-// ===== TRANSACTION TYPE SPECIFIC =====
-router.post('/sale', validateTransactionCreation, transactionController.createSale);
-router.post('/purchase', validateTransactionCreation, transactionController.createPurchase);
-router.post('/credit', validateTransactionCreation, transactionController.createCredit);
-router.post('/return', validateTransactionCreation, transactionController.createReturn);
-router.post('/bulk', validateBulkTransactionCreation, transactionController.createBulkTransactions);
+// Payment routes
+router.post('/payments', validateSchema(CreatePaymentSchema), paymentController.createPayment.bind(paymentController));
+router.put('/payments/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentController.updatePaymentStatus.bind(paymentController));
+router.get('/payments/transaction/:transactionId', paymentController.getPaymentsByTransaction.bind(paymentController));
+router.get('/payments/outstanding', paymentController.getOutstandingPayments.bind(paymentController));
 
-// ===== TRANSACTION STATUS MANAGEMENT =====
-router.patch('/:id/complete', checkTransactionAccess, transactionController.completeTransaction);
-router.patch('/:id/cancel', checkTransactionAccess, transactionController.cancelTransaction);
-
-// ===== PAYMENT MANAGEMENT =====
-router.patch('/:id/payment/buyer', validatePaymentUpdate, checkTransactionAccess, transactionController.updateBuyerPayment);
-router.patch('/:id/payment/farmer', validatePaymentUpdate, checkTransactionAccess, transactionController.updateFarmerPayment);
-
-// ===== QUERY ROUTES =====
-router.get('/incomplete/list', validatePagination, transactionController.getIncompleteTransactions);
-router.get('/search/query', validatePagination, transactionController.searchTransactions);
-router.get('/shop/:shopId/list', validatePagination, transactionController.getTransactionsByShop);
-router.get('/buyer/:buyerId/list', validatePagination, transactionController.getTransactionsByBuyer);
-router.get('/farmer/:farmerId/list', validatePagination, transactionController.getTransactionsByFarmer);
-
-
-
-// ===== REPORTING ROUTES =====
-router.get('/export/csv', validatePagination, transactionController.exportTransactionsCSV);
-router.get('/:id/receipt', checkTransactionAccess, transactionController.getTransactionReceipt);
-router.get('/:id/summary', checkTransactionAccess, transactionController.getTransactionSummary);
-
-
-console.log('✅ Transaction routes registered successfully');
-
-export { router as transactionRoutes }
+export { router as transactionRoutes };

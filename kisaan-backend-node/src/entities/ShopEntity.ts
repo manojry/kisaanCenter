@@ -2,7 +2,7 @@
 export class ShopEntity {
   id?: number;
   name?: string;
-  owner_id?: string;
+  owner_id?: number;
   address?: string | null;
   contact?: string | null;
   status?: 'active' | 'inactive';

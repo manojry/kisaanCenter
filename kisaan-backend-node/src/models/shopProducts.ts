@@ -1,9 +1,10 @@
+
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 import { Product } from './product';
 import { Shop } from './shop';
 
-interface ShopProductsAttributes {
+export interface ShopProductsAttributes {
   id: number;
   shop_id: number;
   product_id: number;
@@ -12,10 +13,7 @@ interface ShopProductsAttributes {
   updated_at?: Date;
 }
 
-interface ShopProductsCreationAttributes extends Optional<
-  ShopProductsAttributes,
-  'id' | 'created_at' | 'updated_at'
-> {}
+export interface ShopProductsCreationAttributes extends Optional<ShopProductsAttributes, 'id' | 'created_at' | 'updated_at'> {}
 
 export class ShopProducts extends Model<ShopProductsAttributes, ShopProductsCreationAttributes> implements ShopProductsAttributes {
   public id!: number;
@@ -29,17 +27,19 @@ export class ShopProducts extends Model<ShopProductsAttributes, ShopProductsCrea
 ShopProducts.init(
   {
     id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
     shop_id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: { model: 'kisaan_shops', key: 'id' },
     },
     product_id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: { model: 'kisaan_products', key: 'id' },
     },
     is_active: {
       type: DataTypes.BOOLEAN,
@@ -48,23 +48,24 @@ ShopProducts.init(
     },
     created_at: {
       type: DataTypes.DATE,
-      allowNull: true,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
     updated_at: {
       type: DataTypes.DATE,
-      allowNull: true,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
     sequelize,
-    tableName: 'shop_products',
+    tableName: 'kisaan_shop_products',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
   }
 );
 
-// Associations
 ShopProducts.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 ShopProducts.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
 

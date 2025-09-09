@@ -1,6 +1,7 @@
 import { ShopCategory } from '../models/shopCategory';
 import { Shop } from '../models/shop';
 import { Category } from '../models/category';
+import { Product } from '../models/product';
 import { 
   ShopCategoryCreate, 
   AssignCategoriesToShop, 
@@ -22,6 +23,7 @@ export const assignCategoriesToShop = async (data: AssignCategoriesToShop): Prom
   
   try {
     const shopCategories: ShopCategory[] = [];
+    const duplicates: number[] = [];
     
     for (const category_id of data.category_ids) {
       // Check if assignment already exists
@@ -33,7 +35,9 @@ export const assignCategoriesToShop = async (data: AssignCategoriesToShop): Prom
         transaction,
       });
       
-      if (!existing) {
+      if (existing) {
+        duplicates.push(category_id);
+      } else {
         const shopCategory = await ShopCategory.create({
           shop_id: data.shop_id,
           category_id: category_id,
@@ -44,6 +48,14 @@ export const assignCategoriesToShop = async (data: AssignCategoriesToShop): Prom
     }
     
     await transaction.commit();
+    
+    // If all categories were duplicates, throw error
+    if (duplicates.length === data.category_ids.length) {
+      const error = new Error('All category assignments already exist');
+      (error as any).name = 'SequelizeUniqueConstraintError';
+      throw error;
+    }
+    
     return shopCategories;
   } catch (error) {
     await transaction.rollback();

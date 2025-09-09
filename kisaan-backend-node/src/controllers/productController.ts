@@ -40,8 +40,9 @@ export const createProduct = async (req: Request, res: Response) => {
     );
     
     res.status(201).json({
+      success: true,
       message: 'Product created successfully',
-      product: Array.isArray(results) ? results[0] : results,
+      data: Array.isArray(results) ? results[0] : results,
     });
   } catch (error: any) {
     console.error('Error creating product:', error);
@@ -70,7 +71,8 @@ export const getProducts = async (req: Request, res: Response) => {
     const [results] = await sequelize.query(query, { replacements });
     
     res.json({
-      products: Array.isArray(results) ? results : [],
+      success: true,
+      data: Array.isArray(results) ? results : [],
       count: Array.isArray(results) ? results.length : 0,
     });
   } catch (error: any) {
@@ -99,7 +101,8 @@ export const getProductById = async (req: Request, res: Response) => {
     }
     
     res.json({
-      product: Array.isArray(results) ? results[0] : results,
+      success: true,
+      data: Array.isArray(results) ? results[0] : results,
     });
   } catch (error: any) {
     console.error('Error fetching product:', error);
@@ -144,8 +147,9 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
     
     res.json({
+      success: true,
       message: 'Product updated successfully',
-      product: Array.isArray(results) ? results[0] : results,
+      data: Array.isArray(results) ? results[0] : results,
     });
   } catch (error: any) {
     console.error('Error updating product:', error);
@@ -175,6 +179,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
     }
     
     res.json({
+      success: true,
       message: 'Product deleted successfully',
     });
   } catch (error: any) {

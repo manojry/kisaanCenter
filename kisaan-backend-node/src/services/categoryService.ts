@@ -16,7 +16,7 @@ export const getAllCategories = async (activeOnly: boolean = false): Promise<Cat
   
   const categories = await Category.findAll({ 
     where,
-    order: [['display_order', 'ASC'], ['name', 'ASC']]
+    order: [['name', 'ASC']]
   });
   return categories;
 };
@@ -69,7 +69,7 @@ export const searchCategories = async (searchTerm: string): Promise<Category[]> 
         { description: { [Op.iLike]: `%${searchTerm}%` } }
       ]
     },
-    order: [['display_order', 'ASC'], ['name', 'ASC']]
+    order: [['name', 'ASC']]
   });
   return categories;
 };
@@ -78,7 +78,7 @@ export const reorderCategories = async (categoryOrders: { id: number; display_or
   try {
     for (const item of categoryOrders) {
       await Category.update(
-  {},
+        { /* display_order: item.display_order */ },
         { where: { id: item.id } }
       );
     }

@@ -114,7 +114,6 @@ export const bulkCreateProducts = async (products: ProductCreate[]): Promise<Pro
       description: product.description ?? null,
       category_id: product.category_id,
       unit: product.unit ?? null,
-      is_active: product.is_active ?? true,
     }))
   );
   return createdProducts;
@@ -122,8 +121,35 @@ export const bulkCreateProducts = async (products: ProductCreate[]): Promise<Pro
 
 export const getProductsForShop = async (shopId: number): Promise<Product[]> => {
   const { Shop } = await import('../models/shop');
-  const shop = await Shop.findByPk(shopId);
-  if (!shop) return [];
+  const { ShopCategory } = await import('../models/shopCategory');
   
-  return getAllProducts(false, shop.category_id || undefined);
+  // Get all categories assigned to this shop
+  const shopCategories = await ShopCategory.findAll({
+    where: { shop_id: shopId },
+    attributes: ['category_id']
+  });
+  
+  if (shopCategories.length === 0) {
+    return [];
+  }
+  
+  const categoryIds = shopCategories.map(sc => sc.category_id);
+  
+  // Get products from all assigned categories
+  const products = await Product.findAll({
+    where: {
+      category_id: categoryIds,
+      record_status: 'active'
+    },
+    include: [
+      {
+        model: Category,
+        as: 'category',
+        attributes: ['id', 'name', 'description']
+      }
+    ],
+    order: [['name', 'ASC']]
+  });
+  
+  return products;
 };

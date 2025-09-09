@@ -31,4 +31,21 @@ router.get('/user/:userId', [
   param('userId').notEmpty().withMessage('User ID is required')
 ], balanceController.getUserBalance);
 
+// Get shop balance
+router.get('/shop/:shopId', [
+  param('shopId').notEmpty().withMessage('Shop ID is required')
+], balanceController.getShopBalance);
+
+// Update balance
+router.post('/update', [
+  body('user_id').notEmpty().withMessage('User ID is required'),
+  body('amount').isFloat().withMessage('Amount is required'),
+  body('type').isIn(['credit', 'debit']).withMessage('Type must be credit or debit')
+], balanceController.updateBalance);
+
+// Get balance history
+router.get('/history/:userId', [
+  param('userId').notEmpty().withMessage('User ID is required')
+], balanceController.getBalanceHistory);
+
 export { router as balanceRoutes };

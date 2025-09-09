@@ -7,11 +7,13 @@ import { z } from 'zod';
 export const issueCredit = async (data: any) => {
   const validated = CreditAdvanceSchema.parse(data);
   const credit = await CreditAdvance.create({
-    ...validated,
+    user_id: parseInt(validated.user_id),
+    amount: validated.amount,
     issued_date: new Date(validated.issued_date),
     due_date: new Date(validated.due_date),
-    status: 'active',
+    status: 'active' as const,
     repaid_amount: 0,
+    shop_id: data.shop_id || 1, // Default shop_id
   });
   return credit;
 };

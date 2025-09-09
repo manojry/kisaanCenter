@@ -3,7 +3,8 @@ import sequelize from '../config/database';
 
 interface CreditAdvanceAttributes {
   id: number;
-  user_id: string;
+  user_id: number;
+  shop_id: number;
   amount: number;
   issued_date: Date;
   due_date: Date;
@@ -17,7 +18,8 @@ interface CreditAdvanceCreationAttributes extends Optional<CreditAdvanceAttribut
 
 export class CreditAdvance extends Model<CreditAdvanceAttributes, CreditAdvanceCreationAttributes> implements CreditAdvanceAttributes {
   public id!: number;
-  public user_id!: string;
+  public user_id!: number;
+  public shop_id!: number;
   public amount!: number;
   public issued_date!: Date;
   public due_date!: Date;
@@ -29,8 +31,9 @@ export class CreditAdvance extends Model<CreditAdvanceAttributes, CreditAdvanceC
 
 CreditAdvance.init(
   {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    user_id: { type: DataTypes.STRING, allowNull: false },
+    id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
+    user_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+    shop_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
     issued_date: { type: DataTypes.DATE, allowNull: false },
     due_date: { type: DataTypes.DATE, allowNull: false },
@@ -45,5 +48,6 @@ CreditAdvance.init(
     timestamps: false,
   }
 );
+
 
 

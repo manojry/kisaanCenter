@@ -8,13 +8,15 @@
     "dev": "ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-  "test": "jest",
-  "test:watch": "jest --watch",
-  "test:integration": "jest --config jest.integration.config.js",
-  "test:integration:watch": "jest --config jest.integration.config.js --watch",
-  "test:integration:verbose": "jest --config jest.integration.config.js --verbose",
-  "lint": "eslint src/**/*.ts",
-  "lint:fix": "eslint src/**/*.ts --fix"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:integration": "jest --config jest.integration.config.js",
+    "test:integration:watch": "jest --config jest.integration.config.js --watch",
+    "test:integration:verbose": "jest --config jest.integration.config.js --verbose",
+    "migrate": "ts-node scripts/run-migration.ts",
+    "db:setup": "ts-node scripts/setup-test-database.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
   },
   "dependencies": {
     "@types/sequelize": "^4.28.20",

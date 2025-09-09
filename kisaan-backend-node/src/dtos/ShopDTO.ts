@@ -2,7 +2,8 @@
 export interface ShopDTO {
   id: number;
   name: string;
-  owner_id: string;
+  owner_id: number;
+  plan_id?: number | null;
   address?: string | null;
   contact?: string | null;
   status: 'active' | 'inactive';
@@ -12,7 +13,8 @@ export interface ShopDTO {
 
 export interface CreateShopDTO {
   name: string;
-  owner_id: string;
+  owner_id: number;
+  plan_id?: number | null;
   address?: string | null;
   contact?: string | null;
 }

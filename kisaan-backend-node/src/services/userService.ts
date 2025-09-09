@@ -40,6 +40,8 @@ export const createUser = async (
   requestingUserId?: number
 ): Promise<UserDTO> => {
   let userData = { ...data };
+  // Always set balance to a number (never undefined) for model type safety
+  userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
   if ((data.role === 'farmer' || data.role === 'buyer') && data.firstname && data.owner_id) {
     userData.username = generateUsername(data.firstname, data.owner_id);
   }
@@ -48,8 +50,18 @@ export const createUser = async (
   if (userData.password) {
     userData.password = await bcrypt.hash(userData.password, 12);
   }
-  const { firstname, ...finalUserData } = userData;
-  const userModel = await User.create(finalUserData);
+  // Remove firstname only, keep balance in finalUserData
+  const { firstname, ...finalUserDataWithBalance } = userData;
+  // Ensure balance is always present and a number
+  // Remove possible undefined from balance before passing to User.create
+  // Explicitly cast balance to number for type safety
+  if (userData.balance === undefined || userData.balance === null) {
+    finalUserDataWithBalance.balance = 0;
+  } else {
+    finalUserDataWithBalance.balance = Number(userData.balance);
+  }
+  // Explicitly type for model creation
+  const userModel = await User.create(finalUserDataWithBalance as import('../models/user').UserCreationAttributes);
   const entity = fromUserModel(userModel);
   return toUserDTO(entity);
 };

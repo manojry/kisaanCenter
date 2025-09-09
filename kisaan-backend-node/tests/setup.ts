@@ -1,37 +1,23 @@
-// Global test setup
-import dotenv from 'dotenv';
-import path from 'path';
-import axios from 'axios';
+import { config } from 'dotenv';
+import { setupTestDatabase } from '../scripts/setup-test-database';
+import { seedSuperadmin } from '../scripts/seed-superadmin';
 
 // Load test environment variables
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+config({ path: '.env.test' });
 
 // Set test environment
 process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret-key';
+process.env.DB_NAME = 'postgres';
 
-// Global test configuration
+// Increase timeout for integration tests
+jest.setTimeout(60000);
+
+// Global setup for all tests
 beforeAll(async () => {
-  // Wait for backend to be ready
-  const maxRetries = 10;
-  let retries = 0;
-  
-  while (retries < maxRetries) {
-    try {
-    await axios.get('http://localhost:3000/health');
-      console.log('✅ Backend is ready');
-      break;
-    } catch (error) {
-      retries++;
-      if (retries === maxRetries) {
-        throw new Error('Backend not available after maximum retries');
-      }
-    console.log(`⏳ Waiting for backend... (${retries}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
-});
-
-// Global error handler
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.log('🔄 Setting up test database...');
+  await setupTestDatabase();
+  console.log('✅ Test database setup complete');
+  await seedSuperadmin();
+  console.log('✅ Superadmin user seeded');
 });

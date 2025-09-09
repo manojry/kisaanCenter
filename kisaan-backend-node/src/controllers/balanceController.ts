@@ -11,9 +11,9 @@ const getUserShopId = async (userId: number): Promise<number | null> => {
   // If user has direct shop_id, return it
   if (user.shop_id) return user.shop_id;
   
-  // If user is owner, find their shop
-  if (user.role === 'owner' && user.owner_id) {
-    const shop = await Shop.findOne({ where: { owner_id: user.owner_id } });
+  // If user is owner, find their shop by user id
+  if (user.role === 'owner') {
+    const shop = await Shop.findOne({ where: { owner_id: user.id } });
     return shop?.id || null;
   }
   
@@ -135,5 +135,96 @@ export const getUserBalance = async (req: AuthenticatedRequest, res: Response) =
   } catch (error) {
     console.error('Error getting user balance:', error);
     res.status(500).json({ success: false, message: 'Failed to get balance' });
+  }
+};
+
+// Get shop balance
+export const getShopBalance = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { shopId } = req.params;
+    
+    const shop = await Shop.findByPk(shopId);
+    if (!shop) {
+      return res.status(404).json({ success: false, message: 'Shop not found' });
+    }
+
+    // Get all users in this shop and sum their balances
+    const users = await User.findAll({
+      where: { shop_id: shopId },
+      attributes: ['id', 'username', 'role', 'balance']
+    });
+
+    const totalBalance = users.reduce((sum, user) => sum + (user.balance || 0), 0);
+
+    res.json({ 
+      success: true, 
+      data: {
+        shop_id: shopId,
+        total_balance: totalBalance,
+        user_count: users.length,
+        users: users.map(u => ({
+          id: u.id,
+          username: u.username,
+          role: u.role,
+          balance: u.balance || 0
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error getting shop balance:', error);
+    res.status(500).json({ success: false, message: 'Failed to get shop balance' });
+  }
+};
+
+// Update balance
+export const updateBalance = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_id, amount, type, description } = req.body;
+    
+    const user = await User.findByPk(user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const currentBalance = user.balance || 0;
+    const changeAmount = parseFloat(amount);
+    const newBalance = type === 'credit' 
+      ? currentBalance + changeAmount 
+      : currentBalance - changeAmount;
+
+    await user.update({ balance: newBalance });
+
+    res.json({ 
+      success: true, 
+      data: {
+        user_id,
+        previous_balance: currentBalance,
+        change_amount: changeAmount,
+        new_balance: newBalance,
+        type,
+        description
+      }
+    });
+  } catch (error) {
+    console.error('Error updating balance:', error);
+    res.status(500).json({ success: false, message: 'Failed to update balance' });
+  }
+};
+
+// Get balance history
+export const getBalanceHistory = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    // For now, return empty history as we don't have a balance history table
+    // In a real implementation, you'd have a balance_transactions table
+    res.json({ 
+      success: true, 
+      data: [],
+      message: 'Balance history feature not implemented yet'
+    });
+  } catch (error) {
+    console.error('Error getting balance history:', error);
+    res.status(500).json({ success: false, message: 'Failed to get balance history' });
   }
 };

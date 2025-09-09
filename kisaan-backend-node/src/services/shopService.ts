@@ -7,12 +7,11 @@ import { ShopCreate, ShopUpdate } from '../schemas/shop';
 
 export const createShop = async (data: ShopCreate): Promise<ShopDTO> => {
 
-
   const entity = fromCreateShopDTO(data);
   // Ensure required fields are present
   const shopModel = await Shop.create({
     name: entity.name ?? '',
-    owner_id: entity.owner_id ?? '',
+    owner_id: entity.owner_id ?? 0,
     address: entity.address ?? null,
     contact: entity.contact ?? null,
     status: entity.status ?? 'active',
@@ -20,9 +19,9 @@ export const createShop = async (data: ShopCreate): Promise<ShopDTO> => {
   return toShopDTO(fromShopModel(shopModel));
 };
 
-export const getAllShops = async (owner_id?: string): Promise<ShopDTO[]> => {
+export const getAllShops = async (owner_id?: number): Promise<ShopDTO[]> => {
   const where: any = {};
-  if (owner_id) where.owner_id = owner_id;
+  if (owner_id !== undefined) where.owner_id = owner_id;
   const shops = await Shop.findAll({ where });
   return shops.map(model => toShopDTO(fromShopModel(model)));
 };
@@ -36,11 +35,15 @@ export const getShopById = async (id: number): Promise<ShopDTO | null> => {
 export const updateShop = async (id: number, data: ShopUpdate): Promise<ShopDTO | null> => {
   const shop = await Shop.findByPk(id);
   if (!shop) return null;
-  await shop.update({
+  const updateData = {
     ...data,
     address: data.address ?? null,
     contact: data.contact ?? null,
-  });
+  };
+  if (updateData.owner_id !== undefined) {
+    updateData.owner_id = Number(updateData.owner_id);
+  }
+  await shop.update(updateData);
   return toShopDTO(fromShopModel(shop));
 };
 

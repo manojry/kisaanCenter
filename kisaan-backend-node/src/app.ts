@@ -24,6 +24,7 @@ import userRoutes from './routes/userRoutes';
 import { productRoutes } from './routes/productRoutes';
 import reportRoutes from './routes/reportRoutes';
 import settlementRoutes from './routes/settlementRoutes';
+import { commissionRoutes } from './routes/commissionRoutes';
 
 const app = express();
 
@@ -131,9 +132,10 @@ try {
 
 app.use('/api/payments', paymentRoutes);
 app.use('/api/credits', creditAdvanceRoutes);
-// app.use('/api/balance', balanceRoutes); // Temporarily disabled
+app.use('/api/balance', balanceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settlements', settlementRoutes);
+app.use('/api/commissions', commissionRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -187,7 +189,22 @@ app.use('*', (req, res) => {
       'DELETE /api/categories/:id',
       'POST /api/shop-categories/assign',
       'POST /api/shop-categories/remove',
-      'GET /api/shop-categories/shop/:shopId/categories'
+      'GET /api/shop-categories/shop/:shopId/categories',
+      'GET /api/transactions',
+      'POST /api/transactions',
+      'GET /api/transactions/:id',
+      'PUT /api/transactions/:id',
+      'DELETE /api/transactions/:id',
+      'GET /api/transactions/analytics',
+      'GET /api/balance/user/:id',
+      'GET /api/balance/shop/:id',
+      'POST /api/balance/update',
+      'GET /api/commissions',
+      'POST /api/commissions',
+      'GET /api/settlements',
+      'POST /api/settlements',
+      'GET /api/reports/sales',
+      'GET /api/reports/transactions'
     ]
   });
 });

@@ -12,8 +12,10 @@ export const createSettlement = async (data: {
   description: string;
 }) => {
   const settlement = await Settlement.create({
-    ...data,
-    balance: data.amount,
+    shop_id: data.shop_id,
+    user_id: parseInt(data.user_id),
+    amount: data.amount,
+    reason: data.type === 'overpayment' || data.type === 'underpayment' ? data.type : 'adjustment',
     status: 'pending'
   });
   return settlement;
@@ -88,15 +90,9 @@ export const settleAmount = async (settlement_id: number, amount: number) => {
   const settlement = await Settlement.findByPk(settlement_id);
   if (!settlement) throw new Error('Settlement not found');
 
-  const settled_amount = parseFloat(settlement.settled_amount.toString()) + amount;
-  const balance = parseFloat(settlement.amount.toString()) - settled_amount;
-  const status = balance <= 0 ? 'settled' : 'pending';
-
   await settlement.update({
-    settled_amount,
-    balance: Math.max(0, balance),
-    status,
-    settlement_date: status === 'settled' ? new Date() : settlement.settlement_date
+    status: 'settled',
+    settlement_date: new Date()
   });
 
   return settlement.reload();

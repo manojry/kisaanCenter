@@ -1,4 +1,3 @@
-
 import sequelize from '../config/database';
 import { User } from './user';
 import { Shop } from './shop';
@@ -10,7 +9,10 @@ import { Transaction } from './transaction';
 import { Payment } from './payment';
 import { CreditAdvance } from './creditAdvance';
 import { ShopProducts } from './shopProducts';
-// import { Settlement } from './settlement';
+import { Settlement } from './settlement';
+import { Commission } from './commission';
+import { AuditLog } from './auditLog';
+import { PlanUsage } from './planValidation';
 
 // Initialize all models
 const models = {
@@ -24,11 +26,14 @@ const models = {
   ShopProducts,
   Payment,
   CreditAdvance,
-  // Settlement,
+  Settlement,
+  Commission,
+  AuditLog,
+  PlanUsage,
 };
 
-
 // Set up associations
+
 // Plan associations
 Plan.hasMany(Shop, { foreignKey: 'plan_id', as: 'shops' });
 Shop.belongsTo(Plan, { foreignKey: 'plan_id', as: 'plan' });
@@ -52,16 +57,98 @@ Category.belongsToMany(Shop, {
 });
 
 // Direct associations for ShopCategory
-ShopCategory.belongsTo(Shop, { foreignKey: 'shop_id', as: 'shop' });
+ShopCategory.belongsTo(Shop, { foreignKey: 'shop_id', as: 'categoryShop' });
 ShopCategory.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 Shop.hasMany(ShopCategory, { foreignKey: 'shop_id', as: 'shopCategories' });
 Category.hasMany(ShopCategory, { foreignKey: 'category_id', as: 'shopCategories' });
 
-// Transaction associations for DTO
-// Fix: Join buyer_id/farmer_id to User.owner_id (string) instead of User.id (integer)
-Transaction.belongsTo(User, { foreignKey: 'buyer_id', targetKey: 'owner_id', as: 'buyer' });
-Transaction.belongsTo(User, { foreignKey: 'farmer_id', targetKey: 'owner_id', as: 'farmer' });
-Transaction.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+// Shop-Product many-to-many associations
+Shop.belongsToMany(Product, {
+  through: ShopProducts,
+  foreignKey: 'shop_id',
+  otherKey: 'product_id',
+  as: 'products'
+});
+Product.belongsToMany(Shop, {
+  through: ShopProducts,
+  foreignKey: 'product_id',
+  otherKey: 'shop_id',
+  as: 'shops'
+});
 
-export { sequelize, User, Shop, Plan, Category, Product, ShopCategory, Transaction, Payment, CreditAdvance, ShopProducts };
+// Direct associations for ShopProducts
+ShopProducts.belongsTo(Shop, { foreignKey: 'shop_id', as: 'productShop' });
+ShopProducts.belongsTo(Product, { foreignKey: 'product_id', as: 'shopProduct' });
+Shop.hasMany(ShopProducts, { foreignKey: 'shop_id', as: 'shopProducts' });
+Product.hasMany(ShopProducts, { foreignKey: 'product_id', as: 'shopProducts' });
+
+// User associations
+User.belongsTo(Shop, { foreignKey: 'shop_id', as: 'userShop' });
+Shop.hasMany(User, { foreignKey: 'shop_id', as: 'users' });
+
+// Transaction associations
+Transaction.belongsTo(Shop, { foreignKey: 'shop_id', as: 'transactionShop' });
+Transaction.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+Transaction.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' });
+Transaction.belongsTo(User, { foreignKey: 'farmer_id', as: 'farmer' });
+
+// Reverse associations for Transaction
+Shop.hasMany(Transaction, { foreignKey: 'shop_id', as: 'transactions' });
+Category.hasMany(Transaction, { foreignKey: 'category_id', as: 'transactions' });
+User.hasMany(Transaction, { foreignKey: 'buyer_id', as: 'buyerTransactions' });
+User.hasMany(Transaction, { foreignKey: 'farmer_id', as: 'farmerTransactions' });
+
+// Payment associations
+Payment.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
+Transaction.hasMany(Payment, { foreignKey: 'transaction_id', as: 'payments' });
+
+// Credit Advance associations
+CreditAdvance.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+CreditAdvance.belongsTo(Shop, { foreignKey: 'shop_id', as: 'creditShop' });
+User.hasMany(CreditAdvance, { foreignKey: 'user_id', as: 'creditAdvances' });
+Shop.hasMany(CreditAdvance, { foreignKey: 'shop_id', as: 'creditAdvances' });
+
+// Settlement associations
+Settlement.belongsTo(Shop, { foreignKey: 'shop_id', as: 'settlementShop' });
+Settlement.belongsTo(User, { foreignKey: 'user_id', as: 'settlementUser' });
+Settlement.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
+Shop.hasMany(Settlement, { foreignKey: 'shop_id', as: 'settlements' });
+User.hasMany(Settlement, { foreignKey: 'user_id', as: 'settlements' });
+Transaction.hasMany(Settlement, { foreignKey: 'transaction_id', as: 'settlements' });
+
+// Commission associations
+Commission.belongsTo(Shop, { foreignKey: 'shop_id', as: 'commissionShop' });
+Shop.hasMany(Commission, { foreignKey: 'shop_id', as: 'commissions' });
+
+// AuditLog associations
+AuditLog.belongsTo(Shop, { foreignKey: 'shop_id', as: 'auditShop' });
+AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'auditUser' });
+Shop.hasMany(AuditLog, { foreignKey: 'shop_id', as: 'auditLogs' });
+User.hasMany(AuditLog, { foreignKey: 'user_id', as: 'auditLogs' });
+
+// PlanUsage associations
+PlanUsage.belongsTo(Shop, { foreignKey: 'shop_id', as: 'usageShop' });
+PlanUsage.belongsTo(Plan, { foreignKey: 'plan_id', as: 'usagePlan' });
+Shop.hasMany(PlanUsage, { foreignKey: 'shop_id', as: 'planUsage' });
+Plan.hasMany(PlanUsage, { foreignKey: 'plan_id', as: 'planUsage' });
+
+// Export sequelize instance and all models
+export { 
+  sequelize, 
+  User, 
+  Shop, 
+  Plan, 
+  Category, 
+  Product, 
+  ShopCategory, 
+  Transaction, 
+  Payment, 
+  CreditAdvance, 
+  ShopProducts, 
+  Settlement, 
+  Commission,
+  AuditLog,
+  PlanUsage
+};
+
 export default models;

@@ -4,9 +4,9 @@ const path = require('path');
 
 async function cleanupDatabase() {
   const client = new Client({
-    host: 'manoj-test.dev.ea.mpi-internal.com',
-    user: 'postgres',
-    password: 'yd2A4TKG1d7J,yd2A',
+    host: 'xxxx',
+    user: 'postgresxx',
+    password: 'xxxxxx',
     database: 'postgres',
     port: 5432,
     ssl: {

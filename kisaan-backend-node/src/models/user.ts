@@ -6,41 +6,37 @@ export interface UserAttributes {
   username: string;
   password: string;
   role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
-  owner_id?: string | null; // null for superadmin/owner, required for farmer/buyer
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;
   status: 'active' | 'inactive';
-  balance?: number;
+  balance: number;
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'owner_id' | 'shop_id' | 'contact' | 'email' | 'created_by' | 'created_at' | 'updated_at'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'contact' | 'email' | 'created_by' | 'created_at' | 'updated_at'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
   public username!: string;
   public password!: string;
   public role!: 'superadmin' | 'owner' | 'farmer' | 'buyer';
-  public owner_id!: string | null;
   public shop_id!: number | null;
   public contact!: string | null;
   public email!: string | null;
   public status!: 'active' | 'inactive';
-  public balance?: number;
+  public balance!: number;
   public created_by!: number | null;
   public created_at!: Date;
   public updated_at!: Date;
-  // Add any instance methods here if needed
 }
 
-// Use Model.init as a static method
 User.init(
   {
     id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -57,13 +53,10 @@ User.init(
       type: DataTypes.ENUM('superadmin', 'owner', 'farmer', 'buyer'),
       allowNull: false,
     },
-    owner_id: {
-      type: DataTypes.STRING,
-      allowNull: true, // null for superadmin/owner, required for farmer/buyer
-    },
     shop_id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: true,
+      references: { model: 'kisaan_shops', key: 'id' },
     },
     contact: {
       type: DataTypes.STRING,
@@ -84,8 +77,9 @@ User.init(
       defaultValue: 0.00,
     },
     created_by: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: true,
+      references: { model: 'kisaan_users', key: 'id' },
     },
     created_at: {
       type: DataTypes.DATE,
@@ -98,11 +92,12 @@ User.init(
       defaultValue: DataTypes.NOW,
     },
   },
-
   {
     sequelize,
-  tableName: 'kisaan_users',
-    timestamps: false,
+    tableName: 'kisaan_users',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { unique: true, fields: ['username'] },
       { fields: ['shop_id'] },
@@ -110,5 +105,8 @@ User.init(
     ],
   }
 );
+
+
+// ...existing code...
 
 

@@ -1,50 +1,37 @@
+
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
-interface TransactionAttributes {
+export interface TransactionAttributes {
   id: number;
   shop_id: number;
-  farmer_id: string;
-  buyer_id: string;
-  product_id: number;
+  farmer_id: number;
+  buyer_id: number;
+  category_id: number;
+  product_name: string;
   quantity: number;
-  price: number;
-  total: number;
-  type: 'sale' | 'purchase' | 'credit' | 'return';
-  commission_rate?: number;
-  commission_amount?: number;
-  farmer_paid?: number;
-  buyer_paid?: number;
-  deficit?: number;
-  status: 'pending' | 'completed' | 'cancelled' | 'partial' | 'credit' | 'farmer_due';
-  payment_method?: 'cash' | 'credit' | 'bank_transfer' | 'upi';
-  notes?: string;
-  transaction_date: Date;
+  unit_price: number;
+  total_sale_value: number;
+  shop_commission: number;
+  farmer_earning: number;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface TransactionCreationAttributes extends Optional<TransactionAttributes, 'id' | 'type' | 'status' | 'created_at' | 'updated_at'> {}
+export interface TransactionCreationAttributes extends Optional<TransactionAttributes, 'id' | 'created_at' | 'updated_at'> {}
 
 export class Transaction extends Model<TransactionAttributes, TransactionCreationAttributes> implements TransactionAttributes {
   public id!: number;
   public shop_id!: number;
-  public farmer_id!: string;
-  public buyer_id!: string;
-  public product_id!: number;
+  public farmer_id!: number;
+  public buyer_id!: number;
+  public category_id!: number;
+  public product_name!: string;
   public quantity!: number;
-  public price!: number;
-  public total!: number;
-  public type!: 'sale' | 'purchase' | 'credit' | 'return';
-  public commission_rate?: number;
-  public commission_amount?: number;
-  public farmer_paid?: number;
-  public buyer_paid?: number;
-  public deficit?: number;
-  public status!: 'pending' | 'completed' | 'cancelled' | 'partial' | 'credit' | 'farmer_due';
-  public payment_method?: 'cash' | 'credit' | 'bank_transfer' | 'upi';
-  public notes?: string;
-  public transaction_date!: Date;
+  public unit_price!: number;
+  public total_sale_value!: number;
+  public shop_commission!: number;
+  public farmer_earning!: number;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -53,22 +40,15 @@ Transaction.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     shop_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
-    farmer_id: { type: DataTypes.STRING, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-    buyer_id: { type: DataTypes.STRING, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-    product_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_products', key: 'id' } },
-    quantity: { type: DataTypes.DECIMAL(10,3), allowNull: false },
-    price: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    total: { type: DataTypes.DECIMAL(12,2), allowNull: false },
-    type: { type: DataTypes.ENUM('sale','purchase','credit','return'), allowNull: false, defaultValue: 'sale' },
-    commission_rate: { type: DataTypes.DECIMAL(5,2), allowNull: true, defaultValue: 10.00 },
-    commission_amount: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0.00 },
-    farmer_paid: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0.00 },
-    buyer_paid: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0.00 },
-    deficit: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0.00 },
-    status: { type: DataTypes.ENUM('pending','completed','cancelled','partial','credit','farmer_due'), allowNull: false, defaultValue: 'pending' },
-    payment_method: { type: DataTypes.ENUM('cash','credit','bank_transfer','upi'), allowNull: true },
-    notes: { type: DataTypes.TEXT, allowNull: true },
-    transaction_date: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    farmer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+    buyer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+    category_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
+    product_name: { type: DataTypes.STRING(255), allowNull: false },
+    quantity: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    unit_price: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    total_sale_value: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    shop_commission: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    farmer_earning: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },
@@ -80,9 +60,8 @@ Transaction.init(
       { fields: ['shop_id'] },
       { fields: ['farmer_id'] },
       { fields: ['buyer_id'] },
-      { fields: ['status'] },
-      { fields: ['transaction_date'] },
-      { fields: ['type'] }
+      { fields: ['category_id'] },
+      { fields: ['created_at'] }
     ]
   }
 );

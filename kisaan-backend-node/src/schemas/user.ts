@@ -11,6 +11,7 @@ export const UserBaseSchema = z.object({
   email: z.string().email().max(100).optional().nullable(),
   status: UserStatusEnum.default('active'),
   owner_id: z.string().max(20).optional().nullable(),
+  balance: z.number().optional(),
 });
 
 export const UserCreateSchema = UserBaseSchema.extend({

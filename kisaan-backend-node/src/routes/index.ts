@@ -1,6 +1,11 @@
-export * from './userRoutes';
+import userRoutes from './userRoutes';
+export { userRoutes };
 export { shopRoutes } from './shopRoutes';
 export { planRoutes } from './planRoutes';
 export { categoryRoutes } from './categoryRoutes';
 export { shopCategoryRoutes } from './shopCategoryRoutes';
+export { transactionRoutes } from './transactionRoutes';
+export { paymentRoutes } from './paymentRoutes';
+export { commissionRoutes } from './commissionRoutes';
+export { auditLogRoutes } from './auditLogRoutes';
 export { default as reportRoutes } from './reportRoutes';

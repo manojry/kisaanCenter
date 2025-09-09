@@ -7,7 +7,7 @@ export function toShopDTO(entity: ShopEntity): ShopDTO {
   return {
     id: entity.id!,
     name: entity.name!,
-    owner_id: entity.owner_id!,
+    owner_id: Number(entity.owner_id!),
     address: entity.address,
     contact: entity.contact,
     status: entity.status!,

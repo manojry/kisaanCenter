@@ -15,7 +15,6 @@ export async function loginUser({ username, password }: LoginInput) {
       id: user.id, 
       username: user.username, 
       role: user.role,
-      owner_id: user.owner_id,
       shop_id: user.shop_id
     },
     JWT_SECRET,
@@ -27,7 +26,6 @@ export async function loginUser({ username, password }: LoginInput) {
       id: user.id, 
       username: user.username, 
       role: user.role,
-      owner_id: user.owner_id,
       shop_id: user.shop_id
     } 
   };

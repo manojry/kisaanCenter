@@ -1,25 +1,19 @@
+export type ProductCreate = z.infer<typeof CreateProductSchema>;
+export type ProductUpdate = z.infer<typeof UpdateProductSchema>;
 import { z } from 'zod';
 
-export const ProductBaseSchema = z.object({
-  name: z.string().min(2).max(100),
-  description: z.string().max(500).optional().nullable(),
+export const CreateProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
   category_id: z.number().int().positive(),
-  unit: z.string().max(20).optional().nullable(),
-  is_active: z.boolean().default(true),
+  description: z.string().optional(),
+  price: z.number().positive().optional(),
+  unit: z.string().optional()
 });
 
-export const ProductCreateSchema = ProductBaseSchema;
-
-export const ProductUpdateSchema = ProductBaseSchema.partial().extend({
+export const UpdateProductSchema = z.object({
+  name: z.string().min(1).optional(),
   category_id: z.number().int().positive().optional(),
+  description: z.string().optional(),
+  price: z.number().positive().optional(),
+  unit: z.string().optional()
 });
-
-export const ProductReadSchema = ProductBaseSchema.extend({
-  id: z.number().int(),
-  created_at: z.date(),
-  updated_at: z.date(),
-});
-
-export type ProductCreate = z.infer<typeof ProductCreateSchema>;
-export type ProductUpdate = z.infer<typeof ProductUpdateSchema>;
-export type ProductRead = z.infer<typeof ProductReadSchema>;

@@ -4,9 +4,8 @@ import sequelize from '../config/database';
 interface CommissionAttributes {
   id: number;
   shop_id: number;
-  transaction_id: number;
-  amount: number;
-  calculated_at: Date;
+  rate: number;
+  type: 'percentage' | 'fixed';
   created_at?: Date;
   updated_at?: Date;
 }
@@ -16,28 +15,27 @@ interface CommissionCreationAttributes extends Optional<CommissionAttributes, 'i
 export class Commission extends Model<CommissionAttributes, CommissionCreationAttributes> implements CommissionAttributes {
   public id!: number;
   public shop_id!: number;
-  public transaction_id!: number;
-  public amount!: number;
-  public calculated_at!: Date;
+  public rate!: number;
+  public type!: 'percentage' | 'fixed';
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
 
 Commission.init(
   {
-  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  shop_id: { type: DataTypes.INTEGER, allowNull: false },
-  transaction_id: { type: DataTypes.INTEGER, allowNull: false },
-    amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    calculated_at: { type: DataTypes.DATE, allowNull: false },
+    id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
+    shop_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
+    rate: { type: DataTypes.DECIMAL(5,2), allowNull: false },
+    type: { type: DataTypes.ENUM('percentage', 'fixed'), allowNull: false, defaultValue: 'percentage' },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },
   {
     sequelize,
     tableName: 'kisaan_commissions',
-    timestamps: false,
+    timestamps: true,
+    indexes: [
+      { fields: ['shop_id'] }
+    ]
   }
 );
-
-export default Commission;
