@@ -9,9 +9,14 @@ export class CommissionController {
     try {
       const userId = (req as any).user?.id;
       const commissionData: CreateCommissionDTO = req.body;
-      
+      if (!commissionData.shop_id || !commissionData.rate || !commissionData.type) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields',
+          required: ['shop_id', 'rate', 'type']
+        });
+      }
       const commission = await this.commissionService.createCommission(commissionData, userId);
-      
       res.status(201).json({
         success: true,
         data: commission,

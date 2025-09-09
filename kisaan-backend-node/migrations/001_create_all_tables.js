@@ -62,16 +62,15 @@ module.exports = {
 
     // Create Products table
     await queryInterface.createTable('kisaan_products', {
-      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-      name: { type: Sequelize.STRING(100), allowNull: false },
-      category_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
-      description: { type: Sequelize.TEXT, allowNull: true },
-      price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
-      shop_id: { type: Sequelize.INTEGER, allowNull: true },
-      record_status: { type: Sequelize.STRING, allowNull: true },
-      unit: { type: Sequelize.STRING(20), allowNull: true },
-      created_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
-      updated_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
+  id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+  name: { type: Sequelize.STRING(100), allowNull: false },
+  category_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
+  description: { type: Sequelize.TEXT, allowNull: true },
+  price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
+  record_status: { type: Sequelize.STRING, allowNull: true },
+  unit: { type: Sequelize.STRING(20), allowNull: true },
+  created_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+  updated_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
     });
 
     // Create Transactions table
@@ -126,30 +125,45 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
     });
 
-    // Add indexes
-    await queryInterface.addIndex('kisaan_users', ['username'], { unique: true });
-    await queryInterface.addIndex('kisaan_users', ['shop_id']);
-    await queryInterface.addIndex('kisaan_users', ['role']);
-    await queryInterface.addIndex('kisaan_shops', ['owner_id']);
-    await queryInterface.addIndex('kisaan_shops', ['plan_id']);
-    await queryInterface.addIndex('kisaan_shops', ['status']);
-    await queryInterface.addIndex('kisaan_products', ['category_id']);
-    await queryInterface.addIndex('kisaan_products', ['name', 'category_id'], { unique: true });
-    await queryInterface.addIndex('kisaan_transactions', ['shop_id']);
-    await queryInterface.addIndex('kisaan_transactions', ['farmer_id']);
-    await queryInterface.addIndex('kisaan_transactions', ['buyer_id']);
-    await queryInterface.addIndex('kisaan_transactions', ['category_id']);
-    await queryInterface.addIndex('kisaan_transactions', ['created_at']);
-    await queryInterface.addIndex('kisaan_payments', ['transaction_id']);
-    await queryInterface.addIndex('kisaan_payments', ['payer_type']);
-    await queryInterface.addIndex('kisaan_payments', ['payee_type']);
-    await queryInterface.addIndex('kisaan_payments', ['status']);
-    await queryInterface.addIndex('kisaan_payments', ['payment_date']);
-    await queryInterface.addIndex('kisaan_payments', ['transaction_id', 'status']);
-    await queryInterface.addIndex('kisaan_commissions', ['shop_id']);
-    await queryInterface.addIndex('kisaan_shop_categories', ['shop_id']);
-    await queryInterface.addIndex('kisaan_shop_categories', ['category_id']);
-    await queryInterface.addIndex('kisaan_shop_categories', ['shop_id', 'category_id'], { unique: true });
+    // Add indexes (idempotent: remove if exists, then create)
+    const safeAddIndex = async (table, fields, options = {}) => {
+      let indexName;
+      if (options.name) {
+        indexName = options.name;
+      } else if (Array.isArray(fields)) {
+        indexName = `${table}_${fields.join('_')}`;
+      } else {
+        indexName = `${table}_${fields}`;
+      }
+      try {
+        await queryInterface.removeIndex(table, indexName);
+      } catch (e) {}
+      await queryInterface.addIndex(table, fields, options);
+    };
+
+    await safeAddIndex('kisaan_users', ['username'], { unique: true });
+    await safeAddIndex('kisaan_users', ['shop_id']);
+    await safeAddIndex('kisaan_users', ['role']);
+    await safeAddIndex('kisaan_shops', ['owner_id']);
+    await safeAddIndex('kisaan_shops', ['plan_id']);
+    await safeAddIndex('kisaan_shops', ['status']);
+    await safeAddIndex('kisaan_products', ['category_id']);
+    await safeAddIndex('kisaan_products', ['name', 'category_id'], { unique: true });
+    await safeAddIndex('kisaan_transactions', ['shop_id']);
+    await safeAddIndex('kisaan_transactions', ['farmer_id']);
+    await safeAddIndex('kisaan_transactions', ['buyer_id']);
+    await safeAddIndex('kisaan_transactions', ['category_id']);
+    await safeAddIndex('kisaan_transactions', ['created_at']);
+    await safeAddIndex('kisaan_payments', ['transaction_id']);
+    await safeAddIndex('kisaan_payments', ['payer_type']);
+    await safeAddIndex('kisaan_payments', ['payee_type']);
+    await safeAddIndex('kisaan_payments', ['status']);
+    await safeAddIndex('kisaan_payments', ['payment_date']);
+    await safeAddIndex('kisaan_payments', ['transaction_id', 'status']);
+    await safeAddIndex('kisaan_commissions', ['shop_id']);
+    await safeAddIndex('kisaan_shop_categories', ['shop_id']);
+    await safeAddIndex('kisaan_shop_categories', ['category_id']);
+    await safeAddIndex('kisaan_shop_categories', ['shop_id', 'category_id'], { unique: true });
 
     console.log('✅ All tables created successfully!');
   },

@@ -42,6 +42,17 @@ export const createUser = async (
   let userData = { ...data };
   // Always set balance to a number (never undefined) for model type safety
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
+  // Enforce shop_id for farmer, buyer (must be present at creation)
+  if ((data.role === 'farmer' || data.role === 'buyer')) {
+    if (!data.shop_id) {
+      throw { status: 400, message: 'shop_id is required for farmer and buyer users' };
+    }
+    userData.shop_id = data.shop_id;
+  }
+  // For owner: allow creation without shop_id, but must be set before any business operation
+  if (data.role === 'owner' && data.shop_id) {
+    userData.shop_id = data.shop_id;
+  }
   if ((data.role === 'farmer' || data.role === 'buyer') && data.firstname && data.owner_id) {
     userData.username = generateUsername(data.firstname, data.owner_id);
   }
@@ -53,8 +64,6 @@ export const createUser = async (
   // Remove firstname only, keep balance in finalUserData
   const { firstname, ...finalUserDataWithBalance } = userData;
   // Ensure balance is always present and a number
-  // Remove possible undefined from balance before passing to User.create
-  // Explicitly cast balance to number for type safety
   if (userData.balance === undefined || userData.balance === null) {
     finalUserDataWithBalance.balance = 0;
   } else {

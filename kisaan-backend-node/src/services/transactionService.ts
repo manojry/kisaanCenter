@@ -10,12 +10,26 @@ import { CreateTransactionDTO, TransactionResponseDTO, TransactionSummaryDTO } f
 
 export class TransactionService {
   async createTransaction(data: CreateTransactionDTO, userId: number): Promise<TransactionResponseDTO> {
+  // After transaction is created and variables are defined
+  // Farmer's balance increases by earning
+  await User.increment({ balance: farmerEarning }, { where: { id: data.farmer_id } });
+  // Buyer's balance decreases by total sale value
+  await User.increment({ balance: -totalSaleValue }, { where: { id: data.buyer_id } });
+    // Defensive: Validate all referenced entities exist
+    const shop = await Shop.findByPk(data.shop_id);
+    if (!shop) throw new Error(`Shop with id ${data.shop_id} does not exist`);
+    const farmer = await User.findByPk(data.farmer_id);
+    if (!farmer) throw new Error(`Farmer with id ${data.farmer_id} does not exist`);
+    const buyer = await User.findByPk(data.buyer_id);
+    if (!buyer) throw new Error(`Buyer with id ${data.buyer_id} does not exist`);
+    const category = await Category.findByPk(data.category_id);
+    if (!category) throw new Error(`Category with id ${data.category_id} does not exist`);
+
     // Get shop commission rate
     const commission = await Commission.findOne({ 
       where: { shop_id: data.shop_id },
       order: [['created_at', 'DESC']]
     });
-    
     const commissionRate = commission?.rate || 10;
     const totalSaleValue = data.quantity * data.unit_price;
     const shopCommission = (totalSaleValue * commissionRate) / 100;
@@ -27,6 +41,10 @@ export class TransactionService {
       shop_commission: shopCommission,
       farmer_earning: farmerEarning
     });
+
+    if (!transaction || !transaction.id) {
+      throw new Error('Transaction creation failed: No valid transaction ID returned');
+    }
 
     // Create audit log
     await AuditLog.create({
@@ -43,7 +61,7 @@ export class TransactionService {
   async getTransactionById(id: number): Promise<TransactionResponseDTO | null> {
     const transaction = await Transaction.findByPk(id, {
       include: [
-        { model: Shop, as: 'shop' },
+        { model: Shop, as: 'transactionShop' },
         { model: User, as: 'farmer' },
         { model: User, as: 'buyer' },
         { model: Category, as: 'category' },

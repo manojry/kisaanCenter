@@ -79,15 +79,7 @@ export const getShopProducts = async (req: Request, res: Response) => {
       console.log('Error querying mapping table:', mappingError);
     }
     
-    // If no results from mapping table, get products directly by shop_id
-    if (results.length === 0) {
-      console.log('No products found via mapping table, trying direct shop_id lookup');
-      const [directResults] = await sequelize.query(
-        `SELECT * FROM kisaan_products WHERE shop_id = :shopId AND record_status = 'active'`,
-        { replacements: { shopId } }
-      );
-      results = Array.isArray(directResults) ? directResults : [];
-    }
+  // Products are only assigned to shops via kisaan_shop_products mapping table. No fallback to shop_id.
     
     res.json({ products: results });
   } catch (error: any) {

@@ -23,12 +23,14 @@ export const createShop = async (req: Request, res: Response) => {
     });
     
     res.status(201).json({
+      success: true,
       message: 'Shop created successfully',
-      shop: shop.toJSON(),
+      data: shop.toJSON(),
     });
   } catch (error: any) {
     console.error('Error creating shop:', error);
     res.status(500).json({
+      success: false,
       error: 'Failed to create shop',
       message: error.message,
     });
@@ -42,7 +44,8 @@ export const getShops = async (req: Request, res: Response) => {
     });
     
     res.json({
-      shops: shops.map(shop => shop.toJSON()),
+      success: true,
+      data: shops.map(shop => shop.toJSON()),
       count: shops.length,
     });
   } catch (error: any) {
@@ -81,7 +84,8 @@ export const getShopById = async (req: Request, res: Response) => {
     }
     
     res.json({
-      shop: { ...shop.toJSON(), users },
+      success: true,
+      data: { ...shop.toJSON(), users },
     });
   } catch (error: any) {
     console.error('Error fetching shop:', error);

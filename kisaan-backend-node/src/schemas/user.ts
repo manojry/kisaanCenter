@@ -6,7 +6,10 @@ export const UserStatusEnum = z.enum(['active', 'inactive']);
 export const UserBaseSchema = z.object({
   username: z.string().min(3).max(50),
   role: UserRoleEnum,
-  shop_id: z.number().int().optional().nullable(),
+  shop_id: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z.number().int().optional().nullable()
+  ),
   contact: z.string().min(10).max(15).optional().nullable(),
   email: z.string().email().max(100).optional().nullable(),
   status: UserStatusEnum.default('active'),
@@ -18,6 +21,16 @@ export const UserCreateSchema = UserBaseSchema.extend({
   password: z.string().min(6).max(100),
   created_by: z.number().int().optional().nullable(),
   firstname: z.string().min(2).max(50).optional(), // For auto-generating usernames
+}).superRefine((data, ctx) => {
+  // Enforce shop_id for farmer, buyer
+  if ((data.role === 'farmer' || data.role === 'buyer') && (!data.shop_id || isNaN(Number(data.shop_id)))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'shop_id is required for farmer and buyer users',
+      path: ['shop_id'],
+    });
+  }
+  // For owner: allow creation without shop_id, but must be set before any business operation
 });
 
 export const UserUpdateSchema = UserBaseSchema.partial().omit({ role: true }).extend({

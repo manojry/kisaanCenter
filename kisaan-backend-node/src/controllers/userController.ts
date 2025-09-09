@@ -17,16 +17,25 @@ export const createUser = async (
   try {
     const parsed = UserCreateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+      res.status(400).json({ success: false, error: 'Validation failed', details: parsed.error.issues });
       return;
     }
 
     const user: UserDTO = await userService.createUser(parsed.data, req.user?.id);
     res.status(201).json({
+      success: true,
       message: 'User created successfully',
-      user,
+      data: user,
     });
   } catch (err: any) {
+    // Enhanced error logging for debugging
+    console.error('CreateUser error:', err);
+    if (err && err.stack) {
+      console.error('Stack:', err.stack);
+    }
+    if (err && err.original) {
+      console.error('Sequelize original error:', err.original);
+    }
     next(err);
   }
 };

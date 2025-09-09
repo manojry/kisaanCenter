@@ -8,13 +8,19 @@ export const validateSchema = (schema: z.ZodSchema) => {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
+        const errorList = (error as any).errors;
+        if (!Array.isArray(errorList) || errorList.length === 0) {
+          console.error('Zod validation error (raw):', error);
+        }
         return res.status(400).json({
           success: false,
           message: 'Validation error',
-          errors: (error as any).errors.map((err: any) => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
+          errors: Array.isArray(errorList)
+            ? errorList.map((err: any) => ({
+                field: err.path.join('.'),
+                message: err.message
+              }))
+            : []
         });
       }
       next(error);

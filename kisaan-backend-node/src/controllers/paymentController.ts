@@ -43,9 +43,19 @@ export class PaymentController {
       const { id } = req.params;
       const userId = (req as any).user?.id;
       const updateData: UpdatePaymentStatusDTO = req.body;
-      
-      const payment = await this.paymentService.updatePaymentStatus(Number(id), updateData, userId);
-      
+
+      let payment;
+      try {
+        payment = await this.paymentService.updatePaymentStatus(Number(id), updateData, userId);
+      } catch (err) {
+        console.error('[PaymentController] updatePaymentStatus error:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to update payment status',
+          error: err instanceof Error ? err.message : 'Unknown error'
+        });
+      }
+
       if (!payment) {
         return res.status(404).json({
           success: false,
@@ -59,10 +69,10 @@ export class PaymentController {
         message: 'Payment status updated successfully'
       });
     } catch (error) {
-      console.error('Error updating payment:', error);
+      console.error('Error updating payment status:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to update payment',
+        message: 'Failed to update payment status',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

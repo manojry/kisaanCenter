@@ -9,22 +9,22 @@ export const createProduct = async (req: Request, res: Response) => {
       description, 
       category_id, 
       price, 
-      shop_id, 
       unit = null,
       record_status = 'active' 
     } = req.body;
     
     // Validation
-    if (!name || !price || !shop_id) {
+    if (!name || !price || !category_id) {
       return res.status(400).json({
+        success: false,
         error: 'Missing required fields',
-        required: ['name', 'price', 'shop_id']
+        required: ['name', 'category_id', 'price']
       });
     }
     
     const [results] = await sequelize.query(
-      `INSERT INTO kisaan_products (name, description, category_id, price, shop_id, unit, record_status, created_at, updated_at)
-       VALUES (:name, :description, :category_id, :price, :shop_id, :unit, :record_status, NOW(), NOW())
+      `INSERT INTO kisaan_products (name, description, category_id, price, unit, record_status, created_at, updated_at)
+       VALUES (:name, :description, :category_id, :price, :unit, :record_status, NOW(), NOW())
        RETURNING *`,
       { 
         replacements: { 
@@ -32,7 +32,6 @@ export const createProduct = async (req: Request, res: Response) => {
           description, 
           category_id, 
           price, 
-          shop_id, 
           unit, 
           record_status 
         } 
@@ -47,6 +46,7 @@ export const createProduct = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error creating product:', error);
     res.status(500).json({
+      success: false,
       error: 'Failed to create product',
       message: error.message,
     });
@@ -56,19 +56,9 @@ export const createProduct = async (req: Request, res: Response) => {
 // Get all products
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { shop_id } = req.query;
-    
-    let query = 'SELECT * FROM kisaan_products WHERE record_status = \'active\'';
-    const replacements: any = {};
-    
-    if (shop_id) {
-      query += ' AND shop_id = :shop_id';
-      replacements.shop_id = shop_id;
-    }
-    
-    query += ' ORDER BY created_at DESC';
-    
-    const [results] = await sequelize.query(query, { replacements });
+  let query = 'SELECT * FROM kisaan_products WHERE record_status = \'active\'';
+  query += ' ORDER BY created_at DESC';
+  const [results] = await sequelize.query(query);
     
     res.json({
       success: true,

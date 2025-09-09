@@ -1,3 +1,4 @@
+import { User } from '../models/user';
 import { Payment } from '../models/payment';
 import { Transaction } from '../models/transaction';
 import { AuditLog } from '../models/auditLog';
@@ -6,14 +7,30 @@ import { Op } from 'sequelize';
 
 export class PaymentService {
   async createPayment(data: CreatePaymentDTO, userId: number): Promise<PaymentResponseDTO> {
+    // Update balances based on payment direction
+    if (data.payer_type === 'BUYER' && data.payee_type === 'SHOP') {
+      // Buyer pays shop: buyer's balance increases (toward zero)
+      await User.increment({ balance: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.buyer_id } });
+    } else if (data.payer_type === 'SHOP' && data.payee_type === 'FARMER') {
+      // Shop pays farmer: farmer's balance decreases (toward zero)
+      await User.increment({ balance: -Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.farmer_id } });
+    }
+    // Defensive: Validate referenced transaction exists
+    const transaction = await Transaction.findByPk(data.transaction_id);
+    if (!transaction) throw new Error(`Transaction with id ${data.transaction_id} does not exist`);
+
     const payment = await Payment.create({
       ...data,
       status: 'PENDING'
     });
 
+    if (!payment || !payment.id) {
+      throw new Error('Payment creation failed: No valid payment ID returned');
+    }
+
     // Create audit log
     await AuditLog.create({
-      shop_id: 0, // Will be updated with transaction's shop_id
+      shop_id: transaction.shop_id || 0,
       user_id: userId,
       action: 'payment_recorded',
       entity_type: 'payment',
@@ -26,19 +43,30 @@ export class PaymentService {
 
   async updatePaymentStatus(paymentId: number, data: UpdatePaymentStatusDTO, userId: number): Promise<PaymentResponseDTO | null> {
     const payment = await Payment.findByPk(paymentId);
-    if (!payment) return null;
+    if (!payment) {
+      console.error(`[updatePaymentStatus] Payment not found for id:`, paymentId);
+      return null;
+    }
 
     const oldValues = payment.toJSON();
-    
-    await payment.update({
-      status: data.status,
-      payment_date: data.payment_date || new Date(),
-      notes: data.notes || payment.notes
-    });
+    try {
+      await payment.update({
+        status: data.status,
+        payment_date: data.payment_date || new Date(),
+        notes: data.notes !== undefined ? data.notes : payment.notes
+      });
+    } catch (err) {
+      console.error(`[updatePaymentStatus] Error updating payment:`, err);
+      throw err;
+    }
 
-    // Create audit log
+
+    // Fetch the related transaction to get the correct shop_id
+    const relatedTransaction = await Transaction.findByPk(payment.transaction_id);
+    if (!relatedTransaction) throw new Error('Related transaction not found for payment audit log');
+
     await AuditLog.create({
-      shop_id: 0, // Will be updated with transaction's shop_id
+      shop_id: relatedTransaction.shop_id,
       user_id: userId,
       action: 'payment_recorded',
       entity_type: 'payment',
