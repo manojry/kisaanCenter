@@ -255,6 +255,33 @@ components:
         activeShops: { type: integer }
         pendingPayments: { type: integer }
 
+    TransactionSummary:
+      type: object
+      properties:
+        total_transactions: { type: integer }
+        total_value: { type: number }
+        total_commission: { type: number }
+        pending_count: { type: integer }
+        completed_count: { type: integer }
+        average_transaction_value: { type: number }
+
+    BalanceUpdate:
+      type: object
+      properties:
+        amount: { type: number }
+        operation: { type: string, enum: [add, subtract, set] }
+        reason: { type: string }
+      required: [amount, operation]
+
+    ShopStats:
+      type: object
+      properties:
+        total_users: { type: integer }
+        active_farmers: { type: integer }
+        active_buyers: { type: integer }
+        total_transactions: { type: integer }
+        monthly_revenue: { type: number }
+
 paths:
   /users:
     post:
