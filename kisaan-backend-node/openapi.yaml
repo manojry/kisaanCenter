@@ -1,0 +1,748 @@
+openapi: 3.0.3
+info:
+  title: KisaanCenter API
+  version: 1.0.0
+  description: Full API documentation for KisaanCenter backend
+servers:
+  - url: http://localhost:3000/api
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        role: { type: string, enum: [superadmin, owner, farmer, buyer] }
+        owner_id: { type: string, nullable: true }
+        shop_id: { type: integer, nullable: true }
+        contact: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, enum: [active, inactive] }
+        balance: { type: number }
+        cumulative_value: { type: number }
+        created_by: { type: integer, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Category:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Shop:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        owner_id: { type: integer }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        category_id: { type: integer }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Transaction:
+      type: object
+      properties:
+        id: { type: integer }
+        shop_id: { type: integer }
+        farmer_id: { type: integer }
+        buyer_id: { type: integer }
+        product_name: { type: string }
+        quantity: { type: number }
+        unit_price: { type: number }
+        total_sale_value: { type: number }
+        shop_commission: { type: number }
+        farmer_earning: { type: number }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        transaction_id: { type: integer }
+        payer_type: { type: string, enum: [BUYER, SHOP] }
+        payee_type: { type: string, enum: [SHOP, FARMER] }
+        amount: { type: number }
+        status: { type: string, enum: [PENDING, PAID, FAILED] }
+        payment_date: { type: string, format: date-time, nullable: true }
+        method: { type: string, enum: [CASH, BANK, UPI, OTHER] }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Settlement:
+      type: object
+      properties:
+        id: { type: integer }
+        shop_id: { type: integer }
+        user_id: { type: integer }
+        amount: { type: number }
+        reason: { type: string, enum: [overpayment, underpayment, adjustment] }
+        status: { type: string, enum: [pending, settled] }
+        settlement_date: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+paths:
+  /users:
+    post:
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    get:
+      summary: Get all users
+      parameters:
+        - in: query
+          name: role
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: owner_id
+          schema: { type: string }
+        - in: query
+          name: shop_id
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    put:
+      summary: Update user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    delete:
+      summary: Delete user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /users/me:
+    get:
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+  /categories:
+    post:
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+    get:
+      summary: Get all categories
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+  /categories/{id}:
+    get:
+      summary: Get category by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Category found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+    put:
+      summary: Update category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Category' }
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+    delete:
+      summary: Delete category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Category deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /shops:
+    post:
+      summary: Create shop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Shop' }
+      responses:
+        '201':
+          description: Shop created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shop' }
+    get:
+      summary: Get all shops
+      responses:
+        '200':
+          description: List of shops
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Shop' }
+
+  /shops/{id}:
+    get:
+      summary: Get shop by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Shop found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shop' }
+    put:
+      summary: Update shop
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Shop' }
+      responses:
+        '200':
+          description: Shop updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shop' }
+    delete:
+      summary: Delete shop
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Shop deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /products:
+    post:
+      summary: Create product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Product' }
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+    get:
+      summary: Get all products
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+
+  /products/{id}:
+    get:
+      summary: Get product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+    put:
+      summary: Update product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Product' }
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+    delete:
+      summary: Delete product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Product deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /transactions:
+    post:
+      summary: Create transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Transaction' }
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+    get:
+      summary: Get all transactions
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Transaction' }
+
+  /transactions/{id}:
+    get:
+      summary: Get transaction by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+    put:
+      summary: Update transaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Transaction' }
+      responses:
+        '200':
+          description: Transaction updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+    delete:
+      summary: Delete transaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Transaction deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /payments:
+    post:
+      summary: Create payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Payment' }
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+    get:
+      summary: Get all payments
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Payment' }
+
+  /payments/{id}:
+    get:
+      summary: Get payment by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Payment found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+    put:
+      summary: Update payment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Payment' }
+      responses:
+        '200':
+          description: Payment updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+    delete:
+      summary: Delete payment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Payment deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /settlements:
+    post:
+      summary: Create settlement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settlement' }
+      responses:
+        '201':
+          description: Settlement created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+    get:
+      summary: Get all settlements
+      responses:
+        '200':
+          description: List of settlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Settlement' }
+
+  /settlements/{id}:
+    get:
+      summary: Get settlement by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Settlement found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+    put:
+      summary: Update settlement
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settlement' }
+      responses:
+        '200':
+          description: Settlement updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+    delete:
+      summary: Delete settlement
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Settlement deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+  /users/{id}/transactions:
+    get:
+      summary: Get all transactions for a user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: List of transactions for user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Transaction' }
+
+  /users/{id}/payments:
+    get:
+      summary: Get all payments for a user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: List of payments for user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Payment' }
+
+  /users/{id}/settlements:
+    get:
+      summary: Get all settlements for a user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: List of settlements for user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Settlement' }
+  /reports/summary:
+    get:
+      summary: Get business summary report
+      responses:
+        '200':
+          description: Business summary report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:
+                    type: integer
+                  totalTransactions:
+                    type: integer
+                  totalPayments:
+                    type: integer
+                  totalSettlements:
+                    type: integer
+                  totalRevenue:
+                    type: number
+
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
