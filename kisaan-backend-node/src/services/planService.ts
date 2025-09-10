@@ -4,19 +4,18 @@ import { Op } from 'sequelize';
 
 // Removed duplicate import of Plan
 
+
 export const createPlan = async (data: PlanCreationAttributes): Promise<Plan> => {
   const plan = await Plan.create({
     name: data.name,
     description: data.description ?? null,
-    monthly_price: data.monthly_price ?? undefined,
-    quarterly_price: data.quarterly_price ?? undefined,
-    yearly_price: data.yearly_price ?? undefined,
-    max_farmers: data.max_farmers ?? undefined,
-    max_buyers: data.max_buyers ?? undefined,
+    price: data.price,
+    billing_cycle: data.billing_cycle,
+    max_users: data.max_users ?? undefined,
+    max_products: data.max_products ?? undefined,
     max_transactions: data.max_transactions ?? undefined,
-    data_retention_months: data.data_retention_months ?? undefined,
     features: data.features,
-    status: data.status ?? 'active',
+    is_active: data.is_active ?? true,
   });
   return plan;
 };
@@ -69,7 +68,7 @@ export const deactivatePlan = async (id: number): Promise<Plan | null> => {
   const plan = await Plan.findByPk(id);
   if (!plan) return null;
 
-  await plan.update({ status: 'inactive' });
+  await plan.update({ is_active: false });
   return plan;
 };
 

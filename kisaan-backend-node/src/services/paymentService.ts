@@ -7,13 +7,13 @@ import { Op } from 'sequelize';
 
 export class PaymentService {
   async createPayment(data: CreatePaymentDTO, userId: number): Promise<PaymentResponseDTO> {
-    // Update balances based on payment direction (do NOT update cumulative_value)
+    // Update balances and cumulative_value based on payment direction
     if (data.payer_type === 'BUYER' && data.payee_type === 'SHOP') {
-      // Buyer pays shop: buyer's balance increases (toward zero)
-      await User.increment({ balance: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.buyer_id } });
+      // Buyer pays shop: buyer's balance increases (toward zero), cumulative_value increases (total spent)
+      await User.increment({ balance: Number(data.amount), cumulative_value: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.buyer_id } });
     } else if (data.payer_type === 'SHOP' && data.payee_type === 'FARMER') {
-      // Shop pays farmer: farmer's balance decreases (toward zero)
-      await User.increment({ balance: -Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.farmer_id } });
+      // Shop pays farmer: farmer's balance decreases (toward zero), cumulative_value increases (total earned)
+      await User.increment({ balance: -Number(data.amount), cumulative_value: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.farmer_id } });
     }
     // Defensive: Validate referenced transaction exists
     const transaction = await Transaction.findByPk(data.transaction_id);

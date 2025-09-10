@@ -39,11 +39,11 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
 
     // Use seeded category, plan, and product
     beforeAll(() => {
-      // Use known seeded IDs or names
-      categoryId = 4; // e.g., Flowers
-      planId = 1; // e.g., Basic
-      productId = 31; // e.g., Rose (adjust as per your seed)
-      productName = 'Rose';
+  // Use known seeded IDs or names
+  categoryId = 5; // Test Vegetables (from DB)
+  planId = 1; // e.g., Basic
+  productId = 31; // e.g., Rose (adjust as per your seed)
+  productName = 'Rose';
     });
 
     it('should create owner', async () => {
@@ -176,6 +176,8 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
 
   describe('3. Transaction Flow', () => {
   it('should create transaction and check balances', async () => {
+  // Wait for DB commit to ensure updated values are available
+  await new Promise(res => setTimeout(res, 200));
     try {
       if (!categoryId) throw new Error('categoryId not set before transaction creation');
       const response = await axios.post(`${API_BASE}/transactions`, {
@@ -196,14 +198,17 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       expect(Number(response.data.data.farmer_earning)).toBe(1093.75);
       transactionId = response.data.data.id;
       // Check balances and cumulative_value after transaction (should reflect sale, not yet paid)
-      const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-      const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-      const ownerRes = await axios.get(`${API_BASE}/users/${ownerId}`, { headers: { Authorization: `Bearer ${superadminToken}` } });
-      expect(Number(farmerRes.data.data.balance)).toBeGreaterThanOrEqual(1093.75);
-      expect(Number(buyerRes.data.data.balance)).toBeLessThanOrEqual(-1250);
-      expect(Number(farmerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1093.75);
-      expect(Number(buyerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1250);
-      expect(Number(ownerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(156.25);
+  const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+  const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+  const ownerRes = await axios.get(`${API_BASE}/users/${ownerId}`, { headers: { Authorization: `Bearer ${superadminToken}` } });
+  console.log('farmerRes:', JSON.stringify(farmerRes.data, null, 2));
+  console.log('buyerRes:', JSON.stringify(buyerRes.data, null, 2));
+  console.log('ownerRes:', JSON.stringify(ownerRes.data, null, 2));
+  expect(Number(farmerRes.data.user.balance)).toBeGreaterThanOrEqual(1093.75);
+  expect(Number(buyerRes.data.user.balance)).toBeLessThanOrEqual(-1250);
+  expect(Number(farmerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1093.75);
+  expect(Number(buyerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1250);
+  expect(Number(ownerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(156.25);
       if (!transactionId || isNaN(Number(transactionId))) {
         console.error('Transaction creation response missing valid id:', response.data);
         throw new Error('Transaction creation failed: No valid transactionId returned');
@@ -229,43 +234,61 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
     });
 
   it('should record partial buyer payment and check balances', async () => {
-    try {
-      if (!transactionId || isNaN(Number(transactionId))) {
-        throw new Error('Cannot create payment: transactionId is invalid');
-      }
-      // Partial payment (less than total)
-      const response = await axios.post(`${API_BASE}/payments`, {
-        transaction_id: Number(transactionId),
-        payer_type: 'BUYER',
-        payee_type: 'SHOP',
-        amount: 1000.00, // Partial payment
-        method: 'CASH',
-        notes: 'Partial payment for tomatoes'
-      }, {
-        headers: { Authorization: `Bearer ${ownerToken}` }
-      });
-      expect(response.status).toBe(201);
-      expect(response.data.success).toBe(true);
-      expect(response.data.data.status).toBe('PENDING');
-      paymentId = response.data.data.id;
-      if (!paymentId || isNaN(Number(paymentId))) {
-        console.error('Payment creation response missing valid id:', response.data);
-        throw new Error('Payment creation failed: No valid paymentId returned');
-      }
-  // Check balances after partial payment (cumulative_value should not change)
-  const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-  const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-  expect(Number(buyerRes.data.data.balance)).toBeCloseTo(-250, 0); // -1250 + 1000
-  expect(Number(buyerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1250);
-  expect(Number(farmerRes.data.data.cumulative_value)).toBeGreaterThanOrEqual(1093.75);
-    } catch (err) {
-      if (err && (err as any).response && (err as any).response.data) {
-        console.error('Buyer payment creation error:', (err as any).response.data);
-      } else {
-        console.error('Buyer payment creation error:', err);
-      }
-      throw err;
+  // Wait for DB commit to ensure updated values are available
+  await new Promise(res => setTimeout(res, 200));
+  try {
+    if (!transactionId || isNaN(Number(transactionId))) {
+      throw new Error('Cannot create payment: transactionId is invalid');
     }
+    // Partial payment (less than total)
+    const response = await axios.post(`${API_BASE}/payments`, {
+      transaction_id: Number(transactionId),
+      payer_type: 'BUYER',
+      payee_type: 'SHOP',
+      amount: 1000.00, // Partial payment
+      method: 'CASH',
+      notes: 'Partial payment for tomatoes'
+    }, {
+      headers: { Authorization: `Bearer ${ownerToken}` }
+    });
+    expect(response.status).toBe(201);
+    expect(response.data.success).toBe(true);
+    expect(response.data.data.status).toBe('PENDING');
+    paymentId = response.data.data.id;
+    if (!paymentId || isNaN(Number(paymentId))) {
+      console.error('Payment creation response missing valid id:', response.data);
+      throw new Error('Payment creation failed: No valid paymentId returned');
+    }
+
+    // Retry loop to fetch user until cumulative_value is updated (max 10 tries, 200ms apart)
+  async function fetchUserWithCumulativeValue(userId: number, minValue: number, token: string) {
+      let tries = 0;
+      let lastValue = 0;
+      while (tries < 10) {
+        const res = await axios.get(`${API_BASE}/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+        lastValue = Number(res.data.user.cumulative_value || 0);
+        if (lastValue >= minValue) return res;
+        await new Promise(r => setTimeout(r, 200));
+        tries++;
+      }
+      throw new Error(`cumulative_value for user ${userId} did not reach ${minValue} after 10 tries, last value: ${lastValue}`);
+    }
+
+    const buyerRes = await fetchUserWithCumulativeValue(buyerId, 1250, ownerToken);
+    const farmerRes = await fetchUserWithCumulativeValue(farmerId, 1093.75, ownerToken);
+    console.log('buyerRes (after payment):', JSON.stringify(buyerRes.data, null, 2));
+    console.log('farmerRes (after payment):', JSON.stringify(farmerRes.data, null, 2));
+    expect(Number(buyerRes.data.user.balance)).toBeCloseTo(-250, 0); // -1250 + 1000
+    expect(Number(buyerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1250);
+    expect(Number(farmerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1093.75);
+  } catch (err) {
+    if (err && (err as any).response && (err as any).response.data) {
+      console.error('Buyer payment creation error:', (err as any).response.data);
+    } else {
+      console.error('Buyer payment creation error:', err);
+    }
+    throw err;
+  }
   });
 
   it('should call reporting endpoints for farmer and buyer', async () => {

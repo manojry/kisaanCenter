@@ -96,7 +96,7 @@ export const getAllUsers = async (
     limit: searchParams.limit,
     offset,
     order: [['created_at', 'DESC']],
-    attributes: includeBalance ? { exclude: ['password'] } : { exclude: ['password', 'balance'] },
+    attributes: { exclude: ['password'] }, // Always include balance and cumulative_value
   });
   const users = rows.map(model => toUserDTO(fromUserModel(model)));
   return { users, total: count, page: searchParams.page, limit: searchParams.limit };

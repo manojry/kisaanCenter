@@ -87,6 +87,12 @@ export const getUserById = async (
       res.status(404).json({ error: 'User not found' });
       return;
     }
+    console.log('[DEBUG] Returning user from getUserById:', {
+      id: user.id,
+      username: user.username,
+      cumulative_value: user.cumulative_value,
+      balance: user.balance
+    });
     res.json({ message: 'User retrieved successfully', user });
   } catch (err: any) {
     next(err);
@@ -117,6 +123,12 @@ export const updateUser = async (
     }
 
   const user: UserDTO | null = await userService.updateUser(id, parsed.data, req.user);
+  console.log('[DEBUG] Returning user from updateUser:', {
+    id: user?.id,
+    username: user?.username,
+    cumulative_value: user?.cumulative_value,
+    balance: user?.balance
+  });
   res.json({ message: 'User updated successfully', user });
   } catch (err: any) {
     next(err);
@@ -189,6 +201,12 @@ export const getCurrentUser = async (
     }
 
   const user: UserDTO | null = await userService.getUserById(req.user.id, req.user);
+  console.log('[DEBUG] Returning user from getCurrentUser:', {
+    id: user?.id,
+    username: user?.username,
+    cumulative_value: user?.cumulative_value,
+    balance: user?.balance
+  });
   res.json({ message: 'Current user retrieved successfully', user });
   } catch (err: any) {
     next(err);

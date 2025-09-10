@@ -15,7 +15,8 @@ export function toUserDTO(entity: UserEntity): UserDTO {
     contact: entity.contact,
     email: entity.email,
     status: entity.status!,
-    balance: entity.balance!,
+    balance: typeof entity.balance === 'string' ? parseFloat(entity.balance) : entity.balance!, // handle DECIMAL as string
+    cumulative_value: typeof entity.cumulative_value === 'string' ? parseFloat(entity.cumulative_value) : (entity.cumulative_value ?? 0),
     created_by: entity.created_by,
     created_at: entity.created_at,
     updated_at: entity.updated_at,
@@ -36,5 +37,16 @@ export function fromCreateUserDTO(dto: CreateUserDTO): UserEntity {
 }
 
 export function fromUserModel(model: User): UserEntity {
-  return new UserEntity(model.get({ plain: true }));
+  const plain = model.get({ plain: true });
+  // Ensure cumulative_value is included and parsed as number
+  if (plain.cumulative_value === undefined && model.cumulative_value !== undefined) {
+    plain.cumulative_value = model.cumulative_value;
+  }
+  if (plain.cumulative_value !== undefined && typeof plain.cumulative_value === 'string') {
+    plain.cumulative_value = parseFloat(plain.cumulative_value);
+  }
+  if (plain.balance !== undefined && typeof plain.balance === 'string') {
+    plain.balance = parseFloat(plain.balance);
+  }
+  return new UserEntity(plain);
 }

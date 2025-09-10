@@ -1,6 +1,6 @@
 import { config } from 'dotenv';
 import { setupTestDatabase } from '../scripts/setup-test-database';
-import { seedSuperadmin } from '../scripts/seed-superadmin';
+// import { seedSuperadmin } from '../scripts/seed-superadmin';
 
 // Load test environment variables
 config({ path: '.env.test' });
@@ -18,6 +18,6 @@ beforeAll(async () => {
   console.log('🔄 Setting up test database...');
   await setupTestDatabase();
   console.log('✅ Test database setup complete');
-  await seedSuperadmin();
-  console.log('✅ Superadmin user seeded');
+  // await seedSuperadmin();
+  // console.log('✅ Superadmin user seeded');
 });
