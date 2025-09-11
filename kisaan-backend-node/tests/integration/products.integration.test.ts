@@ -3,10 +3,23 @@ const API_BASE = 'http://localhost:3000/api';
 
 describe('Products Integration', () => {
   let adminToken: string;
+  let validCategoryId: number;
 
   beforeAll(async () => {
     const res = await axios.post(`${API_BASE}/auth/login`, { username: 'superadmin', password: 'superadminpass' });
     adminToken = res.data.access_token || res.data.token;
+    
+    // Get a valid category ID
+    try {
+      const categoriesRes = await axios.get(`${API_BASE}/categories`);
+      if (categoriesRes.data.data && categoriesRes.data.data.length > 0) {
+        validCategoryId = categoriesRes.data.data[0].id;
+      } else {
+        validCategoryId = 1; // fallback
+      }
+    } catch (err) {
+      validCategoryId = 1; // fallback
+    }
   });
 
   it('should list all products', async () => {
@@ -18,7 +31,7 @@ describe('Products Integration', () => {
 
   it('should create a new product', async () => {
     const timestamp = Date.now();
-    const product = { name: `TestProduct_${timestamp}`, description: 'Test product', category_id: 1, price: 99, shop_id: 1, record_status: 'active' };
+    const product = { name: `TestProduct_${timestamp}`, description: 'Test product', category_id: validCategoryId, price: 99, record_status: 'active' };
     const res = await axios.post(`${API_BASE}/products`, product, { headers: { Authorization: `Bearer ${adminToken}` } });
     expect(res.status).toBe(201);
     expect(res.data.success).toBe(true);

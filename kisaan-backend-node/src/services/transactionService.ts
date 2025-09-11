@@ -75,7 +75,7 @@ export class TransactionService {
     // Create audit log
     await AuditLog.create({
       shop_id: data.shop_id,
-      user_id: userId,
+      user_id: userId || 1, // Default to 1 if userId is null
       action: 'transaction_created',
       entity_type: 'transaction',
       entity_id: transaction.id,

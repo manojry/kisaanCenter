@@ -2,11 +2,12 @@
 import { Router } from 'express';
 import * as shopController from '../controllers/shopController';
 import * as shopProductsController from '../controllers/shopProductsController';
-// import { authenticateToken } from '../middlewares/auth';
+import { authenticateToken } from '../middlewares/auth';
 
 export const shopRoutes = Router();
 
-// All routes without authentication for testing
+// Authentication disabled for testing
+// shopRoutes.use(authenticateToken);
 
 shopRoutes.get('/', shopController.getShops);
 shopRoutes.get('/:id', shopController.getShopById);

@@ -4,19 +4,74 @@ import { sequelize } from '../models/index';
 
 export const createShop = async (req: Request, res: Response) => {
   try {
-    const { name, owner_id, address, contact, status = 'active' } = req.body;
+    const { name, owner_id, plan_id, address, contact, status = 'active' } = req.body;
     
     // Validation
     if (!name || !owner_id || !address || !contact) {
       return res.status(400).json({
+        success: false,
         error: 'Missing required fields',
         required: ['name', 'owner_id', 'address', 'contact']
       });
     }
+
+    // Validate owner_id is a valid number
+    const ownerIdNum = Number(owner_id);
+    if (isNaN(ownerIdNum) || ownerIdNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid owner_id',
+        message: 'owner_id must be a valid positive number'
+      });
+    }
+
+    // Validate plan_id if provided
+    let planIdNum = null;
+    if (plan_id) {
+      planIdNum = Number(plan_id);
+      if (isNaN(planIdNum) || planIdNum <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid plan_id',
+          message: 'plan_id must be a valid positive number'
+        });
+      }
+    }
+
+    // Check if owner exists
+    const [ownerCheck] = await sequelize.query(
+      'SELECT id FROM kisaan_users WHERE id = :owner_id',
+      { replacements: { owner_id: ownerIdNum } }
+    );
+
+    if (!ownerCheck || (Array.isArray(ownerCheck) && ownerCheck.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid owner_id',
+        message: 'Owner does not exist'
+      });
+    }
+
+    // Check if plan exists (if provided)
+    if (planIdNum) {
+      const [planCheck] = await sequelize.query(
+        'SELECT id FROM kisaan_plans WHERE id = :plan_id',
+        { replacements: { plan_id: planIdNum } }
+      );
+
+      if (!planCheck || (Array.isArray(planCheck) && planCheck.length === 0)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid plan_id',
+          message: 'Plan does not exist'
+        });
+      }
+    }
     
     const shop = await Shop.create({
       name,
-      owner_id,
+      owner_id: ownerIdNum,
+      plan_id: planIdNum,
       address,
       contact,
       status,
@@ -99,21 +154,21 @@ export const getShopById = async (req: Request, res: Response) => {
 export const updateShop = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ error: 'Invalid or missing shop id parameter' });
+    }
     const updateData = req.body;
-    
     const shop = await Shop.findByPk(id);
-    
     if (!shop) {
       return res.status(404).json({
         error: 'Shop not found',
       });
     }
-    
     await shop.update(updateData);
-    
     res.json({
+      success: true,
       message: 'Shop updated successfully',
-      shop: shop.toJSON(),
+      data: shop.toJSON(),
     });
   } catch (error: any) {
     console.error('Error updating shop:', error);

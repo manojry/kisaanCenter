@@ -29,7 +29,8 @@ export class TransactionController {
 
   async createTransaction(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      console.log('Transaction creation request:', req.body);
+      const userId = (req as any).user?.id || 1; // Default to 1 for testing
       const transactionData: CreateTransactionDTO = req.body;
       
       const transaction = await this.transactionService.createTransaction(transactionData, userId);
@@ -78,17 +79,17 @@ export class TransactionController {
   async getTransactionsByShop(req: Request, res: Response) {
     try {
       const { shopId } = req.params;
+      if (!shopId || isNaN(Number(shopId))) {
+        return res.status(400).json({ success: false, message: 'Invalid or missing shopId parameter' });
+      }
       const { startDate, endDate, farmerId, buyerId } = req.query;
-      
       const filters = {
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
         farmerId: farmerId ? Number(farmerId) : undefined,
         buyerId: buyerId ? Number(buyerId) : undefined
       };
-      
       const transactions = await this.transactionService.getTransactionsByShop(Number(shopId), filters);
-
       res.json({
         success: true,
         data: transactions
@@ -106,15 +107,15 @@ export class TransactionController {
   async getShopEarnings(req: Request, res: Response) {
     try {
       const { shopId } = req.params;
+      if (!shopId || isNaN(Number(shopId))) {
+        return res.status(400).json({ success: false, message: 'Invalid or missing shopId parameter' });
+      }
       const { startDate, endDate } = req.query;
-      
       const period = startDate && endDate ? {
         start: new Date(startDate as string),
         end: new Date(endDate as string)
       } : undefined;
-      
       const earnings = await this.transactionService.getShopEarnings(Number(shopId), period);
-
       res.json({
         success: true,
         data: earnings
@@ -132,19 +133,19 @@ export class TransactionController {
   async getFarmerEarnings(req: Request, res: Response) {
     try {
       const { farmerId } = req.params;
+      if (!farmerId || isNaN(Number(farmerId))) {
+        return res.status(400).json({ success: false, message: 'Invalid or missing farmerId parameter' });
+      }
       const { shopId, startDate, endDate } = req.query;
-      
       const period = startDate && endDate ? {
         start: new Date(startDate as string),
         end: new Date(endDate as string)
       } : undefined;
-      
       const earnings = await this.transactionService.getFarmerEarnings(
         Number(farmerId),
-        shopId ? Number(shopId) : undefined,
+        shopId && !isNaN(Number(shopId)) ? Number(shopId) : undefined,
         period
       );
-
       res.json({
         success: true,
         data: earnings

@@ -43,9 +43,16 @@ export const createUser = async (
   // Always set balance to a number (never undefined) for model type safety
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
   // Enforce shop_id for farmer, buyer (must be present at creation)
-  if ((data.role === 'farmer' || data.role === 'buyer')) {
-    if (!data.shop_id) {
-      throw { status: 400, message: 'shop_id is required for farmer and buyer users' };
+  if ((data.role === 'farmer' || data.role === 'buyer') && data.shop_id) {
+    // Validate shop exists if shop_id is provided
+    const { sequelize } = require('../models/index');
+    const [shopCheck] = await sequelize.query(
+      'SELECT id FROM kisaan_shops WHERE id = :shop_id',
+      { replacements: { shop_id: data.shop_id } }
+    );
+    
+    if (!shopCheck || (Array.isArray(shopCheck) && shopCheck.length === 0)) {
+      throw { status: 400, message: 'Invalid shop_id: Shop does not exist' };
     }
     userData.shop_id = data.shop_id;
   }

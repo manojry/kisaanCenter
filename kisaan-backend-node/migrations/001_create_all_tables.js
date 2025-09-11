@@ -8,6 +8,8 @@ module.exports = {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING(100), allowNull: false, unique: true },
       description: { type: Sequelize.TEXT, allowNull: true },
+      price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
+      billing_cycle: { type: Sequelize.ENUM('monthly', 'quarterly', 'yearly'), allowNull: true, defaultValue: 'monthly' },
       monthly_price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
       quarterly_price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
       yearly_price: { type: Sequelize.DECIMAL(10, 2), allowNull: true },
@@ -16,7 +18,7 @@ module.exports = {
       max_transactions: { type: Sequelize.INTEGER, allowNull: true },
       data_retention_months: { type: Sequelize.INTEGER, allowNull: true },
       features: { type: Sequelize.TEXT, allowNull: false, defaultValue: '[]' },
-      status: { type: Sequelize.STRING, allowNull: true },
+      is_active: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
       created_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       updated_at: { type: Sequelize.DATE, allowNull: true, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
     });
@@ -42,6 +44,7 @@ module.exports = {
       email: { type: Sequelize.STRING, allowNull: true },
       status: { type: Sequelize.ENUM('active', 'inactive'), allowNull: false, defaultValue: 'active' },
       balance: { type: Sequelize.DECIMAL(12,2), allowNull: false, defaultValue: 0.00 },
+      cumulative_value: { type: Sequelize.DECIMAL(12,2), allowNull: false, defaultValue: 0.00 },
       created_by: { type: Sequelize.BIGINT, allowNull: true },
       created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
@@ -52,7 +55,7 @@ module.exports = {
       id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true },
       name: { type: Sequelize.STRING, allowNull: false },
       owner_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-      plan_id: { type: Sequelize.BIGINT, allowNull: true, references: { model: 'kisaan_plans', key: 'id' } },
+      plan_id: { type: Sequelize.INTEGER, allowNull: true, references: { model: 'kisaan_plans', key: 'id' } },
       address: { type: Sequelize.TEXT, allowNull: true },
       contact: { type: Sequelize.STRING, allowNull: true },
       status: { type: Sequelize.ENUM('active', 'inactive'), allowNull: false, defaultValue: 'active' },
@@ -76,9 +79,9 @@ module.exports = {
     // Create Transactions table
     await queryInterface.createTable('kisaan_transactions', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-      shop_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
-      farmer_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-      buyer_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+      shop_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
+      farmer_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+      buyer_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
       category_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
       product_name: { type: Sequelize.STRING(255), allowNull: false },
       quantity: { type: Sequelize.DECIMAL(12,2), allowNull: false },
@@ -93,7 +96,7 @@ module.exports = {
     // Create Payments table
     await queryInterface.createTable('kisaan_payments', {
       id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true },
-      transaction_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_transactions', key: 'id' } },
+      transaction_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_transactions', key: 'id' } },
       payer_type: { type: Sequelize.ENUM('BUYER', 'SHOP'), allowNull: false },
       payee_type: { type: Sequelize.ENUM('SHOP', 'FARMER'), allowNull: false },
       amount: { type: Sequelize.DECIMAL(12,2), allowNull: false },
@@ -118,8 +121,18 @@ module.exports = {
     // Create Shop Categories junction table
     await queryInterface.createTable('kisaan_shop_categories', {
       id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
-      shop_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
+      shop_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
       category_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
+      is_active: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+      created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+      updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
+    });
+
+    // Create Shop Products junction table
+    await queryInterface.createTable('kisaan_shop_products', {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      shop_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
+      product_id: { type: Sequelize.INTEGER, allowNull: false, references: { model: 'kisaan_products', key: 'id' } },
       is_active: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
       created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
       updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') }
@@ -164,11 +177,15 @@ module.exports = {
     await safeAddIndex('kisaan_shop_categories', ['shop_id']);
     await safeAddIndex('kisaan_shop_categories', ['category_id']);
     await safeAddIndex('kisaan_shop_categories', ['shop_id', 'category_id'], { unique: true });
+    await safeAddIndex('kisaan_shop_products', ['shop_id']);
+    await safeAddIndex('kisaan_shop_products', ['product_id']);
+    await safeAddIndex('kisaan_shop_products', ['shop_id', 'product_id'], { unique: true });
 
     console.log('✅ All tables created successfully!');
   },
 
   async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable('kisaan_shop_products');
     await queryInterface.dropTable('kisaan_shop_categories');
     await queryInterface.dropTable('kisaan_commissions');
     await queryInterface.dropTable('kisaan_payments');

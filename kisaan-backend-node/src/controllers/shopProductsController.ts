@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Product } from '../models/product';
 import { ShopProducts } from '../models/shopProducts';
-import { sequelize } from '../models/index';
+import sequelize from '../config/database';
 // Assign a product to a shop
 export const assignProductToShop = async (req: Request, res: Response) => {
   try {
@@ -70,7 +70,7 @@ export const getShopProducts = async (req: Request, res: Response) => {
     try {
       const [mappingResults] = await sequelize.query(
         `SELECT p.* FROM kisaan_products p
-         INNER JOIN shop_products sp ON p.id = sp.product_id
+         INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
          WHERE sp.shop_id = :shopId AND sp.is_active = true`,
         { replacements: { shopId } }
       );

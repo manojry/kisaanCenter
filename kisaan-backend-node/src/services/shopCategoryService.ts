@@ -80,7 +80,7 @@ export const getShopCategories = async (shopId: number): Promise<Category[]> => 
         model: Category,
         as: 'categories',
         through: { attributes: [] }, // Exclude join table attributes
-        where: { is_active: true },
+        where: { status: 'active' },
         required: false,
       },
     ],
@@ -126,13 +126,13 @@ export const getShopCategoryAssignments = async (shopId?: number, categoryId?: n
     include: [
       {
         model: Shop,
-        as: 'shop',
+        as: 'categoryShop',
         attributes: ['id', 'name', 'status'],
       },
       {
         model: Category,
         as: 'category',
-        attributes: ['id', 'name', 'is_active'],
+        attributes: ['id', 'name', 'status'],
       },
     ],
     order: [['created_at', 'DESC']],

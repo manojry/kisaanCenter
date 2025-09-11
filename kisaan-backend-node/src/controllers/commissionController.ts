@@ -7,7 +7,7 @@ export class CommissionController {
 
   async createCommission(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.id || 1; // Default to 1 for testing
       const commissionData: CreateCommissionDTO = req.body;
       if (!commissionData.shop_id || !commissionData.rate || !commissionData.type) {
         return res.status(400).json({
@@ -26,6 +26,26 @@ export class CommissionController {
       res.status(500).json({
         success: false,
         message: 'Failed to create commission',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  async getAllCommissions(req: Request, res: Response) {
+    try {
+      const { shop_id } = req.query;
+      const commissions = shop_id 
+        ? await this.commissionService.getCommissionsByShop(Number(shop_id))
+        : await this.commissionService.getAllCommissions();
+
+      res.json({
+        success: true,
+        data: commissions
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch commissions',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }

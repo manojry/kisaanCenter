@@ -38,21 +38,29 @@ export const UserUpdateSchema = UserBaseSchema.partial().omit({ role: true }).ex
 }); // Can't change role after creation
 
 export const UserPasswordResetSchema = z.object({
-  current_password: z.string().min(6),
-  new_password: z.string().min(6).max(100),
-  confirm_password: z.string().min(6).max(100),
-}).refine(data => data.new_password === data.confirm_password, {
-  message: "Passwords don't match",
-  path: ["confirm_password"],
-});
+  currentPassword: z.string().min(6),
+  newPassword: z.string().min(6).max(100),
+}).transform(data => ({
+  current_password: data.currentPassword,
+  new_password: data.newPassword
+}));
 
 export const UserSearchSchema = z.object({
   role: UserRoleEnum.optional(),
   status: UserStatusEnum.optional(),
   owner_id: z.string().optional(),
-  shop_id: z.number().int().optional(),
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(20),
+  shop_id: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z.number().int().optional()
+  ),
+  page: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? 1 : Number(val)),
+    z.number().int().min(1).default(1)
+  ),
+  limit: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? 20 : Number(val)),
+    z.number().int().min(1).max(100).default(20)
+  ),
 });
 
 export const UserReadSchema = UserBaseSchema.extend({

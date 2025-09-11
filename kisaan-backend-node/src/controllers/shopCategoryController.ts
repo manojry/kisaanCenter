@@ -49,20 +49,8 @@ import { z } from 'zod';
 
 export const assignCategoriesToShop = async (req: Request, res: Response) => {
   try {
-    // Accept both { assignments: [{ shop_id, category_id }]} and { shop_id, category_ids }
-    let validatedData;
-    if (Array.isArray(req.body.assignments)) {
-      const shop_id = req.body.assignments[0]?.shop_id;
-      const category_ids = req.body.assignments.map((a: any) => a.category_id);
-      validatedData = AssignCategoriesToShopSchema.parse({ shop_id, category_ids });
-    } else if (req.body.shop_id && Array.isArray(req.body.category_ids)) {
-      validatedData = AssignCategoriesToShopSchema.parse(req.body);
-    } else {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid payload for category assignment',
-      });
-    }
+    console.log('Shop category assignment request:', req.body);
+    const validatedData = AssignCategoriesToShopSchema.parse(req.body);
     const assignments = await shopCategoryService.assignCategoriesToShop(validatedData);
     res.status(201).json({
       success: true,

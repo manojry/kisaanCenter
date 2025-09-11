@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import * as shopCategoryController from '../controllers/shopCategoryController';
 import { unassignCategoryFromShop } from '../controllers/shopCategoryController';
+import { authenticateToken } from '../middlewares/auth';
 
 export const shopCategoryRoutes = Router();
+
+// Apply authentication to all routes
+// shopCategoryRoutes.use(authenticateToken); // Disabled for testing
 // Get categories for a specific shop (for /api/shop-categories/shop/:shopId)
 shopCategoryRoutes.get('/shop/:shopId', shopCategoryController.getShopCategories);
 

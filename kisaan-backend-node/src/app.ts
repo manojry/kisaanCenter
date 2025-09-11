@@ -103,7 +103,29 @@ app.get('/api/test', (req, res) => {
       'DELETE /api/categories/:id',
       'POST /api/shop-categories/assign',
       'POST /api/shop-categories/remove',
-      'GET /api/shop-categories/shop/:shopId/categories'
+      'GET /api/shop-categories/shop/:shopId/categories',
+      'GET /api/transactions',
+      'POST /api/transactions',
+      'GET /api/transactions/:id',
+      'PUT /api/transactions/:id',
+      'DELETE /api/transactions/:id',
+      'GET /api/transactions/analytics',
+      'GET /api/balance/user/:id',
+      'GET /api/balance/shop/:id',
+      'POST /api/balance/update',
+      'GET /api/commissions',
+      'POST /api/commissions',
+      'POST /api/commissions/calculate',
+      'GET /api/settlements',
+      'POST /api/settlements',
+      'GET /api/settlements/:id',
+      'PATCH /api/settlements/:id/status',
+      'GET /api/credits',
+      'POST /api/credits',
+      'GET /api/payments',
+      'POST /api/payments',
+      'GET /api/reports/sales',
+      'GET /api/reports/transactions'
     ]
   });
 });
@@ -201,8 +223,15 @@ app.use('*', (req, res) => {
       'POST /api/balance/update',
       'GET /api/commissions',
       'POST /api/commissions',
+      'POST /api/commissions/calculate',
       'GET /api/settlements',
       'POST /api/settlements',
+      'GET /api/settlements/:id',
+      'PATCH /api/settlements/:id/status',
+      'GET /api/credits',
+      'POST /api/credits',
+      'GET /api/payments',
+      'POST /api/payments',
       'GET /api/reports/sales',
       'GET /api/reports/transactions'
     ]

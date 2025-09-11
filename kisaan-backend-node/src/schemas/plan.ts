@@ -1,18 +1,19 @@
 import { z } from 'zod';
 import Joi from 'joi';
 
-export const BillingCycleEnum = z.enum(['monthly', 'quarterly', 'yearly']);
-
 export const PlanBaseSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional().nullable(),
-  price: z.number().nonnegative(),
-  billing_cycle: BillingCycleEnum,
-  max_users: z.number().int().positive().optional().nullable(),
-  max_products: z.number().int().positive().optional().nullable(),
+  price: z.number().nonnegative().optional().nullable(),
+  monthly_price: z.number().nonnegative().optional().nullable(),
+  quarterly_price: z.number().nonnegative().optional().nullable(),
+  yearly_price: z.number().nonnegative().optional().nullable(),
+  max_farmers: z.number().int().positive().optional().nullable(),
+  max_buyers: z.number().int().positive().optional().nullable(),
   max_transactions: z.number().int().positive().optional().nullable(),
+  data_retention_months: z.number().int().positive().optional().nullable(),
   features: z.array(z.string()).default([]),
-  is_active: z.boolean().default(true),
+  status: z.string().default('active'),
 });
 
 export const PlanCreateSchema = PlanBaseSchema;
@@ -47,7 +48,6 @@ export const planIdSchema = Joi.object({
   id: Joi.number().required().positive()
 });
 
-export type BillingCycle = z.infer<typeof BillingCycleEnum>;
 export type PlanCreate = z.infer<typeof PlanCreateSchema>;
 export type PlanUpdate = z.infer<typeof PlanUpdateSchema>;
 export type PlanRead = z.infer<typeof PlanReadSchema>;

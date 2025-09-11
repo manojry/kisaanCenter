@@ -13,9 +13,9 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
     
-    // Sync database models (create tables if they don't exist)
-    await sequelize.sync({ force: false, alter: false });
-    console.log('✅ Database synchronized successfully.');
+    // Skip auto-sync to avoid schema conflicts
+    // Use manual migrations instead: npm run migrate
+    console.log('✅ Database models loaded (manual migration required).');
     
     // Start the server
     const server = app.listen(PORT, () => {

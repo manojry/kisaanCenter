@@ -18,6 +18,14 @@ export class CommissionService {
     return commission.toJSON() as CommissionResponseDTO;
   }
 
+  async getAllCommissions(): Promise<CommissionResponseDTO[]> {
+    const commissions = await Commission.findAll({
+      order: [['created_at', 'DESC']]
+    });
+
+    return commissions.map(c => c.toJSON() as CommissionResponseDTO);
+  }
+
   async getCommissionsByShop(shopId: number): Promise<CommissionResponseDTO[]> {
     const commissions = await Commission.findAll({
       where: { shop_id: shopId },

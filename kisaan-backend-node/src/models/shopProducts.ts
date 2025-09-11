@@ -32,7 +32,7 @@ ShopProducts.init(
       primaryKey: true,
     },
     shop_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
       references: { model: 'kisaan_shops', key: 'id' },
     },

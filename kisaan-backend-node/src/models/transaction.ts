@@ -38,11 +38,11 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
 
 Transaction.init(
   {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    shop_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
-    farmer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-    buyer_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
-    category_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
+    id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
+    shop_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
+    farmer_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+    buyer_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
+    category_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
     product_name: { type: DataTypes.STRING(255), allowNull: false },
     quantity: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     unit_price: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },

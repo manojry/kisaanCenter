@@ -15,8 +15,8 @@ export const ShopCategoryReadSchema = ShopCategoryBaseSchema.extend({
 
 // Schema for assigning multiple categories to a shop
 export const AssignCategoriesToShopSchema = z.object({
-  shop_id: z.number().int().positive(),
-  category_ids: z.array(z.number().int().positive()).min(1),
+  shop_id: z.preprocess((val) => Number(val), z.number().int().positive()),
+  category_ids: z.array(z.preprocess((val) => Number(val), z.number().int().positive())).min(1),
 });
 
 // Schema for removing categories from a shop

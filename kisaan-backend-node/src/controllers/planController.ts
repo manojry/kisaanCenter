@@ -6,6 +6,7 @@ import { z } from 'zod';
 export class PlanController {
   async createPlan(req: Request, res: Response) {
     try {
+      console.log('Plan creation request:', req.body);
       // Accept features as array, store as JSON string
       let input = { ...req.body };
       // If features is a string, parse it to array for validation
@@ -20,10 +21,11 @@ export class PlanController {
       // Stringify features if it is an array
       const planData = {
         ...validatedData,
-        features: Array.isArray(validatedData.features) ? JSON.stringify(validatedData.features) : validatedData.features,
-        max_users: validatedData.max_users === null ? undefined : validatedData.max_users,
-        max_products: validatedData.max_products === null ? undefined : validatedData.max_products,
-        max_transactions: validatedData.max_transactions === null ? undefined : validatedData.max_transactions
+        features: JSON.stringify(validatedData.features || []),
+        max_farmers: validatedData.max_farmers === null ? undefined : validatedData.max_farmers,
+        max_buyers: validatedData.max_buyers === null ? undefined : validatedData.max_buyers,
+        max_transactions: validatedData.max_transactions === null ? undefined : validatedData.max_transactions,
+        data_retention_months: validatedData.data_retention_months === null ? undefined : validatedData.data_retention_months
       };
       const plan = await planService.createPlan(planData);
       res.status(201).json({

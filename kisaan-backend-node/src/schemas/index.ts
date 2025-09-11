@@ -5,3 +5,5 @@ export * from './plan';
 export * from './category';
 export * from './product';
 export * from './shopCategory';
+export * from './transaction';
+export * from './payment';

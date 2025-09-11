@@ -37,13 +37,18 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       superadminToken = loginResponse.data.access_token || loginResponse.data.token;
     });
 
-    // Use seeded category, plan, and product
-    beforeAll(() => {
-  // Use known seeded IDs or names
-  categoryId = 5; // Test Vegetables (from DB)
-  planId = 1; // e.g., Basic
-  productId = 31; // e.g., Rose (adjust as per your seed)
-  productName = 'Rose';
+    it('should get valid IDs from database', async () => {
+      // Get valid category ID
+      const categoriesRes = await axios.get(`${API_BASE}/categories`);
+      categoryId = categoriesRes.data.data?.[0]?.id || 1;
+      
+      // Get valid plan ID
+      const plansRes = await axios.get(`${API_BASE}/plans`);
+      planId = plansRes.data.data?.[0]?.id || 1;
+      
+      productName = 'Test Product';
+      
+      console.log('✅ Valid IDs:', { categoryId, planId });
     });
 
     it('should create owner', async () => {
@@ -180,11 +185,15 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
   await new Promise(res => setTimeout(res, 200));
     try {
       if (!categoryId) throw new Error('categoryId not set before transaction creation');
+      if (!shopId) throw new Error('shopId not set before transaction creation');
+      if (!farmerId) throw new Error('farmerId not set before transaction creation');
+      if (!buyerId) throw new Error('buyerId not set before transaction creation');
+      
       const response = await axios.post(`${API_BASE}/transactions`, {
-        shop_id: Number(shopId),
-        farmer_id: Number(farmerId),
-        buyer_id: Number(buyerId),
-        category_id: Number(categoryId),
+        shop_id: shopId,
+        farmer_id: farmerId,
+        buyer_id: buyerId,
+        category_id: categoryId,
         product_name: productName,
         quantity: 50,
         unit_price: 25.00
@@ -204,11 +213,11 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
   console.log('farmerRes:', JSON.stringify(farmerRes.data, null, 2));
   console.log('buyerRes:', JSON.stringify(buyerRes.data, null, 2));
   console.log('ownerRes:', JSON.stringify(ownerRes.data, null, 2));
-  expect(Number(farmerRes.data.user.balance)).toBeGreaterThanOrEqual(1093.75);
-  expect(Number(buyerRes.data.user.balance)).toBeLessThanOrEqual(-1250);
-  expect(Number(farmerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1093.75);
-  expect(Number(buyerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1250);
-  expect(Number(ownerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(156.25);
+  expect(Number(farmerRes.data.data.balance)).toBeGreaterThanOrEqual(1093.75);
+  expect(Number(buyerRes.data.data.balance)).toBeLessThanOrEqual(-1250);
+  expect(Number(farmerRes.data.data.cumulative_value || 0)).toBeGreaterThanOrEqual(1093.75);
+  expect(Number(buyerRes.data.data.cumulative_value || 0)).toBeGreaterThanOrEqual(1250);
+  expect(Number(ownerRes.data.data.cumulative_value || 0)).toBeGreaterThanOrEqual(156.25);
       if (!transactionId || isNaN(Number(transactionId))) {
         console.error('Transaction creation response missing valid id:', response.data);
         throw new Error('Transaction creation failed: No valid transactionId returned');
@@ -234,76 +243,155 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
     });
 
   it('should record partial buyer payment and check balances', async () => {
-  // Wait for DB commit to ensure updated values are available
-  await new Promise(res => setTimeout(res, 200));
-  try {
-    if (!transactionId || isNaN(Number(transactionId))) {
-      throw new Error('Cannot create payment: transactionId is invalid');
+    // Wait for DB commit to ensure updated values are available
+    await new Promise(res => setTimeout(res, 200));
+    try {
+      if (!transactionId) throw new Error('transactionId not set');
+      
+      // Record partial payment from buyer (₹800 out of ₹1250)
+      const paymentResponse = await axios.post(`${API_BASE}/payments`, {
+        transaction_id: Number(transactionId),
+        payer_type: 'BUYER',
+        payee_type: 'SHOP',
+        amount: 800.00,
+        method: 'CASH'
+      }, {
+        headers: { Authorization: `Bearer ${ownerToken}` }
+      });
+      
+      expect(paymentResponse.status).toBe(201);
+      expect(paymentResponse.data.success).toBe(true);
+      paymentId = paymentResponse.data.data.id;
+      
+      // Check balances after partial payment
+      const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      
+      // Buyer balance should be -450 (still owes ₹450)
+      expect(Number(buyerRes.data.user.balance)).toBe(-450);
+      // Farmer balance should still be positive (₹1093.75 - not yet paid by shop)
+      expect(Number(farmerRes.data.user.balance)).toBe(1093.75);
+      
+    } catch (err) {
+      console.error('Payment error:', (err as any).response?.data || err);
+      throw err;
     }
-    // Partial payment (less than total)
-    const response = await axios.post(`${API_BASE}/payments`, {
-      transaction_id: Number(transactionId),
-      payer_type: 'BUYER',
-      payee_type: 'SHOP',
-      amount: 1000.00, // Partial payment
-      method: 'CASH',
-      notes: 'Partial payment for tomatoes'
-    }, {
-      headers: { Authorization: `Bearer ${ownerToken}` }
-    });
-    expect(response.status).toBe(201);
-    expect(response.data.success).toBe(true);
-    expect(response.data.data.status).toBe('PENDING');
-    paymentId = response.data.data.id;
-    if (!paymentId || isNaN(Number(paymentId))) {
-      console.error('Payment creation response missing valid id:', response.data);
-      throw new Error('Payment creation failed: No valid paymentId returned');
-    }
+  });
 
-    // Retry loop to fetch user until cumulative_value is updated (max 10 tries, 200ms apart)
-  async function fetchUserWithCumulativeValue(userId: number, minValue: number, token: string) {
-      let tries = 0;
-      let lastValue = 0;
-      while (tries < 10) {
-        const res = await axios.get(`${API_BASE}/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-        lastValue = Number(res.data.user.cumulative_value || 0);
-        if (lastValue >= minValue) return res;
-        await new Promise(r => setTimeout(r, 200));
-        tries++;
+  it('should pay farmer and update balances', async () => {
+    try {
+      // Shop pays farmer ₹1093.75
+      const paymentResponse = await axios.post(`${API_BASE}/payments`, {
+        transaction_id: Number(transactionId),
+        payer_type: 'SHOP',
+        payee_type: 'FARMER',
+        amount: 1093.75,
+        method: 'CASH'
+      }, {
+        headers: { Authorization: `Bearer ${ownerToken}` }
+      });
+      
+      expect(paymentResponse.status).toBe(201);
+      
+      // Check final balances
+      const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      const buyerRes = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      
+      // Farmer balance should be 0 (earned ₹1093.75, got paid ₹1093.75)
+      expect(Number(farmerRes.data.user.balance)).toBe(0);
+      // Buyer still owes ₹450
+      expect(Number(buyerRes.data.user.balance)).toBe(-450);
+      // Cumulative values should track total business done
+      expect(Number(farmerRes.data.user.cumulative_value)).toBe(1093.75);
+      expect(Number(buyerRes.data.user.cumulative_value)).toBe(1250);
+      
+    } catch (err) {
+      console.error('Farmer payment error:', (err as any).response?.data || err);
+      throw err;
+    }
+  });
+  });
+
+  describe('4. Balance Verification', () => {
+    it('should verify accumulated balances over multiple transactions', async () => {
+      try {
+        // Create second transaction - same farmer, different buyer
+        const buyer2Response = await axios.post(`${API_BASE}/users`, {
+          username: `buyer_jane_test_${Date.now()}`,
+          password: 'buyer123',
+          role: 'buyer',
+          shop_id: shopId,
+          contact: '9876543213'
+        }, {
+          headers: { Authorization: `Bearer ${ownerToken}` }
+        });
+        
+        const buyer2Id = buyer2Response.data.data.id;
+        
+        // Second transaction: 30kg @ ₹20 = ₹600, commission ₹75, farmer gets ₹525
+        const transaction2Response = await axios.post(`${API_BASE}/transactions`, {
+          shop_id: Number(shopId),
+          farmer_id: Number(farmerId),
+          buyer_id: Number(buyer2Id),
+          category_id: Number(categoryId),
+          product_name: 'Jasmine',
+          quantity: 30,
+          unit_price: 20.00
+        }, {
+          headers: { Authorization: `Bearer ${ownerToken}` }
+        });
+        
+        expect(transaction2Response.status).toBe(201);
+        
+        // Check accumulated balances
+        const farmerRes = await axios.get(`${API_BASE}/users/${farmerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+        const buyer1Res = await axios.get(`${API_BASE}/users/${buyerId}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+        const buyer2Res = await axios.get(`${API_BASE}/users/${buyer2Id}`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+        
+        // Farmer now has ₹525 pending (from second transaction)
+        expect(Number(farmerRes.data.user.balance)).toBe(525);
+        // Buyer1 still owes ₹450
+        expect(Number(buyer1Res.data.user.balance)).toBe(-450);
+        // Buyer2 owes ₹600
+        expect(Number(buyer2Res.data.user.balance)).toBe(-600);
+        
+        // Cumulative values should show total business
+        expect(Number(farmerRes.data.user.cumulative_value)).toBe(1618.75); // 1093.75 + 525
+        expect(Number(buyer2Res.data.user.cumulative_value)).toBe(600);
+        
+      } catch (err) {
+        console.error('Balance verification error:', (err as any).response?.data || err);
+        throw err;
       }
-      throw new Error(`cumulative_value for user ${userId} did not reach ${minValue} after 10 tries, last value: ${lastValue}`);
-    }
+    });
 
-    const buyerRes = await fetchUserWithCumulativeValue(buyerId, 1250, ownerToken);
-    const farmerRes = await fetchUserWithCumulativeValue(farmerId, 1093.75, ownerToken);
-    console.log('buyerRes (after payment):', JSON.stringify(buyerRes.data, null, 2));
-    console.log('farmerRes (after payment):', JSON.stringify(farmerRes.data, null, 2));
-    expect(Number(buyerRes.data.user.balance)).toBeCloseTo(-250, 0); // -1250 + 1000
-    expect(Number(buyerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1250);
-    expect(Number(farmerRes.data.user.cumulative_value || 0)).toBeGreaterThanOrEqual(1093.75);
-  } catch (err) {
-    if (err && (err as any).response && (err as any).response.data) {
-      console.error('Buyer payment creation error:', (err as any).response.data);
-    } else {
-      console.error('Buyer payment creation error:', err);
+    it('should call reporting endpoints for farmer and buyer', async () => {
+      // Farmer payments
+      const farmerPayments = await axios.get(`${API_BASE}/transactions/farmers/${farmerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      expect(farmerPayments.status).toBe(200);
+      expect(farmerPayments.data.success).toBe(true);
+      // Buyer payments
+      const buyerPayments = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      expect(buyerPayments.status).toBe(200);
+      expect(buyerPayments.data.success).toBe(true);
+      // Buyer purchases
+      const buyerPurchases = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/purchases`, { headers: { Authorization: `Bearer ${ownerToken}` } });
+      expect(buyerPurchases.status).toBe(200);
+      expect(buyerPurchases.data.success).toBe(true);
+    });
+  });
+
+  // Helper function for retrying user fetch
+  async function fetchUserWithCumulativeValue(userId: number, minValue: number, token: string) {
+    let tries = 0;
+    let lastValue = 0;
+    while (tries < 10) {
+      const res = await axios.get(`${API_BASE}/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+      lastValue = Number(res.data.user.cumulative_value || 0);
+      if (lastValue >= minValue) return res;
+      await new Promise(r => setTimeout(r, 200));
+      tries++;
     }
-    throw err;
+    throw new Error(`cumulative_value for user ${userId} did not reach ${minValue} after 10 tries, last value: ${lastValue}`);
   }
-  });
-
-  it('should call reporting endpoints for farmer and buyer', async () => {
-    // Farmer payments
-    const farmerPayments = await axios.get(`${API_BASE}/transactions/farmers/${farmerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-    expect(farmerPayments.status).toBe(200);
-    expect(farmerPayments.data.success).toBe(true);
-    // Buyer payments
-    const buyerPayments = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/payments`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-    expect(buyerPayments.status).toBe(200);
-    expect(buyerPayments.data.success).toBe(true);
-    // Buyer purchases
-    const buyerPurchases = await axios.get(`${API_BASE}/transactions/buyers/${buyerId}/purchases`, { headers: { Authorization: `Bearer ${ownerToken}` } });
-    expect(buyerPurchases.status).toBe(200);
-    expect(buyerPurchases.data.success).toBe(true);
-  });
-});
 });

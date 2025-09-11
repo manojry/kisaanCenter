@@ -5,7 +5,7 @@ interface CategoryAttributes {
   id: number;
   name: string;
   description?: string | null;
-  status?: string;
+  status: 'active' | 'inactive';
   created_at?: Date;
   updated_at?: Date;
 }
@@ -19,7 +19,7 @@ export class Category extends Model<CategoryAttributes, CategoryCreationAttribut
   public id!: number;
   public name!: string;
   public description!: string | null;
-  public status?: string;
+  public status!: 'active' | 'inactive';
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
 }
@@ -27,7 +27,7 @@ export class Category extends Model<CategoryAttributes, CategoryCreationAttribut
 Category.init(
   {
     id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -41,8 +41,9 @@ Category.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: DataTypes.ENUM('active', 'inactive'),
+      allowNull: false,
+      defaultValue: 'active',
     },
     created_at: {
       type: DataTypes.DATE,

@@ -36,7 +36,7 @@ export class Product extends Model<ProductAttributes, ProductCreationAttributes>
 Product.init(
   {
     id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -45,7 +45,7 @@ Product.init(
       allowNull: false,
     },
     category_id: {
-  type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: false,
       references: {
         model: 'kisaan_categories',
