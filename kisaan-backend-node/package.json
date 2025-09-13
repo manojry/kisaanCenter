@@ -13,7 +13,6 @@
     "test:integration": "jest --config jest.integration.config.js",
     "test:integration:watch": "jest --config jest.integration.config.js --watch",
     "test:integration:verbose": "jest --config jest.integration.config.js --verbose",
-
     "test:runner": "node tests/integration/run-tests.js",
     "test:recommended": "node tests/integration/run-tests.js 3",
     "test:business-journey": "node tests/integration/run-tests.js 1",
@@ -48,6 +47,7 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.5",
     "@types/pg": "^8.10.9",
+    "@types/react": "^19.1.13",
     "@types/supertest": "^2.0.16",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
