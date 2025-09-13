@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+
 interface ShopAttributes {
   id: number;
   name: string;
@@ -9,11 +10,11 @@ interface ShopAttributes {
   address: string | null;
   contact: string | null;
   status: 'active' | 'inactive';
-  createdAt?: Date;
-  updatedAt?: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-interface ShopCreationAttributes extends Optional<ShopAttributes, 'id' | 'plan_id' | 'createdAt' | 'updatedAt'> {}
+interface ShopCreationAttributes extends Optional<ShopAttributes, 'id' | 'plan_id' | 'created_at' | 'updated_at'> {}
 
 export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implements ShopAttributes {
   public id!: number;
@@ -23,8 +24,8 @@ export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implemen
   public address!: string | null;
   public contact!: string | null;
   public status!: 'active' | 'inactive';
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
 }
 
 Shop.init(
@@ -61,21 +62,25 @@ Shop.init(
       allowNull: false,
       defaultValue: 'active',
     },
-    createdAt: {
+    created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at'
     },
-    updatedAt: {
+    updated_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at'
     },
   },
   {
     sequelize,
     tableName: 'kisaan_shops',
     timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
     indexes: [
       { fields: ['owner_id'] },
       { fields: ['plan_id'] },

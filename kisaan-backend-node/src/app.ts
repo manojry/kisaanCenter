@@ -22,9 +22,11 @@ import { balanceRoutes } from './routes/balanceRoutes';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import { productRoutes } from './routes/productRoutes';
+import balanceSnapshotRoutes from './routes/balanceSnapshotRoutes';
 import reportRoutes from './routes/reportRoutes';
 import settlementRoutes from './routes/settlementRoutes';
 import { commissionRoutes } from './routes/commissionRoutes';
+import superadminRoutes from './routes/superadminRoutes';
 
 const app = express();
 
@@ -158,6 +160,10 @@ app.use('/api/balance', balanceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settlements', settlementRoutes);
 app.use('/api/commissions', commissionRoutes);
+app.use('/api/superadmin', superadminRoutes);
+
+// Bookkeeping: Balance snapshot API
+app.use('/api/balance-snapshots', balanceSnapshotRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -28,25 +28,27 @@ const Header = () => {
   };
   const { user } = useAuth();
   return (
-    <header className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b border-border/40">
-      <div className="container flex h-16 max-w-screen-2xl items-center px-4">
-        <div className="mr-4 flex">
-          <a className="mr-6 flex items-center space-x-2" href="/">
-            <div className="bg-gradient-primary p-2 rounded-lg">
-              <Leaf className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-primary-emerald to-primary-forest bg-clip-text text-transparent">
-              KisaanCenter
-            </span>
-          </a>
+    <header className="bg-white border-b border-gray-200 w-full h-16">
+      <div className="flex h-16 items-center px-6 justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="bg-blue-600 p-2 rounded-lg">
+            <Leaf className="h-6 w-6 text-white" />
+          </div>
+          <span className="font-bold text-xl text-gray-900">
+            KisaanCenter
+          </span>
         </div>
-  <div className="flex flex-1 items-center justify-end space-x-2">
+        <div className="flex items-center space-x-4">
           {/* Show nav for logged-in users, else show landing nav and login */}
           {user ? (
             <div className="flex items-center gap-4">
               {/* Dashboard button for mobile */}
               <Button asChild variant="ghost" size="sm" className="md:hidden">
-                <Link to={user.role === 'owner' ? '/owner' : '/dashboard'} className="flex items-center gap-2">
+                <Link to={
+                  user.role === 'owner' ? '/owner' :
+                  user.role === 'superadmin' ? '/superadmin' :
+                  '/dashboard'
+                } className="flex items-center gap-2">
                   <Home className="h-4 w-4" />
                   Dashboard
                 </Link>

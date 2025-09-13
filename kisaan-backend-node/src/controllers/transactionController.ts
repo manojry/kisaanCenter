@@ -54,14 +54,16 @@ export class TransactionController {
     try {
       const { id } = req.params;
       const transaction = await this.transactionService.getTransactionById(Number(id));
-      
       if (!transaction) {
         return res.status(404).json({
           success: false,
           message: 'Transaction not found'
         });
       }
-
+      // Defensive: ensure payments is always present
+      if (!('payments' in transaction)) {
+        (transaction as any).payments = [];
+      }
       res.json({
         success: true,
         data: transaction

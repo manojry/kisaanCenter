@@ -1,3 +1,4 @@
+
 import { Transaction } from '../models/transaction';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
@@ -7,6 +8,7 @@ import { Payment } from '../models/payment';
 import { AuditLog } from '../models/auditLog';
 import { Op } from 'sequelize';
 import { CreateTransactionDTO, TransactionResponseDTO, TransactionSummaryDTO } from '../dtos';
+import BalanceSnapshot from '../models/balanceSnapshot';
 
 export class TransactionService {
   /**
@@ -51,8 +53,11 @@ export class TransactionService {
     const shopCommission = (totalSaleValue * commissionRate) / 100;
     const farmerEarning = totalSaleValue - shopCommission;
 
+    // Remove payments from transaction fields
+    const { payments, ...transactionFields } = data;
+
     const transaction = await Transaction.create({
-      ...data,
+      ...transactionFields,
       total_sale_value: totalSaleValue,
       shop_commission: shopCommission,
       farmer_earning: farmerEarning
@@ -62,11 +67,37 @@ export class TransactionService {
       throw new Error('Transaction creation failed: No valid transaction ID returned');
     }
 
-    // After transaction is created and variables are defined
-    // Farmer's balance increases by earning
-    await User.increment({ balance: farmerEarning, cumulative_value: farmerEarning }, { where: { id: data.farmer_id } });
-    // Buyer's balance decreases by total sale value
-    await User.increment({ balance: -totalSaleValue, cumulative_value: totalSaleValue }, { where: { id: data.buyer_id } });
+    // Create associated payments if provided
+    if (Array.isArray(payments) && payments.length > 0) {
+      for (const payment of payments) {
+        await Payment.create({
+          ...payment,
+          transaction_id: transaction.id
+        });
+      }
+    }
+
+
+
+    // Bookkeeping: Add new transaction value to running balance from latest snapshot
+    // Farmer: running balance increases by farmerEarning
+    const latestFarmerSnapshot = await BalanceSnapshot.findOne({
+      where: { user_id: data.farmer_id },
+      order: [['snapshot_date', 'DESC']]
+    });
+    let farmerRunningBalance = latestFarmerSnapshot ? Number(latestFarmerSnapshot.balance) : Number(farmer.balance);
+    farmerRunningBalance += farmerEarning;
+    await farmer.update({ balance: farmerRunningBalance, cumulative_value: farmerEarning + Number(farmer.cumulative_value) });
+
+    // Buyer: running balance increases by totalSaleValue
+    const latestBuyerSnapshot = await BalanceSnapshot.findOne({
+      where: { user_id: data.buyer_id },
+      order: [['snapshot_date', 'DESC']]
+    });
+    let buyerRunningBalance = latestBuyerSnapshot ? Number(latestBuyerSnapshot.balance) : Number(buyer.balance);
+    buyerRunningBalance += totalSaleValue;
+    await buyer.update({ balance: buyerRunningBalance, cumulative_value: totalSaleValue + Number(buyer.cumulative_value) });
+
     // Owner/shop cumulative_value increases by commission (if owner exists)
     if (shop && shop.owner_id) {
       await User.increment({ cumulative_value: shopCommission }, { where: { id: shop.owner_id } });
@@ -82,7 +113,13 @@ export class TransactionService {
       new_values: JSON.stringify(transaction.toJSON())
     });
 
-    return transaction.toJSON() as TransactionResponseDTO;
+    // Fetch the transaction with payments included for response
+    const transactionWithPayments = await Transaction.findByPk(transaction.id, {
+      include: [
+        { model: Payment, as: 'payments' }
+      ]
+    });
+    return transactionWithPayments ? transactionWithPayments.toJSON() as TransactionResponseDTO : transaction.toJSON() as TransactionResponseDTO;
   }
   async getTransactionById(id: number): Promise<TransactionResponseDTO | null> {
     const transaction = await Transaction.findByPk(id, {
@@ -94,8 +131,11 @@ export class TransactionService {
         { model: Payment, as: 'payments' }
       ]
     });
-    
-    return transaction ? transaction.toJSON() as TransactionResponseDTO : null;
+    if (!transaction) return null;
+    const tObj: any = transaction.toJSON();
+    // Defensive: ensure payments is always an array of PaymentResponseDTO
+    tObj.payments = Array.isArray(tObj.payments) ? tObj.payments : [];
+    return tObj as TransactionResponseDTO;
   }
   async getTransactionsByShop(shopId: number, filters?: {
     startDate?: Date;

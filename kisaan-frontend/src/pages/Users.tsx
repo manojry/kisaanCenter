@@ -1,117 +1,277 @@
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Search, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { usersApi } from '../services/api';
+import type { User } from '../types/api';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { 
-  Users as UsersIcon, 
-  UserPlus,
-  AlertCircle,
-  ArrowLeft
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import AddUserDialog from '../components/AddUserDialog';
-import UsersManagement from '../components/UsersManagement';
+import { UserForm } from '../components/owner/UserForm';
 
-export default function Users() {
-  const { user } = useAuth();
-  const [shop, setShop] = useState<any>(null);
+const UsersManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showAddUser, setShowAddUser] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [filters, setFilters] = useState({
+    role: '',
+    status: '',
+    search: ''
+  });
 
   useEffect(() => {
-    fetchShopData();
-  }, [user]);
+    fetchUsers();
+  }, [currentUser?.shop_id, filters]);
 
-  const fetchShopData = async () => {
-    if (!user?.id) return;
+  const fetchUsers = async () => {
+    if (!currentUser?.shop_id) return;
     
     setIsLoading(true);
     try {
-      const shopRes = await apiClient.get(`/shops?owner_id=${user.id}`);
-      const shops = shopRes?.shops || [];
-      const userShop = shops[0];
-      setShop(userShop);
+      const params: any = {
+        shop_id: currentUser.shop_id
+      };
       
-      if (!userShop?.id) {
-        setError('No shop found for this owner');
+      if (filters.role) params.role = filters.role;
+      if (filters.status) params.status = filters.status;
+      
+      const response = await usersApi.getAll(params);
+      if (response.data) {
+        let filteredUsers = response.data;
+        
+        // Client-side search filter
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          filteredUsers = filteredUsers.filter(u => 
+            u.username.toLowerCase().includes(searchLower) ||
+            (u.contact && u.contact.includes(filters.search)) ||
+            (u.email && u.email.toLowerCase().includes(searchLower))
+          );
+        }
+        
+        setUsers(filteredUsers);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load shop data');
+    } catch (error) {
+      console.error('Error fetching users:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!user || (user.role !== 'owner' && user.role !== 'superadmin')) {
+  const handleUserCreated = (user: User) => {
+    setUsers(prev => [user, ...prev]);
+    setShowCreateForm(false);
+  };
+
+  const handleUserUpdated = (user: User) => {
+    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+    setEditingUser(null);
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      try {
+        await usersApi.delete(userId);
+        setUsers(prev => prev.filter(u => u.id !== userId));
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user');
+      }
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  };
+
+  const getRoleColor = (role: string) => {
+    const colors = {
+      farmer: 'bg-blue-100 text-blue-800',
+      buyer: 'bg-purple-100 text-purple-800',
+      owner: 'bg-orange-100 text-orange-800'
+    };
+    return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+
+  if (showCreateForm) {
     return (
-      <div className="container mx-auto p-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Access denied. Owner or SuperAdmin role required.
-          </AlertDescription>
-        </Alert>
+      <div className="p-6">
+        <UserForm 
+          onSuccess={handleUserCreated}
+          onCancel={() => setShowCreateForm(false)}
+        />
+      </div>
+    );
+  }
+
+  if (editingUser) {
+    return (
+      <div className="p-6">
+        <UserForm 
+          editUser={editingUser}
+          onSuccess={handleUserUpdated}
+          onCancel={() => setEditingUser(null)}
+        />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Button asChild variant="ghost" size="sm" className="md:hidden">
-            <Link to={user.role === 'owner' ? '/owner' : '/dashboard'}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
-          </Button>
-          <div className="flex items-center gap-2">
-            <UsersIcon className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Users Management</h1>
-          </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
+          <p className="text-gray-600">Manage farmers, buyers and other users</p>
         </div>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <p className="text-muted-foreground">
-            Manage farmers, buyers, and employees for {shop?.name || 'your shop'}
-          </p>
+        <div className="flex gap-2">
           <Button 
-            onClick={() => setShowAddUser(true)}
-            className="w-full md:w-auto"
+            onClick={fetchUsers}
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
           >
-            <UserPlus className="h-4 w-4 mr-2" />
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="w-4 h-4 mr-2" />
             Add User
           </Button>
         </div>
       </div>
 
-      {/* Users Management Component */}
-      {shop?.id ? (
-        <UsersManagement shopId={shop.id} onRefresh={fetchShopData} />
-      ) : (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Shop Found</h3>
-              <p className="text-muted-foreground">
-                Please contact support to set up your shop.
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search users..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                className="pl-10"
+              />
+            </div>
+            <Select 
+              value={filters.role || "all"} 
+              onValueChange={(value) => setFilters(prev => ({ ...prev, role: value === "all" ? "" : value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                <SelectItem value="farmer">Farmer</SelectItem>
+                <SelectItem value="buyer">Buyer</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select 
+              value={filters.status || "all"} 
+              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Users Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Users ({users.length})</span>
+            {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {users.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No users found</p>
+              <p className="text-gray-400 text-sm mt-2">
+                {filters.search || filters.role || filters.status
+                  ? 'Try adjusting your filters'
+                  : 'Add your first user to get started'
+                }
               </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Add User Dialog */}
-      <AddUserDialog 
-        open={showAddUser} 
-        onOpenChange={setShowAddUser}
-        onSuccess={fetchShopData}
-      />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>#{user.id}</TableCell>
+                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell>
+                      <Badge className={getRoleColor(user.role)}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{user.contact || '-'}</TableCell>
+                    <TableCell>{user.email || '-'}</TableCell>
+                    <TableCell>{formatCurrency(user.balance)}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(user.status)}>
+                        {user.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setEditingUser(user)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default UsersManagement;

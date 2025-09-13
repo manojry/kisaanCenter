@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 export const UserRoleEnum = z.enum(['superadmin', 'owner', 'farmer', 'buyer']);
+
+// Password reset schema
+export const PasswordResetSchema = z.object({
+  newPassword: z.string().min(6).max(100),
+});
 export const UserStatusEnum = z.enum(['active', 'inactive']);
 
 export const UserBaseSchema = z.object({
@@ -22,7 +27,8 @@ export const UserCreateSchema = UserBaseSchema.extend({
   created_by: z.number().int().optional().nullable(),
   firstname: z.string().min(2).max(50).optional(), // For auto-generating usernames
 }).superRefine((data, ctx) => {
-  // Enforce shop_id for farmer, buyer
+  // Superadmin can create: superadmin, owner
+  // Owner can create: farmer, buyer (with shop_id)
   if ((data.role === 'farmer' || data.role === 'buyer') && (!data.shop_id || isNaN(Number(data.shop_id)))) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -30,7 +36,6 @@ export const UserCreateSchema = UserBaseSchema.extend({
       path: ['shop_id'],
     });
   }
-  // For owner: allow creation without shop_id, but must be set before any business operation
 });
 
 export const UserUpdateSchema = UserBaseSchema.partial().omit({ role: true }).extend({

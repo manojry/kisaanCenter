@@ -13,11 +13,41 @@ const paymentController = new PaymentController();
 // Authentication disabled for testing
 // router.use(authenticateToken);
 
-// Transaction routes
-router.get('/', async (req, res) => {
+// Transaction routes - Block superadmin access to individual transactions
+router.get('/', authenticateToken, async (req: any, res) => {
   try {
+    // Superadmin should not access individual transactions
+    if (req.user?.role === 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+        message: 'Superadmin cannot access individual transactions. Use /api/superadmin/dashboard for aggregated data.'
+      });
+    }
+
     const { sequelize } = require('../models/index');
-    const [results] = await sequelize.query('SELECT * FROM kisaan_transactions ORDER BY created_at DESC');
+    let query = 'SELECT * FROM kisaan_transactions';
+    let replacements: any = {};
+
+    // Shop owners can only see their shop's transactions
+    if (req.user?.role === 'owner' && req.user?.shop_id) {
+      query += ' WHERE shop_id = :shop_id';
+      replacements.shop_id = req.user.shop_id;
+    }
+    // Farmers can only see their transactions
+    else if (req.user?.role === 'farmer') {
+      query += ' WHERE farmer_id = :user_id';
+      replacements.user_id = req.user.id;
+    }
+    // Buyers can only see their transactions
+    else if (req.user?.role === 'buyer') {
+      query += ' WHERE buyer_id = :user_id';
+      replacements.user_id = req.user.id;
+    }
+
+    query += ' ORDER BY created_at DESC';
+    
+    const [results] = await sequelize.query(query, { replacements });
     res.json({
       success: true,
       data: Array.isArray(results) ? results : []

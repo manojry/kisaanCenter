@@ -15,13 +15,13 @@ interface PlanAttributes {
   data_retention_months?: number | null;
   features: string; // JSON string of features array
   status?: string | null;
-  created_at?: Date;
-  updated_at?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface PlanCreationAttributes extends Optional<
   PlanAttributes,
-  'id' | 'description' | 'price' | 'monthly_price' | 'quarterly_price' | 'yearly_price' | 'max_farmers' | 'max_buyers' | 'max_transactions' | 'data_retention_months' | 'features' | 'status' | 'created_at' | 'updated_at'
+  'id' | 'description' | 'price' | 'monthly_price' | 'quarterly_price' | 'yearly_price' | 'max_farmers' | 'max_buyers' | 'max_transactions' | 'data_retention_months' | 'features' | 'status' | 'createdAt' | 'updatedAt'
 > {}
 
 export class Plan extends Model<PlanAttributes, PlanCreationAttributes> implements PlanAttributes {
@@ -38,8 +38,8 @@ export class Plan extends Model<PlanAttributes, PlanCreationAttributes> implemen
   public data_retention_months!: number | null;
   public features!: string;
   public status?: string | null;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 }
 
 Plan.init(
@@ -100,15 +100,17 @@ Plan.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at'
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at'
     }
   },
   {

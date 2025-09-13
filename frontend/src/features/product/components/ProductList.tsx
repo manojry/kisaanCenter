@@ -348,7 +348,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
             onChange={handleInputChange}
             required
             error={errors.name}
-            placeholder="Enter product name"
+            placeholder=" xxxx"
           />
 
           <InputField

@@ -1,44 +1,100 @@
+
 import { User } from '../models/user';
 import { Payment } from '../models/payment';
 import { Transaction } from '../models/transaction';
 import { AuditLog } from '../models/auditLog';
 import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '../dtos';
 import { Op } from 'sequelize';
+import BalanceSnapshot from '../models/balanceSnapshot';
+
+
+
 
 export class PaymentService {
   async createPayment(data: CreatePaymentDTO, userId: number): Promise<PaymentResponseDTO> {
-    // Update balances and cumulative_value based on payment direction
+    // Bookkeeping logic: always use running balance from latest snapshot
+    let userToUpdate: User | null = null;
+    let userRole: 'buyer' | 'farmer' | null = null;
+    let userIdToUpdate: number | null = null;
     if (data.payer_type === 'BUYER' && data.payee_type === 'SHOP') {
-      // Buyer pays shop: buyer's balance increases (toward zero), cumulative_value increases (total spent)
-      await User.increment({ balance: Number(data.amount), cumulative_value: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.buyer_id } });
+      // Buyer pays shop: reduce buyer's balance
+      if (!data.transaction_id) throw new Error('transaction_id required for buyer payment');
+      const tx = await Transaction.findByPk(data.transaction_id);
+      if (!tx) throw new Error(`Transaction with id ${data.transaction_id} does not exist`);
+      userIdToUpdate = tx.buyer_id;
+      userRole = 'buyer';
     } else if (data.payer_type === 'SHOP' && data.payee_type === 'FARMER') {
-      // Shop pays farmer: farmer's balance decreases (toward zero), cumulative_value increases (total earned)
-      await User.increment({ balance: -Number(data.amount), cumulative_value: Number(data.amount) }, { where: { id: (await Transaction.findByPk(data.transaction_id))?.farmer_id } });
+      if (data.transaction_id) {
+        const tx = await Transaction.findByPk(data.transaction_id);
+        if (!tx) throw new Error(`Transaction with id ${data.transaction_id} does not exist`);
+        userIdToUpdate = tx.farmer_id;
+        userRole = 'farmer';
+      } else {
+        // Advance payment to farmer (not linked to transaction)
+        if (!data.amount) throw new Error('Amount required for advance payment');
+        if (!data.notes) console.warn('[PAYMENT][ADVANCE] No notes provided for advance payment');
+        // Require explicit payee_id in notes or extend DTO for robustness
+        throw new Error('Advance payment must specify farmer_id (not implemented in this patch)');
+      }
     }
-    // Defensive: Validate referenced transaction exists
-    const transaction = await Transaction.findByPk(data.transaction_id);
-    if (!transaction) throw new Error(`Transaction with id ${data.transaction_id} does not exist`);
-
-    const payment = await Payment.create({
-      ...data,
-      status: 'PENDING'
-    });
-
+    if (userIdToUpdate) {
+      userToUpdate = await User.findByPk(userIdToUpdate);
+      if (!userToUpdate) throw new Error(`User with id ${userIdToUpdate} not found`);
+      // Get latest balance snapshot for this user
+      const latestSnapshot = await BalanceSnapshot.findOne({
+        where: { user_id: userIdToUpdate },
+        order: [['snapshot_date', 'DESC']]
+      });
+      let runningBalance = latestSnapshot ? Number(latestSnapshot.balance) : Number(userToUpdate.balance);
+      // Subtract payment from running balance
+      runningBalance -= Number(data.amount);
+      // Update user balance
+      await userToUpdate.update({ balance: runningBalance });
+      // Optionally, create a new snapshot here if you want to record every payment as a snapshot
+    }
+    // Create payment record (transaction_id may be undefined)
+    const paymentData: any = { ...data, status: 'PENDING' };
+    if (data.transaction_id !== undefined) paymentData.transaction_id = data.transaction_id;
+    else delete paymentData.transaction_id;
+    const payment = await Payment.create(paymentData);
     if (!payment || !payment.id) {
       throw new Error('Payment creation failed: No valid payment ID returned');
     }
-
-    // Create audit log
+    // Create audit log (skip shop_id if no transaction)
+    let shop_id = 0;
+    if (data.transaction_id) {
+      const transaction = await Transaction.findByPk(data.transaction_id);
+      shop_id = transaction?.shop_id || 0;
+    }
     await AuditLog.create({
-      shop_id: transaction.shop_id || 0,
+      shop_id,
       user_id: userId,
       action: 'payment_recorded',
       entity_type: 'payment',
       entity_id: payment.id,
       new_values: JSON.stringify(payment.toJSON())
     });
-
     return payment.toJSON() as PaymentResponseDTO;
+  }
+
+  async createBulkPayments(data: any, userId: number): Promise<PaymentResponseDTO[]> {
+    // data.payments: BulkPaymentItemDTO[]
+    // Other fields: payer_type, payee_type, method, status, notes
+    const results: PaymentResponseDTO[] = [];
+    for (const item of data.payments) {
+      const paymentData = {
+        transaction_id: item.transaction_id,
+        payer_type: data.payer_type,
+        payee_type: data.payee_type,
+        amount: item.amount,
+        method: data.method,
+        status: data.status,
+        notes: data.notes,
+      };
+      const payment = await this.createPayment(paymentData, userId);
+      results.push(payment);
+    }
+    return results;
   }
 
   async updatePaymentStatus(paymentId: number, data: UpdatePaymentStatusDTO, userId: number): Promise<PaymentResponseDTO | null> {

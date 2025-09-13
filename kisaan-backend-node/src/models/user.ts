@@ -13,11 +13,11 @@ export interface UserAttributes {
   balance: number;
   cumulative_value: number; // total earned (farmer), spent (buyer), commission (owner)
   created_by?: number | null;
-  created_at?: Date;
-  updated_at?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'contact' | 'email' | 'created_by' | 'created_at' | 'updated_at'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'contact' | 'email' | 'created_by' | 'createdAt' | 'updatedAt'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
@@ -31,8 +31,8 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public balance!: number;
   public cumulative_value!: number;
   public created_by!: number | null;
-  public created_at!: Date;
-  public updated_at!: Date;
+  public createdAt!: Date;
+  public updatedAt!: Date;
 }
 
 User.init(
@@ -89,15 +89,17 @@ User.init(
       allowNull: true,
       references: { model: 'kisaan_users', key: 'id' },
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at'
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at'
     },
   },
   {

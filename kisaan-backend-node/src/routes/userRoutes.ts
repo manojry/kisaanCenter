@@ -5,7 +5,7 @@ import * as userController from '../controllers/userController';
 const router = Router();
 
 // Authentication disabled for testing
-// router.use(authenticateToken);
+router.use(authenticateToken);
 
 // Get current user profile (must be first to avoid conflict with /:id)
 router.get('/me', userController.getCurrentUser);
@@ -19,5 +19,8 @@ router.delete('/:id', userController.deleteUser);
 
 // Password reset (users can only reset their own password)
 router.post('/:id/reset-password', userController.resetPassword);
+
+// Admin password reset (superadmin/owner can reset user passwords)
+router.post('/:id/admin-reset-password', userController.adminResetPassword);
 
 export default router;

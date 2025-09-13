@@ -1,3 +1,5 @@
+import { CreatePaymentDTO } from './PaymentDTO';
+
 export interface CreateTransactionDTO {
   shop_id: number;
   farmer_id: number;
@@ -6,7 +8,10 @@ export interface CreateTransactionDTO {
   product_name: string;
   quantity: number;
   unit_price: number;
+  payments?: CreatePaymentDTO[];
 }
+
+import { PaymentResponseDTO } from './PaymentDTO';
 
 export interface TransactionResponseDTO {
   id: number;
@@ -22,6 +27,7 @@ export interface TransactionResponseDTO {
   farmer_earning: number;
   created_at: Date;
   updated_at: Date;
+  payments: PaymentResponseDTO[];
 }
 
 export interface TransactionSummaryDTO {

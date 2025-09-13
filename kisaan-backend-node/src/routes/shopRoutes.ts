@@ -9,9 +9,12 @@ export const shopRoutes = Router();
 // Authentication disabled for testing
 // shopRoutes.use(authenticateToken);
 
+shopRoutes.get('/available-owners', shopController.getAvailableOwners);
 shopRoutes.get('/', shopController.getShops);
 shopRoutes.get('/:id', shopController.getShopById);
 shopRoutes.get('/:id/products', shopProductsController.getShopProducts);
+shopRoutes.get('/:id/available-products', shopProductsController.getAvailableProductsForShop);
+shopRoutes.get('/:id/categories', require('../controllers/shopCategoryController').getShopCategories);
 
 // Shop-Product mapping routes
 // Assign a product to a shop

@@ -31,6 +31,86 @@ components:
         updated_at: { type: string, format: date-time }
       required: [username, role]
 
+    ShopReport:
+      type: object
+      properties:
+        shop:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            owner_id: { type: integer }
+            status: { type: string }
+            created_at: { type: string, format: date-time }
+        totalUsers:
+          type: integer
+          description: Total users in shop
+        activeUsers:
+          type: integer
+          description: Active users in shop
+        totalTransactions:
+          type: integer
+          description: Total transactions for shop in date range
+        totalRevenue:
+          type: number
+          description: Total revenue (sum of total_sale_value) for shop in date range
+        recentTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+          description: Recent transactions for shop (last 10)
+        topUsers:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              username: { type: string }
+              role: { type: string }
+              status: { type: string }
+              created_at: { type: string, format: date-time }
+              txnCount: { type: integer }
+          description: Top users by transaction count in shop
+
+    PlatformReport:
+      type: object
+      properties:
+        totalShops:
+          type: integer
+          description: Total number of shops
+        totalUsers:
+          type: integer
+          description: Total number of users
+        totalTransactions:
+          type: integer
+          description: Total number of transactions in date range
+        totalRevenue:
+          type: number
+          description: Total revenue (sum of total_sale_value) in date range
+        activeShops:
+          type: integer
+          description: Number of active shops
+        activeUsers:
+          type: integer
+          description: Number of active users
+        recentTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+          description: Recent transactions (last 10)
+        topShops:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              owner_id: { type: integer }
+              status: { type: string }
+              created_at: { type: string, format: date-time }
+              txnCount: { type: integer }
+          description: Top shops by transaction count
+
     UserCreate:
       type: object
       properties:
@@ -1546,10 +1626,30 @@ paths:
         - in: path
           name: id
           required: true
+  /reports/generate:
+    get:
+      summary: Generate report
+      parameters:
+        - in: query
+          name: report_type
+          schema: { type: string, enum: [platform, shop, shops, users, transactions, sales] }
+          description: Type of report to generate. 'platform' for superadmin dashboard, 'shop' for owner dashboard.
+        - in: query
+          name: shop_id
           schema: { type: integer }
+          description: Shop ID (required for shop report)
+        - in: query
+          name: format
+          schema: { type: string, enum: [json, html, pdf] }
+        - in: query
+          name: date_from
+          schema: { type: string, format: date }
+        - in: query
+          name: date_to
+          schema: { type: string, format: date }
       responses:
         '200':
-          description: Shop balance
+          description: Generated report
           content:
             application/json:
               schema:
@@ -1558,99 +1658,15 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: object
-                        properties:
-                          balance: { type: number }
-
-  /balance/update:
-    post:
-      summary: Update balance
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/BalanceUpdate' }
-      responses:
-        '200':
-          description: Balance updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-
-  /credits:
-    post:
-      summary: Create credit advance
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                user_id: { type: integer }
-                amount: { type: number, minimum: 0 }
-                reason: { type: string }
-              required: [user_id, amount]
-      responses:
-        '201':
-          description: Credit advance created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-    get:
-      summary: Get credit advances
-      parameters:
-        - in: query
-          name: user_id
-          schema: { type: integer }
-        - in: query
-          name: status
-          schema: { type: string, enum: [pending, approved, rejected] }
-      responses:
-        '200':
-          description: List of credit advances
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id: { type: integer }
-                            user_id: { type: integer }
-                            amount: { type: number }
-                            status: { type: string }
-                            reason: { type: string }
-                            created_at: { type: string, format: date-time }
-
-  /reports/generate:
-    get:
-      summary: Generate report
-      parameters:
-        - in: query
-          name: type
-          schema: { type: string, enum: [sales, transactions, users] }
-        - in: query
-          name: format
-          schema: { type: string, enum: [json, html, pdf] }
-        - in: query
-          name: from_date
-          schema: { type: string, format: date }
-        - in: query
-          name: to_date
-          schema: { type: string, format: date }
-      responses:
-        '200':
-          description: Generated report
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponse' }
-
+                        oneOf:
+                          - $ref: '#/components/schemas/PlatformReport'
+                          - $ref: '#/components/schemas/ShopReport'
+                          - type: object
+                            description: Other report types
+                          - $ref: '#/components/schemas/PlatformReport'
+                          - $ref: '#/components/schemas/ShopReport'
+                          - type: object
+                            description: Other report types
   /reports/download:
     get:
       summary: Download report

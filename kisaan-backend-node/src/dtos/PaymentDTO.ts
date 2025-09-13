@@ -1,9 +1,25 @@
 export interface CreatePaymentDTO {
-  transaction_id: number;
+  transaction_id?: number; // Optional for advance payments
   payer_type: 'BUYER' | 'SHOP';
   payee_type: 'SHOP' | 'FARMER';
   amount: number;
   method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  status?: 'PENDING' | 'PAID' | 'FAILED';
+  notes?: string;
+}
+
+// For bulk payments
+export interface BulkPaymentItemDTO {
+  transaction_id: number;
+  amount: number;
+}
+
+export interface BulkPaymentDTO {
+  payments: BulkPaymentItemDTO[];
+  payer_type: 'BUYER' | 'SHOP';
+  payee_type: 'SHOP' | 'FARMER';
+  method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  status?: 'PENDING' | 'PAID' | 'FAILED';
   notes?: string;
 }
 

@@ -11,7 +11,7 @@ interface ProductAttributes {
   unit?: string | null;
   created_at?: Date;
   updated_at?: Date;
-    // shop_id removed to ensure products are global
+  // shop_id removed to ensure products are global
 }
 
 interface ProductCreationAttributes extends Optional<
@@ -72,11 +72,13 @@ Product.init(
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,
+      field: 'created_at'
     },
     updated_at: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at'
     },
   },
   {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription } from '../components/ui/alert';
@@ -17,7 +18,6 @@ import AddProductDialog from '../components/AddProductDialog';
 export default function Products() {
   const { user } = useAuth();
   const [shop, setShop] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
 
@@ -28,11 +28,9 @@ export default function Products() {
   const fetchShopData = async () => {
     if (!user?.id) return;
     
-    setIsLoading(true);
+  // setIsLoading(true); // removed unused isLoading
     try {
-      const shopRes = await apiClient.get(`/shops?owner_id=${user.id}`);
-      const shops = shopRes?.shops || [];
-      const userShop = shops[0];
+      const userShop = await fetchOwnerShop(user.id);
       setShop(userShop);
       
       if (!userShop?.id) {
@@ -41,17 +39,17 @@ export default function Products() {
     } catch (err: any) {
       setError(err.message || 'Failed to load shop data');
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false); // removed unused isLoading
     }
   };
 
-  if (!user || (user.role !== 'owner' && user.role !== 'employee')) {
+  if (!user || (user.role !== 'owner')) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Owner or Employee role required.
+            Access denied. Owner role required.
           </AlertDescription>
         </Alert>
       </div>

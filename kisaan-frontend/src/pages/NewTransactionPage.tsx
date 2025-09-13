@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
+import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -10,26 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { ArrowLeft, Calculator, CheckCircle } from 'lucide-react';
 
-interface User {
-  id: string;
-  username: string;
-  role: string;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-}
-
 export default function NewTransactionPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { farmers, buyers, products, isLoading: dataLoading, error: dataError } = useTransactionFormData();
   const [shop, setShop] = useState<any>(null);
-  const [farmers, setFarmers] = useState<User[]>([]);
-  const [buyers, setBuyers] = useState<User[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   
@@ -51,35 +38,20 @@ export default function NewTransactionPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchShopData();
+  }, [user]);
 
   useEffect(() => {
     calculateAmounts();
   }, [formData.quantity, formData.price, formData.buyer_paid]);
 
-  const fetchData = async () => {
+  const fetchShopData = async () => {
+    if (!user?.id) return;
     try {
-      // Get shop first
-      const shopRes = await apiClient.get(`/shops?owner_id=${user.id}`);
-      const shops = shopRes?.shops || [];
-      const userShop = shops[0];
+      const userShop = await fetchOwnerShop(user.id);
       setShop(userShop);
-      
-      const [usersRes, productsRes] = await Promise.all([
-        apiClient.get('/users'),
-        apiClient.get(`/products?shop_id=${userShop?.id}`)
-      ]);
-
-      const users = usersRes?.users || [];
-      setFarmers(users.filter((u: User) => u.role === 'farmer'));
-      setBuyers(users.filter((u: User) => u.role === 'buyer'));
-      
-      const products = productsRes?.data || productsRes?.products || [];
-      console.log('Products loaded:', products);
-      setProducts(products);
     } catch (err: any) {
-      setError('Failed to load data');
+      setError('Failed to load shop data');
     }
   };
 
@@ -105,7 +77,7 @@ export default function NewTransactionPage() {
     setFormData(prev => ({ 
       ...prev, 
       product_id: productId,
-      price: product?.price?.toString() || ''
+      price: ''
     }));
   };
 
@@ -120,31 +92,29 @@ export default function NewTransactionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!shop?.id) {
+      setError('Shop not found');
+      return;
+    }
+    
+    setIsSubmitting(true);
     setError(null);
 
     try {
-      const total = parseInt(formData.quantity) * parseFloat(formData.price);
-      
-
       const payload = {
-        shop_id: shop?.id || 1,
-        farmer_id: formData.farmer_id,
-        seller_id: formData.farmer_id, // Bind seller_id to farmer_id for backend compatibility
-        buyer_id: formData.buyer_id,
+        shop_id: shop.id,
+        farmer_id: parseInt(formData.farmer_id),
+        buyer_id: parseInt(formData.buyer_id),
         product_id: parseInt(formData.product_id),
         quantity: parseInt(formData.quantity),
         price: parseFloat(formData.price),
-        total: total,
         buyer_paid: parseFloat(formData.buyer_paid || '0'),
-        farmer_paid: parseFloat(formData.farmer_paid || '0'),
-        transaction_date: new Date().toISOString()
+        farmer_paid: parseFloat(formData.farmer_paid || '0')
       };
 
       await apiClient.post('/transactions', payload);
       setSuccess(true);
       
-      // Reset form after 2 seconds or navigate back
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);
@@ -152,7 +122,7 @@ export default function NewTransactionPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to create transaction');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -198,10 +168,17 @@ export default function NewTransactionPage() {
           <h1 className="text-3xl font-bold">Record New Sale</h1>
         </div>
 
-        {error && (
+        {(error || dataError) && (
           <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{error || dataError}</AlertDescription>
           </Alert>
+        )}
+
+        {dataLoading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2">Loading form data...</span>
+          </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -255,24 +232,17 @@ export default function NewTransactionPage() {
                         {products.length > 0 ? (
                           products.map(product => (
                             <SelectItem key={product.id} value={product.id.toString()}>
-                              {product.name} - ₹{product.price || 0}/unit
+                              {product.name}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="no-products" disabled>
-                            No products found
-                          </SelectItem>
+                          <SelectItem value="" disabled>No products available</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
-                    {products.length === 0 && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        No products available. Please add products first.
-                      </p>
-                    )}
                   </div>
 
-                  {/* Quantity & Price */}
+                  {/* Quantity and Price */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="quantity">Quantity *</Label>
@@ -281,7 +251,6 @@ export default function NewTransactionPage() {
                         type="number"
                         value={formData.quantity}
                         onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                        placeholder="Enter quantity"
                         required
                       />
                     </div>
@@ -293,58 +262,43 @@ export default function NewTransactionPage() {
                         step="0.01"
                         value={formData.price}
                         onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                        placeholder="Enter price"
                         required
                       />
                     </div>
                   </div>
 
                   {/* Payment Details */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="full_payment"
-                        checked={formData.is_full_payment}
-                        onChange={handleFullPayment}
-                        className="rounded"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="buyer_paid">Buyer Paid</Label>
+                      <Input
+                        id="buyer_paid"
+                        type="number"
+                        step="0.01"
+                        value={formData.buyer_paid}
+                        onChange={(e) => setFormData(prev => ({ ...prev, buyer_paid: e.target.value }))}
+                        placeholder="0.00"
                       />
-                      <Label htmlFor="full_payment">Full Payment (Auto-fill amounts)</Label>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="buyer_paid">Buyer Paid</Label>
-                        <Input
-                          id="buyer_paid"
-                          type="number"
-                          step="0.01"
-                          value={formData.buyer_paid}
-                          onChange={(e) => setFormData(prev => ({ ...prev, buyer_paid: e.target.value }))}
-                          placeholder="Amount paid by buyer"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="farmer_paid">Farmer Paid</Label>
-                        <Input
-                          id="farmer_paid"
-                          type="number"
-                          step="0.01"
-                          value={formData.farmer_paid}
-                          onChange={(e) => setFormData(prev => ({ ...prev, farmer_paid: e.target.value }))}
-                          placeholder="Amount paid to farmer"
-                        />
-                      </div>
+                    <div>
+                      <Label htmlFor="farmer_paid">Farmer Paid</Label>
+                      <Input
+                        id="farmer_paid"
+                        type="number"
+                        step="0.01"
+                        value={formData.farmer_paid}
+                        onChange={(e) => setFormData(prev => ({ ...prev, farmer_paid: e.target.value }))}
+                        placeholder="0.00"
+                      />
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-4">
-                    <Button type="submit" disabled={isLoading} className="flex-1">
-                      {isLoading ? 'Recording...' : 'Record Sale'}
-                    </Button>
+                  <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={resetForm}>
                       Reset
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting || dataLoading}>
+                      {isSubmitting ? 'Creating...' : 'Create Transaction'}
                     </Button>
                   </div>
                 </form>
@@ -352,46 +306,33 @@ export default function NewTransactionPage() {
             </Card>
           </div>
 
-          {/* Calculation Summary */}
+          {/* Calculations Sidebar */}
           <div>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calculator className="h-5 w-5" />
-                  Calculation
+                  Calculations
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Quantity:</span>
-                    <span>{formData.quantity || 0}</span>
+              <CardContent>
+                {calculations.total > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Total Sale:</span>
+                      <span className="font-semibold">₹{calculations.total.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Commission (10%):</span>
+                      <span className="font-semibold text-green-600">₹{calculations.commission.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span>Farmer Due:</span>
+                      <span className="font-semibold text-blue-600">₹{calculations.farmer_due.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Price/unit:</span>
-                    <span>₹{formData.price || 0}</span>
-                  </div>
-                  <hr />
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total:</span>
-                    <span>₹{calculations.total.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Commission (10%):</span>
-                    <span>₹{calculations.commission.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Farmer Due:</span>
-                    <span>₹{calculations.farmer_due.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {calculations.total > 0 && (
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      Quick tip: Check "Full Payment" to auto-fill payment amounts for immediate settlement.
-                    </p>
-                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Enter quantity and price to see calculations</p>
                 )}
               </CardContent>
             </Card>

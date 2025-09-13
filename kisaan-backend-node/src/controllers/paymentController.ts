@@ -69,6 +69,27 @@ export class PaymentController {
     }
   }
 
+    async createBulkPayments(req: Request, res: Response) {
+      try {
+        console.log('Bulk payment creation request:', req.body);
+        const userId = (req as any).user?.id || 1;
+        const bulkPaymentData = req.body;
+        const payments = await this.paymentService.createBulkPayments(bulkPaymentData, userId);
+        res.status(201).json({
+          success: true,
+          data: payments,
+          message: 'Bulk payments recorded successfully'
+        });
+      } catch (error) {
+        console.error('Error creating bulk payments:', error);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to record bulk payments',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
   async updatePaymentStatus(req: Request, res: Response) {
     try {
       const { id } = req.params;

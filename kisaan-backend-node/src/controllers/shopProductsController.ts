@@ -8,6 +8,12 @@ export const assignProductToShop = async (req: Request, res: Response) => {
     const { shopId, productId } = req.params;
     const shop_id = Number(shopId);
     const product_id = Number(productId);
+    if (!shopId || isNaN(shop_id)) {
+      return res.status(400).json({ error: 'Invalid or missing shopId' });
+    }
+    if (!productId || isNaN(product_id)) {
+      return res.status(400).json({ error: 'Invalid or missing productId' });
+    }
     const [mapping, created] = await ShopProducts.findOrCreate({
       where: { shop_id, product_id },
       defaults: { shop_id, product_id, is_active: true },
@@ -29,6 +35,12 @@ export const removeProductFromShop = async (req: Request, res: Response) => {
     const { shopId, productId } = req.params;
     const shop_id = Number(shopId);
     const product_id = Number(productId);
+    if (!shopId || isNaN(shop_id)) {
+      return res.status(400).json({ error: 'Invalid or missing shopId' });
+    }
+    if (!productId || isNaN(product_id)) {
+      return res.status(400).json({ error: 'Invalid or missing productId' });
+    }
     const mapping = await ShopProducts.findOne({ where: { shop_id, product_id } });
     if (!mapping) {
       return res.status(404).json({ error: 'Mapping not found' });
@@ -47,6 +59,12 @@ export const toggleProductActiveStatus = async (req: Request, res: Response) => 
     const { shopId, productId } = req.params;
     const shop_id = Number(shopId);
     const product_id = Number(productId);
+    if (!shopId || isNaN(shop_id)) {
+      return res.status(400).json({ error: 'Invalid or missing shopId' });
+    }
+    if (!productId || isNaN(product_id)) {
+      return res.status(400).json({ error: 'Invalid or missing productId' });
+    }
     const mapping = await ShopProducts.findOne({ where: { shop_id, product_id } });
     if (!mapping) {
       return res.status(404).json({ error: 'Mapping not found' });
@@ -64,26 +82,84 @@ export const toggleProductActiveStatus = async (req: Request, res: Response) => 
 export const getShopProducts = async (req: Request, res: Response) => {
   try {
     const shopId = req.params.id;
-    
-    // First try to get products from the mapping table
-    let results: any[] = [];
-    try {
-      const [mappingResults] = await sequelize.query(
-        `SELECT p.* FROM kisaan_products p
-         INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
-         WHERE sp.shop_id = :shopId AND sp.is_active = true`,
-        { replacements: { shopId } }
-      );
-      results = Array.isArray(mappingResults) ? mappingResults : [];
-    } catch (mappingError) {
-      console.log('Error querying mapping table:', mappingError);
+    const shop_id = Number(shopId);
+    if (!shopId || isNaN(shop_id)) {
+      return res.status(400).json({ error: 'Invalid or missing shopId' });
     }
-    
-  // Products are only assigned to shops via kisaan_shop_products mapping table. No fallback to shop_id.
-    
-    res.json({ products: results });
+    const [results] = await sequelize.query(
+      `SELECT p.*, c.name as category_name 
+       FROM kisaan_products p
+       INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
+       LEFT JOIN kisaan_categories c ON p.category_id = c.id
+       WHERE sp.shop_id = :shopId AND sp.is_active = true AND p.record_status = 'active'
+       ORDER BY p.name`,
+      { replacements: { shopId } }
+    );
+    res.json({ products: Array.isArray(results) ? results : [] });
   } catch (error: any) {
     console.error('Error fetching shop products:', error);
     res.status(500).json({ error: 'Failed to fetch shop products', message: error.message });
+  }
+};
+
+// Get all available products for a shop (filtered by shop's categories)
+export const getAvailableProductsForShop = async (req: Request, res: Response) => {
+  try {
+    const shopId = req.params.id;
+    const shop_id = Number(shopId);
+    if (!shopId || isNaN(shop_id)) {
+      return res.status(400).json({ error: 'Invalid or missing shopId' });
+    }
+    // First check if shop has any categories assigned
+    const [categoryCheck] = await sequelize.query(
+      `SELECT COUNT(*) as category_count
+       FROM kisaan_shop_categories sc 
+       WHERE sc.shop_id = :shopId AND sc.is_active = true`,
+      { replacements: { shopId } }
+    );
+    const hasCategoriesAssigned = (categoryCheck as any)[0]?.category_count > 0;
+    let query: string;
+    if (hasCategoriesAssigned) {
+      // If shop has categories, filter by those categories
+      query = `SELECT p.*, c.name as category_name
+               FROM kisaan_products p
+               LEFT JOIN kisaan_categories c ON p.category_id = c.id
+               WHERE p.category_id IN (
+                 SELECT sc.category_id 
+                 FROM kisaan_shop_categories sc 
+                 WHERE sc.shop_id = :shopId AND sc.is_active = true
+               )
+               AND p.record_status = 'active'
+               AND p.id NOT IN (
+                 SELECT sp.product_id 
+                 FROM kisaan_shop_products sp 
+                 WHERE sp.shop_id = :shopId AND sp.is_active = true
+               )
+               ORDER BY c.name, p.name`;
+    } else {
+      // If shop has no categories, show all active products not already assigned
+      query = `SELECT p.*, c.name as category_name
+               FROM kisaan_products p
+               LEFT JOIN kisaan_categories c ON p.category_id = c.id
+               WHERE p.record_status = 'active'
+               AND p.id NOT IN (
+                 SELECT sp.product_id 
+                 FROM kisaan_shop_products sp 
+                 WHERE sp.shop_id = :shopId AND sp.is_active = true
+               )
+               ORDER BY c.name, p.name`;
+    }
+    
+    const [results] = await sequelize.query(query, { replacements: { shopId } });
+    
+    res.json({ 
+      products: Array.isArray(results) ? results : [],
+      message: hasCategoriesAssigned 
+        ? 'Products filtered by shop categories' 
+        : 'No categories assigned to shop - showing all available products'
+    });
+  } catch (error: any) {
+    console.error('Error fetching available products for shop:', error);
+    res.status(500).json({ error: 'Failed to fetch available products', message: error.message });
   }
 };

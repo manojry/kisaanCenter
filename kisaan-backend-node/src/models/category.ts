@@ -6,13 +6,13 @@ interface CategoryAttributes {
   name: string;
   description?: string | null;
   status: 'active' | 'inactive';
-  created_at?: Date;
-  updated_at?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface CategoryCreationAttributes extends Optional<
   CategoryAttributes,
-  'id' | 'description' | 'status' | 'created_at' | 'updated_at'
+  'id' | 'description' | 'status' | 'createdAt' | 'updatedAt'
 > {}
 
 export class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
@@ -20,8 +20,8 @@ export class Category extends Model<CategoryAttributes, CategoryCreationAttribut
   public name!: string;
   public description!: string | null;
   public status!: 'active' | 'inactive';
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 }
 
 Category.init(
@@ -45,15 +45,17 @@ Category.init(
       allowNull: false,
       defaultValue: 'active',
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,
+      field: 'created_at'
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at'
     },
   },
   {

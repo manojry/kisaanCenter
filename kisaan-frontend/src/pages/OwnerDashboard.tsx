@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -60,10 +61,8 @@ export default function OwnerDashboard() {
     
     setIsLoading(true);
     try {
-      // First fetch shop details for this owner
-      const shopRes = await apiClient.get(`/shops?owner_id=${user.id}`);
-      const shops = shopRes?.shops || [];
-      const userShop = shops[0]; // Owner should have one shop
+      // Fetch shop for this owner
+      const userShop = await fetchOwnerShop(user.id);
       setShop(userShop);
       
       if (!userShop?.id) {
@@ -277,7 +276,15 @@ export default function OwnerDashboard() {
         </TabsContent>
 
         <TabsContent value="products" className="mt-4 md:mt-6">
-          <ProductsManagement shopId={shop?.id} onRefresh={fetchDashboardData} />
+          {shop?.id ? (
+            <ProductsManagement shopId={shop.id} onRefresh={fetchDashboardData} />
+          ) : (
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-orange-500" />
+              <p className="text-lg font-medium">No Shop Found</p>
+              <p className="text-muted-foreground">Please contact support to set up your shop.</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4 md:mt-6">

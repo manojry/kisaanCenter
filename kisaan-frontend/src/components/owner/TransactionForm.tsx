@@ -1,0 +1,389 @@
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Calculator, AlertCircle } from 'lucide-react';
+import { transactionsApi, usersApi, categoriesApi } from '../../services/api';
+import { apiClient } from '../../services/apiClient';
+import type { TransactionCreate, User, Category } from '../../types/api';
+import { useAuth } from '../../context/AuthContext';
+
+interface Product {
+  id: number;
+  name: string;
+}
+
+interface TransactionFormProps {
+  onSuccess?: (transaction: any) => void;
+  onCancel?: () => void;
+}
+
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onCancel }) => {
+  const { user } = useAuth();
+  const [farmers, setFarmers] = useState<User[]>([]);
+  const [buyers, setBuyers] = useState<User[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<TransactionCreate>({
+    shop_id: user?.shop_id || 0,
+    farmer_id: 0,
+    buyer_id: 0,
+    category_id: 0,
+    product_name: '',
+    quantity: 0,
+    unit_price: 0
+  });
+  const [calculations, setCalculations] = useState({
+    total_sale_value: 0,
+    shop_commission: 0,
+    farmer_earning: 0
+  });
+  // Payment fields
+  const [buyerPaid, setBuyerPaid] = useState(0);
+  const [farmerPaid, setFarmerPaid] = useState(0);
+  const [commissionReceived, setCommissionReceived] = useState(0);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    calculateAmounts();
+  }, [formData.quantity, formData.unit_price]);
+
+  // Set default payment values when calculations change, rounded to 2 decimals
+  useEffect(() => {
+    setBuyerPaid(Number(calculations.total_sale_value.toFixed(2)));
+    setFarmerPaid(Number(calculations.farmer_earning.toFixed(2)));
+    setCommissionReceived(Number(calculations.shop_commission.toFixed(2)));
+  }, [calculations.total_sale_value, calculations.farmer_earning, calculations.shop_commission]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [usersResponse, categoriesResponse] = await Promise.all([
+        usersApi.getAll({ limit: 100 }),
+        categoriesApi.getAll()
+      ]);
+
+      const users = usersResponse.data || [];
+      setFarmers(users.filter(u => u.role === 'farmer'));
+      setBuyers(users.filter(u => u.role === 'buyer'));
+
+      const cats = categoriesResponse.data || [];
+      setCategories(cats);
+
+      // Only fetch products if shop_id is valid
+      if (user?.shop_id) {
+  const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
+  const productsResponse = productsResponseRaw as any;
+  const prods = productsResponse.products || [];
+  setProducts(prods);
+      } else {
+        setProducts([]);
+      }
+
+      // Set default category to first shop category
+      if (cats.length > 0 && formData.category_id === 0) {
+        setFormData(prev => ({ ...prev, category_id: cats[0].id }));
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const calculateAmounts = () => {
+    const total = formData.quantity * formData.unit_price;
+    const commission = total * 0.1; // 10% commission
+    const farmerEarning = total - commission;
+
+    setCalculations({
+      total_sale_value: total,
+      shop_commission: commission,
+      farmer_earning: farmerEarning
+    });
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.farmer_id) errors.farmer_id = 'Farmer is required';
+    if (!formData.buyer_id) errors.buyer_id = 'Buyer is required';
+    if (!formData.category_id) errors.category_id = 'Category is required';
+    if (!formData.product_name) errors.product_name = 'Product is required';
+    if (!formData.quantity || formData.quantity <= 0) errors.quantity = 'Quantity must be greater than 0';
+    if (!formData.unit_price || formData.unit_price <= 0) errors.unit_price = 'Unit price must be greater than 0';
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { transaction_date, ...transactionData } = formData;
+      const payload = {
+        ...transactionData,
+        shop_id: Number(formData.shop_id),
+        payments: [
+          {
+            payer_type: 'BUYER',
+            payee_type: 'SHOP',
+            amount: buyerPaid,
+            status: 'PAID',
+            method: 'CASH',
+          },
+          {
+            payer_type: 'SHOP',
+            payee_type: 'FARMER',
+            amount: farmerPaid,
+            status: 'PAID',
+            method: 'CASH',
+          },
+          {
+            payer_type: 'SHOP',
+            payee_type: 'SHOP',
+            amount: commissionReceived,
+            status: 'PAID',
+            method: 'CASH',
+            notes: 'Commission received'
+          }
+        ]
+      };
+      const response = await apiClient.post('/transactions', payload);
+      onSuccess?.(response);
+    } catch (error: any) {
+      console.error('Error creating transaction:', error);
+      setError(error.message || 'Failed to create transaction');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calculator className="h-5 w-5" />
+          Create New Transaction
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2">Loading form data...</span>
+          </div>
+        ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Farmer Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="farmer">Farmer *</Label>
+            <Select 
+              value={formData.farmer_id.toString()} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: parseInt(value) }))}
+            >
+              <SelectTrigger className={validationErrors.farmer_id ? 'border-red-500' : ''}>
+                <SelectValue placeholder="Select farmer" />
+              </SelectTrigger>
+              <SelectContent>
+                {farmers.map(farmer => (
+                  <SelectItem key={farmer.id} value={farmer.id.toString()}>
+                    {farmer.username} {farmer.contact && `(${farmer.contact})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.farmer_id && (
+              <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
+            )}
+          </div>
+
+          {/* Buyer Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="buyer">Buyer *</Label>
+            <Select 
+              value={formData.buyer_id.toString()} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, buyer_id: parseInt(value) }))}
+            >
+              <SelectTrigger className={validationErrors.buyer_id ? 'border-red-500' : ''}>
+                <SelectValue placeholder="Select buyer" />
+              </SelectTrigger>
+              <SelectContent>
+                {buyers.map(buyer => (
+                  <SelectItem key={buyer.id} value={buyer.id.toString()}>
+                    {buyer.username} {buyer.contact && `(${buyer.contact})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.buyer_id && (
+              <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
+            )}
+          </div>
+
+          {/* Category Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="category">Category *</Label>
+            <Select 
+              value={formData.category_id.toString()} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: parseInt(value) }))}
+            >
+              <SelectTrigger className={validationErrors.category_id ? 'border-red-500' : ''}>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.id.toString()}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.category_id && (
+              <p className="text-sm text-red-500">{validationErrors.category_id}</p>
+            )}
+          </div>
+
+          {/* Product Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="product">Product *</Label>
+            <Select 
+              value={formData.product_name} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, product_name: value }))}
+            >
+              <SelectTrigger className={validationErrors.product_name ? 'border-red-500' : ''}>
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map(product => (
+                  <SelectItem key={product.id} value={product.name}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.product_name && (
+              <p className="text-sm text-red-500">{validationErrors.product_name}</p>
+            )}
+          </div>
+
+          {/* Quantity and Unit Price */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantity *</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.quantity}
+                onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                placeholder="0.00"
+                className={validationErrors.quantity ? 'border-red-500' : ''}
+                required
+              />
+              {validationErrors.quantity && (
+                <p className="text-sm text-red-500">{validationErrors.quantity}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit_price">Unit Price (₹) *</Label>
+              <Input
+                id="unit_price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.unit_price}
+                onChange={(e) => setFormData(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                placeholder="0.00"
+                className={validationErrors.unit_price ? 'border-red-500' : ''}
+                required
+              />
+              {validationErrors.unit_price && (
+                <p className="text-sm text-red-500">{validationErrors.unit_price}</p>
+              )}
+            </div>
+          </div>
+
+
+
+          {/* Calculations & Payment Display */}
+          {(formData.quantity > 0 && formData.unit_price > 0) && (
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <h4 className="font-medium text-gray-900">Transaction Summary</h4>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">Total Sale Value</p>
+                  <p className="font-semibold text-lg">{formatCurrency(calculations.total_sale_value)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Shop Commission (10%)</p>
+                  <p className="font-semibold text-lg text-green-600">{formatCurrency(calculations.shop_commission)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Farmer Earning</p>
+                  <p className="font-semibold text-lg text-blue-600">{formatCurrency(calculations.farmer_earning)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                  <Label>Buyer Paid (to Shop)</Label>
+                  <Input type="number" min="0" step="0.01" value={buyerPaid} onChange={e => setBuyerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} />
+                </div>
+                <div>
+                  <Label>Farmer Paid (by Shop)</Label>
+                  <Input type="number" min="0" step="0.01" value={farmerPaid} onChange={e => setFarmerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} />
+                </div>
+                <div>
+                  <Label>Commission Received</Label>
+                  <Input type="number" min="0" step="0.01" value={commissionReceived} onChange={e => setCommissionReceived(Number(Number(e.target.value).toFixed(2)) || 0)} />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">You can edit payment values before creating the transaction.</p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button type="submit" disabled={isSubmitting || isLoading} className="flex-1">
+              {(isSubmitting || isLoading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Create Transaction
+            </Button>
+            {onCancel && (
+              <Button type="button" variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

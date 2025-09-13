@@ -1,6 +1,6 @@
 import express from 'express';
 import { PaymentController } from '../controllers/paymentController';
-import { CreatePaymentSchema, UpdatePaymentStatusSchema } from '../schemas/payment';
+import { CreatePaymentSchema, UpdatePaymentStatusSchema, BulkPaymentSchema } from '../schemas/payment';
 import { authenticateToken } from '../middlewares/auth';
 import { validateSchema } from '../middlewares/validation';
 
@@ -25,6 +25,7 @@ router.get('/', async (req, res) => {
   }
 });
 router.post('/', validateSchema(CreatePaymentSchema), paymentController.createPayment.bind(paymentController));
+router.post('/bulk', validateSchema(BulkPaymentSchema), paymentController.createBulkPayments.bind(paymentController));
 router.put('/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentController.updatePaymentStatus.bind(paymentController));
 router.get('/transaction/:transactionId', paymentController.getPaymentsByTransaction.bind(paymentController));
 router.get('/outstanding', paymentController.getOutstandingPayments.bind(paymentController));

@@ -184,3 +184,9 @@ crash.log
 .pytest_cache/
 backend/alembic.ini
 backend/alembic.ini
+kisaan-backend-node/scripts/cleanup-test-data.ts
+kisaan-backend-node/scripts/seed-global-data.ts
+kisaan-backend-node/scripts/setup-test-database.ts
+frontend/src/components/Layout.css 
+frontend/src/components/OwnerNavigation.css 
+.gitignore

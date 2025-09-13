@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
+import { useTransactionFormData } from '../hooks/useTransactionFormData';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,23 +16,9 @@ interface CreateTransactionDialogProps {
   shopId?: number;
 }
 
-interface User {
-  id: string;
-  username: string;
-  role: string;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-}
-
 export default function CreateTransactionDialog({ open, onOpenChange, onSuccess, shopId }: CreateTransactionDialogProps) {
-  const [farmers, setFarmers] = useState<User[]>([]);
-  const [buyers, setBuyers] = useState<User[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { farmers, buyers, products, isLoading: dataLoading, error: dataError, refetch } = useTransactionFormData();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -45,39 +32,23 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
   });
 
   useEffect(() => {
-    if (open) {
-      fetchData();
+    if (open && (farmers.length === 0 || buyers.length === 0 || products.length === 0)) {
+      refetch();
     }
-  }, [open]);
-
-  const fetchData = async () => {
-    try {
-      const [usersRes, productsRes] = await Promise.all([
-        apiClient.get('/users'),
-        apiClient.get('/products')
-      ]);
-
-      const users = usersRes?.users || [];
-      setFarmers(users.filter((u: User) => u.role === 'farmer'));
-      setBuyers(users.filter((u: User) => u.role === 'buyer'));
-      setProducts(productsRes?.data || []);
-    } catch (err: any) {
-      setError('Failed to load data');
-    }
-  };
+  }, [open, farmers.length, buyers.length, products.length, refetch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopId) return;
 
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError(null);
 
     try {
       const payload = {
         shop_id: shopId,
-        farmer_id: formData.farmer_id,
-        buyer_id: formData.buyer_id,
+        farmer_id: parseInt(formData.farmer_id),
+        buyer_id: parseInt(formData.buyer_id),
         product_id: parseInt(formData.product_id),
         quantity: parseInt(formData.quantity),
         price: parseFloat(formData.price),
@@ -100,7 +71,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
     } catch (err: any) {
       setError(err.message || 'Failed to create transaction');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -114,14 +85,20 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
           <DialogTitle>Record New Sale</DialogTitle>
         </DialogHeader>
 
-        {error && (
+        {(error || dataError) && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{error || dataError}</AlertDescription>
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {dataLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-2">Loading form data...</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="farmer_id">Farmer</Label>
             <Select value={formData.farmer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: value }))}>
@@ -130,7 +107,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
               </SelectTrigger>
               <SelectContent>
                 {farmers.map(farmer => (
-                  <SelectItem key={farmer.id} value={farmer.id}>{farmer.username}</SelectItem>
+                  <SelectItem key={farmer.id} value={farmer.id.toString()}>{farmer.username}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -144,7 +121,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
               </SelectTrigger>
               <SelectContent>
                 {buyers.map(buyer => (
-                  <SelectItem key={buyer.id} value={buyer.id}>{buyer.username}</SelectItem>
+                  <SelectItem key={buyer.id} value={buyer.id.toString()}>{buyer.username}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -153,11 +130,10 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
           <div>
             <Label htmlFor="product_id">Product</Label>
             <Select value={formData.product_id} onValueChange={(value) => {
-              const product = products.find(p => p.id === parseInt(value));
               setFormData(prev => ({ 
                 ...prev, 
                 product_id: value,
-                price: product?.price?.toString() || ''
+                price: '' // Let user set price manually since products may not have default prices
               }));
             }}>
               <SelectTrigger>
@@ -166,7 +142,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
               <SelectContent>
                 {products.map(product => (
                   <SelectItem key={product.id} value={product.id.toString()}>
-                    {product.name} - ₹{product.price}
+                    {product.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -232,11 +208,12 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Creating...' : 'Create Transaction'}
+            <Button type="submit" disabled={isSubmitting || isLoading}>
+              {isSubmitting ? 'Creating...' : 'Create Transaction'}
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -49,19 +49,21 @@ Transaction.init(
     total_sale_value: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     shop_commission: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     farmer_earning: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
-    created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
+  updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
   },
   {
     sequelize,
     tableName: 'kisaan_transactions',
     timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
     indexes: [
-      { fields: ['shop_id'] },
-      { fields: ['farmer_id'] },
-      { fields: ['buyer_id'] },
-      { fields: ['category_id'] },
-      { fields: ['created_at'] }
+  { fields: ['shop_id'] },
+  { fields: ['farmer_id'] },
+  { fields: ['buyer_id'] },
+  { fields: ['category_id'] },
+  { fields: ['created_at'] }
     ]
   }
 );

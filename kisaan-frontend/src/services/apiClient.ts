@@ -52,7 +52,7 @@ class ApiClient {
 
   // Default auth header interceptor
   private async addAuthHeader(config: RequestConfig): Promise<RequestConfig> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     if (token) {
       config.headers = {
         ...config.headers,
@@ -64,17 +64,20 @@ class ApiClient {
 
   // Default response handler
   private async handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `HTTP ${response.status}`);
-    }
-    
     const contentType = response.headers.get('content-type');
+    let data;
+    
     if (contentType && contentType.includes('application/json')) {
-      return response.json();
+      data = await response.json();
+    } else {
+      data = await response.text();
     }
     
-    return response.text() as Promise<T>;
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || `HTTP ${response.status}`);
+    }
+    
+    return data;
   }
 
   // Core request method
@@ -153,9 +156,7 @@ class ApiClient {
   }
 
   // Utility methods for common patterns
-  // Remove getPaginated for now (no PaginatedResponse type found)
-
-  // Remove postWithResponse for now (no APIResponse type found or used)
+  
 }
 
 // Create singleton instance

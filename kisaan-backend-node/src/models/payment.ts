@@ -49,6 +49,8 @@ Payment.init(
     sequelize,
     tableName: 'kisaan_payments',
     timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { fields: ['transaction_id'] },
       { fields: ['payer_type'] },
