@@ -14,20 +14,15 @@ terraform {
   # Remote state configuration - Replace with actual values after running bootstrap
   backend "azurerm" {
     resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate9o3t4rqe"  # Replace with actual storage account name from bootstrap output
+    storage_account_name = "tfstate8czoh4wg"  # Replace with actual storage account name from bootstrap output
     container_name       = "tfstate"
-    key                  = "kisaancenter/terraform.tfstate"
+    key                  = "terraform.tfstate"
   }
 }
 
 # Configure the Microsoft Azure Provider
 provider "azurerm" {
   features {}
-}
-
-# Register only the Container Apps provider (others are auto-registered by Terraform)
-resource "azurerm_resource_provider_registration" "container_apps" {
-  name = "Microsoft.App"
 }
 
 # Generate random suffix for unique naming
@@ -235,6 +230,11 @@ resource "azurerm_postgresql_flexible_server" "kisaancenter_db" {
     Purpose     = "Database"
   }
 
+  # Ignore zone changes to prevent recreation
+  lifecycle {
+    ignore_changes = [zone]
+  }
+
   depends_on = [azurerm_private_dns_zone_virtual_network_link.postgresql_dns_link]
 }
 
@@ -276,8 +276,6 @@ resource "azurerm_container_app_environment" "kisaancenter_env" {
     Project     = "KisaanCenter"
     Tier        = "FreeTier"
   }
-
-  depends_on = [azurerm_resource_provider_registration.container_apps]
 }
 
 # Container App for Backend API (using GitHub Container Registry)
@@ -297,7 +295,7 @@ resource "azurerm_container_app" "kisaancenter_backend" {
       cpu    = 0.25    # 0.25 CPU cores (FREE tier)
       memory = "0.5Gi"  # 0.5GB memory (FREE tier)
 
-      # Environment variables for the backend
+      # Environment variables for the Node.js backend
       env {
         name  = "DB_HOST"
         value = azurerm_postgresql_flexible_server.kisaancenter_db.fqdn
@@ -324,13 +322,28 @@ resource "azurerm_container_app" "kisaancenter_backend" {
       }
 
       env {
+        name  = "DB_DIALECT"
+        value = "postgres"
+      }
+
+      env {
+        name  = "DB_SSL_MODE"
+        value = "require"
+      }
+
+      env {
         name        = "SECRET_KEY"
         secret_name = "app-secret-key"
       }
 
       env {
-        name  = "ENVIRONMENT"
+        name  = "NODE_ENV"
         value = "production"
+      }
+
+      env {
+        name  = "PORT"
+        value = "3000"
       }
 
       env {
@@ -339,8 +352,8 @@ resource "azurerm_container_app" "kisaancenter_backend" {
       }
 
       env {
-        name  = "ALLOWED_HOSTS"
-        value = "*"
+        name  = "DEBUG"
+        value = "false"
       }
     }
 
@@ -355,7 +368,7 @@ resource "azurerm_container_app" "kisaancenter_backend" {
   ingress {
     allow_insecure_connections = false
     external_enabled          = true   # Allow external access from frontend
-    target_port               = 8000
+    target_port               = 3000   # Node.js backend port
     transport                 = "http"
 
     traffic_weight {
