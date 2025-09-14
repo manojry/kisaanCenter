@@ -83,13 +83,46 @@ export class TransactionService {
 
 
     // Update cumulative_value only (not balance) on transaction creation
-    await farmer.update({ cumulative_value: farmerEarning + Number(farmer.cumulative_value) });
-    await buyer.update({ cumulative_value: totalSaleValue + Number(buyer.cumulative_value) });
+  await farmer.update({ cumulative_value: farmerEarning + Number(farmer.cumulative_value) });
+  await buyer.update({ cumulative_value: totalSaleValue + Number(buyer.cumulative_value) });
 
-    // Instead of manually calculating balances here, use the same logic as PaymentService
-    // to ensure consistency. We need to recalculate from ALL transactions and payments.
-    await this.recalculateUserBalance(data.farmer_id, 'farmer');
-    await this.recalculateUserBalance(data.buyer_id, 'buyer');
+  // Calculate initial payments (if any) for this transaction
+  let initialFarmerPaid = 0;
+  let initialBuyerPaid = 0;
+  if (Array.isArray(payments) && payments.length > 0) {
+    // Ensure counterparty_id is set for buyer payments
+    payments.forEach((p) => {
+      if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && !p.counterparty_id) {
+        p.counterparty_id = buyer.id;
+      }
+      if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && !p.counterparty_id) {
+        p.counterparty_id = farmer.id;
+      }
+    });
+    initialFarmerPaid = payments
+      .filter((p) => p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    initialBuyerPaid = payments
+      .filter((p) => p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+  }
+  // Always add pending amount to buyer balance if not fully paid
+  const buyerPending = Math.max(0, totalSaleValue - initialBuyerPaid);
+  if (buyerPending > 0) {
+    await buyer.update({ balance: Number(buyer.balance || 0) + buyerPending });
+    console.log(`[TRANSACTION BALANCE UPDATE] Transaction ${transaction.id}: Buyer pending added: ${buyerPending}, Buyer initial paid: ${initialBuyerPaid}`);
+  } else {
+    console.log(`[TRANSACTION BALANCE UPDATE] Transaction ${transaction.id}: Buyer paid in full, no pending added. Buyer initial paid: ${initialBuyerPaid}`);
+  }
+  // Farmer logic unchanged
+  const farmerPending = Math.max(0, farmerEarning - initialFarmerPaid);
+  if (farmerPending > 0) {
+    await farmer.update({ balance: Number(farmer.balance || 0) + farmerPending });
+    console.log(`[TRANSACTION BALANCE UPDATE] Transaction ${transaction.id}: Farmer pending added: ${farmerPending}, Farmer initial paid: ${initialFarmerPaid}`);
+  } else {
+    console.log(`[TRANSACTION BALANCE UPDATE] Transaction ${transaction.id}: Farmer paid in full, no pending added. Farmer initial paid: ${initialFarmerPaid}`);
+  }
+  // Removed recalculateUserBalance to preserve running balance sheet model
 
     // Owner/shop cumulative_value increases by commission (if owner exists)
     if (shop && shop.owner_id) {
@@ -189,9 +222,8 @@ export class TransactionService {
       const farmer_paid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
       // To collect from buyer
       const deficit = Math.max(0, total - buyer_paid);
-      // To pay to farmer: only what has been received from buyer minus commission, minus what has already been paid
-      const maxFarmerPayable = Math.max(0, buyer_paid - commission);
-      const farmer_due = Math.max(0, Math.min(farmer_earning, maxFarmerPayable) - farmer_paid);
+  // To pay to farmer: always what is owed, regardless of buyer payment
+  const farmer_due = Math.max(0, farmer_earning - farmer_paid);
       return {
         ...tx,
         total,

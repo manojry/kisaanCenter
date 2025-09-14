@@ -80,11 +80,10 @@ export class PaymentService {
       let newBalance = previousBalance;
       const paymentAmount = Number(payment.amount);
       if (userRole === 'farmer') {
-        // Only subtract up to the current balance (avoid negative and repeated resets)
-        const amountToSubtract = Math.min(previousBalance, paymentAmount);
-        newBalance = previousBalance - amountToSubtract;
+        // Subtract payment from farmer's balance (pending amount)
+        newBalance = previousBalance - paymentAmount;
       } else if (userRole === 'buyer') {
-        // For buyers, subtract payment from balance as before
+        // Subtract payment from buyer's balance (pending amount)
         newBalance = previousBalance - paymentAmount;
       }
       newBalance = Math.round(newBalance * 100) / 100;

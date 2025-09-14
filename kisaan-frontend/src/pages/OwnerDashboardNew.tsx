@@ -58,13 +58,7 @@ const OwnerDashboardNew: React.FC = () => {
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button 
-            onClick={() => navigate('/transactions')} 
-            className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-initial"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Transaction
-          </Button>
+          {/* Removed New Transaction button as requested */}
         </div>
       </div>
 
