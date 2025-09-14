@@ -17,17 +17,32 @@ const paymentController = new PaymentController();
 // SMART: Use service for dashboard-friendly enriched transactions
 router.get('/', authenticateToken, async (req: any, res) => {
   try {
-    const { shop_id, farmer_id, buyer_id, startDate, endDate } = req.query;
+    const { shop_id, farmer_id, buyer_id, startDate, endDate, from_date, to_date } = req.query;
     const TransactionService = require('../services/transactionService').TransactionService;
     const service = new TransactionService();
     let filters: any = {};
     if (shop_id) filters.shopId = Number(shop_id);
     if (farmer_id) filters.farmerId = Number(farmer_id);
     if (buyer_id) filters.buyerId = Number(buyer_id);
-    if (startDate && endDate) {
-      filters.startDate = new Date(startDate as string);
-      filters.endDate = new Date(endDate as string);
+
+    // Support both frontend (from_date/to_date) and backend (startDate/endDate) query params
+    let filterStart: string | undefined = (from_date as string) || (startDate as string);
+    let filterEnd: string | undefined = (to_date as string) || (endDate as string);
+
+    // If no date filter provided, default to today
+    if (!filterStart || !filterEnd) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      // Start of day
+      filterStart = `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
+      // End of day
+      filterEnd = `${yyyy}-${mm}-${dd}T23:59:59.999Z`;
     }
+    filters.startDate = new Date(filterStart);
+    filters.endDate = new Date(filterEnd);
+
     // Default: if owner, use their shop; if farmer/buyer, use their id
     if (req.user?.role === 'owner' && req.user?.shop_id && !filters.shopId) {
       filters.shopId = Number(req.user.shop_id);

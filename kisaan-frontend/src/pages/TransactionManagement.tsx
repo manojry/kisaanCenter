@@ -20,11 +20,13 @@ const TransactionManagement: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  // Set default filters to today for from_date and to_date
+  const todayStr = new Date().toISOString().split('T')[0];
   const [filters, setFilters] = useState({
     status: '',
     search: '',
-    from_date: '',
-    to_date: ''
+    from_date: todayStr,
+    to_date: todayStr
   });
 
   useEffect(() => {
@@ -82,9 +84,23 @@ const TransactionManagement: React.FC = () => {
     return isNaN(date.getTime()) ? '' : date.toLocaleString();
   };
 
+
+  // Determine transaction status based on payment info
+  const getTransactionStatus = (transaction: Transaction) => {
+    if (transaction.deficit && Number(transaction.deficit) > 0) {
+      return 'Buyer Due';
+    } else if (transaction.farmer_due && Number(transaction.farmer_due) > 0) {
+      return 'Farmer Due';
+    } else {
+      return 'Completed';
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
+      case 'Buyer Due': return 'bg-red-100 text-red-800';
+      case 'Farmer Due': return 'bg-yellow-100 text-yellow-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -194,66 +210,60 @@ const TransactionManagement: React.FC = () => {
                 </p>
               </div>
             ) : (
-              transactions.map(transaction => (
-                <div key={transaction.id} className="flex flex-col md:flex-row justify-between items-stretch md:items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <p className="font-medium text-lg">{transaction.product_name}</p>
-                      <Badge className={getStatusColor(transaction.status || 'completed')}>
-                        {transaction.status || 'completed'}
-                      </Badge>
+              transactions.map(transaction => {
+                const derivedStatus = getTransactionStatus(transaction);
+                return (
+                  <div key={transaction.id} className="flex flex-col md:flex-row justify-between items-stretch md:items-center p-2 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p className="font-medium text-base">{transaction.product_name}</p>
+                        <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
+                        <span className="ml-2 text-xs text-gray-500">{formatDate(transaction.created_at)}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600 mb-1">
+                        <div><b>Qty:</b> {transaction.quantity} units</div>
+                        <div><b>Unit:</b> {formatCurrency(transaction.unit_price)}</div>
+                        <div><b>Comm:</b> <span className="text-green-600">{formatCurrency(transaction.shop_commission)}</span></div>
+                        <div><b>Total:</b> {formatCurrency(transaction.total_sale_value)}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-xs text-gray-700 bg-gray-50 rounded px-2 py-1 items-center">
+                        <span><b>Buyer:</b> Paid {formatCurrency(transaction.buyer_paid)} / Pending {formatCurrency(transaction.deficit)}</span>
+                        <span><b>Farmer:</b> Paid {formatCurrency(transaction.farmer_paid)} / Pending {formatCurrency(transaction.farmer_due)}</span>
+                        {transaction.payments && transaction.payments.length > 0 ? (
+                          <span className="flex flex-wrap gap-2">
+                            {transaction.payments.map((payment, idx) => {
+                              let label = '';
+                              if (payment.payer_type === 'BUYER' && payment.payee_type === 'SHOP') {
+                                label = 'Paid by Buyer';
+                              } else if (payment.payer_type === 'SHOP' && payment.payee_type === 'FARMER') {
+                                label = 'Paid to Farmer';
+                              } else if (payment.payer_type === 'SHOP' && payment.payee_type === 'SHOP') {
+                                label = 'Commission';
+                              } else {
+                                label = `Paid by ${payment.payer_type} to ${payment.payee_type}`;
+                              }
+                              return (
+                                <span key={payment.id || idx} className="border border-gray-100 rounded px-1 py-0.5 bg-gray-100">
+                                  {label}: {formatCurrency(payment.amount)} ({payment.method}{payment.payment_date ? `, ${new Date(payment.payment_date).toLocaleDateString()}` : ''})
+                                </span>
+                              );
+                            })}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">No payments</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                      <div>
-                        <p className="font-medium">Quantity</p>
-                        <p>{transaction.quantity} units</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Unit Price</p>
-                        <p>{formatCurrency(transaction.unit_price)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Commission</p>
-                        <p className="text-green-600">{formatCurrency(transaction.shop_commission)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Date</p>
-                        <p>{formatDate(transaction.created_at)}</p>
-                      </div>
-                    </div>
-                    {/* Payment details */}
-                    <div className="mt-3">
-                      <p className="font-medium text-sm text-gray-700 mb-1">Payments:</p>
-                      {transaction.payments && transaction.payments.length > 0 ? (
-                        <div className="space-y-1">
-                          {transaction.payments.map((payment, idx) => (
-                            <div key={payment.id || idx} className="flex flex-wrap gap-4 text-xs text-gray-700 border border-gray-100 rounded px-2 py-1 bg-gray-50">
-                              <span><b>Amount:</b> {formatCurrency(payment.amount)}</span>
-                              <span><b>Status:</b> {payment.status}</span>
-                              <span><b>Method:</b> {payment.method}</span>
-                              {payment.payment_date && <span><b>Date:</b> {formatDate(payment.payment_date)}</span>}
-                              <span><b>Payer:</b> {payment.payer_type}</span>
-                              <span><b>Payee:</b> {payment.payee_type}</span>
-                              {payment.notes && <span><b>Notes:</b> {payment.notes}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No payments recorded</span>
-                      )}
+                    <div className="text-right ml-2 mt-2 md:mt-0 flex flex-col items-end justify-between min-w-[100px]">
+                      <span className="text-base font-bold text-gray-900">{formatCurrency(transaction.total_sale_value)}</span>
+                      <Button size="sm" variant="outline" className="mt-1">
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </Button>
                     </div>
                   </div>
-                  <div className="text-right ml-4 mt-4 md:mt-0">
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(transaction.total_sale_value)}
-                    </p>
-                    <Button size="sm" variant="outline" className="mt-2">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </CardContent>
