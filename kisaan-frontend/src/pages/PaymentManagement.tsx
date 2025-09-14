@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { usersApi, paymentsApi } from '../services/api';
+import { paymentsApi } from '../services/api';
+import { useUsers } from '../context/UsersContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +27,8 @@ const PaymentManagement: React.FC = () => {
   if (!isAuthenticated || !hasRole('owner')) {
     return <div className="p-8 text-center text-red-600 font-bold">Unauthorized: Only owners can access this page.</div>;
   }
-  const [users, setUsers] = useState<any[]>([]);
+  const { users: allUsers, isLoading: usersLoading } = useUsers();
+  const users = allUsers.filter((u: any) => ['farmer', 'buyer'].includes(u.role));
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -37,14 +39,7 @@ const PaymentManagement: React.FC = () => {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-  // Remove include_balance, just fetch all users and filter
-  const res = await usersApi.getAll({});
-  setUsers(res.data.filter((u: any) => ['farmer', 'buyer'].includes(u.role)));
-    };
-    fetchUsers();
-  }, []);
+  // Removed local fetchUsers; using users from context
 
   useEffect(() => {
     if (!selectedUser) {

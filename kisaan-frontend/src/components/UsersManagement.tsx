@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../services/apiClient';
+import { useUsers } from '../context/UsersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { Alert, AlertDescription } from './ui/alert';
-import { Plus, AlertCircle, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import AddUserDialog from './AddUserDialog';
 
-interface User {
-  id: number;
-  username: string;
-  role: string;
-  contact?: string;
-  email?: string;
-  status: string;
-  created_at: string;
-}
+
 
 interface UsersManagementProps {
   shopId?: number;
@@ -24,47 +15,23 @@ interface UsersManagementProps {
 }
 
 export default function UsersManagement({ shopId, onRefresh }: UsersManagementProps) {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // shopId is currently unused, but kept for future filtering if needed.
+  const { users, isLoading, refreshUsers } = useUsers();
   const [showAddUser, setShowAddUser] = useState(false);
-
   useEffect(() => {
-    fetchUsers();
-  }, [shopId]);
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.get('/users');
-      const allUsers = response?.users || [];
-      
-      // Filter users for this shop (farmers and buyers)
-      const shopUsers = allUsers.filter((user: User) => 
-        user.role === 'farmer' || user.role === 'buyer'
-      );
-      
-      setUsers(shopUsers);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load users');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    refreshUsers();
+  }, [refreshUsers]);
 
   const handleUserAdded = () => {
-    fetchUsers();
     if (onRefresh) onRefresh();
   };
 
   const getRoleBadge = (role: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       farmer: "default",
-      buyer: "secondary"
+      buyer: "secondary",
+      // owner intentionally omitted
     };
-    
     return (
       <Badge variant={variants[role] || "outline"}>
         {role.toUpperCase()}
@@ -93,14 +60,7 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
     );
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+  // error state and UI removed; errors should be handled in context or via notifications if needed.
 
   return (
     <>
@@ -110,7 +70,7 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Users Management
+                Users Management xxxx
               </CardTitle>
               <CardDescription>
                 Manage farmers and buyers in your shop ({users.length} users)

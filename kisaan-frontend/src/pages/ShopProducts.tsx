@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,8 @@ const ShopProducts: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  // Cache products by category id
+  const productsCache = useRef<{ [categoryId: number]: Product[] }>({});
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
   const [selectedShop, setSelectedShop] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<number>(0);
@@ -51,9 +53,18 @@ const ShopProducts: React.FC = () => {
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [filters, setFilters] = useState({ search: '' });
 
+  // Only fetch shops and categories once per session
+  const hasFetchedShops = useRef(false);
+  const hasFetchedCategories = useRef(false);
   useEffect(() => {
-    fetchShops();
-    fetchCategories();
+    if (!hasFetchedShops.current) {
+      fetchShops();
+      hasFetchedShops.current = true;
+    }
+    if (!hasFetchedCategories.current) {
+      fetchCategories();
+      hasFetchedCategories.current = true;
+    }
   }, []);
 
   useEffect(() => {
@@ -62,9 +73,21 @@ const ShopProducts: React.FC = () => {
     }
   }, [selectedShop]);
 
+  // Only fetch products for a category once per session, use cache if available
   useEffect(() => {
     if (selectedCategory) {
-      fetchProducts();
+      if (productsCache.current[selectedCategory]) {
+        setProducts(productsCache.current[selectedCategory]);
+      } else {
+        fetchProducts().then((fetched) => {
+          if (fetched) {
+            productsCache.current[selectedCategory] = fetched;
+            setProducts(fetched);
+          }
+        });
+      }
+    } else {
+      setProducts([]);
     }
   }, [selectedCategory]);
 
@@ -96,18 +119,20 @@ const ShopProducts: React.FC = () => {
     }
   };
 
-  const fetchProducts = async () => {
+  // fetchProducts returns the products array for caching
+  const fetchProducts = async (): Promise<Product[] | undefined> => {
     try {
       const response = await fetch(`/api/products?category_id=${selectedCategory}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
-  setProducts(data.data?.filter((p: Product) => p.record_status === 'active') || []);
+        return data.data?.filter((p: Product) => p.record_status === 'active') || [];
       }
     } catch (error) {
       console.error('Error fetching products:', error);
     }
+    return undefined;
   };
 
   const fetchShopProducts = async () => {

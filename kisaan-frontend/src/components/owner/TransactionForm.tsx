@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useShopProductsCache } from '../../hooks/useShopProductsCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -27,6 +28,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const [buyers, setBuyers] = useState<User[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  // Use global shop products cache
+  const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +49,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     farmer_earning: 0
   });
   const [commissionRate, setCommissionRate] = useState<number>(0.1); // Default to 10%
+  // Cache for commission rate by shopId
+  const commissionRateCache = useRef<{ [shopId: number]: number }>({});
   // Payment fields
   const [buyerPaid, setBuyerPaid] = useState(0);
   const [farmerPaid, setFarmerPaid] = useState(0);
@@ -56,7 +61,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
   useEffect(() => {
     fetchData();
-    fetchCommissionRate();
+    if (user?.shop_id) {
+      if (commissionRateCache.current[user.shop_id] !== undefined) {
+        setCommissionRate(commissionRateCache.current[user.shop_id]);
+      } else {
+        fetchCommissionRate();
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -87,10 +98,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
       // Only fetch products if shop_id is valid
       if (user?.shop_id) {
-        const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
-        const productsResponse = productsResponseRaw as any;
-        const prods = productsResponse.products || [];
-        setProducts(prods);
+        const cached = getShopProducts(user.shop_id);
+        if (cached) {
+          setProducts(cached);
+        } else {
+          const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
+          const productsResponse = productsResponseRaw as any;
+          const prods = productsResponse.products || [];
+          setShopProducts(user.shop_id, prods);
+          setProducts(prods);
+        }
       } else {
         setProducts([]);
       }
@@ -118,8 +135,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       } else if (res.data && res.data.rate) {
         rate = parseFloat(res.data.rate) / 100;
       }
+      commissionRateCache.current[user.shop_id] = rate;
       setCommissionRate(rate);
     } catch (err) {
+      commissionRateCache.current[user.shop_id] = 0.1;
       setCommissionRate(0.1); // fallback to 10%
     }
   };

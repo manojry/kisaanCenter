@@ -10,11 +10,11 @@ import { usersApi } from '../services/api';
 import type { User } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { UserForm } from '../components/owner/UserForm';
+import { useUsers } from '../context/UsersContext';
 
-const UsersManagement: React.FC = () => {
+const OwnerUsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { users, isLoading, refreshUsers } = useUsers();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [filters, setFilters] = useState({
@@ -23,52 +23,28 @@ const UsersManagement: React.FC = () => {
     search: ''
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, [currentUser?.shop_id, filters]);
-
-  const fetchUsers = async () => {
-    if (!currentUser?.shop_id) return;
-    
-    setIsLoading(true);
-    try {
-      const params: any = {
-        shop_id: currentUser.shop_id
-      };
-      
-      if (filters.role) params.role = filters.role;
-      if (filters.status) params.status = filters.status;
-      
-      const response = await usersApi.getAll(params);
-      if (response.data) {
-        let filteredUsers = response.data;
-        
-        // Client-side search filter
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredUsers = filteredUsers.filter(u => 
-            u.username.toLowerCase().includes(searchLower) ||
-            (u.contact && u.contact.includes(filters.search)) ||
-            (u.email && u.email.toLowerCase().includes(searchLower))
-          );
-        }
-        
-        setUsers(filteredUsers);
+  // Filtered users based on filters
+  const filteredUsers = users.filter(u => {
+    if (filters.role && u.role !== filters.role) return false;
+    if (filters.status && u.status !== filters.status) return false;
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      if (!u.username.toLowerCase().includes(searchLower) &&
+          !(u.contact && u.contact.includes(filters.search)) &&
+          !(u.email && u.email.toLowerCase().includes(searchLower))) {
+        return false;
       }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+    return true;
+  });
 
   const handleUserCreated = (user: User) => {
-    setUsers(prev => [user, ...prev]);
+    refreshUsers();
     setShowCreateForm(false);
   };
 
   const handleUserUpdated = (user: User) => {
-    setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+    refreshUsers();
     setEditingUser(null);
   };
 
@@ -76,16 +52,12 @@ const UsersManagement: React.FC = () => {
     if (confirm('Are you sure you want to delete this user?')) {
       try {
         await usersApi.delete(userId);
-        setUsers(prev => prev.filter(u => u.id !== userId));
+        refreshUsers();
       } catch (error) {
         console.error('Error deleting user:', error);
         alert('Failed to delete user');
       }
     }
-  };
-
-  const getStatusColor = (status: string) => {
-    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
   const getRoleColor = (role: string) => {
@@ -132,7 +104,7 @@ const UsersManagement: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={fetchUsers}
+            onClick={refreshUsers}
             variant="outline"
             size="sm"
             disabled={isLoading}
@@ -194,12 +166,12 @@ const UsersManagement: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Users ({users.length})</span>
+            <span>Users ({filteredUsers.length})</span>
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No users found</p>
               <p className="text-gray-400 text-sm mt-2">
@@ -213,39 +185,31 @@ const UsersManagement: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>ID / Status</TableHead>
                   <TableHead>Username</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Email</TableHead>
                   <TableHead>Balance</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>#{user.id}</TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-2">
+                        #{user.id}
+                        <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'} title={user.status}></span>
+                      </span>
+                    </TableCell>
                     <TableCell className="font-medium">{user.username}</TableCell>
                     <TableCell>
                       <Badge className={getRoleColor(user.role)}>
                         {user.role}
                       </Badge>
                     </TableCell>
-                    <TableCell>{user.contact || '-'}</TableCell>
-                    <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>{formatCurrency(user.balance)}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(user.status)}>
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4" />
-                        </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -253,14 +217,16 @@ const UsersManagement: React.FC = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {user.id !== currentUser?.id && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -274,4 +240,4 @@ const UsersManagement: React.FC = () => {
   );
 };
 
-export default UsersManagement;
+export default OwnerUsersPage;

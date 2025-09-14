@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useShopProductsCache } from '../hooks/useShopProductsCache';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -34,8 +35,16 @@ interface ProductsManagementProps {
 
 export default function ProductsManagement({ shopId, onRefresh }: ProductsManagementProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  // Use global shop products cache
+  const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  // Cache for available products by shopId
+  // Global cache for available products by shopId (per session)
+  const availableProductsCache: { [shopId: number]: Product[] } = {};
   const [shopCategories, setShopCategories] = useState<Category[]>([]);
+  // Cache for shop categories by shopId
+  // Global cache for shop categories by shopId (per session)
+  const shopCategoriesCache: { [shopId: number]: Category[] } = {};
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -58,16 +67,31 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
 
   useEffect(() => {
     if (shopId) {
-      fetchShopProducts(shopId);
-      fetchShopCategories(shopId);
+      const cached = getShopProducts(shopId);
+      if (cached) {
+        setProducts(cached);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+        fetchShopProducts(shopId);
+      }
+      if (shopCategoriesCache[shopId]) {
+        setShopCategories(shopCategoriesCache[shopId]);
+      } else {
+        fetchShopCategories(shopId);
+      }
     }
   }, [shopId]);
 
   useEffect(() => {
     if (shopId) {
-      fetchAvailableProducts(shopId);
+      if (availableProductsCache[shopId]) {
+        setAllProducts(availableProductsCache[shopId]);
+      } else {
+        fetchAvailableProducts(shopId);
+      }
     }
-  }, [shopId, products]); // Re-fetch when products change
+  }, [shopId, products]);
 
   // Fetch products assigned to this shop
   const fetchShopProducts = async (shopId: number) => {
@@ -75,14 +99,16 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     setError(null);
     try {
       console.log('🔍 Fetching shop products for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/products`);
+      const response = await apiClient.get(`/shops/${shopId}/products`) as any;
       console.log('📦 Shop products response:', response);
-      const productsData = response?.products || [];
-      setProducts(Array.isArray(productsData) ? productsData : []);
+      const productsData = (response && (response.products || response.data)) || [];
+      setShopProducts(shopId, Array.isArray(productsData) ? productsData : []);
+      setProducts(getShopProducts(shopId));
       console.log('✅ Shop products loaded:', productsData.length);
-    } catch (err: any) {
-      console.error('❌ Error fetching shop products:', err);
-      setError(err.message || 'Failed to load shop products');
+    } catch (err) {
+      const error = err as any;
+      console.error('❌ Error fetching shop products:', error);
+      setError(error?.message || 'Failed to load shop products');
     } finally {
       setIsLoading(false);
     }
@@ -92,32 +118,36 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   const fetchAvailableProducts = async (shopId: number) => {
     try {
       console.log('🔍 Fetching available products for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/available-products`);
+      const response = await apiClient.get(`/shops/${shopId}/available-products`) as any;
       console.log('📦 Available products response:', response);
-      const available = response?.products || [];
-      const message = response?.message || '';
-      setAllProducts(Array.isArray(available) ? available : []);
+      const available = (response && (response.products || response.data)) || [];
+      const message = response && response.message;
+  availableProductsCache[shopId] = Array.isArray(available) ? available : [];
+  setAllProducts(availableProductsCache[shopId]);
       console.log('✅ Available products loaded:', available.length);
       if (message) {
         console.log('ℹ️ Backend message:', message);
       }
     } catch (err) {
-      console.error('❌ Failed to fetch available products:', err);
+      const error = err as any;
+      console.error('❌ Failed to fetch available products:', error);
       // Fallback to all products if shop-specific endpoint fails
       try {
         console.log('🔄 Trying fallback to all products...');
-        const fallbackResponse = await apiClient.get('/products');
+        const fallbackResponse = await apiClient.get('/products') as any;
         console.log('📦 Fallback products response:', fallbackResponse);
-        const allProds = fallbackResponse?.data || fallbackResponse?.products || [];
+        const allProds = (fallbackResponse && (fallbackResponse.data || fallbackResponse.products)) || [];
         // Filter out already assigned products
         const assignedIds = products.map(p => p.id);
         const filtered = Array.isArray(allProds) ? allProds.filter((p: Product) => 
           !assignedIds.includes(p.id) && p.record_status === 'active'
         ) : [];
-        setAllProducts(filtered);
+  availableProductsCache[shopId] = filtered;
+  setAllProducts(filtered);
         console.log('✅ Fallback products loaded:', filtered.length);
       } catch (fallbackErr) {
-        console.error('❌ Failed to fetch fallback products:', fallbackErr);
+        const error2 = fallbackErr as any;
+        console.error('❌ Failed to fetch fallback products:', error2);
         setAllProducts([]);
       }
     }
@@ -127,19 +157,24 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   const fetchShopCategories = async (shopId: number) => {
     try {
       console.log('🔍 Fetching shop categories for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/categories`);
-      console.log('📂 Shop categories response:', response);
-      const categories = response?.categories || [];
-      setShopCategories(Array.isArray(categories) ? categories : []);
-      console.log('✅ Shop categories loaded:', categories.length);
+  const response = await apiClient.get(`/shops/${shopId}/categories`) as any;
+  console.log('📂 Shop categories response:', response);
+  const categories = (response && (response.categories || response.data)) || [];
+  const cats = Array.isArray(categories) ? categories : [];
+  shopCategoriesCache[shopId] = cats;
+  setShopCategories(cats);
+  console.log('✅ Shop categories loaded:', cats.length);
     } catch (err) {
-      console.error('❌ Failed to fetch shop categories:', err);
+      const error = err as any;
+      console.error('❌ Failed to fetch shop categories:', error);
       setShopCategories([]);
     }
   };
 
   const handleProductAdded = () => {
     if (shopId) {
+      // Invalidate cache for this shop
+      invalidateShopProducts(shopId);
       fetchShopProducts(shopId);
       fetchAvailableProducts(shopId);
     }
@@ -153,6 +188,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
       console.log('🔄 Assigning product', productId, 'to shop', shopId);
       const response = await apiClient.post(`/shops/${shopId}/products/${productId}`);
       console.log('✅ Product assigned successfully:', response);
+      // Invalidate cache for this shop
+      invalidateShopProducts(shopId);
       await Promise.all([
         fetchShopProducts(shopId),
         fetchAvailableProducts(shopId)
@@ -169,6 +206,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     if (!shopId) return;
     try {
       await apiClient.delete(`/shops/${shopId}/products/${productId}`);
+      // Invalidate cache for this shop
+      invalidateShopProducts(shopId);
       await Promise.all([
         fetchShopProducts(shopId),
         fetchAvailableProducts(shopId)
@@ -211,13 +250,13 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Package className="h-5 w-5 text-green-600" />
                 My Shop Products - Currently Assigned
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm sm:text-base">
                 Products currently assigned to your shop for selling. ({products.length} assigned)
                 {shopCategories.length > 0 && (
                   <div className="mt-2">
@@ -225,12 +264,21 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
                     <span className="text-sm">{shopCategories.map(c => c.name).join(', ')}</span>
                   </div>
                 )}
+                <span className="block sm:hidden mt-2 text-xs text-muted-foreground">Add new products using the button below.</span>
               </CardDescription>
             </div>
-            <Button onClick={() => setShowAddProduct(true)} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Product to Central Catalog
-            </Button>
+            <div className="w-full sm:w-auto flex justify-end">
+              <Button 
+                onClick={() => setShowAddProduct(true)} 
+                variant="outline" 
+                className="w-full sm:w-auto px-2 sm:px-4 text-xs sm:text-sm h-10 sm:h-9"
+                title="Add New Product to Central Catalog"
+              >
+                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Add New Product to Central Catalog</span>
+                <span className="inline sm:hidden">Add Product</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

@@ -7,7 +7,7 @@ import OwnerDashboardNew from './pages/OwnerDashboardNew';
 import NewTransactionPage from './pages/NewTransactionPage';
 import NotFound from './pages/NotFound';
 import ProductsPage from './pages/Products';
-import UsersPage from './pages/Users';
+import OwnerUsersPage from './pages/OwnerUsersPage';
 import ReportsPage from './pages/Reports';
 import SettlementsPage from './pages/Settlements';
 import BalanceManagement from './pages/BalanceManagement';
@@ -23,6 +23,7 @@ import SuperadminSettings from './pages/SuperadminSettings';
 import ShopProducts from './pages/ShopProducts';
 import { AuthProvider } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { UsersProvider } from './context/UsersContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import OwnerSettings from './pages/OwnerSettings';
@@ -81,7 +82,7 @@ const AppRoutes = () => {
         } />
         <Route path="/users" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <UsersPage />
+            <OwnerUsersPage />
           </ProtectedRoute>
         } />
         <Route path="/products" element={
@@ -171,9 +172,11 @@ const AppRoutes = () => {
 const App = () => (
   <AuthProvider>
     <SidebarProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <UsersProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </UsersProvider>
     </SidebarProvider>
   </AuthProvider>
 );
