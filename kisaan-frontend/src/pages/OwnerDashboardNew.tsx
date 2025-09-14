@@ -42,7 +42,7 @@ const OwnerDashboardNew: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Owner Dashboard xx</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Owner Dashboard</h1>
           <p className="text-gray-600">
             Welcome back, {user?.username} • Today's business overview
           </p>
@@ -76,15 +76,7 @@ const OwnerDashboardNew: React.FC = () => {
         <QuickActions />
       </div>
 
-      {/* Pending Actions */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Pending Actions</h2>
-        <PendingActions 
-          pendingTransactions={pendingTransactions}
-          isLoading={isLoading}
-          onViewTransaction={handleViewTransaction}
-        />
-      </div>
+  {/* Pending Actions removed for cleaner UI */}
     </div>
   );
 };

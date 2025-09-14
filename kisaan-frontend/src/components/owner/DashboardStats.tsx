@@ -57,14 +57,14 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     {
       title: "Your Commission",
       value: formatCurrency(stats.today_commission),
-      subtitle: "Total earned",
+      subtitle: "Earned today",
       icon: TrendingUp,
       color: "text-green-600"
     },
     {
       title: "Commission Realized",
       value: formatCurrency(stats.commission_realized || 0),
-      subtitle: "Received from buyers",
+      subtitle: "All time (cumulative)",
       icon: DollarSign,
       color: "text-green-700"
     },

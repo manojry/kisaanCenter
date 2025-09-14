@@ -31,14 +31,25 @@ export async function getOwnerDashboardStats(ownerId: string | number) {
   console.log('Buyers:', buyers.map(u => ({ id: u.id, username: u.username, balance: u.balance })));
   console.log('Farmers:', farmers.map(u => ({ id: u.id, username: u.username, balance: u.balance })));
 
-  const pending_collections = Number(buyers.reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0).toFixed(2));
-  const farmer_payments_due = Number(farmers.reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0).toFixed(2));
-
+  // Only consider buyers/farmers who have transactions today
   const today = new Date().toISOString().split('T')[0];
   const todayTransactions = transactions.filter((t) => {
     const dateStr = t.created_at instanceof Date ? t.created_at.toISOString().split('T')[0] : '';
     return dateStr === today;
   });
+
+  const todayBuyerIds = todayTransactions.map(t => t.buyer_id).filter(Boolean);
+  const todayFarmerIds = todayTransactions.map(t => t.farmer_id).filter(Boolean);
+
+  const pending_collections = Number(buyers
+    .filter(u => todayBuyerIds.includes(u.id))
+    .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
+    .toFixed(2));
+
+  const farmer_payments_due = Number(farmers
+    .filter(u => todayFarmerIds.includes(u.id))
+    .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
+    .toFixed(2));
 
   const today_sales = Number(todayTransactions.reduce((sum, t) => sum + Number(t.total_sale_value || 0), 0).toFixed(2));
   const today_commission = Number(todayTransactions.reduce((sum, t) => sum + Number(t.shop_commission || 0), 0).toFixed(2));
