@@ -1,0 +1,101 @@
+import React, { useEffect, useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { formatCurrency, formatDate } from '@/lib/formatters';
+
+interface FarmerDrilldownModalProps {
+  farmerId: number;
+  open: boolean;
+  onClose: () => void;
+}
+
+export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farmerId, open, onClose }) => {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    setIsLoading(true);
+    // Fetch transactions and payments for this farmer
+    Promise.all([
+      fetch(`/api/transactions?farmer_id=${farmerId}`).then(r => r.json()),
+      fetch(`/api/payments?farmer_id=${farmerId}`).then(r => r.json())
+    ]).then(([txs, pays]) => {
+      setTransactions(txs.data || []);
+      setPayments(pays.data || []);
+    }).finally(() => setIsLoading(false));
+  }, [farmerId, open]);
+
+  // Calculate running balance
+  const totalDue = transactions.reduce((sum, t) => sum + (t.total - (t.farmer_paid || 0)), 0);
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const outstanding = totalDue - totalPaid;
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Farmer Bookkeeping & History</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : (
+          <>
+            <div className="mb-4">
+              <strong>Total Due:</strong> {formatCurrency(totalDue)}<br />
+              <strong>Total Paid:</strong> {formatCurrency(totalPaid)}<br />
+              <strong>Outstanding:</strong> {formatCurrency(outstanding)}
+            </div>
+            <h3 className="font-semibold mb-2">Transactions</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map(t => (
+                  <TableRow key={t.id}>
+                    <TableCell>{formatDate(t.transaction_date)}</TableCell>
+                    <TableCell>{t.product_name}</TableCell>
+                    <TableCell>{formatCurrency(t.total)}</TableCell>
+                    <TableCell>{formatCurrency(t.farmer_paid)}</TableCell>
+                    <TableCell>{t.status}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <h3 className="font-semibold mt-4 mb-2">Payments</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map(p => (
+                  <TableRow key={p.id}>
+                    <TableCell>{formatDate(p.payment_date)}</TableCell>
+                    <TableCell>{formatCurrency(p.amount)}</TableCell>
+                    <TableCell>{p.method}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
+        <DialogFooter>
+          <Button onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

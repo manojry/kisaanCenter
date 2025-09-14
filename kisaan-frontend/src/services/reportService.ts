@@ -39,13 +39,17 @@ export const reportService = {
 
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${filters.report_type}-report-${Date.now()}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+  const link = document.createElement('a');
+  link.href = url;
+  // Use .csv for shop report, .html for others
+  const ext = filters.report_type === 'shop' ? 'csv' : 'html';
+  let extension = ext;
+  if (filters.report_type === 'shop') extension = 'pdf';
+  link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
   },
 
   async previewReport(filters: ReportFilters) {

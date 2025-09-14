@@ -37,14 +37,15 @@ export default function Reports() {
         apiClient.get(`/shops?owner_id=${user.id}`),
         apiClient.get('/users')
       ]);
-      
-      const shops = shopRes?.shops || [];
+
+      // FIX: Use .data instead of .shops
+      const shops = shopRes?.data || [];
       const userShop = shops[0];
       setShop(userShop);
-      
+
       const allUsers = Array.isArray(usersRes) ? usersRes : (usersRes?.users || []);
       setUsers(allUsers);
-      
+
       if (!userShop?.id) {
         setError('No shop found for this owner');
       }

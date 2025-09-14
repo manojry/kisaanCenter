@@ -25,6 +25,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
+import OwnerSettings from './pages/OwnerSettings';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
@@ -106,6 +107,11 @@ const AppRoutes = () => {
         <Route path="/settlements" element={
           <ProtectedRoute allowedRoles={['owner']}>
             <SettlementsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute allowedRoles={['owner']}>
+            <OwnerSettings />
           </ProtectedRoute>
         } />
         <Route path="/new-transaction" element={

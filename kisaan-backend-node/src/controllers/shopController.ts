@@ -18,13 +18,29 @@ export const getAvailableOwners = async (req: Request, res: Response) => {
 };
 import { Request, Response } from 'express';
 import { Shop } from '../models/shop';
+
 import { sequelize } from '../models/index';
 import * as shopService from '../services/shopService';
 import { AuthenticatedRequest } from '../middlewares/auth';
+import { CommissionService } from '../services/commissionService';
 
 export const createShop = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const shop = await shopService.createShop(req.body);
+
+    // Insert 10% percentage commission for the created shop
+    try {
+      const commissionService = new CommissionService();
+      await commissionService.createCommission({
+        shop_id: shop.id,
+        rate: 10,
+        type: 'percentage',
+      }, req.user?.id || 0);
+    } catch (commissionError) {
+      console.error('Error creating commission for shop:', commissionError);
+      // Optionally, you can return an error or continue
+    }
+
     res.status(201).json({
       success: true,
       message: 'Shop created successfully',

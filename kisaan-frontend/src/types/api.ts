@@ -82,11 +82,16 @@ export interface Transaction {
   total_sale_value: number;
   shop_commission: number;
   farmer_earning: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled' | 'to_collect' | 'credit' | 'partial' | 'farmer_due';
   transaction_date: string;
   created_at: string;
   updated_at: string;
   payments: Payment[];
+  // Enriched fields from backend
+  deficit?: number;
+  buyer_paid?: number;
+  farmer_paid?: number;
+  farmer_due?: number;
 }
 
 export interface TransactionCreate {

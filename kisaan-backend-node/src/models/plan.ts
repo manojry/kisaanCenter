@@ -6,6 +6,7 @@ interface PlanAttributes {
   name: string;
   description?: string | null;
   price?: number | null;
+  billing_cycle?: string | null;
   monthly_price?: number | null;
   quarterly_price?: number | null;
   yearly_price?: number | null;
@@ -29,6 +30,7 @@ export class Plan extends Model<PlanAttributes, PlanCreationAttributes> implemen
   public name!: string;
   public description!: string | null;
   public price!: number | null;
+  public billing_cycle!: string | null;
   public monthly_price!: number | null;
   public quarterly_price!: number | null;
   public yearly_price!: number | null;
@@ -63,6 +65,10 @@ Plan.init(
       allowNull: true,
     },
 
+    billing_cycle: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     monthly_price: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,

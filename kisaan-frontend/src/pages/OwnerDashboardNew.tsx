@@ -42,7 +42,7 @@ const OwnerDashboardNew: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Owner Dashboard xx</h1>
           <p className="text-gray-600">
             Welcome back, {user?.username} • Today's business overview
           </p>

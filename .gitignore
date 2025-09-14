@@ -190,3 +190,4 @@ kisaan-backend-node/scripts/setup-test-database.ts
 frontend/src/components/Layout.css 
 frontend/src/components/OwnerNavigation.css 
 .gitignore
+kisaan-backend-node/cleanup.js

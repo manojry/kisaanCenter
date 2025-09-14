@@ -55,7 +55,7 @@ export const QuickActions: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
       {actions.map((action, index) => (
         <Button
           key={index}
@@ -64,7 +64,9 @@ export const QuickActions: React.FC = () => {
           className={`h-20 flex-col space-y-2 ${action.className || ''}`}
         >
           <action.icon className="h-6 w-6" />
-          <span className="text-sm font-medium">{action.title}</span>
+          <span className="text-sm font-medium break-words truncate max-w-[10ch] md:max-w-[16ch] lg:max-w-[20ch] text-center" style={{overflowWrap: 'anywhere'}} title={action.title}>
+            {action.title}
+          </span>
         </Button>
       ))}
     </div>

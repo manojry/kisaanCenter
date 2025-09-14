@@ -6,6 +6,8 @@ export interface CreatePaymentDTO {
   method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
   status?: 'PENDING' | 'PAID' | 'FAILED';
   notes?: string;
+  counterparty_id?: number; // Required for direct/advance payments (farmer or buyer)
+  shop_id?: number; // Optional, for direct/advance payments to associate with a shop
 }
 
 // For bulk payments

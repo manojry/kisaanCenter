@@ -35,6 +35,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [dateTo, setDateTo] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const farmers = users.filter(u => u.role === 'farmer');
   const buyers = users.filter(u => u.role === 'buyer');
@@ -42,7 +43,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const handleGenerateReport = async (download = false) => {
     setIsGenerating(true);
     setError(null);
-
+    setSuccess(null);
     try {
       const filters: ReportFilters = {
         shop_id: shopId,
@@ -51,9 +52,9 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         ...(dateTo && { date_to: dateTo }),
         ...(selectedUser && { user_id: selectedUser })
       };
-
       if (download) {
         await reportService.downloadReport(filters);
+        setSuccess('PDF downloaded successfully!');
       } else {
         await reportService.previewReport(filters);
       }
@@ -80,6 +81,12 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert variant="default">
+            <Download className="h-4 w-4" />
+            <AlertDescription>{success}</AlertDescription>
           </Alert>
         )}
 
@@ -191,7 +198,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
 
         {/* Help Text */}
         <div className="text-sm text-muted-foreground space-y-1">
-          <p><strong>Shop Report:</strong> All transactions for the shop</p>
+          <p><strong>Shop Report:</strong> All transactions for the shop. PDF is branded with Kisaan Center logo and ready for printing.</p>
           <p><strong>Farmer Report:</strong> Sales, payments, and balance for a specific farmer</p>
           <p><strong>User Report:</strong> Purchase history for a specific buyer</p>
           <p>Leave dates empty to include all transactions.</p>

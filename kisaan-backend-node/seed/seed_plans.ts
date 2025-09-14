@@ -1,8 +1,7 @@
 import { Plan } from '../src/models/index';
 
 export async function seedPlans() {
-	await Plan.destroy({ where: {}, truncate: true, restartIdentity: true, cascade: true });
-	await Plan.bulkCreate([
+	const plans = [
 		{
 			name: 'Basic',
 			description: 'Basic plan for small shops',
@@ -12,7 +11,7 @@ export async function seedPlans() {
 			max_buyers: 5,
 			max_transactions: 100,
 			features: JSON.stringify(['basic_support']),
-			is_active: true,
+			status: 'active',
 		},
 		{
 			name: 'Premium',
@@ -23,7 +22,7 @@ export async function seedPlans() {
 			max_buyers: 50,
 			max_transactions: 1000,
 			features: JSON.stringify(['priority_support', 'analytics']),
-			is_active: true,
+			status: 'active',
 		},
 		{
 			name: 'Enterprise',
@@ -34,8 +33,25 @@ export async function seedPlans() {
 			max_buyers: 500,
 			max_transactions: 10000,
 			features: JSON.stringify(['dedicated_support', 'custom_analytics', 'integration']),
-			is_active: true,
+			status: 'active',
 		},
-	]);
-	console.log('Seeded plans (Basic, Premium, Enterprise)');
+	];
+
+	for (const plan of plans) {
+		await Plan.upsert(plan);
+	}
+	console.log('Seeded/updated plans (Basic, Premium, Enterprise)');
+} 
+
+// Allow running this file directly
+if (require.main === module) {
+	seedPlans()
+		.then(() => {
+			console.log('✅ Plans seeding complete.');
+			process.exit(0);
+		})
+		.catch((err) => {
+			console.error('❌ Plans seeding failed:', err);
+			process.exit(1);
+		});
 }

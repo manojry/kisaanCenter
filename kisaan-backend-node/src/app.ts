@@ -26,7 +26,10 @@ import balanceSnapshotRoutes from './routes/balanceSnapshotRoutes';
 import reportRoutes from './routes/reportRoutes';
 import settlementRoutes from './routes/settlementRoutes';
 import { commissionRoutes } from './routes/commissionRoutes';
+
+
 import superadminRoutes from './routes/superadminRoutes';
+import ownerDashboardRoute from './routes/ownerDashboardRoute';
 
 const app = express();
 
@@ -160,6 +163,8 @@ app.use('/api/balance', balanceRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settlements', settlementRoutes);
 app.use('/api/commissions', commissionRoutes);
+
+app.use('/api/owner', ownerDashboardRoute);
 app.use('/api/superadmin', superadminRoutes);
 
 // Bookkeeping: Balance snapshot API

@@ -17,6 +17,7 @@ interface DashboardStatsProps {
     pending_collections: number;
     farmer_payments_due: number;
     total_users: number;
+    commission_realized?: number;
   };
   isLoading?: boolean;
 }
@@ -56,9 +57,16 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     {
       title: "Your Commission",
       value: formatCurrency(stats.today_commission),
-      subtitle: "Today's earnings",
+      subtitle: "Total earned",
       icon: TrendingUp,
       color: "text-green-600"
+    },
+    {
+      title: "Commission Realized",
+      value: formatCurrency(stats.commission_realized || 0),
+      subtitle: "Received from buyers",
+      icon: DollarSign,
+      color: "text-green-700"
     },
     {
       title: "To Collect",
@@ -77,15 +85,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {statCards.map((stat, index) => (
         <Card key={index} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
+          <CardContent className="p-3">
             <div className="flex items-center">
               <stat.icon className={`h-8 w-8 ${stat.color}`} />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className={`text-2xl font-bold ${stat.color} break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]`} style={{overflowWrap: 'anywhere'}} title={stat.value}>
+                  {stat.value}
+                </p>
                 <p className="text-xs text-gray-500">{stat.subtitle}</p>
               </div>
             </div>

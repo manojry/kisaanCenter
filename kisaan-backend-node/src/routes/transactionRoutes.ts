@@ -14,43 +14,46 @@ const paymentController = new PaymentController();
 // router.use(authenticateToken);
 
 // Transaction routes - Block superadmin access to individual transactions
+// SMART: Use service for dashboard-friendly enriched transactions
 router.get('/', authenticateToken, async (req: any, res) => {
   try {
-    // Superadmin should not access individual transactions
-    if (req.user?.role === 'superadmin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied',
-        message: 'Superadmin cannot access individual transactions. Use /api/superadmin/dashboard for aggregated data.'
-      });
+    const { shop_id, farmer_id, buyer_id, startDate, endDate } = req.query;
+    const TransactionService = require('../services/transactionService').TransactionService;
+    const service = new TransactionService();
+    let filters: any = {};
+    if (shop_id) filters.shopId = Number(shop_id);
+    if (farmer_id) filters.farmerId = Number(farmer_id);
+    if (buyer_id) filters.buyerId = Number(buyer_id);
+    if (startDate && endDate) {
+      filters.startDate = new Date(startDate as string);
+      filters.endDate = new Date(endDate as string);
     }
-
-    const { sequelize } = require('../models/index');
-    let query = 'SELECT * FROM kisaan_transactions';
-    let replacements: any = {};
-
-    // Shop owners can only see their shop's transactions
-    if (req.user?.role === 'owner' && req.user?.shop_id) {
-      query += ' WHERE shop_id = :shop_id';
-      replacements.shop_id = req.user.shop_id;
+    // Default: if owner, use their shop; if farmer/buyer, use their id
+    if (req.user?.role === 'owner' && req.user?.shop_id && !filters.shopId) {
+      filters.shopId = Number(req.user.shop_id);
     }
-    // Farmers can only see their transactions
-    else if (req.user?.role === 'farmer') {
-      query += ' WHERE farmer_id = :user_id';
-      replacements.user_id = req.user.id;
+    if (req.user?.role === 'farmer' && !filters.farmerId) {
+      filters.farmerId = Number(req.user.id);
     }
-    // Buyers can only see their transactions
-    else if (req.user?.role === 'buyer') {
-      query += ' WHERE buyer_id = :user_id';
-      replacements.user_id = req.user.id;
+    if (req.user?.role === 'buyer' && !filters.buyerId) {
+      filters.buyerId = Number(req.user.id);
     }
-
-    query += ' ORDER BY created_at DESC';
-    
-    const [results] = await sequelize.query(query, { replacements });
+    // Only call if shopId or farmerId or buyerId is present
+    if (!filters.shopId && !filters.farmerId && !filters.buyerId) {
+      return res.status(400).json({ success: false, message: 'Missing shop, farmer, or buyer context' });
+    }
+    let transactions: any[] = [];
+    if (filters.shopId) {
+      transactions = await service.getTransactionsByShop(filters.shopId, filters);
+    } else if (filters.farmerId) {
+      const farmerResult = await service.getFarmerEarnings(filters.farmerId, filters.shopId, filters.period || undefined);
+      transactions = Array.isArray(farmerResult?.transactions) ? farmerResult.transactions : [];
+    } else if (filters.buyerId) {
+      transactions = await service.getTransactionsByBuyer(filters.buyerId, filters);
+    }
     res.json({
       success: true,
-      data: Array.isArray(results) ? results : []
+      data: transactions
     });
   } catch (error: any) {
     res.status(500).json({

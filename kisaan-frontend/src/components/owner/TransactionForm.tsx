@@ -45,18 +45,23 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     shop_commission: 0,
     farmer_earning: 0
   });
+  const [commissionRate, setCommissionRate] = useState<number>(0.1); // Default to 10%
   // Payment fields
   const [buyerPaid, setBuyerPaid] = useState(0);
   const [farmerPaid, setFarmerPaid] = useState(0);
   const [commissionReceived, setCommissionReceived] = useState(0);
+  // Payment method fields
+  const [buyerPaymentMethod, setBuyerPaymentMethod] = useState<'CASH' | 'BANK' | 'UPI' | 'OTHER'>('CASH');
+  const [farmerPaymentMethod, setFarmerPaymentMethod] = useState<'CASH' | 'BANK' | 'UPI' | 'OTHER'>('CASH');
 
   useEffect(() => {
     fetchData();
+    fetchCommissionRate();
   }, []);
 
   useEffect(() => {
     calculateAmounts();
-  }, [formData.quantity, formData.unit_price]);
+  }, [formData.quantity, formData.unit_price, commissionRate]);
 
   // Set default payment values when calculations change, rounded to 2 decimals
   useEffect(() => {
@@ -82,10 +87,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
       // Only fetch products if shop_id is valid
       if (user?.shop_id) {
-  const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
-  const productsResponse = productsResponseRaw as any;
-  const prods = productsResponse.products || [];
-  setProducts(prods);
+        const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
+        const productsResponse = productsResponseRaw as any;
+        const prods = productsResponse.products || [];
+        setProducts(prods);
       } else {
         setProducts([]);
       }
@@ -101,9 +106,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     }
   };
 
+  // Fetch commission rate for the current shop
+  const fetchCommissionRate = async () => {
+    if (!user?.shop_id) return;
+    try {
+      const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as any;
+      // API returns array or single object
+      let rate = 0.1;
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        rate = parseFloat(res.data[0].rate) / 100;
+      } else if (res.data && res.data.rate) {
+        rate = parseFloat(res.data.rate) / 100;
+      }
+      setCommissionRate(rate);
+    } catch (err) {
+      setCommissionRate(0.1); // fallback to 10%
+    }
+  };
+
   const calculateAmounts = () => {
     const total = formData.quantity * formData.unit_price;
-    const commission = total * 0.1; // 10% commission
+    const commission = total * commissionRate;
     const farmerEarning = total - commission;
 
     setCalculations({
@@ -138,31 +161,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     setIsSubmitting(true);
     try {
       const { transaction_date, ...transactionData } = formData;
+      const now = new Date().toISOString();
       const payload = {
         ...transactionData,
         shop_id: Number(formData.shop_id),
+        farmer_id: Number(formData.farmer_id),
+        buyer_id: Number(formData.buyer_id),
+        category_id: Number(formData.category_id),
+        quantity: Number(formData.quantity),
+        unit_price: Number(formData.unit_price),
         payments: [
           {
             payer_type: 'BUYER',
             payee_type: 'SHOP',
-            amount: buyerPaid,
+            amount: Number(buyerPaid),
             status: 'PAID',
-            method: 'CASH',
+            method: buyerPaymentMethod,
+            payment_date: now
           },
           {
             payer_type: 'SHOP',
             payee_type: 'FARMER',
-            amount: farmerPaid,
+            amount: Number(farmerPaid),
             status: 'PAID',
-            method: 'CASH',
-          },
-          {
-            payer_type: 'SHOP',
-            payee_type: 'SHOP',
-            amount: commissionReceived,
-            status: 'PAID',
-            method: 'CASH',
-            notes: 'Commission received'
+            method: farmerPaymentMethod,
+            payment_date: now
           }
         ]
       };
@@ -343,7 +366,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                   <p className="font-semibold text-lg">{formatCurrency(calculations.total_sale_value)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Shop Commission (10%)</p>
+                  <p className="text-gray-600">Shop Commission ({(commissionRate * 100).toFixed(2)}%)</p>
                   <p className="font-semibold text-lg text-green-600">{formatCurrency(calculations.shop_commission)}</p>
                 </div>
                 <div>
@@ -355,17 +378,39 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                 <div>
                   <Label>Buyer Paid (to Shop)</Label>
                   <Input type="number" min="0" step="0.01" value={buyerPaid} onChange={e => setBuyerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} />
+                  <Label className="mt-1">Buyer → Shop Payment Method</Label>
+                  <select
+                    className="block w-full border rounded p-2 text-sm mt-1"
+                    value={buyerPaymentMethod}
+                    onChange={e => setBuyerPaymentMethod(e.target.value as any)}
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK">Bank</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
                 <div>
                   <Label>Farmer Paid (by Shop)</Label>
                   <Input type="number" min="0" step="0.01" value={farmerPaid} onChange={e => setFarmerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} />
+                  <Label className="mt-1">Shop → Farmer Payment Method</Label>
+                  <select
+                    className="block w-full border rounded p-2 text-sm mt-1"
+                    value={farmerPaymentMethod}
+                    onChange={e => setFarmerPaymentMethod(e.target.value as any)}
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK">Bank</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
                 <div>
                   <Label>Commission Received</Label>
                   <Input type="number" min="0" step="0.01" value={commissionReceived} onChange={e => setCommissionReceived(Number(Number(e.target.value).toFixed(2)) || 0)} />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">You can edit payment values before creating the transaction.</p>
+              <p className="text-xs text-gray-500 mt-2">You can edit payment values and payment methods before creating the transaction.</p>
             </div>
           )}
 

@@ -1,10 +1,10 @@
-
 import { Transaction } from '../models/transaction';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Category } from '../models/category';
 import { Commission } from '../models/commission';
 import { Payment } from '../models/payment';
+import { PaymentService } from './paymentService';
 import { AuditLog } from '../models/auditLog';
 import { Op } from 'sequelize';
 import { CreateTransactionDTO, TransactionResponseDTO, TransactionSummaryDTO } from '../dtos';
@@ -67,36 +67,29 @@ export class TransactionService {
       throw new Error('Transaction creation failed: No valid transaction ID returned');
     }
 
-    // Create associated payments if provided
+
+    // Create associated payments using PaymentService if provided, but skip shop-to-shop (commission) payments
     if (Array.isArray(payments) && payments.length > 0) {
-      for (const payment of payments) {
-        await Payment.create({
-          ...payment,
-          transaction_id: transaction.id
-        });
+      const paymentService = new PaymentService();
+      const filteredPayments = payments.filter(
+        (p) => !(p.payer_type === 'SHOP' && p.payee_type === 'SHOP')
+      );
+      for (const payment of filteredPayments) {
+        await paymentService.createPayment({ ...payment, transaction_id: transaction.id }, userId);
       }
     }
 
 
 
-    // Bookkeeping: Add new transaction value to running balance from latest snapshot
-    // Farmer: running balance increases by farmerEarning
-    const latestFarmerSnapshot = await BalanceSnapshot.findOne({
-      where: { user_id: data.farmer_id },
-      order: [['snapshot_date', 'DESC']]
-    });
-    let farmerRunningBalance = latestFarmerSnapshot ? Number(latestFarmerSnapshot.balance) : Number(farmer.balance);
-    farmerRunningBalance += farmerEarning;
-    await farmer.update({ balance: farmerRunningBalance, cumulative_value: farmerEarning + Number(farmer.cumulative_value) });
 
-    // Buyer: running balance increases by totalSaleValue
-    const latestBuyerSnapshot = await BalanceSnapshot.findOne({
-      where: { user_id: data.buyer_id },
-      order: [['snapshot_date', 'DESC']]
-    });
-    let buyerRunningBalance = latestBuyerSnapshot ? Number(latestBuyerSnapshot.balance) : Number(buyer.balance);
-    buyerRunningBalance += totalSaleValue;
-    await buyer.update({ balance: buyerRunningBalance, cumulative_value: totalSaleValue + Number(buyer.cumulative_value) });
+    // Update cumulative_value only (not balance) on transaction creation
+    await farmer.update({ cumulative_value: farmerEarning + Number(farmer.cumulative_value) });
+    await buyer.update({ cumulative_value: totalSaleValue + Number(buyer.cumulative_value) });
+
+    // Instead of manually calculating balances here, use the same logic as PaymentService
+    // to ensure consistency. We need to recalculate from ALL transactions and payments.
+    await this.recalculateUserBalance(data.farmer_id, 'farmer');
+    await this.recalculateUserBalance(data.buyer_id, 'buyer');
 
     // Owner/shop cumulative_value increases by commission (if owner exists)
     if (shop && shop.owner_id) {
@@ -154,17 +147,46 @@ export class TransactionService {
     if (filters?.farmerId) where.farmer_id = filters.farmerId;
     if (filters?.buyerId) where.buyer_id = filters.buyerId;
 
+    // Fetch transactions and their payments
     const transactions = await Transaction.findAll({
       where,
       include: [
         { model: User, as: 'farmer' },
         { model: User, as: 'buyer' },
-        { model: Category, as: 'category' }
+        { model: Category, as: 'category' },
+        { model: Payment, as: 'payments' }
       ],
       order: [['created_at', 'DESC']]
     });
 
-    return transactions.map(t => t.toJSON() as TransactionResponseDTO);
+    // Map transactions to include buyer and farmer balances for dashboard
+    return transactions.map((t: any) => {
+      const tx = t.toJSON();
+      const total = Number(tx.total_sale_value);
+      // Buyer payments
+      const buyerPayments = Array.isArray(tx.payments)
+        ? tx.payments.filter((p: any) => p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID')
+        : [];
+  const buyer_paid = buyerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      // Farmer payments
+      const farmer_earning = Number(tx.farmer_earning);
+      const farmerPayments = Array.isArray(tx.payments)
+        ? tx.payments.filter((p: any) => p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID')
+        : [];
+  const farmer_paid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      // To collect from buyer
+      const deficit = Math.max(0, total - buyer_paid);
+      // To pay to farmer
+      const farmer_due = Math.max(0, farmer_earning - farmer_paid);
+      return {
+        ...tx,
+        total,
+        buyer_paid,
+        farmer_paid,
+        deficit,      // what buyer owes shop
+        farmer_due    // what shop owes farmer
+      };
+    });
   }
 
   async getShopEarnings(shopId: number, period?: { start: Date; end: Date }): Promise<TransactionSummaryDTO> {
@@ -202,5 +224,63 @@ export class TransactionService {
       totalEarnings: transactions.reduce((sum, t) => sum + Number(t.farmer_earning), 0),
       transactions: transactions.map(t => t.toJSON() as TransactionResponseDTO)
     };
+  }
+
+  /**
+   * Recalculate user balance based on all their transactions and payments
+   * This ensures consistency with PaymentService calculations
+   */
+  private async recalculateUserBalance(userId: number, userRole: 'farmer' | 'buyer'): Promise<void> {
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error(`User with id ${userId} not found`);
+
+    let newBalance = 0;
+    
+    if (userRole === 'farmer') {
+      // Farmer: sum all farmer_earning from transactions, subtract all payments to THIS farmer
+      const transactions = await Transaction.findAll({ where: { farmer_id: userId } });
+      const totalEarning = transactions.reduce((sum, t) => sum + Number(t.farmer_earning || 0), 0);
+      
+      const payments = await Payment.findAll({ 
+        where: { 
+          payer_type: 'SHOP', 
+          payee_type: 'FARMER',
+          counterparty_id: userId,
+          status: { [Op.not]: 'FAILED' } 
+        } 
+      });
+      
+      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      newBalance = totalEarning - totalPaid;
+      
+    } else if (userRole === 'buyer') {
+      // Buyer: sum all total_sale_value from transactions, subtract all payments by THIS buyer
+      // Balance represents what buyer still OWES to shop
+      const transactions = await Transaction.findAll({ where: { buyer_id: userId } });
+      const totalOwed = transactions.reduce((sum, t) => sum + Number(t.total_sale_value || 0), 0);
+      
+      const payments = await Payment.findAll({ 
+        where: { 
+          payer_type: 'BUYER', 
+          payee_type: 'SHOP',
+          counterparty_id: userId,
+          status: { [Op.not]: 'FAILED' } 
+        } 
+      });
+      
+      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      // Buyer balance should be what they still owe (positive = owes money, 0 = paid in full)
+      newBalance = totalOwed - totalPaid;
+    }
+
+    // Round to 2 decimals and ensure non-negative balance
+    newBalance = Math.round(newBalance * 100) / 100;
+    if (newBalance < 0) {
+      newBalance = 0; // Prevent negative balances (overpayment)
+    }
+
+    await user.update({ balance: newBalance });
+    
+    console.log(`[${userRole.toUpperCase()} BALANCE RECALC] UserID: ${userId}, New Balance: ${newBalance}`);
   }
 }

@@ -13,6 +13,8 @@ import { Settlement } from './settlement';
 import { Commission } from './commission';
 import { AuditLog } from './auditLog';
 import { PlanUsage } from './planValidation';
+import BalanceSnapshot from './balanceSnapshot';
+import { PaymentAllocation } from './paymentAllocation';
 
 // Initialize all models
 const models = {
@@ -30,6 +32,8 @@ const models = {
   Commission,
   AuditLog,
   PlanUsage,
+  BalanceSnapshot,
+  PaymentAllocation,
 };
 
 // Set up associations
@@ -148,7 +152,9 @@ export {
   Settlement, 
   Commission,
   AuditLog,
-  PlanUsage
+  PlanUsage,
+  BalanceSnapshot,
+  PaymentAllocation
 };
 
 export default models;
