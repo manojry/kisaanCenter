@@ -120,26 +120,27 @@ const TransactionManagement: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Transaction Management</h1>
-          <p className="text-gray-600">Manage all shop transactions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transaction Management</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage all shop transactions</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button 
             onClick={fetchTransactions}
             variant="outline"
             size="sm"
             disabled={isLoading}
+            className="flex-1 sm:flex-initial"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button 
             onClick={() => setShowCreateForm(true)} 
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-initial"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Transaction
@@ -149,22 +150,22 @@ const TransactionManagement: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search products..."
                 value={filters.search}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="pl-10"
+                className="pl-10 text-sm"
               />
             </div>
             <Select 
               value={filters.status || "all"} 
               onValueChange={(value: string) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -179,12 +180,14 @@ const TransactionManagement: React.FC = () => {
               placeholder="From date"
               value={filters.from_date}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
+              className="text-sm"
             />
             <Input
               type="date"
               placeholder="To date"
               value={filters.to_date}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
+              className="text-sm"
             />
           </div>
         </CardContent>
@@ -192,56 +195,116 @@ const TransactionManagement: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between text-base sm:text-lg">
             <span>Transactions ({transactions.length})</span>
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 sm:p-4">
           {transactions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No transactions found</p>
-              <p className="text-gray-400 text-sm mt-2">
+            <div className="text-center py-8 sm:py-12">
+              <p className="text-gray-500 text-base sm:text-lg">No transactions found</p>
+              <p className="text-gray-400 text-xs sm:text-sm mt-2">
                 {filters.search || filters.status || filters.from_date || filters.to_date
                   ? 'Try adjusting your filters'
                   : 'Create your first transaction to get started'}
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Buyer Paid/Pending</TableHead>
-                  <TableHead>Farmer Paid/Pending</TableHead>
-                  <TableHead>Payments</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table className="min-w-[700px] text-xs sm:text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Buyer Paid/Pending</TableHead>
+                      <TableHead>Farmer Paid/Pending</TableHead>
+                      <TableHead>Payments</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map(transaction => {
+                      const derivedStatus = getTransactionStatus(transaction);
+                      return (
+                        <TableRow key={transaction.id}>
+                          <TableCell>{transaction.product_name}</TableCell>
+                          <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
+                          </TableCell>
+                          <TableCell>{formatCurrency(transaction.total_sale_value)}</TableCell>
+                          <TableCell>
+                            Paid {formatCurrency(transaction.buyer_paid)}<br />
+                            <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.deficit)}</span>
+                          </TableCell>
+                          <TableCell>
+                            Paid {formatCurrency(transaction.farmer_paid)}<br />
+                            <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.farmer_due)}</span>
+                          </TableCell>
+                          <TableCell>
+                            {transaction.payments && transaction.payments.length > 0 ? (
+                              <div className="truncate text-xs">
+                                {(() => {
+                                  const first = transaction.payments[0];
+                                  let label = '';
+                                  if (first.payer_type === 'BUYER' && first.payee_type === 'SHOP') label = 'Paid by Buyer';
+                                  else if (first.payer_type === 'SHOP' && first.payee_type === 'FARMER') label = 'Paid to Farmer';
+                                  else if (first.payer_type === 'SHOP' && first.payee_type === 'SHOP') label = 'Commission';
+                                  else label = `Paid by ${first.payer_type} to ${first.payee_type}`;
+                                  return (
+                                    <>
+                                      {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${new Date(first.payment_date).toLocaleDateString()}` : ''})
+                                      {transaction.payments.length > 1 && (
+                                        <span title={transaction.payments.slice(1).map(p => {
+                                          let l = '';
+                                          if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
+                                          else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
+                                          else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
+                                          else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
+                                          return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${new Date(p.payment_date).toLocaleDateString()}` : ''})`;
+                                        }).join('\n')}>
+                                          {" "}+{transaction.payments.length - 1} more
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">No payments</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Card/List Layout */}
+              <div className="block sm:hidden space-y-3">
                 {transactions.map(transaction => {
                   const derivedStatus = getTransactionStatus(transaction);
                   return (
-                    <TableRow key={transaction.id}>
-                      <TableCell>{transaction.product_name}</TableCell>
-                      <TableCell>{formatDate(transaction.created_at)}</TableCell>
-                      <TableCell>
+                    <div key={transaction.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
+                      <div className="flex justify-between items-center mb-1 gap-2">
+                        <span className="font-semibold text-base break-words max-w-[60%]">{transaction.product_name}</span>
                         <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
-                      </TableCell>
-                      <TableCell>{formatCurrency(transaction.total_sale_value)}</TableCell>
-                      <TableCell>
-                        Paid {formatCurrency(transaction.buyer_paid)}<br />
-                        <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.deficit)}</span>
-                      </TableCell>
-                      <TableCell>
-                        Paid {formatCurrency(transaction.farmer_paid)}<br />
-                        <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.farmer_due)}</span>
-                      </TableCell>
-                      <TableCell>
-                        {transaction.payments && transaction.payments.length > 0 ? (
-                          <div className="truncate text-xs">
+                      </div>
+                      <div className="text-xs text-gray-500 mb-1 break-words">{formatDate(transaction.created_at)}</div>
+                      <div className="flex flex-wrap gap-2 text-xs mb-1">
+                        <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_sale_value)}</div>
+                        <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
+                        <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
+                        <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
+                        <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Pending:</span> {formatCurrency(transaction.farmer_due)}</div>
+                      </div>
+                      <div className="text-xs break-words">
+                        <span className="font-medium">Payments:</span> {transaction.payments && transaction.payments.length > 0 ? (
+                          <span>
                             {(() => {
                               const first = transaction.payments[0];
                               let label = '';
@@ -260,23 +323,23 @@ const TransactionManagement: React.FC = () => {
                                       else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
                                       else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
                                       return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${new Date(p.payment_date).toLocaleDateString()}` : ''})`;
-                                    }).join('\\n')}>
+                                    }).join('\n')}>
                                       {" "}+{transaction.payments.length - 1} more
                                     </span>
                                   )}
                                 </>
                               );
                             })()}
-                          </div>
+                          </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">No payments</span>
+                          <span className="text-gray-400">No payments</span>
                         )}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card> 
