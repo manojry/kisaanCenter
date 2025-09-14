@@ -2,6 +2,11 @@ name: Deploy Backend to Azure Container Apps (FREE Tier)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'kisaan-backend-node/**'
+      - '.github/workflows/deploy-backend.yml'
 
 env:
   REGISTRY: ghcr.io
@@ -50,8 +55,8 @@ jobs:
     - name: 🏗️ Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: .
-        file: ./Dockerfile
+        context: ./kisaan-backend-node
+        file: ./kisaan-backend-node/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
