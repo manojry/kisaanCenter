@@ -275,8 +275,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
                 title="Add New Product to Central Catalog"
               >
                 <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Add New Product to Central Catalog</span>
-                <span className="inline sm:hidden">Add Product</span>
+                <span className="hidden sm:inline">Add New Product</span>
+
               </Button>
             </div>
           </div>
