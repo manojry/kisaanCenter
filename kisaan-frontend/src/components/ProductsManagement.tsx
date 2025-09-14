@@ -345,26 +345,26 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
                 {products.map((product) => (
-                  <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
-                    <div className="flex justify-between items-center mb-1 gap-2">
-                      <span className="font-semibold text-base break-words max-w-[60%]">{product.name || 'N/A'}</span>
-                      <Badge variant="outline">{product.category_name || '-'}</Badge>
+                  <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-base break-words break-all w-2/3">{product.name || 'N/A'}</span>
+                      <Badge variant="outline" className="w-fit">{product.category_name || '-'}</Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-xs mb-1">
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
-                      <div className="break-words max-w-[100%]"><span className="font-medium">Description:</span> {product.description || '-'}</div>
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Assigned:</span> {product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
+                      <div className="break-words break-all"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
+                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
+                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</div>
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description || '-'}</div>
+                    <div className="flex justify-end">
                       <Button 
-                        size="sm" 
+                        size="icon" 
                         variant="outline" 
                         onClick={() => handleRemoveProduct(product.id)} 
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Remove"
                       >
-                        <Trash2 className="w-4 h-4 mr-1" /> 
-                        Remove
+                        <Trash2 className="w-5 h-5" />
                       </Button>
                     </div>
                   </div>
@@ -457,17 +457,17 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
                 {allProducts.map((product) => (
-                  <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
-                    <div className="flex justify-between items-center mb-1 gap-2">
-                      <span className="font-semibold text-base break-words max-w-[60%]">{product.name || 'N/A'}</span>
-                      <Badge variant="secondary">{product.category_name || '-'}</Badge>
+                  <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-base break-words break-all w-2/3">{product.name || 'N/A'}</span>
+                      <Badge variant="secondary" className="w-fit">{product.category_name || '-'}</Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-xs mb-1">
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
-                      <div className="break-words max-w-[100%]"><span className="font-medium">Description:</span> {product.description || '-'}</div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
+                      <div className="break-words break-all"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
+                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description || '-'}</div>
+                    <div className="flex gap-2">
                       <Button 
                         size="sm" 
                         onClick={() => handleAssignProduct(product.id)}
