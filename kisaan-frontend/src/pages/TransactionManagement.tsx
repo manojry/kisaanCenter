@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -189,7 +190,6 @@ const TransactionManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Transactions List */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -198,76 +198,88 @@ const TransactionManagement: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {transactions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No transactions found</p>
-                <p className="text-gray-400 text-sm mt-2">
-                  {filters.search || filters.status || filters.from_date || filters.to_date
-                    ? 'Try adjusting your filters'
-                    : 'Create your first transaction to get started'
-                  }
-                </p>
-              </div>
-            ) : (
-              transactions.map(transaction => {
-                const derivedStatus = getTransactionStatus(transaction);
-                return (
-                  <div key={transaction.id} className="flex flex-col md:flex-row justify-between items-stretch md:items-center p-2 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <p className="font-medium text-base">{transaction.product_name}</p>
+          {transactions.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No transactions found</p>
+              <p className="text-gray-400 text-sm mt-2">
+                {filters.search || filters.status || filters.from_date || filters.to_date
+                  ? 'Try adjusting your filters'
+                  : 'Create your first transaction to get started'}
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Buyer Paid/Pending</TableHead>
+                  <TableHead>Farmer Paid/Pending</TableHead>
+                  <TableHead>Payments</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map(transaction => {
+                  const derivedStatus = getTransactionStatus(transaction);
+                  return (
+                    <TableRow key={transaction.id}>
+                      <TableCell>{transaction.product_name}</TableCell>
+                      <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                      <TableCell>
                         <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
-                        <span className="ml-2 text-xs text-gray-500">{formatDate(transaction.created_at)}</span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600 mb-1">
-                        <div><b>Qty:</b> {transaction.quantity} units</div>
-                        <div><b>Unit:</b> {formatCurrency(transaction.unit_price)}</div>
-                        <div><b>Comm:</b> <span className="text-green-600">{formatCurrency(transaction.shop_commission)}</span></div>
-                        <div><b>Total:</b> {formatCurrency(transaction.total_sale_value)}</div>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-xs text-gray-700 bg-gray-50 rounded px-2 py-1 items-center">
-                        <span><b>Buyer:</b> Paid {formatCurrency(transaction.buyer_paid)} / Pending {formatCurrency(transaction.deficit)}</span>
-                        <span><b>Farmer:</b> Paid {formatCurrency(transaction.farmer_paid)} / Pending {formatCurrency(transaction.farmer_due)}</span>
+                      </TableCell>
+                      <TableCell>{formatCurrency(transaction.total_sale_value)}</TableCell>
+                      <TableCell>
+                        Paid {formatCurrency(transaction.buyer_paid)}<br />
+                        <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.deficit)}</span>
+                      </TableCell>
+                      <TableCell>
+                        Paid {formatCurrency(transaction.farmer_paid)}<br />
+                        <span className="text-xs text-gray-500">Pending {formatCurrency(transaction.farmer_due)}</span>
+                      </TableCell>
+                      <TableCell>
                         {transaction.payments && transaction.payments.length > 0 ? (
-                          <span className="flex flex-wrap gap-2">
-                            {transaction.payments.map((payment, idx) => {
+                          <div className="truncate text-xs">
+                            {(() => {
+                              const first = transaction.payments[0];
                               let label = '';
-                              if (payment.payer_type === 'BUYER' && payment.payee_type === 'SHOP') {
-                                label = 'Paid by Buyer';
-                              } else if (payment.payer_type === 'SHOP' && payment.payee_type === 'FARMER') {
-                                label = 'Paid to Farmer';
-                              } else if (payment.payer_type === 'SHOP' && payment.payee_type === 'SHOP') {
-                                label = 'Commission';
-                              } else {
-                                label = `Paid by ${payment.payer_type} to ${payment.payee_type}`;
-                              }
+                              if (first.payer_type === 'BUYER' && first.payee_type === 'SHOP') label = 'Paid by Buyer';
+                              else if (first.payer_type === 'SHOP' && first.payee_type === 'FARMER') label = 'Paid to Farmer';
+                              else if (first.payer_type === 'SHOP' && first.payee_type === 'SHOP') label = 'Commission';
+                              else label = `Paid by ${first.payer_type} to ${first.payee_type}`;
                               return (
-                                <span key={payment.id || idx} className="border border-gray-100 rounded px-1 py-0.5 bg-gray-100">
-                                  {label}: {formatCurrency(payment.amount)} ({payment.method}{payment.payment_date ? `, ${new Date(payment.payment_date).toLocaleDateString()}` : ''})
-                                </span>
+                                <>
+                                  {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${new Date(first.payment_date).toLocaleDateString()}` : ''})
+                                  {transaction.payments.length > 1 && (
+                                    <span title={transaction.payments.slice(1).map(p => {
+                                      let l = '';
+                                      if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
+                                      else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
+                                      else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
+                                      else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
+                                      return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${new Date(p.payment_date).toLocaleDateString()}` : ''})`;
+                                    }).join('\\n')}>
+                                      {" "}+{transaction.payments.length - 1} more
+                                    </span>
+                                  )}
+                                </>
                               );
-                            })}
-                          </span>
+                            })()}
+                          </div>
                         ) : (
-                          <span className="text-gray-400">No payments</span>
+                          <span className="text-gray-400 text-xs">No payments</span>
                         )}
-                      </div>
-                    </div>
-                    <div className="text-right ml-2 mt-2 md:mt-0 flex flex-col items-end justify-between min-w-[100px]">
-                      <span className="text-base font-bold text-gray-900">{formatCurrency(transaction.total_sale_value)}</span>
-                      <Button size="sm" variant="outline" className="mt-1">
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
-      </Card>
+      </Card> 
     </div>
   );
 };
