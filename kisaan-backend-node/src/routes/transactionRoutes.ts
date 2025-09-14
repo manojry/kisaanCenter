@@ -25,6 +25,7 @@ router.get('/', authenticateToken, async (req: any, res) => {
     if (farmer_id) filters.farmerId = Number(farmer_id);
     if (buyer_id) filters.buyerId = Number(buyer_id);
 
+
     // Support both frontend (from_date/to_date) and backend (startDate/endDate) query params
     let filterStart: string | undefined = (from_date as string) || (startDate as string);
     let filterEnd: string | undefined = (to_date as string) || (endDate as string);
@@ -35,11 +36,21 @@ router.get('/', authenticateToken, async (req: any, res) => {
       const yyyy = today.getFullYear();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
-      // Start of day
-      filterStart = `${yyyy}-${mm}-${dd}T00:00:00.000Z`;
-      // End of day
-      filterEnd = `${yyyy}-${mm}-${dd}T23:59:59.999Z`;
+      filterStart = `${yyyy}-${mm}-${dd}`;
+      filterEnd = `${yyyy}-${mm}-${dd}`;
     }
+
+    // If date string is in YYYY-MM-DD format, expand to full day
+    const expandToFullDay = (dateStr: string, isEnd: boolean) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return isEnd
+          ? `${dateStr}T23:59:59.999Z`
+          : `${dateStr}T00:00:00.000Z`;
+      }
+      return dateStr;
+    };
+    filterStart = expandToFullDay(filterStart, false);
+    filterEnd = expandToFullDay(filterEnd, true);
     filters.startDate = new Date(filterStart);
     filters.endDate = new Date(filterEnd);
 
@@ -66,6 +77,7 @@ router.get('/', authenticateToken, async (req: any, res) => {
     } else if (filters.buyerId) {
       transactions = await service.getTransactionsByBuyer(filters.buyerId, filters);
     }
+    console.log(`[DEBUG] Returning ${transactions.length} transactions for shop_id=${filters.shopId}, date range:`, filters.startDate, filters.endDate);
     res.json({
       success: true,
       data: transactions

@@ -14,7 +14,6 @@ interface DashboardStatsProps {
     today_sales: number;
     today_transactions: number;
     today_commission: number;
-    today_commission_due?: number;
     pending_collections: number;
     farmer_payments_due: number;
     total_users: number;
@@ -61,13 +60,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
       subtitle: "Earned today",
       icon: TrendingUp,
       color: "text-green-600"
-    },
-    {
-      title: "Commission Due Today",
-      value: formatCurrency(stats.today_commission_due || 0),
-      subtitle: "Not yet collected today",
-      icon: DollarSign,
-      color: "text-green-700"
     },
     {
       title: "To Collect",

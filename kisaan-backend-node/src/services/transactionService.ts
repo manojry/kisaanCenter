@@ -266,8 +266,10 @@ export class TransactionService {
         // Farmer payments for this transaction
         const farmer_paid = payments.filter((p: any) => p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID')
           .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-        const maxFarmerPayable = Math.max(0, buyer_paid - commission);
-        const dueForThisTx = Math.max(0, Math.min(farmer_earning, maxFarmerPayable) - farmer_paid);
+        
+        // Farmer is owed their full earning minus what they've been paid
+        // Commission tracking is separate from what farmer is owed
+        const dueForThisTx = Math.max(0, farmer_earning - farmer_paid);
         totalDue += dueForThisTx;
       }
       newBalance = Math.round(totalDue * 100) / 100;

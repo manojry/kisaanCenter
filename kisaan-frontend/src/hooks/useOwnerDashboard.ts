@@ -6,7 +6,6 @@ interface DashboardStats {
   today_sales: number;
   today_transactions: number;
   today_commission: number;
-  today_commission_due?: number;
   pending_collections: number;
   farmer_payments_due: number;
   total_users: number;
