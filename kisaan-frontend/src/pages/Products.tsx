@@ -57,11 +57,11 @@ export default function Products() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+  <div className="w-full max-w-4xl mx-auto p-2 sm:p-4 md:p-6">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Button asChild variant="ghost" size="sm" className="md:hidden">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-4">
+          <Button asChild variant="ghost" size="sm" className="sm:hidden">
             <Link to={user.role === 'owner' ? '/owner' : '/dashboard'}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
@@ -69,17 +69,16 @@ export default function Products() {
           </Button>
           <div className="flex items-center gap-2">
             <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Products Management</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Products Management</h1>
           </div>
         </div>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <p className="text-muted-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Manage products and inventory for {shop?.name || 'your shop'}
           </p>
           <Button 
             onClick={() => setShowAddProduct(true)}
-            className="w-full md:w-auto"
+            className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Product

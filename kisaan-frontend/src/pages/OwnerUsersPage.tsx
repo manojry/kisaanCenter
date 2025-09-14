@@ -95,24 +95,25 @@ const OwnerUsersPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
-          <p className="text-gray-600">Manage farmers, buyers and other users</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Users Management</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage farmers, buyers and other users</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button 
             onClick={refreshUsers}
             variant="outline"
             size="sm"
             disabled={isLoading}
+            className="flex-1 sm:flex-initial"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button onClick={() => setShowCreateForm(true)} className="flex-1 sm:flex-initial">
             <Plus className="w-4 h-4 mr-2" />
             Add User
           </Button>
@@ -121,22 +122,22 @@ const OwnerUsersPage: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-3">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search users..."
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="pl-10"
+                className="pl-10 text-sm"
               />
             </div>
             <Select 
               value={filters.role || "all"} 
               onValueChange={(value) => setFilters(prev => ({ ...prev, role: value === "all" ? "" : value }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -149,7 +150,7 @@ const OwnerUsersPage: React.FC = () => {
               value={filters.status || "all"} 
               onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -165,16 +166,16 @@ const OwnerUsersPage: React.FC = () => {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between text-base sm:text-lg">
             <span>Users ({filteredUsers.length})</span>
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 sm:p-4">
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No users found</p>
-              <p className="text-gray-400 text-sm mt-2">
+            <div className="text-center py-8 sm:py-12">
+              <p className="text-gray-500 text-base sm:text-lg">No users found</p>
+              <p className="text-gray-400 text-xs sm:text-sm mt-2">
                 {filters.search || filters.role || filters.status
                   ? 'Try adjusting your filters'
                   : 'Add your first user to get started'
@@ -182,57 +183,96 @@ const OwnerUsersPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID / Status</TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table className="min-w-[600px] text-xs sm:text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID / Status</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <span className="flex items-center gap-2">
+                            #{user.id}
+                            <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'} title={user.status}></span>
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>
+                          <Badge className={getRoleColor(user.role)}>
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatCurrency(user.balance)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setEditingUser(user)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {user.id !== currentUser?.id && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Card/List Layout */}
+              <div className="block sm:hidden space-y-3">
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        #{user.id}
-                        <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'} title={user.status}></span>
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatCurrency(user.balance)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                  <div key={user.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
+                    <div className="flex justify-between items-center mb-1 gap-2">
+                      <span className="font-semibold text-base break-words max-w-[60%]">{user.username}</span>
+                      <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500 ml-1' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
+                    <div className="flex flex-wrap gap-2 text-xs mb-1">
+                      <div className="break-words max-w-[48%]"><span className="font-medium">Balance:</span> {formatCurrency(user.balance)}</div>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setEditingUser(user)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      {user.id !== currentUser?.id && (
                         <Button 
                           size="sm" 
-                          variant="outline"
-                          onClick={() => setEditingUser(user)}
+                          variant="outline" 
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-600 hover:text-red-700"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
-                        {user.id !== currentUser?.id && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

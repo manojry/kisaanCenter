@@ -18,7 +18,7 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="container px-4 py-8">
+      <div className="w-full max-w-xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -31,9 +31,9 @@ export default function Dashboard() {
 
   // For non-owner roles, show simple message
   return (
-    <div className="container px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-      <p className="text-muted-foreground mb-4">
+    <div className="w-full max-w-xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Dashboard</h1>
+      <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base">
         Welcome, {user.username} ({user.role})
       </p>
       <Alert>
