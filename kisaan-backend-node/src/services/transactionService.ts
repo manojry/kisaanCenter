@@ -175,28 +175,30 @@ export class TransactionService {
     return transactions.map((t: any) => {
       const tx = t.toJSON();
       const total = Number(tx.total_sale_value);
+      const commission = Number(tx.shop_commission);
       // Buyer payments
       const buyerPayments = Array.isArray(tx.payments)
         ? tx.payments.filter((p: any) => p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID')
         : [];
-  const buyer_paid = buyerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      const buyer_paid = buyerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
       // Farmer payments
       const farmer_earning = Number(tx.farmer_earning);
       const farmerPayments = Array.isArray(tx.payments)
         ? tx.payments.filter((p: any) => p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID')
         : [];
-  const farmer_paid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      const farmer_paid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
       // To collect from buyer
       const deficit = Math.max(0, total - buyer_paid);
-      // To pay to farmer
-      const farmer_due = Math.max(0, farmer_earning - farmer_paid);
+      // To pay to farmer: only what has been received from buyer minus commission, minus what has already been paid
+      const maxFarmerPayable = Math.max(0, buyer_paid - commission);
+      const farmer_due = Math.max(0, Math.min(farmer_earning, maxFarmerPayable) - farmer_paid);
       return {
         ...tx,
         total,
         buyer_paid,
         farmer_paid,
         deficit,      // what buyer owes shop
-        farmer_due    // what shop owes farmer
+        farmer_due    // what shop owes farmer (capped by buyer_paid - commission)
       };
     });
   }
