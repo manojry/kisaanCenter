@@ -229,121 +229,120 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
   return (
   <Card className="w-full max-w-2xl mx-auto px-2 sm:px-0">
-      <CardHeader>
-  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-          <Calculator className="h-5 w-5" />
-          Create New Transaction
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="ml-2">Loading form data...</span>
-          </div>
-        ) : (
-  <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-          {/* Farmer Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="farmer">Farmer *</Label>
-            <Select 
-              value={formData.farmer_id.toString()} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: parseInt(value) }))}
-            >
-              <SelectTrigger className={validationErrors.farmer_id ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Select farmer" />
-              </SelectTrigger>
-              <SelectContent>
-                {farmers.map(farmer => (
-                  <SelectItem key={farmer.id} value={farmer.id.toString()}>
-                    {farmer.username} {farmer.contact && `(${farmer.contact})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {validationErrors.farmer_id && (
-              <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
-            )}
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+        <Calculator className="h-5 w-5" />
+        Create New Transaction
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2">Loading form data...</span>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          {/* Main Selection Fields - 2-column grid on md+ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
+            {/* Farmer Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="farmer">Farmer *</Label>
+              <Select 
+                value={formData.farmer_id.toString()} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: parseInt(value) }))}
+              >
+                <SelectTrigger className={validationErrors.farmer_id ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select farmer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {farmers.map(farmer => (
+                    <SelectItem key={farmer.id} value={farmer.id.toString()}>
+                      {farmer.username} {farmer.contact && `(${farmer.contact})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.farmer_id && (
+                <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
+              )}
+            </div>
+            {/* Buyer Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="buyer">Buyer *</Label>
+              <Select 
+                value={formData.buyer_id.toString()} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, buyer_id: parseInt(value) }))}
+              >
+                <SelectTrigger className={validationErrors.buyer_id ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select buyer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {buyers.map(buyer => (
+                    <SelectItem key={buyer.id} value={buyer.id.toString()}>
+                      {buyer.username} {buyer.contact && `(${buyer.contact})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.buyer_id && (
+                <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
+              )}
+            </div>
+            {/* Category Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="category">Category *</Label>
+              <Select 
+                value={formData.category_id.toString()} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: parseInt(value) }))}
+              >
+                <SelectTrigger className={validationErrors.category_id ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.category_id && (
+                <p className="text-sm text-red-500">{validationErrors.category_id}</p>
+              )}
+            </div>
+            {/* Product Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="product">Product *</Label>
+              <Select 
+                value={formData.product_name} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, product_name: value }))}
+              >
+                <SelectTrigger className={validationErrors.product_name ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map(product => (
+                    <SelectItem key={product.id} value={product.name}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.product_name && (
+                <p className="text-sm text-red-500">{validationErrors.product_name}</p>
+              )}
+            </div>
           </div>
 
-          {/* Buyer Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="buyer">Buyer *</Label>
-            <Select 
-              value={formData.buyer_id.toString()} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, buyer_id: parseInt(value) }))}
-            >
-              <SelectTrigger className={validationErrors.buyer_id ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Select buyer" />
-              </SelectTrigger>
-              <SelectContent>
-                {buyers.map(buyer => (
-                  <SelectItem key={buyer.id} value={buyer.id.toString()}>
-                    {buyer.username} {buyer.contact && `(${buyer.contact})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {validationErrors.buyer_id && (
-              <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
-            )}
-          </div>
-
-          {/* Category Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="category">Category *</Label>
-            <Select 
-              value={formData.category_id.toString()} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: parseInt(value) }))}
-            >
-              <SelectTrigger className={validationErrors.category_id ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {validationErrors.category_id && (
-              <p className="text-sm text-red-500">{validationErrors.category_id}</p>
-            )}
-          </div>
-
-          {/* Product Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="product">Product *</Label>
-            <Select 
-              value={formData.product_name} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, product_name: value }))}
-            >
-              <SelectTrigger className={validationErrors.product_name ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map(product => (
-                  <SelectItem key={product.id} value={product.name}>
-                    {product.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {validationErrors.product_name && (
-              <p className="text-sm text-red-500">{validationErrors.product_name}</p>
-            )}
-          </div>
-
-          {/* Quantity and Unit Price */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {/* Quantity and Unit Price - 2 columns on md+ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity *</Label>
               <Input
@@ -351,8 +350,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                value={formData.quantity === 0 ? '' : formData.quantity}
+                onChange={e => {
+                  const val = e.target.value;
+                  setFormData(prev => ({ ...prev, quantity: val === '' ? 0 : parseFloat(val) }));
+                }}
                 placeholder="0.00"
                 className={validationErrors.quantity ? 'border-red-500' : ''}
                 required
@@ -368,8 +370,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.unit_price}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                value={formData.unit_price === 0 ? '' : formData.unit_price}
+                onChange={e => {
+                  const val = e.target.value;
+                  setFormData(prev => ({ ...prev, unit_price: val === '' ? 0 : parseFloat(val) }));
+                }}
                 placeholder="0.00"
                 className={validationErrors.unit_price ? 'border-red-500' : ''}
                 required
@@ -386,7 +391,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
           {(formData.quantity > 0 && formData.unit_price > 0) && (
             <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
               <h4 className="font-medium text-gray-900">Transaction Summary</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
                 <div>
                   <p className="text-gray-600">Total Sale Value</p>
                   <p className="font-semibold text-lg">{formatCurrency(calculations.total_sale_value)}</p>
@@ -400,10 +405,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                   <p className="font-semibold text-lg text-blue-600">{formatCurrency(calculations.farmer_earning)}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mt-4">
                 <div>
                   <Label>Buyer Paid (to Shop)</Label>
-                  <Input type="number" min="0" step="0.01" value={buyerPaid} onChange={e => setBuyerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} className="text-sm" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={buyerPaid === 0 ? '' : buyerPaid}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setBuyerPaid(val === '' ? 0 : Number(Number(val).toFixed(2)));
+                    }}
+                    className="text-sm"
+                  />
                   <Label className="mt-1">Buyer → Shop Payment Method</Label>
                   <select
                     className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
@@ -418,7 +433,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                 </div>
                 <div>
                   <Label>Farmer Paid (by Shop)</Label>
-                  <Input type="number" min="0" step="0.01" value={farmerPaid} onChange={e => setFarmerPaid(Number(Number(e.target.value).toFixed(2)) || 0)} className="text-sm" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={farmerPaid === 0 ? '' : farmerPaid}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFarmerPaid(val === '' ? 0 : Number(Number(val).toFixed(2)));
+                    }}
+                    className="text-sm"
+                  />
                   <Label className="mt-1">Shop → Farmer Payment Method</Label>
                   <select
                     className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
@@ -433,7 +458,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                 </div>
                 <div>
                   <Label>Commission Received</Label>
-                  <Input type="number" min="0" step="0.01" value={commissionReceived} onChange={e => setCommissionReceived(Number(Number(e.target.value).toFixed(2)) || 0)} className="text-sm" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={commissionReceived === 0 ? '' : commissionReceived}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setCommissionReceived(val === '' ? 0 : Number(Number(val).toFixed(2)));
+                    }}
+                    className="text-sm"
+                  />
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">You can edit payment values and payment methods before creating the transaction.</p>

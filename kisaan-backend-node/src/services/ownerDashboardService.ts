@@ -69,10 +69,26 @@ export async function getOwnerDashboardStats(ownerId: string | number) {
   }
   commission_realized = Number(commission_realized.toFixed(2));
 
+  // Commission due today: sum of today's shop_commission for transactions where commission is not yet realized (not fully paid)
+  let today_commission_due = 0;
+  for (const t of todayTransactions) {
+    const total = Number(t.total_sale_value || 0);
+    const commission = Number(t.shop_commission || 0);
+    const buyerPaid = allocations
+      .filter((alloc: any) => Number(alloc.transaction_id) === Number(t.id))
+      .reduce((sum: number, alloc: any) => sum + Number(alloc.allocated_amount || 0), 0);
+    // If not fully paid, commission is still due
+    if (buyerPaid < total) {
+      today_commission_due += commission;
+    }
+  }
+  today_commission_due = Number(today_commission_due.toFixed(2));
+
   return {
     today_sales,
     today_transactions: todayTransactions.length,
     today_commission,
+    today_commission_due,
     pending_collections,
     farmer_payments_due,
     total_users: users.length,

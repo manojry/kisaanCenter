@@ -170,44 +170,46 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
           {/* Contact and Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="contact">Contact Number</Label>
-              <div className="text-xs text-gray-500">Optional. Enter a valid phone number if available.</div>
+              <Label htmlFor="contact">Contact Number *</Label>
+              <div className="text-xs text-gray-500">Required. Enter a valid 10-digit phone number.</div>
               <Input
                 id="contact"
                 value={formData.contact}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setFormData(prev => ({ ...prev, contact: e.target.value }));
-                  if (e.target.value.length > 0 && e.target.value.length < 10) {
-                    setContactError('Contact number must be at least 10 digits');
+                  if (!e.target.value || e.target.value.length < 10) {
+                    setContactError('Contact number is required and must be at least 10 digits');
                   } else {
                     setContactError(null);
                   }
                 }}
-                placeholder="Enter contact number"
+                placeholder="Enter 10-digit contact number"
+                required
               />
               {contactError && <div className="text-xs text-red-600 mt-1">{contactError}</div>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="text-xs text-gray-500">Optional. Enter a valid email address if available.</div>
+              <Label htmlFor="email">Email *</Label>
+              <div className="text-xs text-gray-500">Required. Enter a valid email address.</div>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setFormData(prev => ({ ...prev, email: e.target.value }));
-                  if (e.target.value.length > 0) {
-                    const emailPattern = /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]+)@[A-Za-z0-9][A-Za-z0-9\-]*\.[A-Za-z]{2,}$/;
+                  if (!e.target.value) {
+                    setEmailError('Email is required');
+                  } else {
+                    const emailPattern = /^(?!\.)(?!.*\.\.)[A-Za-z0-9_'+\-\.]+@[A-Za-z0-9][A-Za-z0-9\-]*\.[A-Za-z]{2,}$/;
                     if (!emailPattern.test(e.target.value)) {
                       setEmailError('Invalid email address');
                     } else {
                       setEmailError(null);
                     }
-                  } else {
-                    setEmailError(null);
                   }
                 }}
                 placeholder="Enter email address"
+                required
               />
               {emailError && <div className="text-xs text-red-600 mt-1">{emailError}</div>}
             </div>

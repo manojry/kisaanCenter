@@ -69,7 +69,10 @@ const OwnerDashboardNew: React.FC = () => {
       </div>
 
       {/* Dashboard Stats */}
-      <DashboardStats stats={stats} isLoading={isLoading} />
+      <DashboardStats stats={{
+        ...stats,
+        today_commission_due: stats.today_commission_due
+      }} isLoading={isLoading} />
 
       {/* Quick Actions */}
       <div>
