@@ -138,9 +138,21 @@ export class TransactionService {
   }): Promise<TransactionResponseDTO[]> {
     const where: any = { shop_id: shopId };
     
+    // If date filters are present, convert local IST date range to UTC for filtering
     if (filters?.startDate && filters?.endDate) {
+      // Assume filters.startDate and filters.endDate are local (IST) dates at 00:00:00 and 23:59:59.999
+      // Convert to UTC: IST - 5:30 = UTC
+      const toUTC = (date: Date) => {
+        // Subtract 5 hours 30 minutes
+        return new Date(date.getTime() - (5.5 * 60 * 60 * 1000));
+      };
+      const startUTC = toUTC(filters.startDate);
+      // For end, add 1 day minus 1 ms, then convert to UTC
+      const endLocal = new Date(filters.endDate.getTime());
+      endLocal.setHours(23, 59, 59, 999);
+      const endUTC = toUTC(endLocal);
       where.created_at = {
-        [Op.between]: [filters.startDate, filters.endDate]
+        [Op.between]: [startUTC, endUTC]
       };
     }
     
