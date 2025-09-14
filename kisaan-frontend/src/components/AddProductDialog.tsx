@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCategoriesCache } from '../hooks/useCategoriesCache';
 import { apiClient } from '../services/apiClient';
 import {
   Dialog,
@@ -40,9 +41,16 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { getCategories, setCategoriesCache } = useCategoriesCache();
+
   useEffect(() => {
     if (open) {
-      fetchCategories();
+      const cached = getCategories();
+      if (cached) {
+        setCategories(cached);
+      } else {
+        fetchCategories();
+      }
     }
   }, [open]);
 
@@ -50,6 +58,7 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
     try {
       const response = await apiClient.get('/categories');
       const categoriesData = Array.isArray(response) ? response : response?.data || [];
+      setCategoriesCache(categoriesData);
       setCategories(categoriesData);
     } catch (err: any) {
       setError('Failed to load categories');

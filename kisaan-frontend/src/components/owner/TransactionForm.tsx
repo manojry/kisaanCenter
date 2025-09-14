@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useCategoriesCache } from '../../hooks/useCategoriesCache';
 import { useShopProductsCache } from '../../hooks/useShopProductsCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Calculator, AlertCircle } from 'lucide-react';
-import { transactionsApi, usersApi, categoriesApi } from '../../services/api';
+import { usersApi, categoriesApi } from '../../services/api';
 import { apiClient } from '../../services/apiClient';
 import type { TransactionCreate, User, Category } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
@@ -84,16 +85,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [usersResponse, categoriesResponse] = await Promise.all([
-        usersApi.getAll({ limit: 100 }),
-        categoriesApi.getAll()
+      const [usersResponse] = await Promise.all([
+        usersApi.getAll({ limit: 100 })
       ]);
 
       const users = usersResponse.data || [];
       setFarmers(users.filter(u => u.role === 'farmer'));
       setBuyers(users.filter(u => u.role === 'buyer'));
 
-      const cats = categoriesResponse.data || [];
+      // Categories: use global cache
+      const { getCategories, setCategoriesCache } = useCategoriesCache();
+      let cats = getCategories();
+      if (!cats) {
+        const categoriesResponse = await categoriesApi.getAll();
+        cats = categoriesResponse.data || [];
+        setCategoriesCache(cats);
+      }
       setCategories(cats);
 
       // Only fetch products if shop_id is valid
