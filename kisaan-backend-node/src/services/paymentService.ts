@@ -76,13 +76,16 @@ export class PaymentService {
       // Capture previous balance BEFORE update
       const previousBalance = Number(user.balance || 0);
 
+
       let newBalance = previousBalance;
+      const paymentAmount = Number(payment.amount);
       if (userRole === 'farmer') {
-        // Simple: subtract payment amount from balance
-        newBalance = previousBalance - Number(payment.amount);
+        // Only subtract up to the current balance (avoid negative and repeated resets)
+        const amountToSubtract = Math.min(previousBalance, paymentAmount);
+        newBalance = previousBalance - amountToSubtract;
       } else if (userRole === 'buyer') {
-        // For buyers, subtract payment from balance
-        newBalance = previousBalance - Number(payment.amount);
+        // For buyers, subtract payment from balance as before
+        newBalance = previousBalance - paymentAmount;
       }
       newBalance = Math.round(newBalance * 100) / 100;
       if (newBalance < 0) {

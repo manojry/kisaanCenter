@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User, Shop } from '../models';
 import { createSettlement } from '../services/settlementService';
 import { AuthenticatedRequest } from '../middlewares/auth';
+import { paymentService } from '../services/paymentServiceInstance';
 
 // Helper function to get user's shop_id
 const getUserShopId = async (userId: number): Promise<number | null> => {
@@ -24,41 +25,38 @@ const getUserShopId = async (userId: number): Promise<number | null> => {
 export const addPaymentToFarmer = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { farmer_id, amount, description } = req.body;
-    
-    // Get user's shop_id
     let userShopId = req.user?.shop_id;
     if (!userShopId && req.user?.id) {
       userShopId = await getUserShopId(req.user.id);
     }
-    
     if (!userShopId) {
       return res.status(400).json({ success: false, message: 'User shop not found' });
     }
-    
-    const farmer = await User.findByPk(farmer_id);
-    if (!farmer) {
-      return res.status(404).json({ success: false, message: 'Farmer not found' });
-    }
-
-  // Update farmer balance (payment reduces what shop owes the farmer)
-  let newBalance = (farmer.balance || 0) - parseFloat(amount);
-  if (newBalance < 0) newBalance = 0;
-  await farmer.update({ balance: newBalance });
-
-    // Create settlement record
+    // Use PaymentService to create payment and update balances/snapshots
+    const paymentData = {
+      payer_type: 'SHOP' as const,
+      payee_type: 'FARMER' as const,
+      amount: Number(amount),
+      method: 'CASH' as const, // or get from req.body if needed
+      status: 'PAID' as const,
+      notes: description || '',
+      counterparty_id: Number(farmer_id),
+      shop_id: userShopId,
+    };
+    const paymentResult = await paymentService.createPayment(paymentData, req.user?.id || 0);
+    // Optionally create settlement record as before
     await createSettlement({
       shop_id: userShopId,
       user_id: farmer_id,
       user_type: 'farmer',
-      amount: parseFloat(amount),
+      amount: Number(amount),
       type: 'payment_made',
-      description: description || `Payment made to farmer ${farmer.username}`
+      description: description || `Payment made to farmer ${farmer_id}`
     });
-
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Payment added successfully',
-      new_balance: newBalance 
+      payment: paymentResult
     });
   } catch (error) {
     console.error('Error adding payment to farmer:', error);
@@ -70,41 +68,38 @@ export const addPaymentToFarmer = async (req: AuthenticatedRequest, res: Respons
 export const addPaymentFromBuyer = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { buyer_id, amount, description } = req.body;
-    
-    // Get user's shop_id
     let userShopId = req.user?.shop_id;
     if (!userShopId && req.user?.id) {
       userShopId = await getUserShopId(req.user.id);
     }
-    
     if (!userShopId) {
       return res.status(400).json({ success: false, message: 'User shop not found' });
     }
-    
-    const buyer = await User.findByPk(buyer_id);
-    if (!buyer) {
-      return res.status(404).json({ success: false, message: 'Buyer not found' });
-    }
-
-  // Update buyer balance (payment reduces what buyer owes)
-  let newBalance = (buyer.balance || 0) - parseFloat(amount);
-  if (newBalance < 0) newBalance = 0;
-  await buyer.update({ balance: newBalance });
-
-    // Create settlement record
+    // Use PaymentService to create payment and update balances/snapshots
+    const paymentData = {
+      payer_type: 'BUYER' as const,
+      payee_type: 'SHOP' as const,
+      amount: Number(amount),
+      method: 'CASH' as const, // or get from req.body if needed
+      status: 'PAID' as const,
+      notes: description || '',
+      counterparty_id: Number(buyer_id),
+      shop_id: userShopId,
+    };
+    const paymentResult = await paymentService.createPayment(paymentData, req.user?.id || 0);
+    // Optionally create settlement record as before
     await createSettlement({
       shop_id: userShopId,
       user_id: buyer_id,
       user_type: 'buyer',
-      amount: parseFloat(amount),
+      amount: Number(amount),
       type: 'payment_received',
-      description: description || `Payment received from buyer ${buyer.username}`
+      description: description || `Payment received from buyer ${buyer_id}`
     });
-
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Payment received successfully',
-      new_balance: newBalance 
+      payment: paymentResult
     });
   } catch (error) {
     console.error('Error adding payment from buyer:', error);
