@@ -251,22 +251,26 @@ export class TransactionService {
     let newBalance = 0;
     
     if (userRole === 'farmer') {
-      // Farmer: sum all farmer_earning from transactions, subtract all payments to THIS farmer
+      // Farmer: for each transaction, only count as due the minimum of (farmer_earning, buyer_paid - commission) minus what has already been paid to the farmer
       const transactions = await Transaction.findAll({ where: { farmer_id: userId } });
-      const totalEarning = transactions.reduce((sum, t) => sum + Number(t.farmer_earning || 0), 0);
-      
-      const payments = await Payment.findAll({ 
-        where: { 
-          payer_type: 'SHOP', 
-          payee_type: 'FARMER',
-          counterparty_id: userId,
-          status: { [Op.not]: 'FAILED' } 
-        } 
-      });
-      
-      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      newBalance = totalEarning - totalPaid;
-      
+      let totalDue = 0;
+      for (const t of transactions) {
+        const total = Number(t.total_sale_value || 0);
+        const commission = Number(t.shop_commission || 0);
+        const farmer_earning = Number(t.farmer_earning || 0);
+        // Fetch payments for this transaction
+        const payments = await Payment.findAll({ where: { transaction_id: t.id, status: { [Op.not]: 'FAILED' } } });
+        // Buyer payments for this transaction
+        const buyer_paid = payments.filter((p: any) => p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID')
+          .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        // Farmer payments for this transaction
+        const farmer_paid = payments.filter((p: any) => p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID')
+          .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        const maxFarmerPayable = Math.max(0, buyer_paid - commission);
+        const dueForThisTx = Math.max(0, Math.min(farmer_earning, maxFarmerPayable) - farmer_paid);
+        totalDue += dueForThisTx;
+      }
+      newBalance = Math.round(totalDue * 100) / 100;
     } else if (userRole === 'buyer') {
       // Buyer: sum all total_sale_value from transactions, subtract all payments by THIS buyer
       // Balance represents what buyer still OWES to shop

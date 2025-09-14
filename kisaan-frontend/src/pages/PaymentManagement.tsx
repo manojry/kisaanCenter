@@ -27,7 +27,7 @@ const PaymentManagement: React.FC = () => {
   if (!isAuthenticated || !hasRole('owner')) {
     return <div className="p-8 text-center text-red-600 font-bold">Unauthorized: Only owners can access this page.</div>;
   }
-  const { users: allUsers, isLoading: usersLoading } = useUsers();
+  const { users: allUsers, isLoading: usersLoading, fetchUsers } = useUsers();
   const users = allUsers.filter((u: any) => ['farmer', 'buyer'].includes(u.role));
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -38,6 +38,7 @@ const PaymentManagement: React.FC = () => {
   const [message, setMessage] = useState('');
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [showHint, setShowHint] = useState(false);
 
   // Removed local fetchUsers; using users from context
 
@@ -103,6 +104,15 @@ const PaymentManagement: React.FC = () => {
       if (res && res.success) {
         setMessage('Payment recorded!');
         setPaymentAmount('');
+        // Refresh users, snapshots, and payments after payment
+        if (fetchUsers) await fetchUsers();
+        if (selectedUser) {
+          const snapRes = await fetch(`/api/balance-snapshots/${selectedUser.id}`);
+          const snapData = await snapRes.json();
+          setSnapshots(snapData.data || []);
+          const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
+          setPayments(payRes.data || []);
+        }
       } else if (res && res.message) {
         setMessage(`Error: ${res.message}`);
       }
@@ -131,6 +141,15 @@ const PaymentManagement: React.FC = () => {
       if (res && res.success) {
         setMessage('Advance payment recorded!');
         setAdvanceAmount('');
+        // Refresh users, snapshots, and payments after advance
+        if (fetchUsers) await fetchUsers();
+        if (selectedUser) {
+          const snapRes = await fetch(`/api/balance-snapshots/${selectedUser.id}`);
+          const snapData = await snapRes.json();
+          setSnapshots(snapData.data || []);
+          const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
+          setPayments(payRes.data || []);
+        }
       } else if (res && res.message) {
         setMessage(`Error: ${res.message}`);
       }
@@ -147,11 +166,9 @@ const PaymentManagement: React.FC = () => {
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800">
         <strong>Instructions:</strong> As an owner, you can record payments or advance payments for any farmer or buyer. Enter the amount and submit. All calculations and bookkeeping are handled in the backend. Payment history and running balances are shown below.
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select User</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">Select User:</span>
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {
@@ -159,7 +176,7 @@ const PaymentManagement: React.FC = () => {
               setSelectedUser(user || null);
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose user" />
             </SelectTrigger>
             <SelectContent>
@@ -170,175 +187,199 @@ const PaymentManagement: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
-          {selectedUser && (
-            <div className="mt-2 text-sm">
-              {selectedUser.role === 'farmer' && selectedUser.balance < 0 ? (
-                <span className="font-semibold text-blue-600">Advance paid: ₹{Math.abs(selectedUser.balance).toLocaleString()}</span>
-              ) : null}
+        </div>
+        {selectedUser && (
+          <div className="flex items-center gap-4">
+            <div className="bg-white border rounded px-4 py-2 shadow-sm">
+              <span className="font-semibold">Current Balance: </span>
+              <span className="text-lg font-bold">₹{selectedUser.balance.toLocaleString()}</span>
+              <span className="text-xs text-gray-500 ml-2">(Running balance as per latest snapshot and activity)</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
+            {selectedUser.role === 'farmer' && selectedUser.balance < 0 && (
+              <span className="font-semibold text-blue-600">Advance paid: ₹{Math.abs(selectedUser.balance).toLocaleString()}</span>
+            )}
+          </div>
+        )}
+      </div>
       {selectedUser && (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Current Balance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold">₹{selectedUser.balance.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">(Running balance as per latest snapshot and activity)</div>
-            </CardContent>
-          </Card>
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Balance Snapshots</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {snapshots.length === 0 ? <div>No snapshots found.</div> : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {snapshots.map(s => {
-                      // Robust date parsing
-                      let dateStr = '';
-                      if (s.snapshot_date) {
-                        const d = new Date(s.snapshot_date);
-                        dateStr = isNaN(d.getTime()) ? '' : d.toLocaleDateString();
-                      }
-                      // Robust number parsing
-                      const bal = typeof s.balance === 'number' ? s.balance : parseFloat(s.balance);
-                      const balanceStr = isNaN(bal) ? '0.00' : bal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                      return (
-                        <TableRow key={s.id}>
-                          <TableCell>{dateStr}</TableCell>
-                          <TableCell>₹{balanceStr}</TableCell>
+          {/* Collapsible UX Explanation and Breakdown (Simple Logic) */}
+          <div className="mb-4">
+            <button
+              className="text-blue-700 underline text-sm focus:outline-none"
+              onClick={() => setShowHint(h => !h)}
+            >
+              {showHint ? 'Hide explanation' : 'How is this calculated?'}
+            </button>
+            {showHint && (
+              <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-900">
+                <strong>How is this balance calculated?</strong><br />
+                The balance is now calculated simply: <b>Previous Balance − Payment Made = New Balance</b>.<br />
+                Every payment you record directly reduces the balance by that amount. If you pay the full amount due, the balance will go to zero.<br />
+                <ul className="list-disc ml-6 mt-2 text-sm">
+                  <li><b>Previous Due:</b> The amount owed before your last payment.</li>
+                  <li><b>Payment:</b> The amount you just paid.</li>
+                  <li><b>New Due:</b> The new balance after your payment.</li>
+                </ul>
+                {snapshots.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <b>Last Change:</b> Previous Due: ₹{Number(snapshots[0].previous_balance || 0).toLocaleString()} &rarr; Payment: ₹{Math.abs(Number(snapshots[0].amount_change || 0)).toLocaleString()} &rarr; New Due: ₹{Number(snapshots[0].new_balance || 0).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Balance Snapshots</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {snapshots.length === 0 ? <div>No snapshots found.</div> : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Balance</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Payment History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payments.length === 0 ? <div>No payments found.</div> : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>₹{Number(p.amount).toLocaleString()}</TableCell>
-                        <TableCell>{p.payer_type} → {p.payee_type}</TableCell>
-                        <TableCell>{p.status}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-          {/* Advance Payment Section */}
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>
-                {selectedUser.role === 'farmer' ? 'Record Payment to Farmer' : 'Receive Payment from Buyer'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-2">
-                <label className="block text-xs font-medium mb-1">
-                  {selectedUser.role === 'farmer' ? 'Payment Amount' : 'Amount Received'}
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={e => setPaymentAmount(e.target.value)}
-                  placeholder={selectedUser.role === 'farmer' ? 'Enter payment amount' : 'Enter amount received'}
-                />
-              </div>
-              <div className="mb-2">
-                <label className="block text-xs font-medium mb-1">Payment Method</label>
-                <select
-                  className="block w-full border rounded p-2 text-sm"
-                  value={paymentMethod}
-                  onChange={e => setPaymentMethod(e.target.value)}
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="BANK">Bank</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-              <Button
-                onClick={handlePayment}
-                disabled={loading || !paymentAmount}
-                className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-              >
-                {loading ? (
-                  <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
-                ) : (selectedUser.role === 'farmer' ? 'Record Payment' : 'Receive Payment')}
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Record Advance Payment</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-2">
-                <label className="block text-xs font-medium mb-1">Advance Amount</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={advanceAmount}
-                  onChange={e => setAdvanceAmount(e.target.value)}
-                  placeholder="Enter advance amount"
-                />
-              </div>
-              <div className="mb-2">
-                <label className="block text-xs font-medium mb-1">Advance Payment Method</label>
-                <select
-                  className="block w-full border rounded p-2 text-sm"
-                  value={advanceMethod}
-                  onChange={e => setAdvanceMethod(e.target.value)}
-                >
-                  <option value="CASH">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="BANK">Bank</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-              <Button
-                onClick={handleAdvancePayment}
-                disabled={loading || !advanceAmount}
-                className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-              >
-                {loading ? (
-                  <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
-                ) : 'Record Advance Payment'}
-              </Button>
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {snapshots.map(s => {
+                          // Use createdAt or created_at for date
+                          let dateStr = '';
+                          const dateVal = s.createdAt || s.created_at;
+                          if (dateVal) {
+                            const d = new Date(dateVal);
+                            dateStr = isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+                          }
+                          const bal = typeof s.new_balance === 'number' ? s.new_balance : parseFloat(s.new_balance);
+                          const balanceStr = isNaN(bal) ? '0.00' : bal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                          return (
+                            <TableRow key={s.id}>
+                              <TableCell>{dateStr}</TableCell>
+                              <TableCell>₹{balanceStr}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {payments.length === 0 ? <div>No payments found.</div> : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payments.map(p => (
+                          <TableRow key={p.id}>
+                            <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell>₹{Number(p.amount).toLocaleString()}</TableCell>
+                            <TableCell>{p.payer_type} → {p.payee_type}</TableCell>
+                            <TableCell>{p.status}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{selectedUser.role === 'farmer' ? 'Record Payment to Farmer' : 'Receive Payment from Buyer'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium mb-1">
+                      {selectedUser.role === 'farmer' ? 'Payment Amount' : 'Amount Received'}
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={e => setPaymentAmount(e.target.value)}
+                      placeholder={selectedUser.role === 'farmer' ? 'Enter payment amount' : 'Enter amount received'}
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium mb-1">Payment Method</label>
+                    <select
+                      className="block w-full border rounded p-2 text-sm"
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI</option>
+                      <option value="BANK">Bank</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <Button
+                    onClick={handlePayment}
+                    disabled={loading || !paymentAmount}
+                    className={loading ? 'opacity-60 cursor-not-allowed' : ''}
+                  >
+                    {loading ? (
+                      <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
+                    ) : (selectedUser.role === 'farmer' ? 'Record Payment' : 'Receive Payment')}
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Record Advance Payment</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium mb-1">Advance Amount</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={advanceAmount}
+                      onChange={e => setAdvanceAmount(e.target.value)}
+                      placeholder="Enter advance amount"
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="block text-xs font-medium mb-1">Advance Payment Method</label>
+                    <select
+                      className="block w-full border rounded p-2 text-sm"
+                      value={advanceMethod}
+                      onChange={e => setAdvanceMethod(e.target.value)}
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI</option>
+                      <option value="BANK">Bank</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <Button
+                    onClick={handleAdvancePayment}
+                    disabled={loading || !advanceAmount}
+                    className={loading ? 'opacity-60 cursor-not-allowed' : ''}
+                  >
+                    {loading ? (
+                      <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
+                    ) : 'Record Advance Payment'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </>
       )}
       {message && (

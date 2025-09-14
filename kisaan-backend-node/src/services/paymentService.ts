@@ -73,59 +73,27 @@ export class PaymentService {
       const user = await User.findByPk(userIdToUpdate);
       if (!user) throw new Error(`User with id ${userIdToUpdate} not found`);
 
-      // Recalculate balance from all transactions and payments (including the new one)
-      let newBalance = 0;
-      
-      if (userRole === 'farmer') {
-        // Farmer: sum all farmer_earning from transactions, subtract all payments to THIS farmer
-        const transactions = await Transaction.findAll({ where: { farmer_id: userIdToUpdate } });
-        const totalEarning = transactions.reduce((sum, t) => sum + Number(t.farmer_earning || 0), 0);
-        
-        const payments = await Payment.findAll({ 
-          where: { 
-            payer_type: 'SHOP', 
-            payee_type: 'FARMER',
-            counterparty_id: userIdToUpdate,
-            status: { [Op.not]: 'FAILED' } 
-          } 
-        });
-        
-        const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        newBalance = totalEarning - totalPaid;
-        
-      } else if (userRole === 'buyer') {
-        // Buyer: sum all total_sale_value from transactions, subtract all payments by THIS buyer
-        // Balance represents what buyer still OWES to shop
-        const transactions = await Transaction.findAll({ where: { buyer_id: userIdToUpdate } });
-        const totalOwed = transactions.reduce((sum, t) => sum + Number(t.total_sale_value || 0), 0);
-        
-        const payments = await Payment.findAll({ 
-          where: { 
-            payer_type: 'BUYER', 
-            payee_type: 'SHOP',
-            counterparty_id: userIdToUpdate,
-            status: { [Op.not]: 'FAILED' } 
-          } 
-        });
-        
-        const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        // FIXED: Buyer balance should be what they still owe (positive = owes money, 0 = paid in full)
-        newBalance = totalOwed - totalPaid;
-      }
+      // Capture previous balance BEFORE update
+      const previousBalance = Number(user.balance || 0);
 
-      // Round to 2 decimals and ensure non-negative balance
+      let newBalance = previousBalance;
+      if (userRole === 'farmer') {
+        // Simple: subtract payment amount from balance
+        newBalance = previousBalance - Number(payment.amount);
+      } else if (userRole === 'buyer') {
+        // For buyers, subtract payment from balance
+        newBalance = previousBalance - Number(payment.amount);
+      }
       newBalance = Math.round(newBalance * 100) / 100;
       if (newBalance < 0) {
-        newBalance = 0; // Prevent negative balances (overpayment)
+        newBalance = 0;
       }
 
       await user.update({ balance: newBalance });
-      
+
       // Create balance snapshot with error handling
       try {
-        const previousBalance = Number(user.balance || 0);
         const amountChange = newBalance - previousBalance;
-        // Only create a snapshot if there is a real change in balance
         if (amountChange !== 0) {
           await BalanceSnapshot.create({
             user_id: userIdToUpdate,
@@ -141,7 +109,6 @@ export class PaymentService {
         }
       } catch (snapshotError: any) {
         console.warn(`[BALANCE SNAPSHOT WARNING] Could not create snapshot for user ${userIdToUpdate}:`, snapshotError?.message || 'Unknown error');
-        // Continue without failing the payment if snapshot creation fails
       }
 
       console.log(`[${userRole.toUpperCase()} BALANCE UPDATE] UserID: ${userIdToUpdate}, New Balance: ${newBalance}`);

@@ -40,9 +40,10 @@ export const addPaymentToFarmer = async (req: AuthenticatedRequest, res: Respons
       return res.status(404).json({ success: false, message: 'Farmer not found' });
     }
 
-    // Update farmer balance
-    const newBalance = (farmer.balance || 0) + parseFloat(amount);
-    await farmer.update({ balance: newBalance });
+  // Update farmer balance (payment reduces what shop owes the farmer)
+  let newBalance = (farmer.balance || 0) - parseFloat(amount);
+  if (newBalance < 0) newBalance = 0;
+  await farmer.update({ balance: newBalance });
 
     // Create settlement record
     await createSettlement({
@@ -85,9 +86,10 @@ export const addPaymentFromBuyer = async (req: AuthenticatedRequest, res: Respon
       return res.status(404).json({ success: false, message: 'Buyer not found' });
     }
 
-    // Update buyer balance (credit)
-    const newBalance = (buyer.balance || 0) + parseFloat(amount);
-    await buyer.update({ balance: newBalance });
+  // Update buyer balance (payment reduces what buyer owes)
+  let newBalance = (buyer.balance || 0) - parseFloat(amount);
+  if (newBalance < 0) newBalance = 0;
+  await buyer.update({ balance: newBalance });
 
     // Create settlement record
     await createSettlement({

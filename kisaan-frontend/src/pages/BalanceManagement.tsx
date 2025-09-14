@@ -83,11 +83,9 @@ const BalanceManagement: React.FC = () => {
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800">
         <strong>Instructions:</strong> View balances for all users. To record or manage payments, use the <b>Payments</b> page.
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Select User</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">Select User:</span>
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {
@@ -95,7 +93,7 @@ const BalanceManagement: React.FC = () => {
               setSelectedUser(user || null);
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose user" />
             </SelectTrigger>
             <SelectContent>
@@ -106,73 +104,67 @@ const BalanceManagement: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+        </div>
+        {selectedUser && (
+          <div className="flex items-center gap-4">
+            <div className="bg-white border rounded px-4 py-2 shadow-sm">
+              <span className="font-semibold">Amount Owed: </span>
+              <span className="text-lg font-bold text-red-600">₹{Math.abs(selectedUser.balance).toLocaleString()}</span>
+              <span className="text-xs text-gray-500 ml-2">(Amount the shop owes this user or is owed by buyer)</span>
+            </div>
+          </div>
+        )}
+      </div>
       {selectedUser && (
-        <>
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Amount Owed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold text-red-600">
-                ₹{Math.abs(selectedUser.balance).toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-500">(Amount the shop owes this user or is owed by buyer)</div>
-            </CardContent>
-          </Card>
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Balance Snapshots</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {snapshotsLoading ? (
-                <div>Loading snapshots...</div>
-              ) : snapshots.length === 0 ? (
-                <div>No balance changes to display.</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Prev Balance</TableHead>
-                      <TableHead>Change</TableHead>
-                      <TableHead>New Balance</TableHead>
-                      <TableHead>Description</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {snapshots.map(s => {
-                      // Handle date parsing
-                      let dateStr = '';
-                      if (s.createdAt) {
-                        const d = new Date(s.createdAt);
-                        dateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
-                      }
-                      // Robust number parsing with fallback
-                      function safeNumber(val: any) {
-                        const n = typeof val === 'number' ? val : parseFloat(val);
-                        return isNaN(n) ? 0 : n;
-                      }
-                      const prev = safeNumber(s.previous_balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                      const change = safeNumber(s.amount_change).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                      const next = safeNumber(s.new_balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                      return (
-                        <TableRow key={s.id}>
-                          <TableCell>{dateStr}</TableCell>
-                          <TableCell>₹{prev}</TableCell>
-                          <TableCell>₹{change}</TableCell>
-                          <TableCell>₹{next}</TableCell>
-                          <TableCell>{s.description || '-'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </>
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Balance Snapshots</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {snapshotsLoading ? (
+              <div>Loading snapshots...</div>
+            ) : snapshots.length === 0 ? (
+              <div>No balance changes to display.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Prev Balance</TableHead>
+                    <TableHead>Change</TableHead>
+                    <TableHead>New Balance</TableHead>
+                    <TableHead>Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {snapshots.map(s => {
+                    let dateStr = '';
+                    if (s.createdAt) {
+                      const d = new Date(s.createdAt);
+                      dateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
+                    }
+                    function safeNumber(val: any) {
+                      const n = typeof val === 'number' ? val : parseFloat(val);
+                      return isNaN(n) ? 0 : n;
+                    }
+                    const prev = safeNumber(s.previous_balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const change = safeNumber(s.amount_change).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const next = safeNumber(s.new_balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell>{dateStr}</TableCell>
+                        <TableCell>₹{prev}</TableCell>
+                        <TableCell>₹{change}</TableCell>
+                        <TableCell>₹{next}</TableCell>
+                        <TableCell>{s.description || '-'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
       {/* Summary Cards - Only Receivables and Payables */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

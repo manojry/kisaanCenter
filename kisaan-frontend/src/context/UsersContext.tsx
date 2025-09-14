@@ -6,7 +6,7 @@ interface UsersContextType {
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  refreshUsers: () => Promise<void>;
+  fetchUsers: () => Promise<void>;
 }
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -21,7 +21,7 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshUsers = async () => {
+  const fetchUsers = async () => {
     setIsLoading(true);
     try {
       // You may want to add params here if needed
@@ -35,11 +35,11 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    refreshUsers();
+    fetchUsers();
   }, []);
 
   return (
-    <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, refreshUsers }}>
+    <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers }}>
       {children}
     </UsersContext.Provider>
   );
