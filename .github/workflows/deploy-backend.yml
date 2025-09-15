@@ -70,12 +70,30 @@ jobs:
       #     --username manojRY \
       #     --password ${{ secrets.GHCR_PAT }}
 
+
     - name: 🚀 Deploy to Container Apps
       run: |
+        # Update container with new image and environment variables
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          --set-env-vars \
+            NODE_ENV=production \
+            PORT=3000 \
+            DB_HOST=${{ secrets.DB_HOST }} \
+            DB_PORT=${{ secrets.DB_PORT }} \
+            DB_NAME=${{ secrets.DB_NAME }} \
+            DB_USER=${{ secrets.DB_USER }} \
+            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            CORS_ORIGIN="https://www.kisaancenter.com,https://kisaancenter.com"
+        
+        # Configure ingress to route traffic to port 3000
+        az containerapp ingress update \
+          --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --type external \
+          --target-port 3000
 
     - name: ✅ Verify deployment
       run: |

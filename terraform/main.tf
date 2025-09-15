@@ -87,6 +87,14 @@ resource "azurerm_subnet" "database_subnet" {
   }
 }
 
+# Create subnet for bastion host
+resource "azurerm_subnet" "bastion_subnet" {
+  name                 = "bastion-subnet"
+  resource_group_name  = azurerm_resource_group.kisaancenter_rg.name
+  virtual_network_name = azurerm_virtual_network.kisaancenter_vnet.name
+  address_prefixes     = ["10.0.3.0/24"]
+}
+
 # Get current Azure client configuration
 data "azurerm_client_config" "current" {}
 
@@ -244,6 +252,153 @@ resource "azurerm_postgresql_flexible_server_database" "kisaancenter_database" {
   server_id = azurerm_postgresql_flexible_server.kisaancenter_db.id
   collation = "en_US.utf8"
   charset   = "utf8"
+}
+
+# ===============================================
+# BASTION HOST CONFIGURATION
+# ===============================================
+
+# Create Network Security Group for bastion host
+resource "azurerm_network_security_group" "bastion_nsg" {
+  name                = "bastion-nsg"
+  location            = azurerm_resource_group.kisaancenter_rg.location
+  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
+
+  # Allow SSH from anywhere (you can restrict this to your IP)
+  security_rule {
+    name                       = "SSH"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"  # Change to your IP for better security
+    destination_address_prefix = "*"
+  }
+
+  # Allow outbound to PostgreSQL port in database subnet
+  security_rule {
+    name                       = "PostgreSQL"
+    priority                   = 1002
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "*"
+    destination_address_prefix = "10.0.2.0/24"
+  }
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+    Purpose     = "Bastion Security"
+  }
+}
+
+# Associate NSG with bastion subnet
+resource "azurerm_subnet_network_security_group_association" "bastion_nsg_association" {
+  subnet_id                 = azurerm_subnet.bastion_subnet.id
+  network_security_group_id = azurerm_network_security_group.bastion_nsg.id
+}
+
+# Create public IP for bastion host
+resource "azurerm_public_ip" "bastion_pip" {
+  name                = "bastion-pip"
+  location            = azurerm_resource_group.kisaancenter_rg.location
+  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
+  allocation_method   = "Static"
+  sku                = "Standard"
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+    Purpose     = "Bastion Public IP"
+  }
+}
+
+# Create network interface for bastion host
+resource "azurerm_network_interface" "bastion_nic" {
+  name                = "bastion-nic"
+  location            = azurerm_resource_group.kisaancenter_rg.location
+  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.bastion_subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.bastion_pip.id
+  }
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+    Purpose     = "Bastion Network Interface"
+  }
+}
+
+# Read your existing SSH public key
+data "local_file" "ssh_public_key" {
+  filename = pathexpand("~/.ssh/id_rsa.pub")
+}
+
+# Create Linux Virtual Machine for bastion host
+resource "azurerm_linux_virtual_machine" "bastion_host" {
+  name                = "bastion-host"
+  location            = azurerm_resource_group.kisaancenter_rg.location
+  resource_group_name = azurerm_resource_group.kisaancenter_rg.name
+  size                = "Standard_B1s"  # Smallest size for cost optimization
+  admin_username      = "azureuser"
+
+  # Disable password authentication and use SSH keys
+  disable_password_authentication = true
+
+  network_interface_ids = [
+    azurerm_network_interface.bastion_nic.id,
+  ]
+
+  admin_ssh_key {
+    username   = "azureuser"
+    public_key = data.local_file.ssh_public_key.content
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"  # Standard storage for cost optimization
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+
+  # Install PostgreSQL client tools
+  custom_data = base64encode(<<-EOF
+#!/bin/bash
+apt-get update
+apt-get install -y postgresql-client
+apt-get install -y nano curl wget htop
+echo "PostgreSQL client tools installed" > /var/log/bastion-setup.log
+EOF
+  )
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+    Purpose     = "Database Access Bastion"
+    CostOptimized = "true"
+  }
+}
+
+# Create firewall rule to allow bastion host to connect to PostgreSQL
+resource "azurerm_postgresql_flexible_server_firewall_rule" "bastion_access" {
+  name             = "bastion-subnet-access"
+  server_id        = azurerm_postgresql_flexible_server.kisaancenter_db.id
+  start_ip_address = "10.0.3.0"
+  end_ip_address   = "10.0.3.255"
 }
 
 # Log Analytics Workspace for Container Apps (FREE tier)
@@ -495,8 +650,68 @@ output "cost_summary" {
     key_vault = "~€0.03/month"
     virtual_network = "FREE"
     dns_zone = "~€0.45/month"
-    estimated_monthly_cost = "~€0.60/month"
-    after_12_months = "~€15-20/month (when PostgreSQL free tier expires)"
+    bastion_host = "~€7-10/month (Standard_B1s VM)"
+    estimated_monthly_cost = "~€8-11/month"
+    after_12_months = "~€23-31/month (when PostgreSQL free tier expires)"
   }
-  description = "Cost breakdown for the FREE tier architecture"
+  description = "Cost breakdown for the FREE tier architecture with bastion host"
+}
+
+# ===============================================
+# BASTION HOST OUTPUTS
+# ===============================================
+
+output "bastion_host_public_ip" {
+  value = azurerm_public_ip.bastion_pip.ip_address
+  description = "Public IP address of the bastion host"
+}
+
+output "bastion_host_private_ip" {
+  value = azurerm_network_interface.bastion_nic.private_ip_address
+  description = "Private IP address of the bastion host"
+}
+
+output "bastion_ssh_private_key_secret_name" {
+  value = "Use your local SSH key: ~/.ssh/id_rsa"
+  description = "SSH private key location for connecting to bastion host"
+}
+
+output "database_connection_info" {
+  value = {
+    host = azurerm_postgresql_flexible_server.kisaancenter_db.fqdn
+    port = "5432"
+    database = azurerm_postgresql_flexible_server_database.kisaancenter_database.name
+    username = "postgres"
+    password_secret = azurerm_key_vault_secret.postgresql_password.name
+  }
+  description = "Database connection information for use from bastion host"
+}
+
+output "bastion_connection_instructions" {
+  value = <<-EOT
+# Bastion Host Connection Instructions
+
+## 1. Connect to Bastion Host (using your existing SSH key)
+ssh -i ~/.ssh/id_rsa azureuser@${azurerm_public_ip.bastion_pip.ip_address}
+
+## 2. Retrieve PostgreSQL Password from Key Vault (run on bastion host)
+az login
+az keyvault secret show --vault-name ${azurerm_key_vault.kisaancenter_kv.name} --name ${azurerm_key_vault_secret.postgresql_password.name} --query value -o tsv
+
+## 3. Connect to PostgreSQL Database from Bastion Host
+psql -h ${azurerm_postgresql_flexible_server.kisaancenter_db.fqdn} -p 5432 -U postgres -d ${azurerm_postgresql_flexible_server_database.kisaancenter_database.name}
+
+## 4. Restore Database from Dump (copy your dump file to bastion first)
+# Copy dump to bastion:
+scp -i ~/.ssh/id_rsa your_dump.sql azureuser@${azurerm_public_ip.bastion_pip.ip_address}:~/
+# Then on bastion:
+psql -h ${azurerm_postgresql_flexible_server.kisaancenter_db.fqdn} -p 5432 -U postgres -d ${azurerm_postgresql_flexible_server_database.kisaancenter_database.name} < ~/your_dump.sql
+
+## Security Notes:
+- Using your existing SSH key pair (~/.ssh/id_rsa and ~/.ssh/id_rsa.pub)
+- The bastion host is configured to accept SSH from any IP (0.0.0.0/0)
+- Consider restricting the source IP in the NSG rule to your specific IP for better security
+- PostgreSQL is only accessible from within the VNet (via bastion host)
+  EOT
+  description = "Complete instructions for connecting to the bastion host and database using your existing SSH key"
 }

@@ -1,0 +1,2367 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 17.4
+-- Dumped by pg_dump version 17.2
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: enum_kisaan_audit_logs_action; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_audit_logs_action AS ENUM (
+    'stock_declaration',
+    'stock_adjustment',
+    'transaction_created',
+    'payment_recorded'
+);
+
+
+ALTER TYPE public.enum_kisaan_audit_logs_action OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_audit_logs_entity_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_audit_logs_entity_type AS ENUM (
+    'stock',
+    'transaction',
+    'payment'
+);
+
+
+ALTER TYPE public.enum_kisaan_audit_logs_entity_type OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_commissions_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_commissions_type AS ENUM (
+    'percentage',
+    'fixed'
+);
+
+
+ALTER TYPE public.enum_kisaan_commissions_type OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_credits_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_credits_status AS ENUM (
+    'active',
+    'repaid',
+    'overdue'
+);
+
+
+ALTER TYPE public.enum_kisaan_credits_status OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_payments_method; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_payments_method AS ENUM (
+    'CASH',
+    'BANK',
+    'UPI',
+    'OTHER'
+);
+
+
+ALTER TYPE public.enum_kisaan_payments_method OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_payments_payee_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_payments_payee_type AS ENUM (
+    'SHOP',
+    'FARMER'
+);
+
+
+ALTER TYPE public.enum_kisaan_payments_payee_type OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_payments_payer_type; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_payments_payer_type AS ENUM (
+    'BUYER',
+    'SHOP'
+);
+
+
+ALTER TYPE public.enum_kisaan_payments_payer_type OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_payments_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_payments_status AS ENUM (
+    'PENDING',
+    'PAID',
+    'FAILED'
+);
+
+
+ALTER TYPE public.enum_kisaan_payments_status OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_plans_billing_cycle; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_plans_billing_cycle AS ENUM (
+    'monthly',
+    'quarterly',
+    'yearly'
+);
+
+
+ALTER TYPE public.enum_kisaan_plans_billing_cycle OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_settlements_reason; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_settlements_reason AS ENUM (
+    'overpayment',
+    'underpayment',
+    'adjustment'
+);
+
+
+ALTER TYPE public.enum_kisaan_settlements_reason OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_settlements_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_settlements_status AS ENUM (
+    'pending',
+    'settled'
+);
+
+
+ALTER TYPE public.enum_kisaan_settlements_status OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_shops_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_shops_status AS ENUM (
+    'active',
+    'inactive'
+);
+
+
+ALTER TYPE public.enum_kisaan_shops_status OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_users_role; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_users_role AS ENUM (
+    'superadmin',
+    'owner',
+    'farmer',
+    'buyer'
+);
+
+
+ALTER TYPE public.enum_kisaan_users_role OWNER TO postgres;
+
+--
+-- Name: enum_kisaan_users_status; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public.enum_kisaan_users_status AS ENUM (
+    'active',
+    'inactive'
+);
+
+
+ALTER TYPE public.enum_kisaan_users_status OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: SequelizeMeta; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public."SequelizeMeta" (
+    name character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public."SequelizeMeta" OWNER TO postgres;
+
+--
+-- Name: balance_snapshots; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.balance_snapshots (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    balance_type character varying(20) NOT NULL,
+    previous_balance numeric(12,2) DEFAULT 0.00,
+    amount_change numeric(12,2) NOT NULL,
+    new_balance numeric(12,2) NOT NULL,
+    transaction_type character varying(50) NOT NULL,
+    reference_id integer,
+    reference_type character varying(50),
+    description text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT balance_snapshots_balance_type_check CHECK (((balance_type)::text = ANY ((ARRAY['farmer'::character varying, 'buyer'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.balance_snapshots OWNER TO postgres;
+
+--
+-- Name: balance_snapshots_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.balance_snapshots_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.balance_snapshots_id_seq OWNER TO postgres;
+
+--
+-- Name: balance_snapshots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.balance_snapshots_id_seq OWNED BY public.balance_snapshots.id;
+
+
+--
+-- Name: kisaan_audit_logs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_audit_logs (
+    id bigint NOT NULL,
+    shop_id bigint,
+    user_id bigint,
+    action character varying(100) NOT NULL,
+    entity_type character varying(100) NOT NULL,
+    entity_id bigint,
+    old_values jsonb,
+    new_values jsonb,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.kisaan_audit_logs OWNER TO postgres;
+
+--
+-- Name: kisaan_audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_audit_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_audit_logs_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_audit_logs_id_seq OWNED BY public.kisaan_audit_logs.id;
+
+
+--
+-- Name: kisaan_categories; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_categories (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    description text,
+    status character varying(255),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.kisaan_categories OWNER TO postgres;
+
+--
+-- Name: kisaan_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_categories_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_categories_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_categories_id_seq OWNED BY public.kisaan_categories.id;
+
+
+--
+-- Name: kisaan_commissions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_commissions (
+    id bigint NOT NULL,
+    shop_id bigint NOT NULL,
+    rate numeric(5,2) NOT NULL,
+    type public.enum_kisaan_commissions_type DEFAULT 'percentage'::public.enum_kisaan_commissions_type NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_commissions OWNER TO postgres;
+
+--
+-- Name: kisaan_commissions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_commissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_commissions_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_commissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_commissions_id_seq OWNED BY public.kisaan_commissions.id;
+
+
+--
+-- Name: kisaan_credits; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_credits (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    shop_id bigint NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    issued_date timestamp with time zone NOT NULL,
+    due_date timestamp with time zone NOT NULL,
+    repaid_amount numeric(10,2) DEFAULT 0 NOT NULL,
+    status public.enum_kisaan_credits_status DEFAULT 'active'::public.enum_kisaan_credits_status NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_credits OWNER TO postgres;
+
+--
+-- Name: kisaan_credits_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_credits_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_credits_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_credits_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_credits_id_seq OWNED BY public.kisaan_credits.id;
+
+
+--
+-- Name: kisaan_payments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_payments (
+    id bigint NOT NULL,
+    transaction_id integer,
+    payer_type public.enum_kisaan_payments_payer_type NOT NULL,
+    payee_type public.enum_kisaan_payments_payee_type NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    status public.enum_kisaan_payments_status DEFAULT 'PENDING'::public.enum_kisaan_payments_status NOT NULL,
+    payment_date timestamp with time zone,
+    method public.enum_kisaan_payments_method NOT NULL,
+    notes text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    counterparty_id integer,
+    shop_id bigint
+);
+
+
+ALTER TABLE public.kisaan_payments OWNER TO postgres;
+
+--
+-- Name: kisaan_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_payments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_payments_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_payments_id_seq OWNED BY public.kisaan_payments.id;
+
+
+--
+-- Name: kisaan_plan_usage; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_plan_usage (
+    id bigint NOT NULL,
+    shop_id bigint NOT NULL,
+    plan_id bigint NOT NULL,
+    current_farmers integer DEFAULT 0 NOT NULL,
+    current_buyers integer DEFAULT 0 NOT NULL,
+    current_transactions integer DEFAULT 0 NOT NULL,
+    period_start timestamp with time zone NOT NULL,
+    period_end timestamp with time zone NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_plan_usage OWNER TO postgres;
+
+--
+-- Name: kisaan_plan_usage_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_plan_usage_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_plan_usage_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_plan_usage_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_plan_usage_id_seq OWNED BY public.kisaan_plan_usage.id;
+
+
+--
+-- Name: kisaan_plans; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_plans (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    description text,
+    price numeric(10,2),
+    billing_cycle public.enum_kisaan_plans_billing_cycle DEFAULT 'monthly'::public.enum_kisaan_plans_billing_cycle,
+    monthly_price numeric(10,2),
+    quarterly_price numeric(10,2),
+    yearly_price numeric(10,2),
+    max_farmers integer,
+    max_buyers integer,
+    max_transactions integer,
+    data_retention_months integer,
+    features text DEFAULT '[]'::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    status character varying(20) DEFAULT 'active'::character varying
+);
+
+
+ALTER TABLE public.kisaan_plans OWNER TO postgres;
+
+--
+-- Name: kisaan_plans_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_plans_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_plans_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_plans_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_plans_id_seq OWNED BY public.kisaan_plans.id;
+
+
+--
+-- Name: kisaan_products; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_products (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    category_id integer NOT NULL,
+    description text,
+    price numeric(10,2),
+    record_status character varying(255),
+    unit character varying(20),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.kisaan_products OWNER TO postgres;
+
+--
+-- Name: kisaan_products_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_products_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_products_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_products_id_seq OWNED BY public.kisaan_products.id;
+
+
+--
+-- Name: kisaan_settlements; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_settlements (
+    id bigint NOT NULL,
+    shop_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    reason public.enum_kisaan_settlements_reason NOT NULL,
+    status public.enum_kisaan_settlements_status DEFAULT 'pending'::public.enum_kisaan_settlements_status NOT NULL,
+    settlement_date timestamp with time zone,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    transaction_id integer
+);
+
+
+ALTER TABLE public.kisaan_settlements OWNER TO postgres;
+
+--
+-- Name: kisaan_settlements_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_settlements_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_settlements_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_settlements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_settlements_id_seq OWNED BY public.kisaan_settlements.id;
+
+
+--
+-- Name: kisaan_shop_categories; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_shop_categories (
+    id integer NOT NULL,
+    shop_id bigint NOT NULL,
+    category_id integer NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_shop_categories OWNER TO postgres;
+
+--
+-- Name: kisaan_shop_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_shop_categories_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_shop_categories_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_shop_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_shop_categories_id_seq OWNED BY public.kisaan_shop_categories.id;
+
+
+--
+-- Name: kisaan_shop_products; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_shop_products (
+    id integer NOT NULL,
+    shop_id bigint NOT NULL,
+    product_id integer NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_shop_products OWNER TO postgres;
+
+--
+-- Name: kisaan_shop_products_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_shop_products_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_shop_products_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_shop_products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_shop_products_id_seq OWNED BY public.kisaan_shop_products.id;
+
+
+--
+-- Name: kisaan_shops; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_shops (
+    id bigint NOT NULL,
+    name character varying(255) NOT NULL,
+    owner_id bigint NOT NULL,
+    plan_id integer,
+    address text,
+    contact character varying(255),
+    status public.enum_kisaan_shops_status DEFAULT 'active'::public.enum_kisaan_shops_status NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_shops OWNER TO postgres;
+
+--
+-- Name: kisaan_shops_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_shops_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_shops_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_shops_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_shops_id_seq OWNED BY public.kisaan_shops.id;
+
+
+--
+-- Name: kisaan_transactions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_transactions (
+    id integer NOT NULL,
+    shop_id bigint NOT NULL,
+    farmer_id bigint NOT NULL,
+    buyer_id bigint NOT NULL,
+    category_id integer NOT NULL,
+    product_name character varying(255) NOT NULL,
+    quantity numeric(12,2) NOT NULL,
+    unit_price numeric(12,2) NOT NULL,
+    total_sale_value numeric(12,2) NOT NULL,
+    shop_commission numeric(12,2) NOT NULL,
+    farmer_earning numeric(12,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_transactions OWNER TO postgres;
+
+--
+-- Name: kisaan_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_transactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_transactions_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_transactions_id_seq OWNED BY public.kisaan_transactions.id;
+
+
+--
+-- Name: kisaan_users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.kisaan_users (
+    id bigint NOT NULL,
+    username character varying(255) NOT NULL,
+    password character varying(255) NOT NULL,
+    role public.enum_kisaan_users_role NOT NULL,
+    shop_id bigint,
+    contact character varying(255),
+    email character varying(255),
+    status public.enum_kisaan_users_status DEFAULT 'active'::public.enum_kisaan_users_status NOT NULL,
+    balance numeric(12,2) DEFAULT 0 NOT NULL,
+    cumulative_value numeric(18,2) DEFAULT 0 NOT NULL,
+    created_by bigint,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.kisaan_users OWNER TO postgres;
+
+--
+-- Name: COLUMN kisaan_users.cumulative_value; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.kisaan_users.cumulative_value IS 'Cumulative value: total earned (farmer), total spent (buyer), total commission (owner)';
+
+
+--
+-- Name: kisaan_users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.kisaan_users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.kisaan_users_id_seq OWNER TO postgres;
+
+--
+-- Name: kisaan_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.kisaan_users_id_seq OWNED BY public.kisaan_users.id;
+
+
+--
+-- Name: payment_allocations; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payment_allocations (
+    id integer NOT NULL,
+    payment_id integer NOT NULL,
+    transaction_id integer NOT NULL,
+    allocated_amount numeric(15,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.payment_allocations OWNER TO postgres;
+
+--
+-- Name: payment_allocations_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.payment_allocations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.payment_allocations_id_seq OWNER TO postgres;
+
+--
+-- Name: payment_allocations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.payment_allocations_id_seq OWNED BY public.payment_allocations.id;
+
+
+--
+-- Name: balance_snapshots id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.balance_snapshots ALTER COLUMN id SET DEFAULT nextval('public.balance_snapshots_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_audit_logs id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_audit_logs ALTER COLUMN id SET DEFAULT nextval('public.kisaan_audit_logs_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_categories id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_categories ALTER COLUMN id SET DEFAULT nextval('public.kisaan_categories_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_commissions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_commissions ALTER COLUMN id SET DEFAULT nextval('public.kisaan_commissions_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_credits id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_credits ALTER COLUMN id SET DEFAULT nextval('public.kisaan_credits_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_payments id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_payments ALTER COLUMN id SET DEFAULT nextval('public.kisaan_payments_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_plan_usage id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_plan_usage ALTER COLUMN id SET DEFAULT nextval('public.kisaan_plan_usage_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_plans id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_plans ALTER COLUMN id SET DEFAULT nextval('public.kisaan_plans_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_products id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_products ALTER COLUMN id SET DEFAULT nextval('public.kisaan_products_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_settlements id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_settlements ALTER COLUMN id SET DEFAULT nextval('public.kisaan_settlements_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_shop_categories id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_categories ALTER COLUMN id SET DEFAULT nextval('public.kisaan_shop_categories_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_shop_products id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_products ALTER COLUMN id SET DEFAULT nextval('public.kisaan_shop_products_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_shops id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shops ALTER COLUMN id SET DEFAULT nextval('public.kisaan_shops_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_transactions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions ALTER COLUMN id SET DEFAULT nextval('public.kisaan_transactions_id_seq'::regclass);
+
+
+--
+-- Name: kisaan_users id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users ALTER COLUMN id SET DEFAULT nextval('public.kisaan_users_id_seq'::regclass);
+
+
+--
+-- Name: payment_allocations id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_allocations ALTER COLUMN id SET DEFAULT nextval('public.payment_allocations_id_seq'::regclass);
+
+
+--
+-- Data for Name: SequelizeMeta; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public."SequelizeMeta" (name) FROM stdin;
+001_create_all_tables.js
+002_enforce_shopid_on_roles.js
+20250913165900-create-payment-allocations.js
+\.
+
+
+--
+-- Data for Name: balance_snapshots; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.balance_snapshots (id, user_id, balance_type, previous_balance, amount_change, new_balance, transaction_type, reference_id, reference_type, description, created_at, updated_at) FROM stdin;
+6	20	buyer	2000.00	0.00	2000.00	payment	137	payment	Payment BUYER -> SHOP: 3000.00	2025-09-13 17:41:01.174	2025-09-13 17:41:01.174
+7	19	farmer	2750.00	0.00	2750.00	payment	138	payment	Payment SHOP -> FARMER: 2000.00	2025-09-13 17:41:02.908	2025-09-13 17:41:02.908
+8	20	buyer	0.00	0.00	0.00	payment	139	payment	Payment BUYER -> SHOP: 2000.00	2025-09-13 17:41:04.073	2025-09-13 17:41:04.073
+9	19	farmer	250.00	0.00	250.00	payment	140	payment	Payment SHOP -> FARMER: 2500.00	2025-09-13 17:41:04.579	2025-09-13 17:41:04.579
+10	19	farmer	0.00	0.00	0.00	payment	141	payment	Payment SHOP -> FARMER: 250.00	2025-09-13 17:41:06.231	2025-09-13 17:41:06.231
+11	20	buyer	2000.00	0.00	2000.00	payment	142	payment	Payment BUYER -> SHOP: 3000.00	2025-09-13 17:43:54.914	2025-09-13 17:43:54.914
+12	19	farmer	2750.00	0.00	2750.00	payment	143	payment	Payment SHOP -> FARMER: 2000.00	2025-09-13 17:43:56.231	2025-09-13 17:43:56.231
+13	20	buyer	0.00	0.00	0.00	payment	144	payment	Payment BUYER -> SHOP: 2000.00	2025-09-13 17:43:57.388	2025-09-13 17:43:57.388
+14	19	farmer	250.00	0.00	250.00	payment	145	payment	Payment SHOP -> FARMER: 2500.00	2025-09-13 17:43:58.033	2025-09-13 17:43:58.033
+15	19	farmer	0.00	0.00	0.00	payment	146	payment	Payment SHOP -> FARMER: 250.00	2025-09-13 17:43:59.151	2025-09-13 17:43:59.151
+16	29	farmer	1900.00	-950.00	950.00	payment	180	payment	Payment SHOP -> FARMER: 1900.00	2025-09-14 12:35:46.545	2025-09-14 12:35:46.545
+17	29	farmer	950.00	-950.00	0.00	payment	186	payment	Payment SHOP -> FARMER: 950.00	2025-09-14 12:51:21.349	2025-09-14 12:51:21.349
+18	20	buyer	2005000.00	-2005000.00	0.00	payment	187	payment	Payment BUYER -> SHOP: 10000000.00	2025-09-14 13:07:10.064	2025-09-14 13:07:10.064
+19	19	farmer	2001900.00	-501900.00	1500000.00	payment	188	payment	Payment SHOP -> FARMER: 501900.00	2025-09-14 13:07:48.207	2025-09-14 13:07:48.207
+20	19	farmer	1500000.00	-1500000.00	0.00	payment	191	payment	Payment SHOP -> FARMER: 1500000.00	2025-09-14 13:14:10.041	2025-09-14 13:14:10.041
+21	29	farmer	950.00	-950.00	0.00	payment	198	payment	Payment SHOP -> FARMER: 950.00	2025-09-14 13:56:46.681	2025-09-14 13:56:46.681
+22	29	farmer	17624.00	-17624.00	0.00	payment	201	payment	Payment SHOP -> FARMER: 17624.00	2025-09-14 14:04:45.803	2025-09-14 14:04:45.803
+23	29	farmer	98524.00	-98524.00	0.00	payment	212	payment	Payment SHOP -> FARMER: 98524.00	2025-09-14 18:09:07.406	2025-09-14 18:09:07.406
+24	19	farmer	2514250.00	-2000.00	2512250.00	payment	218	payment	Payment SHOP -> FARMER: 2000.00	2025-09-14 18:34:24.566	2025-09-14 18:34:24.566
+25	19	farmer	2512250.00	-2500.00	2509750.00	payment	220	payment	Payment SHOP -> FARMER: 2500.00	2025-09-14 18:34:26.211	2025-09-14 18:34:26.211
+26	19	farmer	2509750.00	-2509750.00	0.00	payment	221	payment	Payment SHOP -> FARMER: 2509750.00	2025-09-14 18:34:27.222	2025-09-14 18:34:27.222
+27	29	farmer	100524.00	-100524.00	0.00	payment	222	payment	Payment SHOP -> FARMER: 100524.00	2025-09-14 19:06:21.682	2025-09-14 19:06:21.682
+28	19	farmer	2554250.00	-2554250.00	0.00	payment	225	payment	Payment SHOP -> FARMER: 2554250.00	2025-09-14 19:25:12.56	2025-09-14 19:25:12.56
+29	29	farmer	20000.02	-20000.02	0.00	payment	228	payment	Payment SHOP -> FARMER: 20000.02	2025-09-14 19:34:16.359	2025-09-14 19:34:16.359
+\.
+
+
+--
+-- Data for Name: kisaan_audit_logs; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_audit_logs (id, shop_id, user_id, action, entity_type, entity_id, old_values, new_values, created_at) FROM stdin;
+301	7	1	payment_recorded	payment	196	\N	{"id": "196", "notes": null, "amount": "100.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:35:30.048Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:35:30.048Z", "payment_date": "2025-09-14T13:35:28.962Z", "transaction_id": 79, "counterparty_id": null}	2025-09-14 13:35:30.301+00
+302	7	1	payment_recorded	payment	197	\N	{"id": "197", "notes": null, "amount": "50.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:35:30.356Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:35:30.356Z", "payment_date": "2025-09-14T13:35:28.962Z", "transaction_id": 79, "counterparty_id": null}	2025-09-14 13:35:30.462+00
+303	7	1	transaction_created	transaction	79	\N	{"id": 79, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "29", "created_at": "2025-09-14T13:35:29.818Z", "unit_price": "10.00", "updated_at": "2025-09-14T13:35:29.818Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "950.00", "shop_commission": "50.00", "total_sale_value": "1000.00"}	2025-09-14 13:35:31.233+00
+81	\N	1	transaction_created	transaction	23	\N	{"id": 23, "shop_id": "6", "buyer_id": "17", "quantity": "100.00", "farmer_id": "16", "created_at": "2025-09-13T16:08:09.963Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:08:09.963Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4500.00", "shop_commission": "500.00", "total_sale_value": "5000.00"}	2025-09-13 16:08:10.251+00
+82	\N	1	transaction_created	transaction	24	\N	{"id": 24, "shop_id": "6", "buyer_id": "17", "quantity": "100.00", "farmer_id": "16", "created_at": "2025-09-13T16:09:35.026Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:09:35.026Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4500.00", "shop_commission": "500.00", "total_sale_value": "5000.00"}	2025-09-13 16:09:35.325+00
+84	7	1	transaction_created	transaction	25	\N	{"id": 25, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:10:53.861Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:10:53.862Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4500.00", "shop_commission": "500.00", "total_sale_value": "5000.00"}	2025-09-13 16:10:54.141+00
+85	7	1	payment_recorded	payment	81	\N	{"id": "81", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:10:55.222Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:10:55.222Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:10:55.269+00
+86	7	1	payment_recorded	payment	82	\N	{"id": "82", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:10:56.282Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:10:56.282Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:10:56.332+00
+87	7	1	payment_recorded	payment	83	\N	{"id": "83", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:10:57.312Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:10:57.312Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:10:57.358+00
+88	7	1	payment_recorded	payment	84	\N	{"id": "84", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:10:57.662Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:10:57.662Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:10:57.707+00
+89	7	1	payment_recorded	payment	85	\N	{"id": "85", "notes": "Payment from buyer_mary", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:20:19.442Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:20:19.443Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:20:19.493+00
+90	7	1	transaction_created	transaction	1	\N	{"id": "1", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T16:42:27.990Z", "updatedAt": "2025-09-13T16:42:27.990Z", "created_at": "2025-09-13T16:42:27.990Z", "updated_at": "2025-09-13T16:42:27.990Z"}	2025-09-13 16:42:28.04+00
+91	7	1	transaction_created	transaction	26	\N	{"id": 26, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:42:30.712Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:42:30.712Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:42:31.01+00
+92	7	1	payment_recorded	payment	86	\N	{"id": "86", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:42:32.079Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:42:32.079Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:42:32.127+00
+93	7	1	payment_recorded	payment	87	\N	{"id": "87", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:42:33.222Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:42:33.222Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:42:33.269+00
+94	7	1	payment_recorded	payment	88	\N	{"id": "88", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:42:34.358Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:42:34.358Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:42:34.406+00
+95	7	1	payment_recorded	payment	89	\N	{"id": "89", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:42:34.713Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:42:34.713Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:42:34.764+00
+96	7	1	transaction_created	transaction	27	\N	{"id": 27, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:49:39.494Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:49:39.495Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:49:39.827+00
+97	7	1	payment_recorded	payment	90	\N	{"id": "90", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:49:41.044Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:49:41.044Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:49:41.089+00
+98	7	1	payment_recorded	payment	91	\N	{"id": "91", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:49:42.361Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:49:42.361Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:49:42.409+00
+99	7	1	payment_recorded	payment	92	\N	{"id": "92", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:49:43.621Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:49:43.621Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:49:43.678+00
+100	7	1	payment_recorded	payment	93	\N	{"id": "93", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:49:43.974Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:49:43.974Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:49:44.02+00
+101	7	1	transaction_created	transaction	2	\N	{"id": "2", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T16:51:16.187Z", "updatedAt": "2025-09-13T16:51:16.187Z", "created_at": "2025-09-13T16:51:16.187Z", "updated_at": "2025-09-13T16:51:16.187Z"}	2025-09-13 16:51:16.239+00
+102	7	1	transaction_created	transaction	28	\N	{"id": 28, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:51:18.877Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:51:18.877Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:51:19.154+00
+103	7	1	payment_recorded	payment	94	\N	{"id": "94", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:51:20.287Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:51:20.287Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:51:20.331+00
+104	7	1	payment_recorded	payment	95	\N	{"id": "95", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:51:21.401Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:51:21.401Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:51:21.443+00
+105	7	1	payment_recorded	payment	96	\N	{"id": "96", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:51:22.520Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:51:22.520Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:51:22.565+00
+106	7	1	payment_recorded	payment	97	\N	{"id": "97", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:51:22.827Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:51:22.827Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:51:22.875+00
+107	7	1	payment_recorded	payment	98	\N	{"id": "98", "notes": "Final adjustment payment to farmer - 3250", "amount": "3250.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:51:23.944Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:51:23.944Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:51:23.992+00
+108	7	1	transaction_created	transaction	3	\N	{"id": "3", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T16:51:52.648Z", "updatedAt": "2025-09-13T16:51:52.648Z", "created_at": "2025-09-13T16:51:52.648Z", "updated_at": "2025-09-13T16:51:52.648Z"}	2025-09-13 16:51:52.695+00
+109	7	1	transaction_created	transaction	29	\N	{"id": 29, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:51:55.382Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:51:55.382Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:51:55.708+00
+110	7	1	payment_recorded	payment	99	\N	{"id": "99", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:51:56.824Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:51:56.824Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:51:56.871+00
+111	7	1	payment_recorded	payment	100	\N	{"id": "100", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:51:58.028Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:51:58.028Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:51:58.073+00
+112	7	1	payment_recorded	payment	101	\N	{"id": "101", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:51:59.124Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:51:59.124Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:51:59.178+00
+113	7	1	payment_recorded	payment	102	\N	{"id": "102", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:51:59.471Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:51:59.471Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:51:59.516+00
+114	7	1	payment_recorded	payment	103	\N	{"id": "103", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:52:00.661Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:52:00.661Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:52:00.708+00
+115	7	1	transaction_created	transaction	4	\N	{"id": "4", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T16:53:42.164Z", "updatedAt": "2025-09-13T16:53:42.164Z", "created_at": "2025-09-13T16:53:42.164Z", "updated_at": "2025-09-13T16:53:42.164Z"}	2025-09-13 16:53:42.214+00
+116	7	1	transaction_created	transaction	30	\N	{"id": 30, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:53:44.916Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:53:44.916Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:53:45.288+00
+117	7	1	payment_recorded	payment	104	\N	{"id": "104", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:53:46.542Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:53:46.543Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:53:46.591+00
+118	7	1	payment_recorded	payment	105	\N	{"id": "105", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:53:47.698Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:53:47.699Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:53:47.757+00
+119	7	1	payment_recorded	payment	106	\N	{"id": "106", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:53:48.835Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:53:48.836Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:53:48.89+00
+120	7	1	payment_recorded	payment	107	\N	{"id": "107", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:53:49.190Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:53:49.190Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:53:49.237+00
+121	7	1	payment_recorded	payment	108	\N	{"id": "108", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:53:50.302Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:53:50.302Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:53:50.348+00
+122	7	1	transaction_created	transaction	5	\N	{"id": "5", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T16:58:03.965Z", "updatedAt": "2025-09-13T16:58:03.965Z", "created_at": "2025-09-13T16:58:03.965Z", "updated_at": "2025-09-13T16:58:03.965Z"}	2025-09-13 16:58:04.028+00
+123	7	1	transaction_created	transaction	31	\N	{"id": 31, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T16:58:08.781Z", "unit_price": "50.00", "updated_at": "2025-09-13T16:58:08.781Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 16:58:09.072+00
+124	7	1	payment_recorded	payment	109	\N	{"id": "109", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:58:10.371Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:58:10.371Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:58:10.441+00
+125	7	1	payment_recorded	payment	110	\N	{"id": "110", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:58:11.753Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:58:11.753Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:58:11.814+00
+126	7	1	payment_recorded	payment	111	\N	{"id": "111", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "created_at": "2025-09-13T16:58:13.569Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T16:58:13.569Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 16:58:13.635+00
+127	7	1	payment_recorded	payment	112	\N	{"id": "112", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:58:13.960Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:58:13.960Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:58:14.009+00
+128	7	1	payment_recorded	payment	113	\N	{"id": "113", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "created_at": "2025-09-13T16:58:15.435Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T16:58:15.435Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 16:58:15.483+00
+129	7	1	transaction_created	transaction	6	\N	{"id": "6", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:05:00.007Z", "updatedAt": "2025-09-13T17:05:00.007Z", "created_at": "2025-09-13T17:05:00.007Z", "updated_at": "2025-09-13T17:05:00.007Z"}	2025-09-13 17:05:00.095+00
+130	7	1	transaction_created	transaction	32	\N	{"id": 32, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:05:02.823Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:05:02.823Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:05:03.125+00
+131	7	1	transaction_created	transaction	7	\N	{"id": "7", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:08:04.116Z", "updatedAt": "2025-09-13T17:08:04.116Z", "created_at": "2025-09-13T17:08:04.116Z", "updated_at": "2025-09-13T17:08:04.116Z"}	2025-09-13 17:08:04.162+00
+132	7	1	transaction_created	transaction	33	\N	{"id": 33, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:08:06.942Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:08:06.942Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:08:07.245+00
+133	7	1	transaction_created	transaction	8	\N	{"id": "8", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:09:35.626Z", "updatedAt": "2025-09-13T17:09:35.626Z", "created_at": "2025-09-13T17:09:35.626Z", "updated_at": "2025-09-13T17:09:35.626Z"}	2025-09-13 17:09:35.668+00
+134	7	1	transaction_created	transaction	34	\N	{"id": 34, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:09:38.582Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:09:38.582Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:09:38.854+00
+135	7	1	transaction_created	transaction	9	\N	{"id": "9", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:10:11.516Z", "updatedAt": "2025-09-13T17:10:11.516Z", "created_at": "2025-09-13T17:10:11.516Z", "updated_at": "2025-09-13T17:10:11.516Z"}	2025-09-13 17:10:11.566+00
+136	7	1	transaction_created	transaction	35	\N	{"id": 35, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:10:14.473Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:10:14.473Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:10:14.772+00
+304	7	1	payment_recorded	payment	198	\N	{"id": "198", "notes": "Payment to manoj_7_146", "amount": "950.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T13:56:46.403Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:56:46.404Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 13:56:46.771+00
+320	29	1	transaction_created	transaction	59	\N	{"id": "59", "rate": "15.00", "type": "percentage", "shop_id": "29", "createdAt": "2025-09-14T17:43:12.972Z", "updatedAt": "2025-09-14T17:43:12.972Z", "created_at": "2025-09-14T17:43:12.972Z", "updated_at": "2025-09-14T17:43:12.972Z"}	2025-09-14 17:43:13.029+00
+321	29	1	transaction_created	transaction	83	\N	{"id": 83, "shop_id": "29", "buyer_id": "101", "quantity": "100.00", "farmer_id": "100", "created_at": "2025-09-14T17:43:15.986Z", "unit_price": "10.00", "updated_at": "2025-09-14T17:43:15.986Z", "category_id": 1, "product_name": "Tomato", "farmer_earning": "850.00", "shop_commission": "150.00", "total_sale_value": "1000.00"}	2025-09-14 17:43:16.549+00
+322	29	1	payment_recorded	payment	206	\N	{"id": "206", "notes": null, "amount": "600.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:43:16.946Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T17:43:16.946Z", "payment_date": null, "transaction_id": 83, "counterparty_id": null}	2025-09-14 17:43:17.083+00
+323	29	1	payment_recorded	payment	207	\N	{"id": "207", "notes": null, "amount": "850.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:43:17.283Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T17:43:17.283Z", "payment_date": null, "transaction_id": 83, "counterparty_id": null}	2025-09-14 17:43:17.374+00
+329	7	1	payment_recorded	payment	210	\N	{"id": "210", "notes": null, "amount": "80000.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:06:10.797Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T18:06:10.798Z", "payment_date": "2025-09-14T18:06:10.010Z", "transaction_id": 85, "counterparty_id": null}	2025-09-14 18:06:10.943+00
+148	7	1	transaction_created	transaction	15	\N	{"id": "15", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:31:06.567Z", "updatedAt": "2025-09-13T17:31:06.567Z", "created_at": "2025-09-13T17:31:06.567Z", "updated_at": "2025-09-13T17:31:06.567Z"}	2025-09-13 17:31:06.611+00
+149	7	1	transaction_created	transaction	39	\N	{"id": 39, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:31:09.413Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:31:09.413Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:31:09.859+00
+150	7	1	payment_recorded	payment	122	\N	{"id": "122", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:31:10.981Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:31:10.981Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:31:11.464+00
+151	7	1	payment_recorded	payment	123	\N	{"id": "123", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:31:12.325Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:31:12.325Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:31:12.623+00
+152	7	1	payment_recorded	payment	124	\N	{"id": "124", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:31:13.448Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:31:13.448Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:31:13.932+00
+153	7	1	payment_recorded	payment	125	\N	{"id": "125", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:31:13.986Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:31:13.986Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:31:14.476+00
+141	\N	1	transaction_created	transaction	14	\N	{"id": "14", "rate": "15.00", "type": "percentage", "shop_id": "9", "createdAt": "2025-09-13T17:30:24.858Z", "updatedAt": "2025-09-13T17:30:24.858Z", "created_at": "2025-09-13T17:30:24.858Z", "updated_at": "2025-09-13T17:30:24.858Z"}	2025-09-13 17:30:24.912+00
+144	\N	1	transaction_created	transaction	37	\N	{"id": 37, "shop_id": "9", "buyer_id": "27", "quantity": "100.00", "farmer_id": "26", "created_at": "2025-09-13T17:30:26.976Z", "unit_price": "10.00", "updated_at": "2025-09-13T17:30:26.976Z", "category_id": 1, "product_name": "Tomato", "farmer_earning": "850.00", "shop_commission": "150.00", "total_sale_value": "1000.00"}	2025-09-13 17:30:27.419+00
+146	\N	1	payment_recorded	payment	120	\N	{"id": "120", "notes": null, "amount": "600.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T17:30:27.831Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:30:27.831Z", "payment_date": null, "transaction_id": 37, "counterparty_id": null}	2025-09-13 17:30:27.978+00
+147	\N	1	payment_recorded	payment	121	\N	{"id": "121", "notes": null, "amount": "850.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T17:30:28.236Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:30:28.236Z", "payment_date": null, "transaction_id": 37, "counterparty_id": null}	2025-09-13 17:30:28.336+00
+154	7	1	payment_recorded	payment	126	\N	{"id": "126", "notes": "Final adjustment payment to farmer - 16750", "amount": "16750.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:31:15.460Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:31:15.460Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:31:15.762+00
+155	7	1	transaction_created	transaction	16	\N	{"id": "16", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:34:17.503Z", "updatedAt": "2025-09-13T17:34:17.503Z", "created_at": "2025-09-13T17:34:17.503Z", "updated_at": "2025-09-13T17:34:17.503Z"}	2025-09-13 17:34:17.563+00
+156	7	1	transaction_created	transaction	40	\N	{"id": 40, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:34:20.309Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:34:20.310Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:34:20.778+00
+157	7	1	payment_recorded	payment	127	\N	{"id": "127", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:34:22.041Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:34:22.042Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:34:22.619+00
+158	7	1	payment_recorded	payment	128	\N	{"id": "128", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:34:23.656Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:34:23.656Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:34:23.958+00
+159	7	1	payment_recorded	payment	129	\N	{"id": "129", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:34:25.257Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:34:25.257Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:34:25.746+00
+160	7	1	payment_recorded	payment	130	\N	{"id": "130", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:34:25.848Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:34:25.848Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:34:26.221+00
+161	7	1	payment_recorded	payment	131	\N	{"id": "131", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:34:27.198Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:34:27.198Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:34:27.486+00
+162	7	1	transaction_created	transaction	17	\N	{"id": "17", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:39:50.767Z", "updatedAt": "2025-09-13T17:39:50.767Z", "created_at": "2025-09-13T17:39:50.767Z", "updated_at": "2025-09-13T17:39:50.767Z"}	2025-09-13 17:39:50.833+00
+163	7	1	transaction_created	transaction	41	\N	{"id": 41, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:39:55.252Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:39:55.253Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:39:55.942+00
+164	7	1	payment_recorded	payment	132	\N	{"id": "132", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:39:57.039Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:39:57.040Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:39:57.676+00
+165	7	1	payment_recorded	payment	133	\N	{"id": "133", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:39:58.585Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:39:58.585Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:39:58.892+00
+166	7	1	payment_recorded	payment	134	\N	{"id": "134", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:39:59.839Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:39:59.839Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:40:01.108+00
+167	7	1	payment_recorded	payment	135	\N	{"id": "135", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:40:01.471Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:40:01.471Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:40:01.875+00
+168	7	1	payment_recorded	payment	136	\N	{"id": "136", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:40:02.842Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:40:02.842Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:40:03.218+00
+169	7	1	transaction_created	transaction	18	\N	{"id": "18", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:40:55.678Z", "updatedAt": "2025-09-13T17:40:55.678Z", "created_at": "2025-09-13T17:40:55.678Z", "updated_at": "2025-09-13T17:40:55.678Z"}	2025-09-13 17:40:55.724+00
+170	7	1	transaction_created	transaction	42	\N	{"id": 42, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:40:58.836Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:40:58.836Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:40:59.451+00
+171	7	1	payment_recorded	payment	137	\N	{"id": "137", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:41:00.741Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:41:00.741Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:41:01.711+00
+172	7	1	payment_recorded	payment	138	\N	{"id": "138", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:41:02.672Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:41:02.672Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:41:02.96+00
+173	7	1	payment_recorded	payment	139	\N	{"id": "139", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:41:03.805Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:41:03.805Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:41:04.283+00
+174	7	1	payment_recorded	payment	140	\N	{"id": "140", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:41:04.346Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:41:04.346Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:41:04.633+00
+175	7	1	payment_recorded	payment	141	\N	{"id": "141", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:41:05.997Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:41:05.997Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:41:06.279+00
+176	7	1	transaction_created	transaction	19	\N	{"id": "19", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-13T17:43:48.730Z", "updatedAt": "2025-09-13T17:43:48.730Z", "created_at": "2025-09-13T17:43:48.730Z", "updated_at": "2025-09-13T17:43:48.730Z"}	2025-09-13 17:43:48.785+00
+177	7	1	transaction_created	transaction	43	\N	{"id": 43, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-13T17:43:52.861Z", "unit_price": "50.00", "updated_at": "2025-09-13T17:43:52.861Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-13 17:43:53.75+00
+178	7	1	payment_recorded	payment	142	\N	{"id": "142", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:43:54.662Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:43:54.662Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:43:55.151+00
+179	7	1	payment_recorded	payment	143	\N	{"id": "143", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:43:55.984Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:43:55.984Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:43:56.292+00
+180	7	1	payment_recorded	payment	144	\N	{"id": "144", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:43:57.104Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:43:57.104Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 17:43:57.721+00
+181	7	1	payment_recorded	payment	145	\N	{"id": "145", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:43:57.778Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:43:57.778Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:43:58.085+00
+182	7	1	payment_recorded	payment	146	\N	{"id": "146", "notes": "Final adjustment payment to farmer - 250", "amount": "250.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T17:43:58.911Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:43:58.911Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 17:43:59.198+00
+138	\N	1	transaction_created	transaction	12	\N	{"id": "12", "rate": "12.50", "type": "percentage", "shop_id": "8", "createdAt": "2025-09-13T17:30:21.618Z", "updatedAt": "2025-09-13T17:30:21.618Z", "created_at": "2025-09-13T17:30:21.618Z", "updated_at": "2025-09-13T17:30:21.618Z"}	2025-09-13 17:30:21.663+00
+140	\N	1	transaction_created	transaction	36	\N	{"id": 36, "shop_id": "8", "buyer_id": "24", "quantity": "50.00", "farmer_id": "23", "created_at": "2025-09-13T17:30:23.865Z", "unit_price": "25.00", "updated_at": "2025-09-13T17:30:23.866Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-13 17:30:24.192+00
+142	\N	1	payment_recorded	payment	118	\N	{"id": "118", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T17:30:25.339Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T17:30:25.339Z", "payment_date": null, "transaction_id": 36, "counterparty_id": null}	2025-09-13 17:30:25.608+00
+143	\N	1	payment_recorded	payment	119	\N	{"id": "119", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T17:30:26.167Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T17:30:26.167Z", "payment_date": null, "transaction_id": 36, "counterparty_id": null}	2025-09-13 17:30:26.312+00
+145	\N	1	transaction_created	transaction	38	\N	{"id": 38, "shop_id": "8", "buyer_id": "28", "quantity": "30.00", "farmer_id": "23", "created_at": "2025-09-13T17:30:27.610Z", "unit_price": "20.00", "updated_at": "2025-09-13T17:30:27.610Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-13 17:30:27.909+00
+183	7	1	payment_recorded	payment	147	\N	{"id": "147", "notes": null, "amount": "686640.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T21:14:21.960Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T21:14:21.960Z", "payment_date": "2025-09-13T21:14:21.260Z", "transaction_id": 44, "counterparty_id": null}	2025-09-13 21:14:22.093+00
+184	7	1	payment_recorded	payment	148	\N	{"id": "148", "notes": null, "amount": "52308.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-13T21:14:22.139Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T21:14:22.139Z", "payment_date": "2025-09-13T21:14:21.260Z", "transaction_id": 44, "counterparty_id": null}	2025-09-13 21:14:22.227+00
+185	7	1	transaction_created	transaction	44	\N	{"id": 44, "shop_id": "7", "buyer_id": "20", "quantity": "12212.00", "farmer_id": "19", "created_at": "2025-09-13T21:14:21.905Z", "unit_price": "220.00", "updated_at": "2025-09-13T21:14:21.907Z", "category_id": 1, "product_name": "Roses", "farmer_earning": "2552308.00", "shop_commission": "134332.00", "total_sale_value": "2686640.00"}	2025-09-13 21:14:22.758+00
+186	7	1	payment_recorded	payment	149	\N	{"id": "149", "notes": "Payment from buyer_mary", "amount": "686640.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T21:21:57.195Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-13T21:21:57.195Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-13 21:21:57.639+00
+187	7	1	payment_recorded	payment	150	\N	{"id": "150", "notes": "Payment to farmer_john", "amount": "552308.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-13T21:22:21.922Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-13T21:22:21.922Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-13 21:22:22.162+00
+188	7	1	payment_recorded	payment	151	\N	{"id": "151", "notes": null, "amount": "1000.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T10:04:48.019Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T10:04:48.019Z", "payment_date": "2025-09-14T10:04:47.273Z", "transaction_id": 45, "counterparty_id": null}	2025-09-14 10:04:48.175+00
+189	7	1	payment_recorded	payment	152	\N	{"id": "152", "notes": null, "amount": "1900.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T10:04:48.226Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T10:04:48.226Z", "payment_date": "2025-09-14T10:04:47.273Z", "transaction_id": 45, "counterparty_id": null}	2025-09-14 10:04:48.326+00
+190	7	1	transaction_created	transaction	45	\N	{"id": 45, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-14T10:04:47.949Z", "unit_price": "20.00", "updated_at": "2025-09-14T10:04:47.951Z", "category_id": 1, "product_name": "Roses", "farmer_earning": "1900.00", "shop_commission": "100.00", "total_sale_value": "2000.00"}	2025-09-14 10:04:48.881+00
+191	7	1	payment_recorded	payment	153	\N	{"id": "153", "notes": null, "amount": "500.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:31:24.513Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T11:31:24.515Z", "payment_date": "2025-09-14T11:31:23.511Z", "transaction_id": 46, "counterparty_id": null}	2025-09-14 11:31:24.693+00
+192	7	1	payment_recorded	payment	154	\N	{"id": "154", "notes": null, "amount": "950.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:31:24.747Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T11:31:24.747Z", "payment_date": "2025-09-14T11:31:23.511Z", "transaction_id": 46, "counterparty_id": null}	2025-09-14 11:31:24.858+00
+193	7	1	transaction_created	transaction	46	\N	{"id": 46, "shop_id": "7", "buyer_id": "20", "quantity": "10.00", "farmer_id": "29", "created_at": "2025-09-14T11:31:24.443Z", "unit_price": "100.00", "updated_at": "2025-09-14T11:31:24.445Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "950.00", "shop_commission": "50.00", "total_sale_value": "1000.00"}	2025-09-14 11:31:25.549+00
+194	7	1	payment_recorded	payment	155	\N	{"id": "155", "notes": null, "amount": "1000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:39:56.532Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T11:39:56.533Z", "payment_date": "2025-09-14T11:39:55.624Z", "transaction_id": 47, "counterparty_id": null}	2025-09-14 11:39:56.708+00
+195	7	1	payment_recorded	payment	156	\N	{"id": "156", "notes": null, "amount": "450.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:39:56.768Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T11:39:56.768Z", "payment_date": "2025-09-14T11:39:55.624Z", "transaction_id": 47, "counterparty_id": null}	2025-09-14 11:39:56.906+00
+196	7	1	transaction_created	transaction	47	\N	{"id": 47, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "29", "created_at": "2025-09-14T11:39:56.462Z", "unit_price": "10.00", "updated_at": "2025-09-14T11:39:56.463Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "950.00", "shop_commission": "50.00", "total_sale_value": "1000.00"}	2025-09-14 11:39:57.611+00
+197	7	1	payment_recorded	payment	157	\N	{"id": "157", "notes": "Payment to manoj_7_146", "amount": "950.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T11:41:11.877Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T11:41:11.877Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 11:41:12.765+00
+198	7	1	payment_recorded	payment	158	\N	{"id": "158", "notes": null, "amount": "1000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:47:55.372Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T11:47:55.372Z", "payment_date": "2025-09-14T11:47:54.376Z", "transaction_id": 48, "counterparty_id": null}	2025-09-14 11:47:55.573+00
+199	7	1	payment_recorded	payment	159	\N	{"id": "159", "notes": null, "amount": "500.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:47:55.633Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T11:47:55.633Z", "payment_date": "2025-09-14T11:47:54.376Z", "transaction_id": 48, "counterparty_id": null}	2025-09-14 11:47:55.74+00
+200	7	1	transaction_created	transaction	48	\N	{"id": 48, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "29", "created_at": "2025-09-14T11:47:55.306Z", "unit_price": "10.00", "updated_at": "2025-09-14T11:47:55.307Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "950.00", "shop_commission": "50.00", "total_sale_value": "1000.00"}	2025-09-14 11:47:56.481+00
+202	\N	1	transaction_created	transaction	21	\N	{"id": "21", "rate": "12.50", "type": "percentage", "shop_id": "10", "createdAt": "2025-09-14T11:58:23.353Z", "updatedAt": "2025-09-14T11:58:23.353Z", "created_at": "2025-09-14T11:58:23.353Z", "updated_at": "2025-09-14T11:58:23.353Z"}	2025-09-14 11:58:23.403+00
+214	\N	1	transaction_created	transaction	25	\N	{"id": "25", "rate": "12.50", "type": "percentage", "shop_id": "12", "createdAt": "2025-09-14T12:01:47.401Z", "updatedAt": "2025-09-14T12:01:47.401Z", "created_at": "2025-09-14T12:01:47.401Z", "updated_at": "2025-09-14T12:01:47.401Z"}	2025-09-14 12:01:47.447+00
+215	\N	1	transaction_created	transaction	53	\N	{"id": 53, "shop_id": "12", "buyer_id": "40", "quantity": "50.00", "farmer_id": "39", "created_at": "2025-09-14T12:01:49.255Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:01:49.255Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:01:49.893+00
+216	\N	1	payment_recorded	payment	164	\N	{"id": "164", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:01:51.133Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:01:51.133Z", "payment_date": null, "transaction_id": 53, "counterparty_id": null}	2025-09-14 12:01:51.405+00
+217	\N	1	payment_recorded	payment	165	\N	{"id": "165", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:01:51.782Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:01:51.782Z", "payment_date": null, "transaction_id": 53, "counterparty_id": null}	2025-09-14 12:01:51.887+00
+218	\N	1	transaction_created	transaction	54	\N	{"id": 54, "shop_id": "12", "buyer_id": "41", "quantity": "30.00", "farmer_id": "39", "created_at": "2025-09-14T12:01:53.524Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:01:53.524Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:01:54.394+00
+203	\N	1	transaction_created	transaction	49	\N	{"id": 49, "shop_id": "10", "buyer_id": "32", "quantity": "50.00", "farmer_id": "31", "created_at": "2025-09-14T11:58:25.122Z", "unit_price": "25.00", "updated_at": "2025-09-14T11:58:25.123Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 11:58:25.746+00
+204	\N	1	payment_recorded	payment	160	\N	{"id": "160", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:58:26.537Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T11:58:26.537Z", "payment_date": null, "transaction_id": 49, "counterparty_id": null}	2025-09-14 11:58:26.716+00
+205	\N	1	payment_recorded	payment	161	\N	{"id": "161", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T11:58:27.251Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T11:58:27.251Z", "payment_date": null, "transaction_id": 49, "counterparty_id": null}	2025-09-14 11:58:27.357+00
+206	\N	1	transaction_created	transaction	50	\N	{"id": 50, "shop_id": "10", "buyer_id": "33", "quantity": "30.00", "farmer_id": "31", "created_at": "2025-09-14T11:58:28.432Z", "unit_price": "20.00", "updated_at": "2025-09-14T11:58:28.432Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 11:58:29.825+00
+208	\N	1	transaction_created	transaction	23	\N	{"id": "23", "rate": "12.50", "type": "percentage", "shop_id": "11", "createdAt": "2025-09-14T12:01:15.401Z", "updatedAt": "2025-09-14T12:01:15.401Z", "created_at": "2025-09-14T12:01:15.401Z", "updated_at": "2025-09-14T12:01:15.401Z"}	2025-09-14 12:01:15.45+00
+209	\N	1	transaction_created	transaction	51	\N	{"id": 51, "shop_id": "11", "buyer_id": "36", "quantity": "50.00", "farmer_id": "35", "created_at": "2025-09-14T12:01:17.642Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:01:17.642Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:01:18.375+00
+210	\N	1	payment_recorded	payment	162	\N	{"id": "162", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:01:19.167Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:01:19.167Z", "payment_date": null, "transaction_id": 51, "counterparty_id": null}	2025-09-14 12:01:19.324+00
+211	\N	1	payment_recorded	payment	163	\N	{"id": "163", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:01:19.752Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:01:19.752Z", "payment_date": null, "transaction_id": 51, "counterparty_id": null}	2025-09-14 12:01:19.871+00
+212	\N	1	transaction_created	transaction	52	\N	{"id": 52, "shop_id": "11", "buyer_id": "37", "quantity": "30.00", "farmer_id": "35", "created_at": "2025-09-14T12:01:21.046Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:01:21.046Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:01:21.868+00
+226	\N	1	transaction_created	transaction	29	\N	{"id": "29", "rate": "12.50", "type": "percentage", "shop_id": "14", "createdAt": "2025-09-14T12:03:01.823Z", "updatedAt": "2025-09-14T12:03:01.823Z", "created_at": "2025-09-14T12:03:01.823Z", "updated_at": "2025-09-14T12:03:01.823Z"}	2025-09-14 12:03:01.877+00
+227	\N	1	transaction_created	transaction	57	\N	{"id": 57, "shop_id": "14", "buyer_id": "48", "quantity": "50.00", "farmer_id": "47", "created_at": "2025-09-14T12:03:03.679Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:03:03.679Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:03:04.28+00
+228	\N	1	payment_recorded	payment	168	\N	{"id": "168", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:03:05.074Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:03:05.074Z", "payment_date": null, "transaction_id": 57, "counterparty_id": null}	2025-09-14 12:03:05.217+00
+229	\N	1	payment_recorded	payment	169	\N	{"id": "169", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:03:05.608Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:03:05.608Z", "payment_date": null, "transaction_id": 57, "counterparty_id": null}	2025-09-14 12:03:05.72+00
+230	\N	1	transaction_created	transaction	58	\N	{"id": 58, "shop_id": "14", "buyer_id": "49", "quantity": "30.00", "farmer_id": "47", "created_at": "2025-09-14T12:03:07.264Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:03:07.264Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:03:08.294+00
+305	7	1	payment_recorded	payment	199	\N	{"id": "199", "notes": null, "amount": "180499.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:58:32.409Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:58:32.409Z", "payment_date": "2025-09-14T13:58:31.586Z", "transaction_id": 80, "counterparty_id": null}	2025-09-14 13:58:32.559+00
+306	7	1	payment_recorded	payment	200	\N	{"id": "200", "notes": null, "amount": "154326.00", "method": "UPI", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:58:32.607Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:58:32.607Z", "payment_date": "2025-09-14T13:58:31.586Z", "transaction_id": 80, "counterparty_id": null}	2025-09-14 13:58:32.715+00
+307	7	1	transaction_created	transaction	80	\N	{"id": 80, "shop_id": "7", "buyer_id": "20", "quantity": "300.00", "farmer_id": "29", "created_at": "2025-09-14T13:58:32.359Z", "unit_price": "600.00", "updated_at": "2025-09-14T13:58:32.359Z", "category_id": 1, "product_name": "Roses", "farmer_earning": "171000.00", "shop_commission": "9000.00", "total_sale_value": "180000.00"}	2025-09-14 13:58:33.659+00
+238	\N	1	transaction_created	transaction	33	\N	{"id": "33", "rate": "12.50", "type": "percentage", "shop_id": "16", "createdAt": "2025-09-14T12:03:50.374Z", "updatedAt": "2025-09-14T12:03:50.374Z", "created_at": "2025-09-14T12:03:50.374Z", "updated_at": "2025-09-14T12:03:50.374Z"}	2025-09-14 12:03:50.422+00
+240	\N	1	transaction_created	transaction	35	\N	{"id": "35", "rate": "12.50", "type": "percentage", "shop_id": "17", "createdAt": "2025-09-14T12:05:28.243Z", "updatedAt": "2025-09-14T12:05:28.243Z", "created_at": "2025-09-14T12:05:28.243Z", "updated_at": "2025-09-14T12:05:28.243Z"}	2025-09-14 12:05:28.307+00
+241	\N	1	transaction_created	transaction	61	\N	{"id": 61, "shop_id": "17", "buyer_id": "57", "quantity": "50.00", "farmer_id": "56", "created_at": "2025-09-14T12:05:30.690Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:05:30.690Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:05:31.493+00
+222	\N	1	payment_recorded	payment	166	\N	{"id": "166", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:02:47.208Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:02:47.208Z", "payment_date": null, "transaction_id": 55, "counterparty_id": null}	2025-09-14 12:02:47.352+00
+223	\N	1	payment_recorded	payment	167	\N	{"id": "167", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:02:47.689Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:02:47.689Z", "payment_date": null, "transaction_id": 55, "counterparty_id": null}	2025-09-14 12:02:47.793+00
+224	\N	1	transaction_created	transaction	56	\N	{"id": 56, "shop_id": "13", "buyer_id": "45", "quantity": "30.00", "farmer_id": "43", "created_at": "2025-09-14T12:02:48.845Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:02:48.845Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:02:49.616+00
+246	\N	1	transaction_created	transaction	37	\N	{"id": "37", "rate": "12.50", "type": "percentage", "shop_id": "18", "createdAt": "2025-09-14T12:09:01.640Z", "updatedAt": "2025-09-14T12:09:01.640Z", "created_at": "2025-09-14T12:09:01.640Z", "updated_at": "2025-09-14T12:09:01.640Z"}	2025-09-14 12:09:01.713+00
+247	\N	1	transaction_created	transaction	63	\N	{"id": 63, "shop_id": "18", "buyer_id": "61", "quantity": "50.00", "farmer_id": "60", "created_at": "2025-09-14T12:09:03.539Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:09:03.540Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:09:04.125+00
+248	\N	1	payment_recorded	payment	174	\N	{"id": "174", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:09:05.239Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:09:05.239Z", "payment_date": null, "transaction_id": 63, "counterparty_id": null}	2025-09-14 12:09:05.719+00
+249	\N	1	payment_recorded	payment	175	\N	{"id": "175", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:09:06.358Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:09:06.358Z", "payment_date": null, "transaction_id": 63, "counterparty_id": null}	2025-09-14 12:09:06.495+00
+250	\N	1	transaction_created	transaction	64	\N	{"id": 64, "shop_id": "18", "buyer_id": "62", "quantity": "30.00", "farmer_id": "60", "created_at": "2025-09-14T12:09:08.174Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:09:08.174Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:09:08.911+00
+308	7	1	payment_recorded	payment	201	\N	{"id": "201", "notes": "Payment to manoj_7_146", "amount": "17624.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T14:04:45.076Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T14:04:45.078Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 14:04:45.86+00
+260	\N	1	transaction_created	transaction	43	\N	{"id": "43", "rate": "12.50", "type": "percentage", "shop_id": "21", "createdAt": "2025-09-14T12:29:16.443Z", "updatedAt": "2025-09-14T12:29:16.443Z", "created_at": "2025-09-14T12:29:16.443Z", "updated_at": "2025-09-14T12:29:16.443Z"}	2025-09-14 12:29:16.496+00
+261	\N	1	transaction_created	transaction	67	\N	{"id": 67, "shop_id": "21", "buyer_id": "70", "quantity": "50.00", "farmer_id": "69", "created_at": "2025-09-14T12:29:18.253Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:29:18.254Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:29:18.841+00
+252	\N	1	transaction_created	transaction	39	\N	{"id": "39", "rate": "12.50", "type": "percentage", "shop_id": "19", "createdAt": "2025-09-14T12:09:26.100Z", "updatedAt": "2025-09-14T12:09:26.100Z", "created_at": "2025-09-14T12:09:26.100Z", "updated_at": "2025-09-14T12:09:26.100Z"}	2025-09-14 12:09:26.148+00
+253	\N	1	transaction_created	transaction	65	\N	{"id": 65, "shop_id": "19", "buyer_id": "65", "quantity": "50.00", "farmer_id": "64", "created_at": "2025-09-14T12:09:28.301Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:09:28.301Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:09:28.949+00
+242	\N	1	payment_recorded	payment	172	\N	{"id": "172", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:05:32.554Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:05:32.554Z", "payment_date": null, "transaction_id": 61, "counterparty_id": null}	2025-09-14 12:05:32.717+00
+243	\N	1	payment_recorded	payment	173	\N	{"id": "173", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:05:33.085Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:05:33.085Z", "payment_date": null, "transaction_id": 61, "counterparty_id": null}	2025-09-14 12:05:33.178+00
+244	\N	1	transaction_created	transaction	62	\N	{"id": 62, "shop_id": "17", "buyer_id": "58", "quantity": "30.00", "farmer_id": "56", "created_at": "2025-09-14T12:05:34.316Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:05:34.316Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:05:35.073+00
+268	\N	1	transaction_created	transaction	45	\N	{"id": "45", "rate": "12.50", "type": "percentage", "shop_id": "22", "createdAt": "2025-09-14T12:48:23.248Z", "updatedAt": "2025-09-14T12:48:23.248Z", "created_at": "2025-09-14T12:48:23.248Z", "updated_at": "2025-09-14T12:48:23.248Z"}	2025-09-14 12:48:23.31+00
+269	\N	1	transaction_created	transaction	69	\N	{"id": 69, "shop_id": "22", "buyer_id": "74", "quantity": "50.00", "farmer_id": "73", "created_at": "2025-09-14T12:48:25.615Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:48:25.615Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:48:27.18+00
+270	\N	1	payment_recorded	payment	182	\N	{"id": "182", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:48:28.426Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:48:28.426Z", "payment_date": null, "transaction_id": 69, "counterparty_id": null}	2025-09-14 12:48:28.655+00
+265	7	1	payment_recorded	payment	180	\N	{"id": "180", "notes": "Payment to manoj_7_146", "amount": "1900.00", "method": "UPI", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T12:35:45.765Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:35:45.766Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 12:35:46.597+00
+266	7	1	payment_recorded	payment	181	\N	{"id": "181", "notes": "Payment to manoj_7_146", "amount": "950.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T12:43:01.095Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:43:01.096Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 12:43:02.593+00
+271	\N	1	payment_recorded	payment	183	\N	{"id": "183", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:48:29.683Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:48:29.683Z", "payment_date": null, "transaction_id": 69, "counterparty_id": null}	2025-09-14 12:48:29.813+00
+272	\N	1	transaction_created	transaction	70	\N	{"id": 70, "shop_id": "22", "buyer_id": "75", "quantity": "30.00", "farmer_id": "73", "created_at": "2025-09-14T12:48:30.982Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:48:30.982Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:48:31.705+00
+310	27	1	transaction_created	transaction	55	\N	{"id": "55", "rate": "15.00", "type": "percentage", "shop_id": "27", "createdAt": "2025-09-14T17:42:29.664Z", "updatedAt": "2025-09-14T17:42:29.664Z", "created_at": "2025-09-14T17:42:29.664Z", "updated_at": "2025-09-14T17:42:29.664Z"}	2025-09-14 17:42:29.714+00
+279	7	1	payment_recorded	payment	186	\N	{"id": "186", "notes": "Payment to manoj_7_146", "amount": "950.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T12:51:20.929Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:51:20.930Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 12:51:21.456+00
+280	7	1	payment_recorded	payment	187	\N	{"id": "187", "notes": "Payment from buyer_mary", "amount": "10000000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T13:07:08.791Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:07:08.791Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-14 13:07:10.826+00
+262	\N	1	payment_recorded	payment	178	\N	{"id": "178", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:29:19.618Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:29:19.618Z", "payment_date": null, "transaction_id": 67, "counterparty_id": null}	2025-09-14 12:29:19.759+00
+263	\N	1	payment_recorded	payment	179	\N	{"id": "179", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:29:20.144Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:29:20.144Z", "payment_date": null, "transaction_id": 67, "counterparty_id": null}	2025-09-14 12:29:20.25+00
+264	\N	1	transaction_created	transaction	68	\N	{"id": 68, "shop_id": "21", "buyer_id": "71", "quantity": "30.00", "farmer_id": "69", "created_at": "2025-09-14T12:29:21.288Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:29:21.288Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:29:21.922+00
+281	7	1	payment_recorded	payment	188	\N	{"id": "188", "notes": "Payment to farmer_john", "amount": "501900.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T13:07:47.513Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:07:47.513Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 13:07:48.259+00
+283	\N	1	transaction_created	transaction	49	\N	{"id": "49", "rate": "12.50", "type": "percentage", "shop_id": "24", "createdAt": "2025-09-14T13:11:57.335Z", "updatedAt": "2025-09-14T13:11:57.335Z", "created_at": "2025-09-14T13:11:57.335Z", "updated_at": "2025-09-14T13:11:57.335Z"}	2025-09-14 13:11:57.383+00
+288	7	1	payment_recorded	payment	191	\N	{"id": "191", "notes": "Payment to farmer_john", "amount": "1500000.00", "method": "UPI", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T13:14:09.118Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:14:09.118Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 13:14:10.09+00
+284	\N	1	transaction_created	transaction	73	\N	{"id": 73, "shop_id": "24", "buyer_id": "82", "quantity": "50.00", "farmer_id": "81", "created_at": "2025-09-14T13:11:59.442Z", "unit_price": "25.00", "updated_at": "2025-09-14T13:11:59.442Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 13:12:00.112+00
+285	\N	1	payment_recorded	payment	189	\N	{"id": "189", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:12:01.237Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:12:01.237Z", "payment_date": null, "transaction_id": 73, "counterparty_id": null}	2025-09-14 13:12:01.402+00
+286	\N	1	payment_recorded	payment	190	\N	{"id": "190", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:12:02.453Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:12:02.453Z", "payment_date": null, "transaction_id": 73, "counterparty_id": null}	2025-09-14 13:12:02.574+00
+287	\N	1	transaction_created	transaction	74	\N	{"id": 74, "shop_id": "24", "buyer_id": "83", "quantity": "30.00", "farmer_id": "81", "created_at": "2025-09-14T13:12:03.668Z", "unit_price": "20.00", "updated_at": "2025-09-14T13:12:03.668Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 13:12:04.425+00
+311	27	1	transaction_created	transaction	81	\N	{"id": 81, "shop_id": "27", "buyer_id": "95", "quantity": "100.00", "farmer_id": "94", "created_at": "2025-09-14T17:42:32.724Z", "unit_price": "10.00", "updated_at": "2025-09-14T17:42:32.725Z", "category_id": 1, "product_name": "Tomato", "farmer_earning": "850.00", "shop_commission": "150.00", "total_sale_value": "1000.00"}	2025-09-14 17:42:33.297+00
+312	27	1	payment_recorded	payment	202	\N	{"id": "202", "notes": null, "amount": "600.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:42:33.769Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T17:42:33.769Z", "payment_date": null, "transaction_id": 81, "counterparty_id": null}	2025-09-14 17:42:33.908+00
+313	27	1	payment_recorded	payment	203	\N	{"id": "203", "notes": null, "amount": "850.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:42:34.109Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T17:42:34.109Z", "payment_date": null, "transaction_id": 81, "counterparty_id": null}	2025-09-14 17:42:34.207+00
+296	\N	1	transaction_created	transaction	53	\N	{"id": "53", "rate": "12.50", "type": "percentage", "shop_id": "26", "createdAt": "2025-09-14T13:16:34.999Z", "updatedAt": "2025-09-14T13:16:34.999Z", "created_at": "2025-09-14T13:16:34.999Z", "updated_at": "2025-09-14T13:16:34.999Z"}	2025-09-14 13:16:35.043+00
+297	\N	1	transaction_created	transaction	77	\N	{"id": 77, "shop_id": "26", "buyer_id": "90", "quantity": "50.00", "farmer_id": "89", "created_at": "2025-09-14T13:16:37.066Z", "unit_price": "25.00", "updated_at": "2025-09-14T13:16:37.066Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 13:16:38.06+00
+298	\N	1	payment_recorded	payment	194	\N	{"id": "194", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:16:39.681Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:16:39.681Z", "payment_date": null, "transaction_id": 77, "counterparty_id": null}	2025-09-14 13:16:39.822+00
+299	\N	1	payment_recorded	payment	195	\N	{"id": "195", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:16:40.197Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:16:40.197Z", "payment_date": null, "transaction_id": 77, "counterparty_id": null}	2025-09-14 13:16:40.334+00
+290	\N	1	transaction_created	transaction	51	\N	{"id": "51", "rate": "12.50", "type": "percentage", "shop_id": "25", "createdAt": "2025-09-14T13:15:56.781Z", "updatedAt": "2025-09-14T13:15:56.781Z", "created_at": "2025-09-14T13:15:56.781Z", "updated_at": "2025-09-14T13:15:56.781Z"}	2025-09-14 13:15:56.888+00
+291	\N	1	transaction_created	transaction	75	\N	{"id": 75, "shop_id": "25", "buyer_id": "86", "quantity": "50.00", "farmer_id": "85", "created_at": "2025-09-14T13:15:59.679Z", "unit_price": "25.00", "updated_at": "2025-09-14T13:15:59.679Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 13:16:00.354+00
+292	\N	1	payment_recorded	payment	192	\N	{"id": "192", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:16:01.302Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T13:16:01.303Z", "payment_date": null, "transaction_id": 75, "counterparty_id": null}	2025-09-14 13:16:01.473+00
+293	\N	1	payment_recorded	payment	193	\N	{"id": "193", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T13:16:01.885Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T13:16:01.885Z", "payment_date": null, "transaction_id": 75, "counterparty_id": null}	2025-09-14 13:16:02.014+00
+294	\N	1	transaction_created	transaction	76	\N	{"id": 76, "shop_id": "25", "buyer_id": "87", "quantity": "30.00", "farmer_id": "85", "created_at": "2025-09-14T13:16:03.170Z", "unit_price": "20.00", "updated_at": "2025-09-14T13:16:03.171Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 13:16:05.445+00
+300	\N	1	transaction_created	transaction	78	\N	{"id": 78, "shop_id": "26", "buyer_id": "91", "quantity": "30.00", "farmer_id": "89", "created_at": "2025-09-14T13:16:42.040Z", "unit_price": "20.00", "updated_at": "2025-09-14T13:16:42.040Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 13:16:42.671+00
+274	\N	1	transaction_created	transaction	47	\N	{"id": "47", "rate": "12.50", "type": "percentage", "shop_id": "23", "createdAt": "2025-09-14T12:49:25.079Z", "updatedAt": "2025-09-14T12:49:25.079Z", "created_at": "2025-09-14T12:49:25.079Z", "updated_at": "2025-09-14T12:49:25.079Z"}	2025-09-14 12:49:25.123+00
+275	\N	1	transaction_created	transaction	71	\N	{"id": 71, "shop_id": "23", "buyer_id": "78", "quantity": "50.00", "farmer_id": "77", "created_at": "2025-09-14T12:49:27.058Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:49:27.059Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:49:27.609+00
+276	\N	1	payment_recorded	payment	184	\N	{"id": "184", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:49:28.580Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:49:28.580Z", "payment_date": null, "transaction_id": 71, "counterparty_id": null}	2025-09-14 12:49:28.754+00
+277	\N	1	payment_recorded	payment	185	\N	{"id": "185", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:49:29.248Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:49:29.249Z", "payment_date": null, "transaction_id": 71, "counterparty_id": null}	2025-09-14 12:49:29.339+00
+278	\N	1	transaction_created	transaction	72	\N	{"id": 72, "shop_id": "23", "buyer_id": "79", "quantity": "30.00", "farmer_id": "77", "created_at": "2025-09-14T12:49:30.805Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:49:30.805Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:49:33.675+00
+258	\N	1	transaction_created	transaction	41	\N	{"id": "41", "rate": "12.50", "type": "percentage", "shop_id": "20", "createdAt": "2025-09-14T12:09:50.055Z", "updatedAt": "2025-09-14T12:09:50.055Z", "created_at": "2025-09-14T12:09:50.055Z", "updated_at": "2025-09-14T12:09:50.055Z"}	2025-09-14 12:09:50.11+00
+254	\N	1	payment_recorded	payment	176	\N	{"id": "176", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:09:29.757Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:09:29.757Z", "payment_date": null, "transaction_id": 65, "counterparty_id": null}	2025-09-14 12:09:29.905+00
+255	\N	1	payment_recorded	payment	177	\N	{"id": "177", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:09:30.294Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:09:30.294Z", "payment_date": null, "transaction_id": 65, "counterparty_id": null}	2025-09-14 12:09:30.39+00
+256	\N	1	transaction_created	transaction	66	\N	{"id": 66, "shop_id": "19", "buyer_id": "66", "quantity": "30.00", "farmer_id": "64", "created_at": "2025-09-14T12:09:31.448Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:09:31.449Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:09:32.155+00
+232	\N	1	transaction_created	transaction	31	\N	{"id": "31", "rate": "12.50", "type": "percentage", "shop_id": "15", "createdAt": "2025-09-14T12:03:25.427Z", "updatedAt": "2025-09-14T12:03:25.427Z", "created_at": "2025-09-14T12:03:25.427Z", "updated_at": "2025-09-14T12:03:25.427Z"}	2025-09-14 12:03:25.474+00
+233	\N	1	transaction_created	transaction	59	\N	{"id": 59, "shop_id": "15", "buyer_id": "52", "quantity": "50.00", "farmer_id": "51", "created_at": "2025-09-14T12:03:27.220Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:03:27.220Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:03:27.822+00
+234	\N	1	payment_recorded	payment	170	\N	{"id": "170", "notes": null, "amount": "800.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:03:28.639Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T12:03:28.639Z", "payment_date": null, "transaction_id": 59, "counterparty_id": null}	2025-09-14 12:03:28.814+00
+235	\N	1	payment_recorded	payment	171	\N	{"id": "171", "notes": null, "amount": "1093.75", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T12:03:29.241Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T12:03:29.242Z", "payment_date": null, "transaction_id": 59, "counterparty_id": null}	2025-09-14 12:03:29.355+00
+236	\N	1	transaction_created	transaction	60	\N	{"id": 60, "shop_id": "15", "buyer_id": "53", "quantity": "30.00", "farmer_id": "51", "created_at": "2025-09-14T12:03:30.820Z", "unit_price": "20.00", "updated_at": "2025-09-14T12:03:30.821Z", "category_id": 1, "product_name": "Jasmine", "farmer_earning": "525.00", "shop_commission": "75.00", "total_sale_value": "600.00"}	2025-09-14 12:03:32.326+00
+220	\N	1	transaction_created	transaction	27	\N	{"id": "27", "rate": "12.50", "type": "percentage", "shop_id": "13", "createdAt": "2025-09-14T12:02:43.685Z", "updatedAt": "2025-09-14T12:02:43.685Z", "created_at": "2025-09-14T12:02:43.685Z", "updated_at": "2025-09-14T12:02:43.685Z"}	2025-09-14 12:02:43.79+00
+221	\N	1	transaction_created	transaction	55	\N	{"id": 55, "shop_id": "13", "buyer_id": "44", "quantity": "50.00", "farmer_id": "43", "created_at": "2025-09-14T12:02:45.769Z", "unit_price": "25.00", "updated_at": "2025-09-14T12:02:45.769Z", "category_id": 1, "product_name": "Test Product", "farmer_earning": "1093.75", "shop_commission": "156.25", "total_sale_value": "1250.00"}	2025-09-14 12:02:46.402+00
+315	28	1	transaction_created	transaction	57	\N	{"id": "57", "rate": "15.00", "type": "percentage", "shop_id": "28", "createdAt": "2025-09-14T17:42:51.412Z", "updatedAt": "2025-09-14T17:42:51.412Z", "created_at": "2025-09-14T17:42:51.412Z", "updated_at": "2025-09-14T17:42:51.412Z"}	2025-09-14 17:42:51.459+00
+316	28	1	transaction_created	transaction	82	\N	{"id": 82, "shop_id": "28", "buyer_id": "98", "quantity": "100.00", "farmer_id": "97", "created_at": "2025-09-14T17:42:54.514Z", "unit_price": "10.00", "updated_at": "2025-09-14T17:42:54.514Z", "category_id": 1, "product_name": "Tomato", "farmer_earning": "850.00", "shop_commission": "150.00", "total_sale_value": "1000.00"}	2025-09-14 17:42:55.098+00
+317	28	1	payment_recorded	payment	204	\N	{"id": "204", "notes": null, "amount": "600.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:42:55.511Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T17:42:55.511Z", "payment_date": null, "transaction_id": 82, "counterparty_id": null}	2025-09-14 17:42:55.655+00
+318	28	1	payment_recorded	payment	205	\N	{"id": "205", "notes": null, "amount": "850.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:42:55.855Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T17:42:55.855Z", "payment_date": null, "transaction_id": 82, "counterparty_id": null}	2025-09-14 17:42:55.949+00
+325	30	1	transaction_created	transaction	61	\N	{"id": "61", "rate": "15.00", "type": "percentage", "shop_id": "30", "createdAt": "2025-09-14T17:43:34.294Z", "updatedAt": "2025-09-14T17:43:34.294Z", "created_at": "2025-09-14T17:43:34.294Z", "updated_at": "2025-09-14T17:43:34.294Z"}	2025-09-14 17:43:34.343+00
+326	30	1	transaction_created	transaction	84	\N	{"id": 84, "shop_id": "30", "buyer_id": "104", "quantity": "100.00", "farmer_id": "103", "created_at": "2025-09-14T17:43:37.406Z", "unit_price": "10.00", "updated_at": "2025-09-14T17:43:37.406Z", "category_id": 1, "product_name": "Tomato", "farmer_earning": "850.00", "shop_commission": "150.00", "total_sale_value": "1000.00"}	2025-09-14 17:43:37.975+00
+327	30	1	payment_recorded	payment	208	\N	{"id": "208", "notes": null, "amount": "600.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:43:38.377Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T17:43:38.377Z", "payment_date": null, "transaction_id": 84, "counterparty_id": null}	2025-09-14 17:43:38.523+00
+328	30	1	payment_recorded	payment	209	\N	{"id": "209", "notes": null, "amount": "850.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T17:43:38.725Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T17:43:38.725Z", "payment_date": null, "transaction_id": 84, "counterparty_id": null}	2025-09-14 17:43:38.82+00
+330	7	1	payment_recorded	payment	211	\N	{"id": "211", "notes": null, "amount": "5500.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:06:10.997Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:06:10.998Z", "payment_date": "2025-09-14T18:06:10.010Z", "transaction_id": 85, "counterparty_id": null}	2025-09-14 18:06:11.093+00
+331	7	1	transaction_created	transaction	85	\N	{"id": 85, "shop_id": "7", "buyer_id": "20", "quantity": "1000.00", "farmer_id": "29", "created_at": "2025-09-14T18:06:10.733Z", "unit_price": "90.00", "updated_at": "2025-09-14T18:06:10.736Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "85500.00", "shop_commission": "4500.00", "total_sale_value": "90000.00"}	2025-09-14 18:06:11.909+00
+332	7	1	payment_recorded	payment	212	\N	{"id": "212", "notes": "Payment to manoj_7_146", "amount": "98524.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:09:07.254Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:09:07.255Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 18:09:07.456+00
+333	7	1	payment_recorded	payment	213	\N	{"id": "213", "notes": null, "amount": "1000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:24:38.826Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T18:24:38.826Z", "payment_date": "2025-09-14T18:24:38.116Z", "transaction_id": 86, "counterparty_id": null}	2025-09-14 18:24:38.96+00
+334	7	1	payment_recorded	payment	214	\N	{"id": "214", "notes": null, "amount": "1900.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:24:39.007Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:24:39.007Z", "payment_date": "2025-09-14T18:24:38.116Z", "transaction_id": 86, "counterparty_id": null}	2025-09-14 18:24:39.096+00
+335	7	1	transaction_created	transaction	86	\N	{"id": 86, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "29", "created_at": "2025-09-14T18:24:38.770Z", "unit_price": "20.00", "updated_at": "2025-09-14T18:24:38.771Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "1900.00", "shop_commission": "100.00", "total_sale_value": "2000.00"}	2025-09-14 18:24:39.886+00
+336	7	1	payment_recorded	payment	215	\N	{"id": "215", "notes": null, "amount": "500.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:29:59.095Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T18:29:59.095Z", "payment_date": "2025-09-14T18:29:58.410Z", "transaction_id": 87, "counterparty_id": null}	2025-09-14 18:29:59.236+00
+337	7	1	payment_recorded	payment	216	\N	{"id": "216", "notes": null, "amount": "375.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T18:29:59.284Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:29:59.285Z", "payment_date": "2025-09-14T18:29:58.410Z", "transaction_id": 87, "counterparty_id": null}	2025-09-14 18:29:59.378+00
+338	7	1	transaction_created	transaction	87	\N	{"id": 87, "shop_id": "7", "buyer_id": "20", "quantity": "25.00", "farmer_id": "29", "created_at": "2025-09-14T18:29:59.047Z", "unit_price": "100.00", "updated_at": "2025-09-14T18:29:59.047Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "2375.00", "shop_commission": "125.00", "total_sale_value": "2500.00"}	2025-09-14 18:30:00.581+00
+339	7	1	transaction_created	transaction	62	\N	{"id": "62", "rate": "5.00", "type": "percentage", "shop_id": "7", "createdAt": "2025-09-14T18:34:18.102Z", "updatedAt": "2025-09-14T18:34:18.102Z", "created_at": "2025-09-14T18:34:18.102Z", "updated_at": "2025-09-14T18:34:18.102Z"}	2025-09-14 18:34:18.148+00
+340	7	1	transaction_created	transaction	88	\N	{"id": 88, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "19", "created_at": "2025-09-14T18:34:21.357Z", "unit_price": "50.00", "updated_at": "2025-09-14T18:34:21.358Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "4750.00", "shop_commission": "250.00", "total_sale_value": "5000.00"}	2025-09-14 18:34:22.074+00
+341	7	1	payment_recorded	payment	217	\N	{"id": "217", "notes": "Partial payment from buyer - 3000/5000", "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:34:22.956Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T18:34:22.956Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-14 18:34:23.625+00
+342	7	1	payment_recorded	payment	218	\N	{"id": "218", "notes": "Partial payment to farmer - 2000/4500", "amount": "2000.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:34:24.429Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:34:24.429Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 18:34:24.613+00
+343	7	1	payment_recorded	payment	219	\N	{"id": "219", "notes": "Final payment from buyer - 2000/5000", "amount": "2000.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:34:25.389Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T18:34:25.389Z", "payment_date": null, "transaction_id": null, "counterparty_id": 20}	2025-09-14 18:34:26.014+00
+344	7	1	payment_recorded	payment	220	\N	{"id": "220", "notes": "Final payment to farmer - 2500/4500", "amount": "2500.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:34:26.076Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:34:26.076Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 18:34:26.26+00
+345	7	1	payment_recorded	payment	221	\N	{"id": "221", "notes": "Final adjustment payment to farmer - 2509750", "amount": "2509750.00", "method": "BANK", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T18:34:27.088Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T18:34:27.088Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 18:34:27.268+00
+346	7	1	payment_recorded	payment	222	\N	{"id": "222", "notes": "Payment to manoj_7_146", "amount": "100524.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T19:06:21.133Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:06:21.133Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 19:06:21.73+00
+347	7	1	payment_recorded	payment	223	\N	{"id": "223", "notes": null, "amount": "5000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:07:10.017Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T19:07:10.018Z", "payment_date": "2025-09-14T19:07:09.334Z", "transaction_id": 89, "counterparty_id": null}	2025-09-14 19:07:10.149+00
+348	7	1	payment_recorded	payment	224	\N	{"id": "224", "notes": null, "amount": "2750.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:07:10.195Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:07:10.195Z", "payment_date": "2025-09-14T19:07:09.334Z", "transaction_id": 89, "counterparty_id": null}	2025-09-14 19:07:10.285+00
+349	7	1	transaction_created	transaction	89	\N	{"id": 89, "shop_id": "7", "buyer_id": "20", "quantity": "1000.00", "farmer_id": "19", "created_at": "2025-09-14T19:07:09.969Z", "unit_price": "45.00", "updated_at": "2025-09-14T19:07:09.969Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "42750.00", "shop_commission": "2250.00", "total_sale_value": "45000.00"}	2025-09-14 19:07:11.044+00
+350	7	1	payment_recorded	payment	225	\N	{"id": "225", "notes": "Payment to farmer_john", "amount": "2554250.00", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T19:25:12.015Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:25:12.016Z", "payment_date": null, "transaction_id": null, "counterparty_id": 19}	2025-09-14 19:25:12.609+00
+351	7	1	payment_recorded	payment	226	\N	{"id": "226", "notes": null, "amount": "3000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:31:19.580Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T19:31:19.580Z", "payment_date": "2025-09-14T19:31:18.883Z", "transaction_id": 90, "counterparty_id": null}	2025-09-14 19:31:19.712+00
+352	7	1	payment_recorded	payment	227	\N	{"id": "227", "notes": null, "amount": "1849.98", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:31:19.760Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:31:19.760Z", "payment_date": "2025-09-14T19:31:18.883Z", "transaction_id": 90, "counterparty_id": null}	2025-09-14 19:31:19.849+00
+353	7	1	transaction_created	transaction	90	\N	{"id": 90, "shop_id": "7", "buyer_id": "20", "quantity": "1000.00", "farmer_id": "29", "created_at": "2025-09-14T19:31:19.522Z", "unit_price": "23.00", "updated_at": "2025-09-14T19:31:19.522Z", "category_id": 1, "product_name": "Roses", "farmer_earning": "21850.00", "shop_commission": "1150.00", "total_sale_value": "23000.00"}	2025-09-14 19:31:20.3+00
+354	7	1	payment_recorded	payment	228	\N	{"id": "228", "notes": "Payment to manoj_7_146", "amount": "20000.02", "method": "CASH", "status": "PAID", "shop_id": "7", "created_at": "2025-09-14T19:34:16.191Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:34:16.194Z", "payment_date": null, "transaction_id": null, "counterparty_id": 29}	2025-09-14 19:34:16.41+00
+355	7	1	payment_recorded	payment	229	\N	{"id": "229", "notes": null, "amount": "9000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:38:31.346Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T19:38:31.346Z", "payment_date": "2025-09-14T19:38:30.643Z", "transaction_id": 91, "counterparty_id": null}	2025-09-14 19:38:31.478+00
+356	7	1	payment_recorded	payment	230	\N	{"id": "230", "notes": null, "amount": "7049.97", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:38:31.521Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:38:31.521Z", "payment_date": "2025-09-14T19:38:30.643Z", "transaction_id": 91, "counterparty_id": null}	2025-09-14 19:38:31.612+00
+357	7	1	transaction_created	transaction	91	\N	{"id": 91, "shop_id": "7", "buyer_id": "20", "quantity": "1000.00", "farmer_id": "29", "created_at": "2025-09-14T19:38:31.298Z", "unit_price": "39.00", "updated_at": "2025-09-14T19:38:31.298Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "37050.00", "shop_commission": "1950.00", "total_sale_value": "39000.00"}	2025-09-14 19:38:32.062+00
+358	7	1	payment_recorded	payment	231	\N	{"id": "231", "notes": null, "amount": "99.97", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:49:07.397Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T19:49:07.397Z", "payment_date": "2025-09-14T19:49:06.668Z", "transaction_id": 92, "counterparty_id": null}	2025-09-14 19:49:07.538+00
+359	7	1	payment_recorded	payment	232	\N	{"id": "232", "notes": null, "amount": "49.98", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:49:07.588Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:49:07.588Z", "payment_date": "2025-09-14T19:49:06.668Z", "transaction_id": 92, "counterparty_id": null}	2025-09-14 19:49:07.685+00
+360	7	1	transaction_created	transaction	92	\N	{"id": 92, "shop_id": "7", "buyer_id": "20", "quantity": "100.00", "farmer_id": "29", "created_at": "2025-09-14T19:49:07.336Z", "unit_price": "10.00", "updated_at": "2025-09-14T19:49:07.337Z", "category_id": 1, "product_name": "lillies", "farmer_earning": "950.00", "shop_commission": "50.00", "total_sale_value": "1000.00"}	2025-09-14 19:49:08.168+00
+361	7	1	payment_recorded	payment	233	\N	{"id": "233", "notes": null, "amount": "8000.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:55:20.213Z", "payee_type": "SHOP", "payer_type": "BUYER", "updated_at": "2025-09-14T19:55:20.213Z", "payment_date": "2025-09-14T19:55:19.447Z", "transaction_id": 93, "counterparty_id": null}	2025-09-14 19:55:20.354+00
+362	7	1	payment_recorded	payment	234	\N	{"id": "234", "notes": null, "amount": "7100.00", "method": "CASH", "status": "PAID", "shop_id": null, "created_at": "2025-09-14T19:55:20.402Z", "payee_type": "FARMER", "payer_type": "SHOP", "updated_at": "2025-09-14T19:55:20.402Z", "payment_date": "2025-09-14T19:55:19.447Z", "transaction_id": 93, "counterparty_id": null}	2025-09-14 19:55:20.499+00
+363	7	1	transaction_created	transaction	93	\N	{"id": 93, "shop_id": "7", "buyer_id": "20", "quantity": "200.00", "farmer_id": "19", "created_at": "2025-09-14T19:55:20.155Z", "unit_price": "90.00", "updated_at": "2025-09-14T19:55:20.157Z", "category_id": 1, "product_name": "kanakambaram", "farmer_earning": "17100.00", "shop_commission": "900.00", "total_sale_value": "18000.00"}	2025-09-14 19:55:20.791+00
+\.
+
+
+--
+-- Data for Name: kisaan_categories; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_categories (id, name, description, status, created_at, updated_at) FROM stdin;
+1	Flowers	\N	active	2025-09-12 07:37:50.535+00	2025-09-12 07:37:50.535+00
+\.
+
+
+--
+-- Data for Name: kisaan_commissions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_commissions (id, shop_id, rate, type, created_at, updated_at) FROM stdin;
+1	7	5.00	percentage	2025-09-13 16:42:27.99+00	2025-09-13 16:42:27.99+00
+2	7	5.00	percentage	2025-09-13 16:51:16.187+00	2025-09-13 16:51:16.187+00
+3	7	5.00	percentage	2025-09-13 16:51:52.648+00	2025-09-13 16:51:52.648+00
+4	7	5.00	percentage	2025-09-13 16:53:42.164+00	2025-09-13 16:53:42.164+00
+5	7	5.00	percentage	2025-09-13 16:58:03.965+00	2025-09-13 16:58:03.965+00
+6	7	5.00	percentage	2025-09-13 17:05:00.007+00	2025-09-13 17:05:00.007+00
+7	7	5.00	percentage	2025-09-13 17:08:04.116+00	2025-09-13 17:08:04.116+00
+8	7	5.00	percentage	2025-09-13 17:09:35.626+00	2025-09-13 17:09:35.626+00
+9	7	5.00	percentage	2025-09-13 17:10:11.516+00	2025-09-13 17:10:11.516+00
+15	7	5.00	percentage	2025-09-13 17:31:06.567+00	2025-09-13 17:31:06.567+00
+16	7	5.00	percentage	2025-09-13 17:34:17.503+00	2025-09-13 17:34:17.503+00
+17	7	5.00	percentage	2025-09-13 17:39:50.767+00	2025-09-13 17:39:50.767+00
+18	7	5.00	percentage	2025-09-13 17:40:55.678+00	2025-09-13 17:40:55.678+00
+19	7	5.00	percentage	2025-09-13 17:43:48.73+00	2025-09-13 17:43:48.73+00
+54	27	10.00	percentage	2025-09-14 17:42:28.252+00	2025-09-14 17:42:28.252+00
+55	27	15.00	percentage	2025-09-14 17:42:29.664+00	2025-09-14 17:42:29.664+00
+56	28	10.00	percentage	2025-09-14 17:42:49.93+00	2025-09-14 17:42:49.93+00
+57	28	15.00	percentage	2025-09-14 17:42:51.412+00	2025-09-14 17:42:51.412+00
+58	29	10.00	percentage	2025-09-14 17:43:11.579+00	2025-09-14 17:43:11.579+00
+59	29	15.00	percentage	2025-09-14 17:43:12.972+00	2025-09-14 17:43:12.972+00
+60	30	10.00	percentage	2025-09-14 17:43:32.92+00	2025-09-14 17:43:32.92+00
+61	30	15.00	percentage	2025-09-14 17:43:34.294+00	2025-09-14 17:43:34.294+00
+62	7	5.00	percentage	2025-09-14 18:34:18.102+00	2025-09-14 18:34:18.102+00
+\.
+
+
+--
+-- Data for Name: kisaan_credits; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_credits (id, user_id, shop_id, amount, issued_date, due_date, repaid_amount, status, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: kisaan_payments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_payments (id, transaction_id, payer_type, payee_type, amount, status, payment_date, method, notes, created_at, updated_at, counterparty_id, shop_id) FROM stdin;
+142	\N	BUYER	SHOP	3000.00	PAID	\N	CASH	Partial payment from buyer - 3000/5000	2025-09-13 17:43:54.662+00	2025-09-13 17:43:54.662+00	20	7
+143	\N	SHOP	FARMER	2000.00	PAID	\N	BANK	Partial payment to farmer - 2000/4500	2025-09-13 17:43:55.984+00	2025-09-13 17:43:55.984+00	19	7
+144	\N	BUYER	SHOP	2000.00	PAID	\N	CASH	Final payment from buyer - 2000/5000	2025-09-13 17:43:57.104+00	2025-09-13 17:43:57.104+00	20	7
+145	\N	SHOP	FARMER	2500.00	PAID	\N	BANK	Final payment to farmer - 2500/4500	2025-09-13 17:43:57.778+00	2025-09-13 17:43:57.778+00	19	7
+146	\N	SHOP	FARMER	250.00	PAID	\N	BANK	Final adjustment payment to farmer - 250	2025-09-13 17:43:58.911+00	2025-09-13 17:43:58.911+00	19	7
+147	44	BUYER	SHOP	686640.00	PAID	2025-09-13 21:14:21.26+00	CASH	\N	2025-09-13 21:14:21.96+00	2025-09-13 21:14:21.96+00	\N	\N
+148	44	SHOP	FARMER	52308.00	PAID	2025-09-13 21:14:21.26+00	CASH	\N	2025-09-13 21:14:22.139+00	2025-09-13 21:14:22.139+00	\N	\N
+149	\N	BUYER	SHOP	686640.00	PAID	\N	CASH	Payment from buyer_mary	2025-09-13 21:21:57.195+00	2025-09-13 21:21:57.195+00	20	7
+150	\N	SHOP	FARMER	552308.00	PAID	\N	CASH	Payment to farmer_john	2025-09-13 21:22:21.922+00	2025-09-13 21:22:21.922+00	19	7
+151	45	BUYER	SHOP	1000.00	PAID	2025-09-14 10:04:47.273+00	UPI	\N	2025-09-14 10:04:48.019+00	2025-09-14 10:04:48.019+00	\N	\N
+152	45	SHOP	FARMER	1900.00	PAID	2025-09-14 10:04:47.273+00	UPI	\N	2025-09-14 10:04:48.226+00	2025-09-14 10:04:48.226+00	\N	\N
+153	46	BUYER	SHOP	500.00	PAID	2025-09-14 11:31:23.511+00	UPI	\N	2025-09-14 11:31:24.513+00	2025-09-14 11:31:24.515+00	\N	\N
+154	46	SHOP	FARMER	950.00	PAID	2025-09-14 11:31:23.511+00	CASH	\N	2025-09-14 11:31:24.747+00	2025-09-14 11:31:24.747+00	\N	\N
+155	47	BUYER	SHOP	1000.00	PAID	2025-09-14 11:39:55.624+00	CASH	\N	2025-09-14 11:39:56.532+00	2025-09-14 11:39:56.533+00	\N	\N
+156	47	SHOP	FARMER	450.00	PAID	2025-09-14 11:39:55.624+00	CASH	\N	2025-09-14 11:39:56.768+00	2025-09-14 11:39:56.768+00	\N	\N
+157	\N	SHOP	FARMER	950.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 11:41:11.877+00	2025-09-14 11:41:11.877+00	29	7
+158	48	BUYER	SHOP	1000.00	PAID	2025-09-14 11:47:54.376+00	CASH	\N	2025-09-14 11:47:55.372+00	2025-09-14 11:47:55.372+00	\N	\N
+159	48	SHOP	FARMER	500.00	PAID	2025-09-14 11:47:54.376+00	CASH	\N	2025-09-14 11:47:55.633+00	2025-09-14 11:47:55.633+00	\N	\N
+180	\N	SHOP	FARMER	1900.00	PAID	\N	UPI	Payment to manoj_7_146	2025-09-14 12:35:45.765+00	2025-09-14 12:35:45.766+00	29	7
+181	\N	SHOP	FARMER	950.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 12:43:01.095+00	2025-09-14 12:43:01.096+00	29	7
+186	\N	SHOP	FARMER	950.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 12:51:20.929+00	2025-09-14 12:51:20.93+00	29	7
+187	\N	BUYER	SHOP	10000000.00	PAID	\N	CASH	Payment from buyer_mary	2025-09-14 13:07:08.791+00	2025-09-14 13:07:08.791+00	20	7
+188	\N	SHOP	FARMER	501900.00	PAID	\N	CASH	Payment to farmer_john	2025-09-14 13:07:47.513+00	2025-09-14 13:07:47.513+00	19	7
+191	\N	SHOP	FARMER	1500000.00	PAID	\N	UPI	Payment to farmer_john	2025-09-14 13:14:09.118+00	2025-09-14 13:14:09.118+00	19	7
+137	\N	BUYER	SHOP	3000.00	PAID	\N	CASH	Partial payment from buyer - 3000/5000	2025-09-13 17:41:00.741+00	2025-09-13 17:41:00.741+00	20	7
+138	\N	SHOP	FARMER	2000.00	PAID	\N	BANK	Partial payment to farmer - 2000/4500	2025-09-13 17:41:02.672+00	2025-09-13 17:41:02.672+00	19	7
+139	\N	BUYER	SHOP	2000.00	PAID	\N	CASH	Final payment from buyer - 2000/5000	2025-09-13 17:41:03.805+00	2025-09-13 17:41:03.805+00	20	7
+140	\N	SHOP	FARMER	2500.00	PAID	\N	BANK	Final payment to farmer - 2500/4500	2025-09-13 17:41:04.346+00	2025-09-13 17:41:04.346+00	19	7
+141	\N	SHOP	FARMER	250.00	PAID	\N	BANK	Final adjustment payment to farmer - 250	2025-09-13 17:41:05.997+00	2025-09-13 17:41:05.997+00	19	7
+196	79	BUYER	SHOP	100.00	PAID	2025-09-14 13:35:28.962+00	CASH	\N	2025-09-14 13:35:30.048+00	2025-09-14 13:35:30.048+00	\N	\N
+197	79	SHOP	FARMER	50.00	PAID	2025-09-14 13:35:28.962+00	CASH	\N	2025-09-14 13:35:30.356+00	2025-09-14 13:35:30.356+00	\N	\N
+198	\N	SHOP	FARMER	950.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 13:56:46.403+00	2025-09-14 13:56:46.404+00	29	7
+199	80	BUYER	SHOP	180499.00	PAID	2025-09-14 13:58:31.586+00	UPI	\N	2025-09-14 13:58:32.409+00	2025-09-14 13:58:32.409+00	\N	\N
+200	80	SHOP	FARMER	154326.00	PAID	2025-09-14 13:58:31.586+00	UPI	\N	2025-09-14 13:58:32.607+00	2025-09-14 13:58:32.607+00	\N	\N
+201	\N	SHOP	FARMER	17624.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 14:04:45.076+00	2025-09-14 14:04:45.078+00	29	7
+202	81	BUYER	SHOP	600.00	PAID	\N	CASH	\N	2025-09-14 17:42:33.769+00	2025-09-14 17:42:33.769+00	\N	\N
+203	81	SHOP	FARMER	850.00	PAID	\N	CASH	\N	2025-09-14 17:42:34.109+00	2025-09-14 17:42:34.109+00	\N	\N
+204	82	BUYER	SHOP	600.00	PAID	\N	CASH	\N	2025-09-14 17:42:55.511+00	2025-09-14 17:42:55.511+00	\N	\N
+205	82	SHOP	FARMER	850.00	PAID	\N	CASH	\N	2025-09-14 17:42:55.855+00	2025-09-14 17:42:55.855+00	\N	\N
+206	83	BUYER	SHOP	600.00	PAID	\N	CASH	\N	2025-09-14 17:43:16.946+00	2025-09-14 17:43:16.946+00	\N	\N
+207	83	SHOP	FARMER	850.00	PAID	\N	CASH	\N	2025-09-14 17:43:17.283+00	2025-09-14 17:43:17.283+00	\N	\N
+208	84	BUYER	SHOP	600.00	PAID	\N	CASH	\N	2025-09-14 17:43:38.377+00	2025-09-14 17:43:38.377+00	\N	\N
+209	84	SHOP	FARMER	850.00	PAID	\N	CASH	\N	2025-09-14 17:43:38.725+00	2025-09-14 17:43:38.725+00	\N	\N
+210	85	BUYER	SHOP	80000.00	PAID	2025-09-14 18:06:10.01+00	UPI	\N	2025-09-14 18:06:10.797+00	2025-09-14 18:06:10.798+00	\N	\N
+211	85	SHOP	FARMER	5500.00	PAID	2025-09-14 18:06:10.01+00	CASH	\N	2025-09-14 18:06:10.997+00	2025-09-14 18:06:10.998+00	\N	\N
+212	\N	SHOP	FARMER	98524.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 18:09:07.254+00	2025-09-14 18:09:07.255+00	29	7
+213	86	BUYER	SHOP	1000.00	PAID	2025-09-14 18:24:38.116+00	CASH	\N	2025-09-14 18:24:38.826+00	2025-09-14 18:24:38.826+00	\N	\N
+214	86	SHOP	FARMER	1900.00	PAID	2025-09-14 18:24:38.116+00	CASH	\N	2025-09-14 18:24:39.007+00	2025-09-14 18:24:39.007+00	\N	\N
+215	87	BUYER	SHOP	500.00	PAID	2025-09-14 18:29:58.41+00	CASH	\N	2025-09-14 18:29:59.095+00	2025-09-14 18:29:59.095+00	\N	\N
+216	87	SHOP	FARMER	375.00	PAID	2025-09-14 18:29:58.41+00	CASH	\N	2025-09-14 18:29:59.284+00	2025-09-14 18:29:59.285+00	\N	\N
+217	\N	BUYER	SHOP	3000.00	PAID	\N	CASH	Partial payment from buyer - 3000/5000	2025-09-14 18:34:22.956+00	2025-09-14 18:34:22.956+00	20	7
+218	\N	SHOP	FARMER	2000.00	PAID	\N	BANK	Partial payment to farmer - 2000/4500	2025-09-14 18:34:24.429+00	2025-09-14 18:34:24.429+00	19	7
+219	\N	BUYER	SHOP	2000.00	PAID	\N	CASH	Final payment from buyer - 2000/5000	2025-09-14 18:34:25.389+00	2025-09-14 18:34:25.389+00	20	7
+220	\N	SHOP	FARMER	2500.00	PAID	\N	BANK	Final payment to farmer - 2500/4500	2025-09-14 18:34:26.076+00	2025-09-14 18:34:26.076+00	19	7
+221	\N	SHOP	FARMER	2509750.00	PAID	\N	BANK	Final adjustment payment to farmer - 2509750	2025-09-14 18:34:27.088+00	2025-09-14 18:34:27.088+00	19	7
+222	\N	SHOP	FARMER	100524.00	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 19:06:21.133+00	2025-09-14 19:06:21.133+00	29	7
+223	89	BUYER	SHOP	5000.00	PAID	2025-09-14 19:07:09.334+00	CASH	\N	2025-09-14 19:07:10.017+00	2025-09-14 19:07:10.018+00	\N	\N
+224	89	SHOP	FARMER	2750.00	PAID	2025-09-14 19:07:09.334+00	CASH	\N	2025-09-14 19:07:10.195+00	2025-09-14 19:07:10.195+00	\N	\N
+225	\N	SHOP	FARMER	2554250.00	PAID	\N	CASH	Payment to farmer_john	2025-09-14 19:25:12.015+00	2025-09-14 19:25:12.016+00	19	7
+226	90	BUYER	SHOP	3000.00	PAID	2025-09-14 19:31:18.883+00	CASH	\N	2025-09-14 19:31:19.58+00	2025-09-14 19:31:19.58+00	\N	\N
+227	90	SHOP	FARMER	1849.98	PAID	2025-09-14 19:31:18.883+00	CASH	\N	2025-09-14 19:31:19.76+00	2025-09-14 19:31:19.76+00	\N	\N
+228	\N	SHOP	FARMER	20000.02	PAID	\N	CASH	Payment to manoj_7_146	2025-09-14 19:34:16.191+00	2025-09-14 19:34:16.194+00	29	7
+229	91	BUYER	SHOP	9000.00	PAID	2025-09-14 19:38:30.643+00	CASH	\N	2025-09-14 19:38:31.346+00	2025-09-14 19:38:31.346+00	\N	\N
+230	91	SHOP	FARMER	7049.97	PAID	2025-09-14 19:38:30.643+00	CASH	\N	2025-09-14 19:38:31.521+00	2025-09-14 19:38:31.521+00	\N	\N
+231	92	BUYER	SHOP	99.97	PAID	2025-09-14 19:49:06.668+00	CASH	\N	2025-09-14 19:49:07.397+00	2025-09-14 19:49:07.397+00	\N	\N
+232	92	SHOP	FARMER	49.98	PAID	2025-09-14 19:49:06.668+00	CASH	\N	2025-09-14 19:49:07.588+00	2025-09-14 19:49:07.588+00	\N	\N
+233	93	BUYER	SHOP	8000.00	PAID	2025-09-14 19:55:19.447+00	CASH	\N	2025-09-14 19:55:20.213+00	2025-09-14 19:55:20.213+00	\N	\N
+234	93	SHOP	FARMER	7100.00	PAID	2025-09-14 19:55:19.447+00	CASH	\N	2025-09-14 19:55:20.402+00	2025-09-14 19:55:20.402+00	\N	\N
+\.
+
+
+--
+-- Data for Name: kisaan_plan_usage; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_plan_usage (id, shop_id, plan_id, current_farmers, current_buyers, current_transactions, period_start, period_end, created_at, updated_at, "createdAt", "updatedAt") FROM stdin;
+\.
+
+
+--
+-- Data for Name: kisaan_plans; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_plans (id, name, description, price, billing_cycle, monthly_price, quarterly_price, yearly_price, max_farmers, max_buyers, max_transactions, data_retention_months, features, is_active, created_at, updated_at, status) FROM stdin;
+1	Basic	Basic plan for small shops	100.00	monthly	\N	\N	\N	5	5	100	\N	["basic_support"]	t	2025-09-13 16:34:34.897+00	2025-09-13 16:34:34.897+00	active
+2	Premium	Premium plan for large shops	500.00	monthly	\N	\N	\N	50	50	1000	\N	["priority_support","analytics"]	t	2025-09-13 16:34:35.914+00	2025-09-13 16:34:35.914+00	active
+3	Enterprise	Enterprise plan for enterprise customers	2000.00	monthly	\N	\N	\N	500	500	10000	\N	["dedicated_support","custom_analytics","integration"]	t	2025-09-13 16:34:35.958+00	2025-09-13 16:34:35.958+00	active
+4	Premium Plan 1757784629024	\N	1999.99	monthly	\N	\N	\N	\N	\N	\N	\N	["advanced_reports","analytics"]	t	2025-09-13 17:30:29.045+00	2025-09-13 17:30:29.045+00	active
+5	Premium Plan 1757871754789	\N	1999.99	monthly	\N	\N	\N	\N	\N	\N	\N	["advanced_reports","analytics"]	t	2025-09-14 17:42:34.791+00	2025-09-14 17:42:34.791+00	active
+6	Premium Plan 1757871776538	\N	1999.99	monthly	\N	\N	\N	\N	\N	\N	\N	["advanced_reports","analytics"]	t	2025-09-14 17:42:56.539+00	2025-09-14 17:42:56.539+00	active
+7	Premium Plan 1757871797927	\N	1999.99	monthly	\N	\N	\N	\N	\N	\N	\N	["advanced_reports","analytics"]	t	2025-09-14 17:43:17.936+00	2025-09-14 17:43:17.936+00	active
+8	Premium Plan 1757871819413	\N	1999.99	monthly	\N	\N	\N	\N	\N	\N	\N	["advanced_reports","analytics"]	t	2025-09-14 17:43:39.417+00	2025-09-14 17:43:39.417+00	active
+\.
+
+
+--
+-- Data for Name: kisaan_products; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_products (id, name, category_id, description, price, record_status, unit, created_at, updated_at) FROM stdin;
+1	Roses	1	\N	\N	active	\N	2025-09-12 07:38:09.99487+00	2025-09-12 07:38:09.99487+00
+2	Jasmine	1	\N	\N	active	\N	2025-09-12 07:38:17.417277+00	2025-09-12 07:38:17.417277+00
+3	lillies	1	\N	50.00	active	\N	2025-09-12 08:38:25.056604+00	2025-09-13 17:43:50.221165+00
+13	kanakambaram	1	\N	50.00	active	1kg	2025-09-14 11:19:16.455804+00	2025-09-14 18:34:20.033652+00
+\.
+
+
+--
+-- Data for Name: kisaan_settlements; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_settlements (id, shop_id, user_id, amount, reason, status, settlement_date, created_at, updated_at, transaction_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: kisaan_shop_categories; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_shop_categories (id, shop_id, category_id, is_active, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: kisaan_shop_products; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_shop_products (id, shop_id, product_id, is_active, created_at, updated_at) FROM stdin;
+10	7	3	t	2025-09-13 16:10:52.687+00	2025-09-13 16:10:52.687+00
+12	7	1	t	2025-09-13 19:30:04.743+00	2025-09-13 19:30:04.744+00
+13	7	2	t	2025-09-13 19:30:07.112+00	2025-09-13 19:30:07.112+00
+14	7	13	t	2025-09-14 11:19:25.813+00	2025-09-14 11:19:25.815+00
+15	27	13	t	2025-09-14 17:42:29.869+00	2025-09-14 17:42:29.87+00
+16	28	13	t	2025-09-14 17:42:51.607+00	2025-09-14 17:42:51.607+00
+17	29	13	t	2025-09-14 17:43:13.17+00	2025-09-14 17:43:13.17+00
+18	30	13	t	2025-09-14 17:43:34.489+00	2025-09-14 17:43:34.489+00
+\.
+
+
+--
+-- Data for Name: kisaan_shops; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_shops (id, name, owner_id, plan_id, address, contact, status, created_at, updated_at) FROM stdin;
+7	Flower Market Shop	18	\N	123 Market Street, Flower District	\N	active	2025-09-13 16:10:50.738+00	2025-09-13 16:10:50.738+00
+27	Test Shop 1757871748062	93	5	\N	\N	active	2025-09-14 17:42:28.158+00	2025-09-14 17:42:35.102+00
+28	Test Shop 1757871769736	96	6	\N	\N	active	2025-09-14 17:42:49.828+00	2025-09-14 17:42:56.852+00
+29	Test Shop 1757871791377	99	7	\N	\N	active	2025-09-14 17:43:11.485+00	2025-09-14 17:43:18.228+00
+30	Test Shop 1757871812714	102	8	\N	\N	active	2025-09-14 17:43:32.824+00	2025-09-14 17:43:39.726+00
+\.
+
+
+--
+-- Data for Name: kisaan_transactions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_transactions (id, shop_id, farmer_id, buyer_id, category_id, product_name, quantity, unit_price, total_sale_value, shop_commission, farmer_earning, created_at, updated_at) FROM stdin;
+79	7	29	20	1	kanakambaram	100.00	10.00	1000.00	50.00	950.00	2025-09-14 13:35:29.818+00	2025-09-14 13:35:29.818+00
+80	7	29	20	1	Roses	300.00	600.00	180000.00	9000.00	171000.00	2025-09-14 13:58:32.359+00	2025-09-14 13:58:32.359+00
+81	27	94	95	1	Tomato	100.00	10.00	1000.00	150.00	850.00	2025-09-14 17:42:32.724+00	2025-09-14 17:42:32.725+00
+82	28	97	98	1	Tomato	100.00	10.00	1000.00	150.00	850.00	2025-09-14 17:42:54.514+00	2025-09-14 17:42:54.514+00
+83	29	100	101	1	Tomato	100.00	10.00	1000.00	150.00	850.00	2025-09-14 17:43:15.986+00	2025-09-14 17:43:15.986+00
+84	30	103	104	1	Tomato	100.00	10.00	1000.00	150.00	850.00	2025-09-14 17:43:37.406+00	2025-09-14 17:43:37.406+00
+85	7	29	20	1	lillies	1000.00	90.00	90000.00	4500.00	85500.00	2025-09-14 18:06:10.733+00	2025-09-14 18:06:10.736+00
+86	7	29	20	1	kanakambaram	100.00	20.00	2000.00	100.00	1900.00	2025-09-14 18:24:38.77+00	2025-09-14 18:24:38.771+00
+87	7	29	20	1	kanakambaram	25.00	100.00	2500.00	125.00	2375.00	2025-09-14 18:29:59.047+00	2025-09-14 18:29:59.047+00
+88	7	19	20	1	kanakambaram	100.00	50.00	5000.00	250.00	4750.00	2025-09-14 18:34:21.357+00	2025-09-14 18:34:21.358+00
+89	7	19	20	1	kanakambaram	1000.00	45.00	45000.00	2250.00	42750.00	2025-09-14 19:07:09.969+00	2025-09-14 19:07:09.969+00
+90	7	29	20	1	Roses	1000.00	23.00	23000.00	1150.00	21850.00	2025-09-14 19:31:19.522+00	2025-09-14 19:31:19.522+00
+91	7	29	20	1	kanakambaram	1000.00	39.00	39000.00	1950.00	37050.00	2025-09-14 19:38:31.298+00	2025-09-14 19:38:31.298+00
+92	7	29	20	1	lillies	100.00	10.00	1000.00	50.00	950.00	2025-09-14 19:49:07.336+00	2025-09-14 19:49:07.337+00
+93	7	19	20	1	kanakambaram	200.00	90.00	18000.00	900.00	17100.00	2025-09-14 19:55:20.155+00	2025-09-14 19:55:20.157+00
+42	7	19	20	1	lillies	100.00	50.00	5000.00	250.00	4750.00	2025-09-13 17:40:58.836+00	2025-09-13 17:40:58.836+00
+43	7	19	20	1	lillies	100.00	50.00	5000.00	250.00	4750.00	2025-09-13 17:43:52.861+00	2025-09-13 17:43:52.861+00
+44	7	19	20	1	Roses	12212.00	220.00	2686640.00	134332.00	2552308.00	2025-09-13 21:14:21.905+00	2025-09-13 21:14:21.907+00
+45	7	19	20	1	Roses	100.00	20.00	2000.00	100.00	1900.00	2025-09-14 10:04:47.949+00	2025-09-14 10:04:47.951+00
+46	7	29	20	1	Jasmine	10.00	100.00	1000.00	50.00	950.00	2025-09-14 11:31:24.443+00	2025-09-14 11:31:24.445+00
+47	7	29	20	1	kanakambaram	100.00	10.00	1000.00	50.00	950.00	2025-09-14 11:39:56.462+00	2025-09-14 11:39:56.463+00
+48	7	29	20	1	lillies	100.00	10.00	1000.00	50.00	950.00	2025-09-14 11:47:55.306+00	2025-09-14 11:47:55.307+00
+\.
+
+
+--
+-- Data for Name: kisaan_users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.kisaan_users (id, username, password, role, shop_id, contact, email, status, balance, cumulative_value, created_by, created_at, updated_at) FROM stdin;
+1	superadmin	$2a$10$2l4DLskC5zLW6VTHdRqf7eVSue6dtibvtNFff73brz8cjFmQ00FSK	superadmin	\N	\N	superadmin@example.com	active	0.00	0.00	\N	2025-09-11 19:50:18.947+00	2025-09-11 19:50:18.949+00
+92	testowner	$2a$12$D6iNVQR1FHFqdB.fyKKINu1GCtPYtBrIIsg7R.x6.ARY80WuyMOS2	owner	\N	\N	\N	active	0.00	0.00	1	2025-09-14 17:42:25.07+00	2025-09-14 17:42:25.07+00
+29	manoj_7_146	$2a$12$2Ex9vYetlPeKXhCRhGQiKO1kPv4IaXdLfcAeZhT1MUjobYFh4ESWW	farmer	7	1234567890	manoj@gmail.com	active	30900.05	324425.00	18	2025-09-14 11:27:21.045+00	2025-09-14 19:49:07.885+00
+100	farmer_1757871793266	$2a$12$NQD0y4XOXxIGDQoc.QKNAOl.WFDqe77JQXiavYLIRn3SnjGd3mmFm	farmer	29	9876543211	farmer@test.com	active	0.00	850.00	99	2025-09-14 17:43:14.261+00	2025-09-14 17:43:16.261+00
+101	buyer_1757871794308	$2a$12$UTyDrh9KVap0dxo4A7I9c.Ckjc84UIkndTgD44HV5csa2zSw/18lu	buyer	29	9876543212	buyer@test.com	active	1000.00	1000.00	99	2025-09-14 17:43:15.32+00	2025-09-14 17:43:16.456+00
+99	owner_1757871790358	$2a$12$x0BG1VYzndzH/lm.HZU5UO0pnzh0J.ppsF9yeBPotttm26Vbct0.K	owner	29	9876543210	owner@test.com	active	0.00	150.00	1	2025-09-14 17:43:11.33+00	2025-09-14 17:43:20.009+00
+20	buyer_mary	$2a$12$LgmFVrYWFj5Ks0jukUcRzOu9v4kxatZiJaT2b6nk02aL.jyD8LSBy	buyer	7	\N	buyer@test.com	active	10000.00	3108140.00	18	2025-09-13 16:10:52.448+00	2025-09-14 19:55:20.647+00
+19	farmer_john	$2a$12$o9Li3UUlsBK7IMCtMJp9eO28gIuxGb6RPSaA7H.DuInqGsPji1E6.	farmer	7	\N	farmer@test.com	active	10000.00	2628308.00	18	2025-09-13 16:10:51.925+00	2025-09-14 19:55:20.694+00
+18	owner_test_123	$2a$12$ta5YiY9SweMThQUbMxTZMu7gw3U9E4YHE/bCbXESmkC2VpYnJ5mk2	owner	7	\N	owner@test.com	active	0.00	155407.00	1	2025-09-13 16:10:50.594+00	2025-09-14 19:55:20.744+00
+97	farmer_1757871771712	$2a$12$cIVlAdGrRi2RfS0ChXA9jujjibEOjeX3wvOIOT4O/PN1h7BNKqYMC	farmer	28	9876543211	farmer@test.com	active	0.00	850.00	96	2025-09-14 17:42:52.743+00	2025-09-14 17:42:54.801+00
+98	buyer_1757871772803	$2a$12$qZk.jhixWbpW1gb5WzKrDedVAqtrUVCwMBUTKhNH.a3Au4Fwp93..	buyer	28	9876543212	buyer@test.com	active	1000.00	1000.00	96	2025-09-14 17:42:53.809+00	2025-09-14 17:42:54.994+00
+96	owner_1757871768757	$2a$12$4RV9FP2aqC5QRghQ8tJTzORhREpsH8266S2LZ930hxuWzJSoxnQMm	owner	28	9876543210	owner@test.com	active	0.00	150.00	1	2025-09-14 17:42:49.676+00	2025-09-14 17:42:58.573+00
+94	farmer_1757871749991	$2a$12$rwnyRpJ2mXTQn2DXgLf/4uF464kf/4I84xvoTXYC98N632rheMyqu	farmer	27	9876543211	farmer@test.com	active	0.00	850.00	93	2025-09-14 17:42:31.021+00	2025-09-14 17:42:33.01+00
+95	buyer_1757871751081	$2a$12$VY0uERHaU.2dliA5oDhLD.W6uKi9G45vb.FKoX8sBk.5T9inMv6jO	buyer	27	9876543212	buyer@test.com	active	1000.00	1000.00	93	2025-09-14 17:42:32.101+00	2025-09-14 17:42:33.199+00
+103	farmer_1757871814588	$2a$12$9KTCXsyN4tEFHOz.98tPIOnn3pPoO4tjPniRjt9zPDMrNvLvHaj82	farmer	30	9876543211	farmer@test.com	active	0.00	850.00	102	2025-09-14 17:43:35.656+00	2025-09-14 17:43:37.691+00
+104	buyer_1757871815709	$2a$12$8hGLYPLVfYmF8Fc6yEb1d.hmPzwJYBIhmIU8wYKUaYkuJe5sdcUJ6	buyer	30	9876543212	buyer@test.com	active	1000.00	1000.00	102	2025-09-14 17:43:36.71+00	2025-09-14 17:43:37.881+00
+93	owner_1757871747075	$2a$12$Am0AKdSKdiyaHPAHEr6.NOTT1eFnlulZAH3HXW7B3SBRoWO2JldYm	owner	27	9876543210	owner@test.com	active	0.00	150.00	1	2025-09-14 17:42:28.004+00	2025-09-14 17:42:36.908+00
+102	owner_1757871811712	$2a$12$/dVKyC0rJgpIJ0A66E2eFesmG4conZWw7q8JxzheiGbZaDstP2cEG	owner	30	9876543210	owner@test.com	active	0.00	150.00	1	2025-09-14 17:43:32.661+00	2025-09-14 17:43:41.537+00
+\.
+
+
+--
+-- Data for Name: payment_allocations; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.payment_allocations (id, payment_id, transaction_id, allocated_amount, created_at, updated_at) FROM stdin;
+7	137	42	3000.00	2025-09-13 17:41:01.342+00	2025-09-13 17:41:01.342+00
+8	139	42	2000.00	2025-09-13 17:41:04.226+00	2025-09-13 17:41:04.226+00
+9	142	43	3000.00	2025-09-13 17:43:55.101+00	2025-09-13 17:43:55.101+00
+10	144	43	2000.00	2025-09-13 17:43:57.673+00	2025-09-13 17:43:57.673+00
+11	149	44	686640.00	2025-09-13 21:21:57.594+00	2025-09-13 21:21:57.594+00
+12	187	44	2000000.00	2025-09-14 13:07:10.333+00	2025-09-14 13:07:10.333+00
+13	187	45	2000.00	2025-09-14 13:07:10.448+00	2025-09-14 13:07:10.448+00
+14	187	46	1000.00	2025-09-14 13:07:10.546+00	2025-09-14 13:07:10.546+00
+15	187	47	1000.00	2025-09-14 13:07:10.667+00	2025-09-14 13:07:10.667+00
+16	187	48	1000.00	2025-09-14 13:07:10.769+00	2025-09-14 13:07:10.769+00
+17	217	79	1000.00	2025-09-14 18:34:23.49+00	2025-09-14 18:34:23.49+00
+18	217	80	2000.00	2025-09-14 18:34:23.58+00	2025-09-14 18:34:23.58+00
+19	219	80	2000.00	2025-09-14 18:34:25.966+00	2025-09-14 18:34:25.966+00
+\.
+
+
+--
+-- Name: balance_snapshots_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.balance_snapshots_id_seq', 29, true);
+
+
+--
+-- Name: kisaan_audit_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_audit_logs_id_seq', 363, true);
+
+
+--
+-- Name: kisaan_categories_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_categories_id_seq', 10, true);
+
+
+--
+-- Name: kisaan_commissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_commissions_id_seq', 62, true);
+
+
+--
+-- Name: kisaan_credits_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_credits_id_seq', 1, false);
+
+
+--
+-- Name: kisaan_payments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_payments_id_seq', 234, true);
+
+
+--
+-- Name: kisaan_plan_usage_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_plan_usage_id_seq', 1, false);
+
+
+--
+-- Name: kisaan_plans_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_plans_id_seq', 8, true);
+
+
+--
+-- Name: kisaan_products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_products_id_seq', 13, true);
+
+
+--
+-- Name: kisaan_settlements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_settlements_id_seq', 1, false);
+
+
+--
+-- Name: kisaan_shop_categories_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_shop_categories_id_seq', 3, true);
+
+
+--
+-- Name: kisaan_shop_products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_shop_products_id_seq', 18, true);
+
+
+--
+-- Name: kisaan_shops_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_shops_id_seq', 30, true);
+
+
+--
+-- Name: kisaan_transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_transactions_id_seq', 93, true);
+
+
+--
+-- Name: kisaan_users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.kisaan_users_id_seq', 104, true);
+
+
+--
+-- Name: payment_allocations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.payment_allocations_id_seq', 19, true);
+
+
+--
+-- Name: SequelizeMeta SequelizeMeta_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public."SequelizeMeta"
+    ADD CONSTRAINT "SequelizeMeta_pkey" PRIMARY KEY (name);
+
+
+--
+-- Name: balance_snapshots balance_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.balance_snapshots
+    ADD CONSTRAINT balance_snapshots_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_audit_logs kisaan_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_audit_logs
+    ADD CONSTRAINT kisaan_audit_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_categories kisaan_categories_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_categories
+    ADD CONSTRAINT kisaan_categories_name_key UNIQUE (name);
+
+
+--
+-- Name: kisaan_categories kisaan_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_categories
+    ADD CONSTRAINT kisaan_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_commissions kisaan_commissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_commissions
+    ADD CONSTRAINT kisaan_commissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_credits kisaan_credits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_credits
+    ADD CONSTRAINT kisaan_credits_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_payments kisaan_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_payments
+    ADD CONSTRAINT kisaan_payments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_plan_usage kisaan_plan_usage_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_plan_usage
+    ADD CONSTRAINT kisaan_plan_usage_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_plans kisaan_plans_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_plans
+    ADD CONSTRAINT kisaan_plans_name_key UNIQUE (name);
+
+
+--
+-- Name: kisaan_plans kisaan_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_plans
+    ADD CONSTRAINT kisaan_plans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_products kisaan_products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_products
+    ADD CONSTRAINT kisaan_products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_settlements kisaan_settlements_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_settlements
+    ADD CONSTRAINT kisaan_settlements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_shop_categories kisaan_shop_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_categories
+    ADD CONSTRAINT kisaan_shop_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_shop_products kisaan_shop_products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_products
+    ADD CONSTRAINT kisaan_shop_products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_shops kisaan_shops_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shops
+    ADD CONSTRAINT kisaan_shops_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_transactions kisaan_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions
+    ADD CONSTRAINT kisaan_transactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_users kisaan_users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users
+    ADD CONSTRAINT kisaan_users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kisaan_users kisaan_users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users
+    ADD CONSTRAINT kisaan_users_username_key UNIQUE (username);
+
+
+--
+-- Name: kisaan_users kisaan_users_username_key1; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users
+    ADD CONSTRAINT kisaan_users_username_key1 UNIQUE (username);
+
+
+--
+-- Name: payment_allocations payment_allocations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_allocations
+    ADD CONSTRAINT payment_allocations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_auditlogs_created_at; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_auditlogs_created_at ON public.kisaan_audit_logs USING btree (created_at);
+
+
+--
+-- Name: idx_auditlogs_entity_type; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_auditlogs_entity_type ON public.kisaan_audit_logs USING btree (entity_type);
+
+
+--
+-- Name: idx_auditlogs_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_auditlogs_shop_id ON public.kisaan_audit_logs USING btree (shop_id);
+
+
+--
+-- Name: idx_auditlogs_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_auditlogs_user_id ON public.kisaan_audit_logs USING btree (user_id);
+
+
+--
+-- Name: idx_balance_snapshots_balance_type; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_balance_snapshots_balance_type ON public.balance_snapshots USING btree (balance_type);
+
+
+--
+-- Name: idx_balance_snapshots_created_at; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_balance_snapshots_created_at ON public.balance_snapshots USING btree (created_at);
+
+
+--
+-- Name: idx_balance_snapshots_reference; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_balance_snapshots_reference ON public.balance_snapshots USING btree (reference_id, reference_type);
+
+
+--
+-- Name: idx_balance_snapshots_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_balance_snapshots_user_id ON public.balance_snapshots USING btree (user_id);
+
+
+--
+-- Name: idx_kisaan_users_shopid_roles; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_kisaan_users_shopid_roles ON public.kisaan_users USING btree (shop_id) WHERE (role = ANY (ARRAY['owner'::public.enum_kisaan_users_role, 'farmer'::public.enum_kisaan_users_role, 'buyer'::public.enum_kisaan_users_role]));
+
+
+--
+-- Name: kisaan_audit_logs_action; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_audit_logs_action ON public.kisaan_audit_logs USING btree (action);
+
+
+--
+-- Name: kisaan_audit_logs_created_at; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_audit_logs_created_at ON public.kisaan_audit_logs USING btree (created_at);
+
+
+--
+-- Name: kisaan_audit_logs_entity_type_entity_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_audit_logs_entity_type_entity_id ON public.kisaan_audit_logs USING btree (entity_type, entity_id);
+
+
+--
+-- Name: kisaan_audit_logs_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_audit_logs_shop_id ON public.kisaan_audit_logs USING btree (shop_id);
+
+
+--
+-- Name: kisaan_audit_logs_user_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_audit_logs_user_id ON public.kisaan_audit_logs USING btree (user_id);
+
+
+--
+-- Name: kisaan_categories_name; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX kisaan_categories_name ON public.kisaan_categories USING btree (name);
+
+
+--
+-- Name: kisaan_commissions_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_commissions_shop_id ON public.kisaan_commissions USING btree (shop_id);
+
+
+--
+-- Name: kisaan_payments_payee_type; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_payee_type ON public.kisaan_payments USING btree (payee_type);
+
+
+--
+-- Name: kisaan_payments_payer_type; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_payer_type ON public.kisaan_payments USING btree (payer_type);
+
+
+--
+-- Name: kisaan_payments_payment_date; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_payment_date ON public.kisaan_payments USING btree (payment_date);
+
+
+--
+-- Name: kisaan_payments_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_status ON public.kisaan_payments USING btree (status);
+
+
+--
+-- Name: kisaan_payments_transaction_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_transaction_id ON public.kisaan_payments USING btree (transaction_id);
+
+
+--
+-- Name: kisaan_payments_transaction_id_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_payments_transaction_id_status ON public.kisaan_payments USING btree (transaction_id, status);
+
+
+--
+-- Name: kisaan_plan_usage_period_start_period_end; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_plan_usage_period_start_period_end ON public.kisaan_plan_usage USING btree (period_start, period_end);
+
+
+--
+-- Name: kisaan_plan_usage_plan_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_plan_usage_plan_id ON public.kisaan_plan_usage USING btree (plan_id);
+
+
+--
+-- Name: kisaan_plan_usage_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_plan_usage_shop_id ON public.kisaan_plan_usage USING btree (shop_id);
+
+
+--
+-- Name: kisaan_products_category_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_products_category_id ON public.kisaan_products USING btree (category_id);
+
+
+--
+-- Name: kisaan_products_name_category_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX kisaan_products_name_category_id ON public.kisaan_products USING btree (name, category_id);
+
+
+--
+-- Name: kisaan_shop_categories_category_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shop_categories_category_id ON public.kisaan_shop_categories USING btree (category_id);
+
+
+--
+-- Name: kisaan_shop_categories_is_active; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shop_categories_is_active ON public.kisaan_shop_categories USING btree (is_active);
+
+
+--
+-- Name: kisaan_shop_categories_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shop_categories_shop_id ON public.kisaan_shop_categories USING btree (shop_id);
+
+
+--
+-- Name: kisaan_shop_categories_shop_id_category_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX kisaan_shop_categories_shop_id_category_id ON public.kisaan_shop_categories USING btree (shop_id, category_id);
+
+
+--
+-- Name: kisaan_shop_products_product_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shop_products_product_id ON public.kisaan_shop_products USING btree (product_id);
+
+
+--
+-- Name: kisaan_shop_products_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shop_products_shop_id ON public.kisaan_shop_products USING btree (shop_id);
+
+
+--
+-- Name: kisaan_shop_products_shop_id_product_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX kisaan_shop_products_shop_id_product_id ON public.kisaan_shop_products USING btree (shop_id, product_id);
+
+
+--
+-- Name: kisaan_shops_owner_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shops_owner_id ON public.kisaan_shops USING btree (owner_id);
+
+
+--
+-- Name: kisaan_shops_plan_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shops_plan_id ON public.kisaan_shops USING btree (plan_id);
+
+
+--
+-- Name: kisaan_shops_status; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_shops_status ON public.kisaan_shops USING btree (status);
+
+
+--
+-- Name: kisaan_transactions_buyer_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_transactions_buyer_id ON public.kisaan_transactions USING btree (buyer_id);
+
+
+--
+-- Name: kisaan_transactions_category_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_transactions_category_id ON public.kisaan_transactions USING btree (category_id);
+
+
+--
+-- Name: kisaan_transactions_created_at; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_transactions_created_at ON public.kisaan_transactions USING btree (created_at);
+
+
+--
+-- Name: kisaan_transactions_farmer_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_transactions_farmer_id ON public.kisaan_transactions USING btree (farmer_id);
+
+
+--
+-- Name: kisaan_transactions_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_transactions_shop_id ON public.kisaan_transactions USING btree (shop_id);
+
+
+--
+-- Name: kisaan_users_role; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_users_role ON public.kisaan_users USING btree (role);
+
+
+--
+-- Name: kisaan_users_shop_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX kisaan_users_shop_id ON public.kisaan_users USING btree (shop_id);
+
+
+--
+-- Name: kisaan_users_username; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX kisaan_users_username ON public.kisaan_users USING btree (username);
+
+
+--
+-- Name: payment_allocations_payment_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX payment_allocations_payment_id ON public.payment_allocations USING btree (payment_id);
+
+
+--
+-- Name: payment_allocations_transaction_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX payment_allocations_transaction_id ON public.payment_allocations USING btree (transaction_id);
+
+
+--
+-- Name: kisaan_audit_logs kisaan_audit_logs_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_audit_logs
+    ADD CONSTRAINT kisaan_audit_logs_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id) ON DELETE SET NULL;
+
+
+--
+-- Name: kisaan_audit_logs kisaan_audit_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_audit_logs
+    ADD CONSTRAINT kisaan_audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.kisaan_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: kisaan_commissions kisaan_commissions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_commissions
+    ADD CONSTRAINT kisaan_commissions_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id);
+
+
+--
+-- Name: kisaan_payments kisaan_payments_counterparty_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_payments
+    ADD CONSTRAINT kisaan_payments_counterparty_id_fkey FOREIGN KEY (counterparty_id) REFERENCES public.kisaan_users(id);
+
+
+--
+-- Name: kisaan_payments kisaan_payments_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_payments
+    ADD CONSTRAINT kisaan_payments_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: kisaan_payments kisaan_payments_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_payments
+    ADD CONSTRAINT kisaan_payments_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.kisaan_transactions(id);
+
+
+--
+-- Name: kisaan_products kisaan_products_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_products
+    ADD CONSTRAINT kisaan_products_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.kisaan_categories(id);
+
+
+--
+-- Name: kisaan_shop_categories kisaan_shop_categories_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_categories
+    ADD CONSTRAINT kisaan_shop_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.kisaan_categories(id);
+
+
+--
+-- Name: kisaan_shop_categories kisaan_shop_categories_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_categories
+    ADD CONSTRAINT kisaan_shop_categories_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id);
+
+
+--
+-- Name: kisaan_shop_products kisaan_shop_products_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_products
+    ADD CONSTRAINT kisaan_shop_products_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.kisaan_products(id);
+
+
+--
+-- Name: kisaan_shop_products kisaan_shop_products_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shop_products
+    ADD CONSTRAINT kisaan_shop_products_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id);
+
+
+--
+-- Name: kisaan_shops kisaan_shops_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shops
+    ADD CONSTRAINT kisaan_shops_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.kisaan_users(id);
+
+
+--
+-- Name: kisaan_shops kisaan_shops_plan_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_shops
+    ADD CONSTRAINT kisaan_shops_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.kisaan_plans(id);
+
+
+--
+-- Name: kisaan_transactions kisaan_transactions_buyer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions
+    ADD CONSTRAINT kisaan_transactions_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.kisaan_users(id);
+
+
+--
+-- Name: kisaan_transactions kisaan_transactions_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions
+    ADD CONSTRAINT kisaan_transactions_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.kisaan_categories(id);
+
+
+--
+-- Name: kisaan_transactions kisaan_transactions_farmer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions
+    ADD CONSTRAINT kisaan_transactions_farmer_id_fkey FOREIGN KEY (farmer_id) REFERENCES public.kisaan_users(id);
+
+
+--
+-- Name: kisaan_transactions kisaan_transactions_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_transactions
+    ADD CONSTRAINT kisaan_transactions_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id);
+
+
+--
+-- Name: kisaan_users kisaan_users_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users
+    ADD CONSTRAINT kisaan_users_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.kisaan_users(id);
+
+
+--
+-- Name: kisaan_users kisaan_users_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.kisaan_users
+    ADD CONSTRAINT kisaan_users_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.kisaan_shops(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: payment_allocations payment_allocations_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_allocations
+    ADD CONSTRAINT payment_allocations_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.kisaan_payments(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: payment_allocations payment_allocations_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_allocations
+    ADD CONSTRAINT payment_allocations_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.kisaan_transactions(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
