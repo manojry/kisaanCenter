@@ -71,12 +71,13 @@ jobs:
       #     --password ${{ secrets.GHCR_PAT }}
 
 
-    - name: �🚀 Deploy to Container Apps
+    - name: 🚀 Deploy to Container Apps
       run: |
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          --target-port 3000 \
           --set-env-vars \
             NODE_ENV=production \
             PORT=3000 \
@@ -84,7 +85,7 @@ jobs:
             DB_PORT=${{ secrets.DB_PORT }} \
             DB_NAME=${{ secrets.DB_NAME }} \
             DB_USER=${{ secrets.DB_USER }} \
-            DB_PASSWORD=${{ steps.get-db-password.outputs.DB_PASSWORD }} \
+            DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
             CORS_ORIGIN="https://www.kisaancenter.com,https://kisaancenter.com"
 
     - name: ✅ Verify deployment
