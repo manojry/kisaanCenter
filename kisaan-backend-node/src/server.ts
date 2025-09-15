@@ -2,8 +2,10 @@
 import app from './app';
 import sequelize from './config/database';
 import './models'; // Import models to ensure they're initialized
+import dotenv from 'dotenv';
+dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.API_PORT || process.env.PORT || 8000;
 
 async function startServer() {
   try {
