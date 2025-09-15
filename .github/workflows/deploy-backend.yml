@@ -34,17 +34,6 @@ jobs:
             "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
           }
 
-    - name: 🔍 Debug Azure Login
-      run: |
-        echo "Checking Azure subscription access..."
-        az account show --output table || echo "No default subscription found"
-        echo ""
-        echo "Listing available subscriptions..."
-        az account list --output table || echo "No subscriptions accessible"
-        echo ""
-        echo "Checking current context..."
-        az account show --query '{subscriptionId:id, tenantId:tenantId, user:user.name}' --output table || echo "Failed to get account info"
-
     - name: 🐳 Login to GitHub Container Registry
       uses: docker/login-action@v3
       with:
