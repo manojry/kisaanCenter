@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Wallet, TrendingDown } from 'lucide-react';
+import config from '../config';
 
 interface User {
   id: string;
@@ -27,7 +28,7 @@ const BalanceManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-  const response = await fetch('http://localhost:3000/api/users?include_balance=true&shop_id=7', {
+  const response = await fetch(`${config.apiBaseUrl}/users?include_balance=true&shop_id=7`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       const data = await response.json();

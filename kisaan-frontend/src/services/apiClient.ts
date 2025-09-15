@@ -3,11 +3,11 @@
  * Can easily switch between Supabase and Azure SQL backends
  */
 
-
+import config from '../config';
 
 // Configuration - easily switchable between backends
 const API_CONFIG = {
-  baseURL: 'http://localhost:3000/api',
+  baseURL: config.apiBaseUrl,
   timeout: 10000,
   retries: 3,
 };

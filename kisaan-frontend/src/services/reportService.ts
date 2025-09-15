@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
+import config from '../config';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = config.apiBaseUrl;
 
 interface ReportFilters {
   shop_id: string;
