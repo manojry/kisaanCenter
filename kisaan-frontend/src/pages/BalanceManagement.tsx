@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { transactionsApi } from '../services/api';
+import { transactionsApi, usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,14 +26,8 @@ const BalanceManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-  const response = await fetch('http://localhost:3000/api/users?include_balance=true&shop_id=7', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-      const data = await response.json();
-      if (data.success) {
-        setUsers(data.data.filter((u: any) => ['farmer', 'buyer'].includes(u.role)));
-      }
+      const response = await usersApi.getAll({ include_balance: 'true', shop_id: 7 });
+      setUsers(response.data.filter((u: any) => ['farmer', 'buyer'].includes(u.role)));
     } catch (error) {
       console.error('Error fetching users:', error);
     }

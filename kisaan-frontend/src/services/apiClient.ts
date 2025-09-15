@@ -7,7 +7,7 @@
 
 // Configuration - easily switchable between backends
 const API_CONFIG = {
-  baseURL: 'http://localhost:3000/api',
+  baseURL: 'http://localhost:8000/api',
   timeout: 10000,
   retries: 3,
 };

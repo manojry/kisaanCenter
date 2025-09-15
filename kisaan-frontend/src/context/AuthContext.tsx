@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from '../types/api';
 import { authApi } from '../services/api';
 
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -38,34 +39,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:3000/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setError(data?.message || data?.error || 'Invalid credentials');
-        setIsAuthenticated(false);
-        return;
-      }
-      
-      // Handle direct token/user response
-      if (data.token && data.user) {
-        setUser(data.user);
-        setIsAuthenticated(true);
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-        
-        // Redirect based on role
-        if (data.user.role === 'owner') {
-          window.location.href = '/owner';
-        } else if (data.user.role === 'superadmin') {
-          window.location.href = '/superadmin';
+      try {
+        const data = await authApi.login({ username, password });
+        if (data.token && data.user) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+          localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+          if (data.user.role === 'owner') {
+            window.location.href = '/owner';
+          } else if (data.user.role === 'superadmin') {
+            window.location.href = '/superadmin';
+          }
+        } else {
+          setError('Invalid response format');
+          setIsAuthenticated(false);
         }
-      } else {
-        setError('Invalid response format');
+      } catch (err: any) {
+        setError(err.message || 'Login failed');
         setIsAuthenticated(false);
       }
     } catch (err: any) {
@@ -78,13 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        await fetch(`http://localhost:3000/api/auth/logout`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      await authApi.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -98,18 +83,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshUser = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) return;
-      
-      const res = await fetch(`http://localhost:3000/api/users/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      
-      if (res.ok && data.data) {
-        setUser(data.data);
+      const res = await authApi.getCurrentUser();
+      if (res.data) {
+        setUser(res.data);
         setIsAuthenticated(true);
-        localStorage.setItem('auth_user', JSON.stringify(data.data));
+        localStorage.setItem('auth_user', JSON.stringify(res.data));
       } else {
         throw new Error('Invalid token');
       }

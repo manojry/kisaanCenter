@@ -1,7 +1,6 @@
 import { apiClient } from './apiClient';
 
-const API_BASE_URL = 'http://localhost:3000/api';
-
+// Removed hardcoded API_BASE_URL, use apiClient for all requests
 interface ReportFilters {
   shop_id: string;
   user_id?: string;
@@ -18,7 +17,7 @@ export const reportService = {
     });
     
     const response = await apiClient.get(`/reports/generate?${params.toString()}`);
-    return response.data;
+  return (response as any).data;
   },
 
   async downloadReport(filters: ReportFilters) {
@@ -27,29 +26,25 @@ export const reportService = {
       if (value) params.append(key, value);
     });
     
-    const response = await fetch(`${API_BASE_URL}/reports/download?${params.toString()}`, {
+    const response = await apiClient.get(`/reports/download?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to download report');
-    }
-
-    const blob = await response.blob();
+    // Assume response is a blob
+    const blob = response as Blob;
     const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  // Use .csv for shop report, .html for others
-  const ext = filters.report_type === 'shop' ? 'csv' : 'html';
-  let extension = ext;
-  if (filters.report_type === 'shop') extension = 'pdf';
-  link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+    const link = document.createElement('a');
+    link.href = url;
+    // Use .csv for shop report, .html for others
+    const ext = filters.report_type === 'shop' ? 'csv' : 'html';
+    let extension = ext;
+    if (filters.report_type === 'shop') extension = 'pdf';
+    link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 
   async previewReport(filters: ReportFilters) {
@@ -59,17 +54,13 @@ export const reportService = {
     });
     params.append('format', 'pdf');
     
-    const response = await fetch(`${API_BASE_URL}/reports/generate?${params.toString()}`, {
+    const response = await apiClient.get(`/reports/generate?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate report preview');
-    }
-
-    const html = await response.text();
+    // Assume response is HTML string
+    const html = response as string;
     const newWindow = window.open('', '_blank');
     if (newWindow) {
       newWindow.document.write(html);
