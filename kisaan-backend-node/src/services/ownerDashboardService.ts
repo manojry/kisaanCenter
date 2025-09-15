@@ -46,8 +46,8 @@ export async function getOwnerDashboardStats(ownerId: string | number) {
     .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
     .toFixed(2));
 
+  // Sum all positive farmer balances, not just those with today's transactions
   const farmer_payments_due = Number(farmers
-    .filter(u => todayFarmerIds.includes(u.id))
     .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
     .toFixed(2));
 
