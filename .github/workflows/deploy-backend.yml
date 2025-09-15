@@ -70,15 +70,6 @@ jobs:
       #     --username manojRY \
       #     --password ${{ secrets.GHCR_PAT }}
 
-    - name: � Get Database Password from Key Vault
-      id: get-db-password
-      run: |
-        DB_PASSWORD=$(az keyvault secret show \
-          --vault-name ${{ secrets.KEY_VAULT_NAME }} \
-          --name ${{ secrets.DB_PASSWORD_SECRET_NAME }} \
-          --query value -o tsv)
-        echo "::add-mask::$DB_PASSWORD"
-        echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_OUTPUT
 
     - name: �🚀 Deploy to Container Apps
       run: |
