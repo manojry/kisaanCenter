@@ -15,9 +15,22 @@ export const reportService = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    
-    const response = await apiClient.get(`/reports/generate?${params.toString()}`);
-  return (response as any).data;
+    // If using fetch, get blob from response
+    const response = await fetch(`/api/reports/generate?${params.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    });
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    let extension = 'pdf';
+    link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 
   async downloadReport(filters: ReportFilters) {
@@ -25,21 +38,17 @@ export const reportService = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    
-    const response = await apiClient.get(`/reports/download?${params.toString()}`, {
+    // If using fetch, get blob from response
+    const response = await fetch(`/api/reports/download?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
     });
-    // Assume response is a blob
-    const blob = response as Blob;
+    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    // Use .csv for shop report, .html for others
-    const ext = filters.report_type === 'shop' ? 'csv' : 'html';
-    let extension = ext;
-    if (filters.report_type === 'shop') extension = 'pdf';
+    let extension = 'pdf';
     link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
     document.body.appendChild(link);
     link.click();

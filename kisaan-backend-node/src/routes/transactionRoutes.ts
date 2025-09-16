@@ -95,18 +95,39 @@ router.post('/', validateSchema(CreateTransactionSchema), transactionController.
 router.get('/analytics', async (req, res) => {
   try {
     const { sequelize } = require('../models/index');
-    // Get total sales and commission per day (last 30 days)
+    const { shop_id } = req.query;
+    let { date_from, date_to } = req.query;
+    // If no date_from or date_to, default both to today
+    if (!date_from || !date_to) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      date_from = `${yyyy}-${mm}-${dd}`;
+      date_to = `${yyyy}-${mm}-${dd}`;
+    }
+    let whereClause = '';
+    let params: any[] = [];
+    if (date_from && date_to) {
+      whereClause = `WHERE created_at >= ? AND created_at <= ?`;
+      params.push(date_from, date_to);
+    }
+    if (shop_id) {
+      whereClause += params.length ? ' AND shop_id = ?' : ' WHERE shop_id = ?';
+      params.push(shop_id);
+    }
+    // Get total sales and commission per day
     const [dailyResults] = await sequelize.query(`
       SELECT 
         DATE(created_at) as date,
         SUM(total_sale_value) as total_sales,
         SUM(shop_commission) as total_commission
       FROM kisaan_transactions
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      ${whereClause}
       GROUP BY DATE(created_at)
       ORDER BY DATE(created_at) ASC
-    `);
-    // Get overall aggregates as before
+    `, { replacements: params });
+    // Get overall aggregates
     const [aggResults] = await sequelize.query(`
       SELECT 
         COUNT(*) as total_transactions,
@@ -114,12 +135,12 @@ router.get('/analytics', async (req, res) => {
         SUM(shop_commission) as total_commission,
         SUM(farmer_earning) as total_farmer_earnings
       FROM kisaan_transactions
-    `);
+      ${whereClause}
+    `, { replacements: params });
     // Calculate status_summary for chart: total sales (paid), pending to farmer, pending from buyer
-    // 1. Total sales (sum of total_sale_value from kisaan_transactions)
     const [totalSalesResult] = await sequelize.query(`
-      SELECT COALESCE(SUM(total_sale_value),0) as total_sales FROM kisaan_transactions
-    `);
+      SELECT COALESCE(SUM(total_sale_value),0) as total_sales FROM kisaan_transactions ${whereClause}
+    `, { replacements: params });
     const total_sales = Number((Array.isArray(totalSalesResult) ? totalSalesResult[0]?.total_sales : 0) || 0);
 
     // 2. Pending payments to farmer (sum of farmer_earning - paid to farmer)
@@ -132,7 +153,8 @@ router.get('/analytics', async (req, res) => {
         WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID'
         GROUP BY transaction_id
       ) p ON t.id = p.transaction_id
-    `);
+      ${whereClause}
+    `, { replacements: params });
     const pending_to_farmer = Number((Array.isArray(pendingToFarmerResult) ? pendingToFarmerResult[0]?.pending_to_farmer : 0) || 0);
 
     // 3. Pending payments from buyer (sum of total_sale_value - paid by buyer)
@@ -145,7 +167,8 @@ router.get('/analytics', async (req, res) => {
         WHERE payer_type = 'BUYER' AND payee_type = 'SHOP' AND status = 'PAID'
         GROUP BY transaction_id
       ) p ON t.id = p.transaction_id
-    `);
+      ${whereClause}
+    `, { replacements: params });
     const pending_from_buyer = Number((Array.isArray(pendingFromBuyerResult) ? pendingFromBuyerResult[0]?.pending_from_buyer : 0) || 0);
 
     const total_deficit = pending_to_farmer + pending_from_buyer;

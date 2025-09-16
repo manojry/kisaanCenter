@@ -27,10 +27,10 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
   };
 
   const getRoleBadge = (role: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      farmer: "default",
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info"> = {
+      owner: "success", // green
+      farmer: "info",   // blue
       buyer: "secondary",
-      // owner intentionally omitted
     };
     return (
       <Badge variant={variants[role] || "outline"}>
@@ -70,7 +70,7 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Users Management xxxx
+                Users Management
               </CardTitle>
               <CardDescription>
                 Manage farmers and buyers in your shop ({users.length} users)

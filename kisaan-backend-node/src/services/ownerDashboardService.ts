@@ -41,8 +41,8 @@ export async function getOwnerDashboardStats(ownerId: string | number) {
   const todayBuyerIds = todayTransactions.map(t => t.buyer_id).filter(Boolean);
   const todayFarmerIds = todayTransactions.map(t => t.farmer_id).filter(Boolean);
 
-  const pending_collections = Number(buyers
-    .filter(u => todayBuyerIds.includes(u.id))
+  // Sum all positive buyer balances, regardless of transaction date
+  const buyer_payments_due = Number(buyers
     .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
     .toFixed(2));
 
@@ -76,7 +76,7 @@ export async function getOwnerDashboardStats(ownerId: string | number) {
     today_transactions: todayTransactions.length,
     today_commission,
 
-    pending_collections,
+    buyer_payments_due,
     farmer_payments_due,
     total_users: users.length,
     commission_realized

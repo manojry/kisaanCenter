@@ -56,7 +56,7 @@ class ReportController {
             recent_transactions: recentTransactions
           });
         }
-      } else if (userRole === 'admin' || userRole === 'staff') {
+  } else if (userRole === 'admin' || userRole === 'staff' || userRole === 'owner') {
         if (!shop_id) {
           return res.status(400).json({ error: 'shop_id is required for admin and staff users' });
         }
@@ -92,14 +92,34 @@ class ReportController {
         }));
         const total_amount = rows.reduce((sum: number, r: any) => sum + r.total_amount, 0);
         const total_paid = rows.reduce((sum: number, r: any) => sum + r.paid_amount, 0);
-        return res.json({
-          success: true,
-          data: {
-            rows,
-            total_amount,
-            total_paid
-          }
-        });
+
+        // Excel export support
+        if (format === 'excel' || format === 'xlsx') {
+          const ExcelJS = require('exceljs');
+          const workbook = new ExcelJS.Workbook();
+          const worksheet = workbook.addWorksheet('Report');
+          worksheet.columns = [
+            { header: 'Transaction ID', key: 'transaction_id', width: 15 },
+            { header: 'Buyer', key: 'buyer', width: 20 },
+            { header: 'Farmer', key: 'farmer', width: 20 },
+            { header: 'Product', key: 'product', width: 20 },
+            { header: 'Quantity', key: 'quantity', width: 10 },
+            { header: 'Unit Price', key: 'unit_price', width: 12 },
+            { header: 'Total Amount', key: 'total_amount', width: 15 },
+            { header: 'Paid Amount', key: 'paid_amount', width: 15 }
+          ];
+          rows.forEach((row: any) => worksheet.addRow(row));
+          worksheet.addRow({});
+          worksheet.addRow({ product: 'Total', total_amount, paid_amount: total_paid });
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', 'attachment; filename="shop_report.xlsx"');
+          await workbook.xlsx.write(res);
+          res.end();
+          return;
+        }
+
+  // Default: JSON response (only rows)
+  return res.json(rows);
       } else {
         return res.status(403).json({ error: 'Insufficient permissions to generate this report' });
       }
@@ -123,7 +143,7 @@ class ReportController {
           // Logic for superadmin to download platform-wide report
           // ...existing code for CSV/Excel download...
         }
-      } else if (userRole === 'admin' || userRole === 'staff') {
+  } else if (userRole === 'admin' || userRole === 'staff' || userRole === 'owner') {
         if (!shop_id) {
           return res.status(400).json({ error: 'shop_id is required for admin and staff users' });
         }

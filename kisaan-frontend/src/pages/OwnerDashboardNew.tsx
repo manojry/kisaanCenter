@@ -40,27 +40,22 @@ const OwnerDashboardNew: React.FC = () => {
   return (
   <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Welcome back, {user?.username} • Today's business overview
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button 
-            onClick={refreshData} 
-            variant="outline" 
-            size="sm"
-            disabled={isLoading}
-            className="flex-1 sm:flex-initial"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          {/* Removed New Transaction button as requested */}
-        </div>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+        <Button
+          onClick={refreshData}
+          variant="ghost"
+          size="icon"
+          disabled={isLoading}
+          className="ml-2"
+          aria-label="Refresh"
+        >
+          <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
+      <p className="text-gray-600 text-sm sm:text-base">
+        Welcome back, {user?.username} • Today's business overview
+      </p>
 
       {/* Dashboard Stats */}
   <DashboardStats stats={stats} isLoading={isLoading} />

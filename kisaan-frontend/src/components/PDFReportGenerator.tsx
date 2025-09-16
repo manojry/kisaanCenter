@@ -29,6 +29,7 @@ interface PDFReportGeneratorProps {
 }
 
 export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGeneratorProps) {
+  const [reportRows, setReportRows] = useState<any[]>([]);
   const [reportType, setReportType] = useState<'farmer' | 'user' | 'shop'>('shop');
   const [selectedUser, setSelectedUser] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -56,7 +57,8 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         await reportService.downloadReport(filters);
         setSuccess('PDF downloaded successfully!');
       } else {
-        await reportService.previewReport(filters);
+        const rows = await reportService.generateReport(filters);
+        setReportRows(Array.isArray(rows) ? rows : []);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to generate report');
@@ -69,14 +71,47 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const availableUsers = reportType === 'farmer' ? farmers : buyers;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className="p-2">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-5 w-5" />
           Generate PDF Report
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 p-2">
+        {/* Render generated report as table */}
+        {reportRows.length > 0 && (
+          <div className="mt-4">
+            <table className="w-full text-xs border">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Buyer</th>
+                  <th>Farmer</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                  <th>Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportRows.map(row => (
+                  <tr key={row.transaction_id}>
+                    <td>{row.transaction_id}</td>
+                    <td>{row.buyer}</td>
+                    <td>{row.farmer}</td>
+                    <td>{row.product}</td>
+                    <td>{row.quantity}</td>
+                    <td>{row.unit_price}</td>
+                    <td>{row.total_amount}</td>
+                    <td>{row.paid_amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -91,13 +126,13 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         )}
 
         {/* Report Type Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="reportType">Report Type</Label>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="reportType" className="text-xs">Report Type</Label>
           <Select value={reportType} onValueChange={(value: any) => {
             setReportType(value);
             setSelectedUser('');
           }}>
-            <SelectTrigger>
+            <SelectTrigger className="text-sm px-2 py-1 rounded-md">
               <SelectValue placeholder="Select report type" />
             </SelectTrigger>
             <SelectContent>
@@ -110,12 +145,12 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
 
         {/* User Selection (for farmer/user reports) */}
         {isUserRequired && (
-          <div className="space-y-2">
-            <Label htmlFor="user">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="user" className="text-xs">
               Select {reportType === 'farmer' ? 'Farmer' : 'User'}
             </Label>
             <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm px-2 py-1 rounded-md">
                 <SelectValue placeholder={`Select ${reportType}`} />
               </SelectTrigger>
               <SelectContent>
@@ -130,7 +165,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
               </SelectContent>
             </Select>
             {availableUsers.length === 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 No {reportType}s found. Please add {reportType}s first.
               </p>
             )}
@@ -138,66 +173,68 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         )}
 
         {/* Date Range */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="dateFrom">From Date (Optional)</Label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-row items-center gap-2 w-full">
+            <Label htmlFor="dateFrom" className="text-xs">From</Label>
+            <div className="relative w-full">
+              <Calendar className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="dateFrom"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="pl-10"
+                className="pl-8 text-sm py-1 rounded-md w-full"
+                style={{maxWidth: '140px'}}
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="dateTo">To Date (Optional)</Label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-row items-center gap-2 w-full">
+            <Label htmlFor="dateTo" className="text-xs">To</Label>
+            <div className="relative w-full">
+              <Calendar className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="dateTo"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="pl-10"
+                className="pl-8 text-sm py-1 rounded-md w-full"
+                style={{maxWidth: '140px'}}
               />
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+        <div className="flex flex-row gap-2 pt-2 w-full justify-between">
           <Button
             onClick={() => handleGenerateReport(false)}
             disabled={isGenerating || (isUserRequired && !selectedUser)}
-            className="flex-1"
+            className="text-xs px-2 py-1 rounded-md flex-1"
             variant="outline"
           >
             {isGenerating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
-              <FileText className="h-4 w-4 mr-2" />
+              <FileText className="h-4 w-4 mr-1" />
             )}
-            Preview Report
+            Preview
           </Button>
           <Button
             onClick={() => handleGenerateReport(true)}
             disabled={isGenerating || (isUserRequired && !selectedUser)}
-            className="flex-1"
+            className="text-xs px-2 py-1 rounded-md flex-1"
           >
             {isGenerating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4 mr-1" />
             )}
-            Download PDF
+            Download
           </Button>
         </div>
 
         {/* Help Text */}
-        <div className="text-sm text-muted-foreground space-y-1">
+        <div className="text-xs text-muted-foreground space-y-1 pt-2">
           <p><strong>Shop Report:</strong> All transactions for the shop. PDF is branded with Kisaan Center logo and ready for printing.</p>
           <p><strong>Farmer Report:</strong> Sales, payments, and balance for a specific farmer</p>
           <p><strong>User Report:</strong> Purchase history for a specific buyer</p>

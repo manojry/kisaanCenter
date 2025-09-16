@@ -14,7 +14,7 @@ interface DashboardStatsProps {
     today_sales: number;
     today_transactions: number;
     today_commission: number;
-    pending_collections: number;
+    buyer_payments_due: number;
     farmer_payments_due: number;
     total_users: number;
     commission_realized?: number;
@@ -22,7 +22,10 @@ interface DashboardStatsProps {
   isLoading?: boolean;
 }
 
-const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+const formatCurrency = (amount: number | undefined | null) => {
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
+  return `₹${amount.toLocaleString()}`;
+};
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading }) => {
   if (isLoading) {
@@ -63,7 +66,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
     },
     {
       title: "To Collect",
-      value: formatCurrency(stats.pending_collections),
+      value: formatCurrency(stats.buyer_payments_due),
       subtitle: "From buyers",
       icon: AlertCircle,
       color: "text-orange-600"

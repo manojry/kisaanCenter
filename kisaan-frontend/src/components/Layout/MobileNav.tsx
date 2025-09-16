@@ -159,18 +159,19 @@ export function MobileNav() {
                   Quick Actions
                 </h3>
                 <div className="space-y-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setIsOpen(false);
-                      window.location.href = '/new-transaction';
-                    }}
-                    className="justify-center items-center h-9 w-9 p-0 rounded-full"
-                    title="Record Sale"
-                  >
-                    <Plus className="h-5 w-5" />
-                  </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setIsOpen(false);
+                            window.location.href = '/new-transaction';
+                          }}
+                          className="w-full flex items-center justify-center h-10 rounded-md border-2 border-dashed border-primary text-primary font-semibold text-base hover:bg-primary/10 transition"
+                          title="Record Sale"
+                        >
+                          <ShoppingCart className="h-5 w-5 mr-2 text-primary" />
+                          Record Sale
+                        </Button>
                 </div>
               </div>
             )}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ShopCategoryController } from '../controllers';
+import { shopCategoryController } from '../controllers/shopCategoryController';
 import { authenticateToken } from '../middlewares/auth';
 
 export const shopCategoryRoutes = Router();
@@ -7,7 +7,6 @@ export const shopCategoryRoutes = Router();
 // Apply authentication to all routes
 // shopCategoryRoutes.use(authenticateToken); // Disabled for testing
 
-const shopCategoryController = new ShopCategoryController();
 
 // Get categories for a specific shop
 shopCategoryRoutes.get('/shop/:shopId', shopCategoryController.getShopCategories.bind(shopCategoryController));

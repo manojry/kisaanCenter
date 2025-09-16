@@ -16,7 +16,7 @@ export const QuickActions: React.FC = () => {
 
   const actions = [
     {
-      title: 'New Transaction',
+      title: 'Transactions',
       icon: ShoppingCart,
       onClick: () => navigate('/transactions'),
       variant: 'default' as const,

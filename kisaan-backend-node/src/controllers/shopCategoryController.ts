@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import sequelize from '../config/database';
 
 // Get categories assigned to a shop
-export class ShopCategoryController {
+class ShopCategoryController {
   async getShopCategories(req: Request, res: Response) {
   try {
     const shopId = req.params.id;
@@ -67,3 +67,7 @@ export class ShopCategoryController {
   }
   }
 }
+
+const shopCategoryController = new ShopCategoryController();
+export { shopCategoryController };
+export const getShopCategories = shopCategoryController.getShopCategories.bind(shopCategoryController);

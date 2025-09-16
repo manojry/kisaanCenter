@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { usersApi } from '../services/api';
@@ -61,12 +62,8 @@ const OwnerUsersPage: React.FC = () => {
   };
 
   const getRoleColor = (role: string) => {
-    const colors = {
-      farmer: 'bg-blue-100 text-blue-800',
-      buyer: 'bg-purple-100 text-purple-800',
-      owner: 'bg-orange-100 text-orange-800'
-    };
-    return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  // Deprecated: use RoleBadge component instead
+  return '';
   };
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
@@ -185,8 +182,8 @@ const OwnerUsersPage: React.FC = () => {
           ) : (
             <>
               {/* Desktop Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table className="min-w-[600px] text-xs sm:text-sm">
+              <div className="hidden sm:block">
+                <Table className="w-full text-xs sm:text-sm whitespace-normal break-words">
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID / Status</TableHead>
@@ -207,8 +204,8 @@ const OwnerUsersPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="font-medium">{user.username}</TableCell>
                         <TableCell>
-                          <Badge className={getRoleColor(user.role)}>
-                            {user.role}
+                          <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatCurrency(user.balance)}</TableCell>
@@ -244,7 +241,9 @@ const OwnerUsersPage: React.FC = () => {
                   <div key={user.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
                     <div className="flex justify-between items-center mb-1 gap-2">
                       <span className="font-semibold text-base break-words max-w-[60%]">{user.username}</span>
-                      <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                      <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </Badge>
                     </div>
                     <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500 ml-1' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
                     <div className="flex flex-wrap gap-2 text-xs mb-1">

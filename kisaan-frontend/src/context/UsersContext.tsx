@@ -7,6 +7,7 @@ interface UsersContextType {
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
   fetchUsers: () => Promise<void>;
+  refreshUsers: () => Promise<void>;
 }
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -34,12 +35,16 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const refreshUsers = async () => {
+    await fetchUsers();
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
 
   return (
-    <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers }}>
+  <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers, refreshUsers }}>
       {children}
     </UsersContext.Provider>
   );

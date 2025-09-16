@@ -27,7 +27,8 @@ shopRoutes.delete('/:shopId/products/:productId', shopProductsController.removeP
 shopRoutes.patch('/:shopId/products/:productId', shopProductsController.toggleProductActiveStatus);
 
 // Shop-Category routes
-shopRoutes.get('/:id/categories', require('../controllers/shopCategoryController').getShopCategories);
+import { getShopCategories } from '../controllers/shopCategoryController';
+shopRoutes.get('/:id/categories', getShopCategories);
 
 // Add route logging middleware (at the end)
 shopRoutes.use((req, res, next) => {

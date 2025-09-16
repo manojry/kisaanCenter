@@ -1,9 +1,10 @@
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
 import { BarChart3, AlertCircle, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
@@ -115,28 +116,41 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date_from">From Date</Label>
-              <Input
-                id="date_from"
-                type="date"
-                value={dateRange.from}
-                onChange={(e) => handleDateRangeChange('from', e.target.value)}
-              />
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-4 w-full items-center">
+            <div className="flex flex-row items-center gap-2 flex-1 min-w-0">
+              <span className="text-xs text-gray-600 flex items-center gap-1"><Calendar className="h-4 w-4" />From</span>
+                <DatePicker
+                  id="date_from"
+                  selected={dateRange.from ? parseISO(dateRange.from) : null}
+                  onChange={date => handleDateRangeChange('from', date ? date.toISOString().slice(0, 10) : '')}
+                  dateFormat="yyyy-MM-dd"
+                  className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
+                  placeholderText="Select date"
+                  /* width handled by className */
+                  isClearable
+                  showPopperArrow={false}
+                />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="date_to">To Date</Label>
-              <Input
-                id="date_to"
-                type="date"
-                value={dateRange.to}
-                onChange={(e) => handleDateRangeChange('to', e.target.value)}
-              />
+            <div className="flex flex-row items-center gap-2 flex-1 min-w-0">
+              <span className="text-xs text-gray-600 flex items-center gap-1"><Calendar className="h-4 w-4" />To</span>
+                <DatePicker
+                  id="date_to"
+                  selected={dateRange.to ? parseISO(dateRange.to) : null}
+                  onChange={date => handleDateRangeChange('to', date ? date.toISOString().slice(0, 10) : '')}
+                  dateFormat="yyyy-MM-dd"
+                  className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
+                  placeholderText="Select date"
+                  /* width handled by className */
+                  isClearable
+                  showPopperArrow={false}
+                />
             </div>
-            <div className="flex items-end">
-              <Button onClick={fetchAnalytics} className="w-full">
-                Apply Filter
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Button onClick={fetchAnalytics} className="px-2 py-1 text-sm rounded-md w-full">
+                Apply
+              </Button>
+              <Button variant="outline" onClick={() => handleDateRangeChange('clear', '')} className="px-2 py-1 text-xs rounded-md w-full">
+                Clear
               </Button>
             </div>
           </div>
@@ -146,62 +160,62 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
       {/* Analytics Summary */}
       {analytics && (
         <>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+            <Card className="p-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-semibold">Total Sales</CardTitle>
+                <BarChart3 className="h-3 w-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="font-bold break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_sales) || 0)}</div>
-                <p className="text-xs text-muted-foreground">
+              <CardContent className="p-1">
+                <div className="font-bold break-words whitespace-normal leading-tight text-base" style={{fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_sales) || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   {Number(analytics.total_transactions) || 0} transactions
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Commission Earned</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <Card className="p-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-semibold">Commission Earned</CardTitle>
+                <BarChart3 className="h-3 w-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="font-bold break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_commission) || 0)}</div>
-                <p className="text-xs text-muted-foreground">
+              <CardContent className="p-1">
+                <div className="font-bold break-words whitespace-normal leading-tight text-base" style={{fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_commission) || 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   From all transactions
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <Card className="p-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-xs font-semibold">Outstanding</CardTitle>
+                <AlertCircle className="h-3 w-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="font-bold text-red-600 break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>
+              <CardContent className="p-1">
+                <div className="font-bold text-red-600 break-words whitespace-normal leading-tight text-base" style={{fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', wordBreak: 'break-all'}}>
                   {formatCurrency(
                     (analytics.status_summary?.pending_to_farmer || 0) + (analytics.status_summary?.pending_from_buyer || 0)
                     || Number(analytics.total_deficit) || 0
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   To be collected
                 </p>
               </CardContent>
             </Card>
 
             {((Number(analytics.total_sales) || 0) - (Number(analytics.total_deficit) || 0)) !== (Number(analytics.total_sales) || 0) && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-1">
+                  <CardTitle className="text-xs font-semibold">Net Income</CardTitle>
+                  <BarChart3 className="h-3 w-3 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="font-bold text-green-600 break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>
+                <CardContent className="p-1">
+                  <div className="font-bold text-green-600 break-words whitespace-normal leading-tight text-base" style={{fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', wordBreak: 'break-all'}}>
                     {formatCurrency((Number(analytics.total_sales) || 0) - (Number(analytics.total_deficit) || 0))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Actual received
                   </p>
                 </CardContent>
