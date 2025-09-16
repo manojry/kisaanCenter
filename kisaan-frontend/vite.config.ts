@@ -24,5 +24,15 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    rollupOptions: {
+      plugins: [{
+        name: 'copy-index-to-404',
+        closeBundle: () => {
+          if (existsSync('dist/index.html')) {
+            copyFileSync('dist/index.html', 'dist/404.html');
+          }
+        }
+      }]
+    }
   },
 })
