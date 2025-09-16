@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Shop, User } from '../types/api';
+import config from '../config';
 
 interface SuperadminStats {
   total_shops: number;
@@ -29,7 +30,7 @@ export const useSuperadminDashboard = () => {
       setError(null);
 
       // Use the dedicated superadmin dashboard endpoint
-      const response = await fetch('/api/superadmin/dashboard', {
+      const response = await fetch(`${config.apiBaseUrl}/superadmin/dashboard`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       
@@ -38,7 +39,7 @@ export const useSuperadminDashboard = () => {
       
       // Fetch recent shops separately
       try {
-        const shopsResponse = await fetch('/api/shops?limit=5', {
+        const shopsResponse = await fetch(`${config.apiBaseUrl}/shops?limit=5`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
         });
         if (shopsResponse.ok) {
