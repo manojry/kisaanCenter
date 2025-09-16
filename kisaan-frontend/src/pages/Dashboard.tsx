@@ -8,10 +8,14 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Redirect owners to their dedicated dashboard immediately
+  // Redirect owners and superadmins to their dedicated dashboards immediately
   useEffect(() => {
     if (user?.role === 'owner') {
       navigate('/owner', { replace: true });
+      return;
+    }
+    if (user?.role === 'superadmin') {
+      navigate('/superadmin', { replace: true });
       return;
     }
   }, [user, navigate]);

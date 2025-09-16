@@ -1,21 +1,14 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
 import { DashboardStats } from '../components/owner/DashboardStats';
 import { QuickActions } from '../components/owner/QuickActions';
-import { PendingActions } from '../components/owner/PendingActions';
 
 const OwnerDashboardNew: React.FC = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { stats, pendingTransactions, isLoading, error, refreshData } = useOwnerDashboard();
 
-  const handleViewTransaction = (id: number) => {
-    navigate(`/transactions/${id}`);
-  };
+  const { user } = useAuth();
+  const { stats, isLoading, error, refreshData } = useOwnerDashboard();
 
   if (error) {
     return (
@@ -58,7 +51,18 @@ const OwnerDashboardNew: React.FC = () => {
       </p>
 
       {/* Dashboard Stats */}
-  <DashboardStats stats={stats} isLoading={isLoading} />
+  <DashboardStats
+    stats={{
+      today_sales: stats?.today_sales ?? 0,
+      today_transactions: stats?.today_transactions ?? 0,
+      today_commission: stats?.today_commission ?? 0,
+      buyer_payments_due: stats?.buyer_payments_due ?? 0,
+      farmer_payments_due: stats?.farmer_payments_due ?? 0,
+      total_users: stats?.total_users ?? 0,
+      commission_realized: stats?.commission_realized ?? 0,
+    }}
+    isLoading={isLoading}
+  />
 
       {/* Quick Actions */}
       <div>

@@ -8,6 +8,7 @@ interface DashboardStats {
   today_commission: number;
   pending_collections: number;
   farmer_payments_due: number;
+  buyer_payments_due: number;
   total_users: number;
   commission_realized: number;
 }
@@ -20,6 +21,7 @@ export const useOwnerDashboard = () => {
     today_commission: 0,
     pending_collections: 0,
     farmer_payments_due: 0,
+    buyer_payments_due: 0,
     total_users: 0,
     commission_realized: 0
   });
