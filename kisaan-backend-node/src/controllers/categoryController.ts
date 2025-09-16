@@ -3,7 +3,8 @@ import * as categoryService from '../services/categoryService';
 import { CategoryCreateSchema, CategoryUpdateSchema } from '../schemas/category';
 import { z } from 'zod';
 
-export const createCategory = async (req: Request, res: Response) => {
+export class CategoryController {
+  async createCategory(req: Request, res: Response) {
   try {
     const validatedData = CategoryCreateSchema.parse(req.body);
     
@@ -44,7 +45,7 @@ export const createCategory = async (req: Request, res: Response) => {
   }
 };
 
-export const getAllCategories = async (req: Request, res: Response) => {
+  async getAllCategories(req: Request, res: Response) {
   try {
     const { active_only } = req.query;
     const activeOnly = active_only === 'true';
@@ -66,7 +67,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
   }
 };
 
-export const getCategoryById = async (req: Request, res: Response) => {
+  async getCategoryById(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const categoryId = parseInt(id, 10);
@@ -99,7 +100,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
   }
 };
 
-export const updateCategory = async (req: Request, res: Response) => {
+  async updateCategory(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const categoryId = parseInt(id, 10);
@@ -155,7 +156,7 @@ export const updateCategory = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteCategory = async (req: Request, res: Response) => {
+  async deleteCategory(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const categoryId = parseInt(id, 10);
@@ -187,7 +188,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
   }
 };
 
-export const deactivateCategory = async (req: Request, res: Response) => {
+  async deactivateCategory(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const categoryId = parseInt(id, 10);
@@ -220,7 +221,7 @@ export const deactivateCategory = async (req: Request, res: Response) => {
   }
 };
 
-export const getActiveCategories = async (req: Request, res: Response) => {
+  async getActiveCategories(req: Request, res: Response) {
   try {
     const categories = await categoryService.getActiveCategories();
     
@@ -239,7 +240,7 @@ export const getActiveCategories = async (req: Request, res: Response) => {
   }
 };
 
-export const searchCategories = async (req: Request, res: Response) => {
+  async searchCategories(req: Request, res: Response) {
   try {
     const { q } = req.query;
     
@@ -266,7 +267,7 @@ export const searchCategories = async (req: Request, res: Response) => {
   }
 };
 
-export const reorderCategories = async (req: Request, res: Response) => {
+  async reorderCategories(req: Request, res: Response) {
   try {
     const { categories } = req.body;
     
@@ -303,4 +304,5 @@ export const reorderCategories = async (req: Request, res: Response) => {
       message: error.message,
     });
   }
-};
+  }
+}

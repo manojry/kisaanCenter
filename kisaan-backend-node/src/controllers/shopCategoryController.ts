@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import sequelize from '../config/database';
 
 // Get categories assigned to a shop
-export const getShopCategories = async (req: Request, res: Response) => {
+export class ShopCategoryController {
+  async getShopCategories(req: Request, res: Response) {
   try {
     const shopId = req.params.id;
     
@@ -23,7 +24,7 @@ export const getShopCategories = async (req: Request, res: Response) => {
 };
 
 // Assign a category to a shop
-export const assignCategoryToShop = async (req: Request, res: Response) => {
+  async assignCategoryToShop(req: Request, res: Response) {
   try {
     const { shopId, categoryId } = req.params;
     const shop_id = Number(shopId);
@@ -46,7 +47,7 @@ export const assignCategoryToShop = async (req: Request, res: Response) => {
 };
 
 // Remove a category from a shop
-export const removeCategoryFromShop = async (req: Request, res: Response) => {
+  async removeCategoryFromShop(req: Request, res: Response) {
   try {
     const { shopId, categoryId } = req.params;
     const shop_id = Number(shopId);
@@ -64,4 +65,5 @@ export const removeCategoryFromShop = async (req: Request, res: Response) => {
     console.error('Error removing category from shop:', error);
     res.status(500).json({ error: 'Failed to remove category', message: error.message });
   }
-};
+  }
+}

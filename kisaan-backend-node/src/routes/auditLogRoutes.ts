@@ -1,5 +1,5 @@
 import express from 'express';
-import { AuditLogController } from '../controllers/auditLogController';
+import { AuditLogController } from '../controllers';
 import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();

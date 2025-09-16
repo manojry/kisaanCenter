@@ -17,7 +17,7 @@ export class PlanController {
           input.features = [];
         }
       }
-      const validatedData = PlanCreateSchema.parse(input);
+    const validatedData = PlanCreateSchema.parse(input);
       // Stringify features if it is an array
       const planData = {
         ...validatedData,

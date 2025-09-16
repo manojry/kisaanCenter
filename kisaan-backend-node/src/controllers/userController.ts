@@ -9,11 +9,12 @@ import {
 import * as userService from '../services/userService';
 import { UserDTO } from '../dtos/UserDTO';
 
-export const createUser = async (
+export class UserController {
+  async createUser(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     // Auto-generate username if not present in req.body
     let reqBody = { ...req.body };
@@ -55,11 +56,11 @@ export const createUser = async (
   }
 };
 
-export const getUsers = async (
+  async getUsers(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const parsed = UserSearchSchema.safeParse(req.query);
     if (!parsed.success) {
@@ -84,11 +85,11 @@ export const getUsers = async (
   }
 };
 
-export const getUserById = async (
+  async getUserById(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -121,11 +122,11 @@ export const getUserById = async (
   }
 };
 
-export const updateUser = async (
+  async updateUser(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -159,11 +160,11 @@ export const updateUser = async (
   }
 };
 
-export const resetPassword = async (
+  async resetPassword(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -187,11 +188,11 @@ export const resetPassword = async (
   }
 };
 
-export const adminResetPassword = async (
+  async adminResetPassword(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -224,11 +225,11 @@ export const adminResetPassword = async (
   }
 };
 
-export const deleteUser = async (
+  async deleteUser(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
@@ -255,11 +256,11 @@ export const deleteUser = async (
   }
 };
 
-export const getCurrentUser = async (
+  async getCurrentUser(
   req: AuthenticatedRequest, 
   res: Response, 
   next: NextFunction
-): Promise<void> => {
+  ): Promise<void> {
   try {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
@@ -279,4 +280,15 @@ export const getCurrentUser = async (
     }
     next(err);
   }
-};
+  }
+}
+const userController = new UserController();
+export { userController };
+export const getCurrentUser = userController.getCurrentUser.bind(userController);
+export const createUser = userController.createUser.bind(userController);
+export const getUsers = userController.getUsers.bind(userController);
+export const getUserById = userController.getUserById.bind(userController);
+export const updateUser = userController.updateUser.bind(userController);
+export const deleteUser = userController.deleteUser.bind(userController);
+export const resetPassword = userController.resetPassword.bind(userController);
+export const adminResetPassword = userController.adminResetPassword.bind(userController);

@@ -27,8 +27,10 @@ const BalanceManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const response = await usersApi.getAll({ include_balance: 'true', shop_id: 7 });
-      setUsers(response.data.filter((u: any) => ['farmer', 'buyer'].includes(u.role)));
+      const userList = Array.isArray(response.data) ? response.data : [];
+  setUsers(userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) })));
     } catch (error) {
+      setUsers([]);
       console.error('Error fetching users:', error);
     }
   };
@@ -52,7 +54,7 @@ const BalanceManagement: React.FC = () => {
     fetch(`/api/balance-snapshots/${selectedUser.id}`)
       .then(res => res.json())
       .then(data => {
-        if (data && data.data) {
+        if (data && Array.isArray(data.data)) {
           // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
           const filtered = data.data.filter((s: any) =>
             parseFloat(s.amount_change) !== 0 || s.previous_balance !== s.new_balance
@@ -66,10 +68,7 @@ const BalanceManagement: React.FC = () => {
       .finally(() => setSnapshotsLoading(false));
   }, [selectedUser]);
   // Always show as amount owed (red or gray only)
-  const getBalanceColor = (balance: number) => {
-    if (balance < 0) return 'text-red-600';
-    return 'text-gray-600';
-  };
+  // Removed unused getBalanceColor function
 
   return (
     <div className="container mx-auto p-6 space-y-6">

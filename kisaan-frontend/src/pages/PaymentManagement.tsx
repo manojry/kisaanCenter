@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const PaymentManagement: React.FC = () => {
@@ -30,10 +29,9 @@ const PaymentManagement: React.FC = () => {
   const { users: allUsers, isLoading: usersLoading, fetchUsers } = useUsers();
   const users = allUsers.filter((u: any) => ['farmer', 'buyer'].includes(u.role));
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  // ...existing code...
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [advanceAmount, setAdvanceAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
-  const [advanceMethod, setAdvanceMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [snapshots, setSnapshots] = useState<any[]>([]);
@@ -60,7 +58,7 @@ const PaymentManagement: React.FC = () => {
     };
     fetchSnapshots();
     fetchPayments();
-    setAdvanceAmount('');
+  // Advance payment state removed
     setMessage('');
   }, [selectedUser]);
 
@@ -123,42 +121,6 @@ const PaymentManagement: React.FC = () => {
     }
   };
 
-  const handleAdvancePayment = async () => {
-    if (!selectedUser || !advanceAmount || !shopId) return;
-    setLoading(true);
-    try {
-      const payload: any = {
-        payer_type: "SHOP" as const,
-        payee_type: "FARMER" as const,
-        amount: parseFloat(advanceAmount),
-        method: advanceMethod,
-        status: 'PAID',
-        notes: `Advance payment to ${selectedUser.username}`,
-        counterparty_id: Number(selectedUser.id),
-        shop_id: shopId
-      };
-      const res = await paymentsApi.create(payload);
-      if (res && res.success) {
-        setMessage('Advance payment recorded!');
-        setAdvanceAmount('');
-        // Refresh users, snapshots, and payments after advance
-        if (fetchUsers) await fetchUsers();
-        if (selectedUser) {
-          const snapRes = await fetch(`/api/balance-snapshots/${selectedUser.id}`);
-          const snapData = await snapRes.json();
-          setSnapshots(snapData.data || []);
-          const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
-          setPayments(payRes.data || []);
-        }
-      } else if (res && res.message) {
-        setMessage(`Error: ${res.message}`);
-      }
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || 'Error processing advance payment.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -339,45 +301,7 @@ const PaymentManagement: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Record Advance Payment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium mb-1">Advance Amount</label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={advanceAmount}
-                      onChange={e => setAdvanceAmount(e.target.value)}
-                      placeholder="Enter advance amount"
-                    />
-                  </div>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium mb-1">Advance Payment Method</label>
-                    <select
-                      className="block w-full border rounded p-2 text-sm"
-                      value={advanceMethod}
-                      onChange={e => setAdvanceMethod(e.target.value)}
-                    >
-                      <option value="CASH">Cash</option>
-                      <option value="UPI">UPI</option>
-                      <option value="BANK">Bank</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-                  <Button
-                    onClick={handleAdvancePayment}
-                    disabled={loading || !advanceAmount}
-                    className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-                  >
-                    {loading ? (
-                      <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
-                    ) : 'Record Advance Payment'}
-                  </Button>
-                </CardContent>
-              </Card>
+              {/* Advance payment UI removed. Only regular payments remain. */}
             </div>
           </div>
         </>

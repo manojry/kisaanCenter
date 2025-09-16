@@ -22,7 +22,8 @@ const getUserShopId = async (userId: number): Promise<number | null> => {
 };
 
 // Add payment made to farmer (increases farmer balance)
-export const addPaymentToFarmer = async (req: AuthenticatedRequest, res: Response) => {
+export class BalanceController {
+  async addPaymentToFarmer(req: AuthenticatedRequest, res: Response) {
   try {
     const { farmer_id, amount, description } = req.body;
     let userShopId = req.user?.shop_id;
@@ -64,8 +65,7 @@ export const addPaymentToFarmer = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
-// Add payment received from buyer (increases buyer balance - credit)
-export const addPaymentFromBuyer = async (req: AuthenticatedRequest, res: Response) => {
+  async addPaymentFromBuyer(req: AuthenticatedRequest, res: Response) {
   try {
     const { buyer_id, amount, description } = req.body;
     let userShopId = req.user?.shop_id;
@@ -107,8 +107,7 @@ export const addPaymentFromBuyer = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-// Get user balance
-export const getUserBalance = async (req: AuthenticatedRequest, res: Response) => {
+  async getUserBalance(req: AuthenticatedRequest, res: Response) {
   try {
     const { userId } = req.params;
     
@@ -135,8 +134,7 @@ export const getUserBalance = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
-// Get shop balance
-export const getShopBalance = async (req: AuthenticatedRequest, res: Response) => {
+  async getShopBalance(req: AuthenticatedRequest, res: Response) {
   try {
     const { shopId } = req.params;
     
@@ -173,8 +171,7 @@ export const getShopBalance = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
-// Update balance
-export const updateBalance = async (req: AuthenticatedRequest, res: Response) => {
+  async updateBalance(req: AuthenticatedRequest, res: Response) {
   try {
     const { user_id, amount, type, description } = req.body;
     
@@ -208,8 +205,7 @@ export const updateBalance = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-// Get balance history
-export const getBalanceHistory = async (req: AuthenticatedRequest, res: Response) => {
+  async getBalanceHistory(req: AuthenticatedRequest, res: Response) {
   try {
     const { userId } = req.params;
     
@@ -224,4 +220,5 @@ export const getBalanceHistory = async (req: AuthenticatedRequest, res: Response
     console.error('Error getting balance history:', error);
     res.status(500).json({ success: false, message: 'Failed to get balance history' });
   }
-};
+  }
+}

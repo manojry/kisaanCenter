@@ -1,6 +1,5 @@
 import express from 'express';
-import { TransactionController } from '../controllers/transactionController';
-import { PaymentController } from '../controllers/paymentController';
+import { TransactionController, PaymentController } from '../controllers';
 import { CreateTransactionSchema } from '../schemas/transaction';
 import { CreatePaymentSchema, UpdatePaymentStatusSchema } from '../schemas/payment';
 import { authenticateToken } from '../middlewares/auth';
@@ -9,6 +8,7 @@ import { validateSchema } from '../middlewares/validation';
 const router = express.Router();
 const transactionController = new TransactionController();
 const paymentController = new PaymentController();
+// Use controller instances from central index
 
 // Authentication disabled for testing
 // router.use(authenticateToken);
@@ -95,7 +95,19 @@ router.post('/', validateSchema(CreateTransactionSchema), transactionController.
 router.get('/analytics', async (req, res) => {
   try {
     const { sequelize } = require('../models/index');
-    const [results] = await sequelize.query(`
+    // Get total sales and commission per day (last 30 days)
+    const [dailyResults] = await sequelize.query(`
+      SELECT 
+        DATE(created_at) as date,
+        SUM(total_sale_value) as total_sales,
+        SUM(shop_commission) as total_commission
+      FROM kisaan_transactions
+      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at) ASC
+    `);
+    // Get overall aggregates as before
+    const [aggResults] = await sequelize.query(`
       SELECT 
         COUNT(*) as total_transactions,
         SUM(total_sale_value) as total_sales,
@@ -103,15 +115,59 @@ router.get('/analytics', async (req, res) => {
         SUM(farmer_earning) as total_farmer_earnings
       FROM kisaan_transactions
     `);
+    // Calculate status_summary for chart: total sales (paid), pending to farmer, pending from buyer
+    // 1. Total sales (sum of total_sale_value from kisaan_transactions)
+    const [totalSalesResult] = await sequelize.query(`
+      SELECT COALESCE(SUM(total_sale_value),0) as total_sales FROM kisaan_transactions
+    `);
+    const total_sales = Number((Array.isArray(totalSalesResult) ? totalSalesResult[0]?.total_sales : 0) || 0);
+
+    // 2. Pending payments to farmer (sum of farmer_earning - paid to farmer)
+    const [pendingToFarmerResult] = await sequelize.query(`
+      SELECT COALESCE(SUM(t.farmer_earning - COALESCE(p.paid,0)),0) as pending_to_farmer
+      FROM kisaan_transactions t
+      LEFT JOIN (
+        SELECT transaction_id, SUM(amount) as paid
+        FROM kisaan_payments
+        WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID'
+        GROUP BY transaction_id
+      ) p ON t.id = p.transaction_id
+    `);
+    const pending_to_farmer = Number((Array.isArray(pendingToFarmerResult) ? pendingToFarmerResult[0]?.pending_to_farmer : 0) || 0);
+
+    // 3. Pending payments from buyer (sum of total_sale_value - paid by buyer)
+    const [pendingFromBuyerResult] = await sequelize.query(`
+      SELECT COALESCE(SUM(t.total_sale_value - COALESCE(p.paid,0)),0) as pending_from_buyer
+      FROM kisaan_transactions t
+      LEFT JOIN (
+        SELECT transaction_id, SUM(amount) as paid
+        FROM kisaan_payments
+        WHERE payer_type = 'BUYER' AND payee_type = 'SHOP' AND status = 'PAID'
+        GROUP BY transaction_id
+      ) p ON t.id = p.transaction_id
+    `);
+    const pending_from_buyer = Number((Array.isArray(pendingFromBuyerResult) ? pendingFromBuyerResult[0]?.pending_from_buyer : 0) || 0);
+
+    const total_deficit = pending_to_farmer + pending_from_buyer;
+    const status_summary = {
+      total_sales,
+      pending_to_farmer,
+      pending_from_buyer
+    };
     res.json({
       success: true,
-      data: Array.isArray(results) ? results[0] : results
+      data: {
+        ...((Array.isArray(aggResults) ? aggResults[0] : aggResults) || {}),
+        total_deficit,
+        daily: dailyResults || [],
+        status_summary
+      }
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch transaction analytics',
-      error: error.message
+      error: (error as any).message
     });
   }
 });

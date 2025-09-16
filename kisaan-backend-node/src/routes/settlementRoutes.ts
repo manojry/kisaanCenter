@@ -1,14 +1,10 @@
 
 import { Router } from 'express';
-import { 
-  getSettlementsController, 
-  getSettlementSummaryController, 
-  settleAmountController,
-  createExpenseController 
-} from '../controllers/settlementController';
+import { SettlementController } from '../controllers/settlementController';
 import { authenticateToken } from '../middlewares/auth';
 
 const router = Router();
+const settlementController = new SettlementController();
 
 // Utility: expand YYYY-MM-DD to full day ISO string
 function expandToFullDay(dateStr: string, isEnd: boolean): string {
@@ -28,10 +24,10 @@ function expandToFullDay(dateStr: string, isEnd: boolean): string {
 //   // ... use from_date/to_date in query ...
 // });
 
-router.get('/', authenticateToken, getSettlementsController);
-router.get('/summary', authenticateToken, getSettlementSummaryController);
-router.post('/settle/:settlement_id', authenticateToken, settleAmountController);
-router.post('/expense', authenticateToken, createExpenseController);
+router.get('/', authenticateToken, settlementController.getSettlementsController.bind(settlementController));
+router.get('/summary', authenticateToken, settlementController.getSettlementSummaryController.bind(settlementController));
+router.post('/settle/:settlement_id', authenticateToken, settlementController.settleAmountController.bind(settlementController));
+router.post('/expense', authenticateToken, settlementController.createExpenseController.bind(settlementController));
 
 // POST /api/settlements - Create a new settlement
 router.post('/', authenticateToken, async (req, res) => {

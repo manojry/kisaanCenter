@@ -1,5 +1,5 @@
 import express from 'express';
-import * as balanceController from '../controllers/balanceController';
+import { BalanceController } from '../controllers';
 import { authenticateToken } from '../middlewares/auth';
 import { body, param } from 'express-validator';
 
@@ -14,38 +14,40 @@ const validatePayment = [
   body('description').optional().isString()
 ];
 
+const balanceController = new BalanceController();
+
 // Add payment to farmer
 router.post('/payment/farmer', [
   ...validatePayment,
   body('farmer_id').notEmpty().withMessage('Farmer ID is required')
-], balanceController.addPaymentToFarmer);
+], balanceController.addPaymentToFarmer.bind(balanceController));
 
 // Add payment from buyer  
 router.post('/payment/buyer', [
   ...validatePayment,
   body('buyer_id').notEmpty().withMessage('Buyer ID is required')
-], balanceController.addPaymentFromBuyer);
+], balanceController.addPaymentFromBuyer.bind(balanceController));
 
 // Get user balance
 router.get('/user/:userId', [
   param('userId').notEmpty().withMessage('User ID is required')
-], balanceController.getUserBalance);
+], balanceController.getUserBalance.bind(balanceController));
 
 // Get shop balance
 router.get('/shop/:shopId', [
   param('shopId').notEmpty().withMessage('Shop ID is required')
-], balanceController.getShopBalance);
+], balanceController.getShopBalance.bind(balanceController));
 
 // Update balance
 router.post('/update', [
   body('user_id').notEmpty().withMessage('User ID is required'),
   body('amount').isFloat().withMessage('Amount is required'),
   body('type').isIn(['credit', 'debit']).withMessage('Type must be credit or debit')
-], balanceController.updateBalance);
+], balanceController.updateBalance.bind(balanceController));
 
 // Get balance history
 router.get('/history/:userId', [
   param('userId').notEmpty().withMessage('User ID is required')
-], balanceController.getBalanceHistory);
+], balanceController.getBalanceHistory.bind(balanceController));
 
 export { router as balanceRoutes };

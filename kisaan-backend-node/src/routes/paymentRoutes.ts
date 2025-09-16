@@ -1,5 +1,5 @@
 import express from 'express';
-import { PaymentController } from '../controllers/paymentController';
+import { PaymentController } from '../controllers';
 import { CreatePaymentSchema, UpdatePaymentStatusSchema, BulkPaymentSchema } from '../schemas/payment';
 import { authenticateToken } from '../middlewares/auth';
 import { validateSchema } from '../middlewares/validation';

@@ -1,24 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert, AlertDescription } from './ui/alert';
-import { BarChart3, AlertCircle, Download, Calendar } from 'lucide-react';
+import { BarChart3, AlertCircle, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
+import { Pie, Bar } from './Charts';
 
 interface ReportsAnalyticsProps {
   shopId?: number;
+}
+
+
+interface DailyAnalytics {
+  date: string;
+  total_sales: number;
+  total_commission: number;
 }
 
 interface Analytics {
   total_transactions: number;
   total_sales: number;
   total_commission: number;
-  total_deficit: number;
-  status_summary: Record<string, number>;
-  income_by_status: Record<string, number>;
+  total_farmer_earnings?: number;
+  total_deficit?: number;
+  status_summary?: Record<string, number>;
+  income_by_status?: Record<string, number>;
+  daily?: DailyAnalytics[];
 }
 
 export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
@@ -36,18 +46,15 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
 
   const fetchAnalytics = async () => {
     if (!shopId) return;
-    
     setIsLoading(true);
     setError(null);
-    
     try {
-      let url = `/transactions?shop_id=${shopId}&include_analytics=true`;
+      let url = `/transactions/analytics?shop_id=${shopId}`;
       if (dateRange.from && dateRange.to) {
         url += `&date_from=${dateRange.from}&date_to=${dateRange.to}`;
       }
-      
-      const response = await apiClient.get(url);
-      setAnalytics(response?.analytics || null);
+  const response: any = await apiClient.get(url);
+  setAnalytics(response?.data || null);
     } catch (err: any) {
       setError(err.message || 'Failed to load analytics');
     } finally {
@@ -70,6 +77,10 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
     };
     return colors[status] || 'text-gray-600';
   };
+
+  // Prepare daily chart data
+  const daily = analytics?.daily || [];
+  const hasDaily = daily.length > 0;
 
   if (isLoading) {
     return (
@@ -135,16 +146,16 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
       {/* Analytics Summary */}
       {analytics && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(analytics.total_sales)}</div>
+                <div className="font-bold break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_sales) || 0)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {analytics.total_transactions} transactions
+                  {Number(analytics.total_transactions) || 0} transactions
                 </p>
               </CardContent>
             </Card>
@@ -155,7 +166,7 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(analytics.total_commission)}</div>
+                <div className="font-bold break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>{formatCurrency(Number(analytics.total_commission) || 0)}</div>
                 <p className="text-xs text-muted-foreground">
                   From all transactions
                 </p>
@@ -168,68 +179,164 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{formatCurrency(analytics.total_deficit)}</div>
+                <div className="font-bold text-red-600 break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>
+                  {formatCurrency(
+                    (analytics.status_summary?.pending_to_farmer || 0) + (analytics.status_summary?.pending_from_buyer || 0)
+                    || Number(analytics.total_deficit) || 0
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   To be collected
                 </p>
               </CardContent>
             </Card>
 
+            {((Number(analytics.total_sales) || 0) - (Number(analytics.total_deficit) || 0)) !== (Number(analytics.total_sales) || 0) && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Net Income</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="font-bold text-green-600 break-words whitespace-normal leading-tight" style={{fontSize: 'clamp(1rem, 2vw, 1.3rem)', wordBreak: 'break-all'}}>
+                    {formatCurrency((Number(analytics.total_sales) || 0) - (Number(analytics.total_deficit) || 0))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Actual received
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Daily Sales/Commission Chart */}
+          {hasDaily && (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardHeader>
+                <CardTitle>Sales & Commission (Last 30 Days)</CardTitle>
+                <CardDescription>Time series of total sales and commission per day</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(analytics.total_sales - analytics.total_deficit)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Actual received
-                </p>
+              <CardContent style={{ minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Bar
+                  data={{
+                    labels: daily.map((d) => d.date),
+                    datasets: [
+                      {
+                        label: 'Total Sales',
+                        data: daily.map((d) => d.total_sales),
+                        backgroundColor: '#3b82f6',
+                        maxBarThickness: 24,
+                      },
+                      {
+                        label: 'Commission',
+                        data: daily.map((d) => d.total_commission),
+                        backgroundColor: '#f59e42',
+                        maxBarThickness: 24,
+                      },
+                    ],
+                  }}
+                  options={{
+                    plugins: {
+                      legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            return `${context.dataset.label}: ₹${Number(context.parsed.y).toLocaleString()}`;
+                          }
+                        }
+                      }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      x: {
+                        ticks: { font: { size: 12 }, maxRotation: 40, minRotation: 0 },
+                      },
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          callback: function(value) { return '₹' + Number(value).toLocaleString(); },
+                          font: { size: 12 }
+                        }
+                      }
+                    },
+                  }}
+                  height={220}
+                />
               </CardContent>
             </Card>
-          </div>
+          )}
 
           {/* Status Breakdown */}
           <div className="grid gap-6 md:grid-cols-2">
+            {/* Pie Chart for Transaction Status Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Transaction Status Summary</CardTitle>
-                <CardDescription>Number of transactions by status</CardDescription>
+                <CardTitle>Status Distribution</CardTitle>
+                <CardDescription>Pie chart of transaction status</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(analytics.status_summary).map(([status, count]) => (
-                    <div key={status} className="flex justify-between items-center">
-                      <span className={`font-medium ${getStatusColor(status)}`}>
-                        {status.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span className="font-bold">{count}</span>
-                    </div>
-                  ))}
-                </div>
+              <CardContent style={{ minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {Object.values(analytics.status_summary || {}).reduce((a, b) => a + b, 0) === 0 ? (
+                  <div className="text-muted-foreground text-center w-full">No data to display</div>
+                ) : (
+                  <Pie
+                    data={{
+                      labels: Object.keys(analytics.status_summary || {}).map(l => l.replace('_', ' ').toUpperCase()),
+                      datasets: [
+                        {
+                          data: Object.values(analytics.status_summary || {}),
+                          backgroundColor: [
+                            '#22c55e', // green
+                            '#eab308', // yellow
+                            '#ef4444', // red
+                            '#f97316', // orange
+                            '#64748b', // gray
+                          ],
+                          borderWidth: 1,
+                        },
+                      ],
+                    }}
+                    options={{
+                      plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const label = context.label || '';
+                              const value = context.parsed || 0;
+                              return `${label}: ${value.toLocaleString()}`;
+                            }
+                          }
+                        }
+                      },
+                      maintainAspectRatio: false,
+                    }}
+                    height={220}
+                  />
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Income by Status</CardTitle>
-                <CardDescription>Sales amount by transaction status</CardDescription>
+                <CardTitle>Transaction Status Summary</CardTitle>
+                <CardDescription>Key financial status breakdown</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(analytics.income_by_status).map(([status, amount]) => (
-                    <div key={status} className="flex justify-between items-center">
-                      <span className={`font-medium ${getStatusColor(status)}`}>
-                        {status.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span className="font-bold">{formatCurrency(amount)}</span>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-yellow-50 p-6 flex flex-col items-center shadow-sm min-w-[140px]">
+                    <span className="text-xs font-semibold text-yellow-700 tracking-wide uppercase mb-1 text-center break-words">Pending to Farmer</span>
+                    <span className="font-bold text-yellow-900 text-center w-full" style={{fontSize: 'clamp(0.8rem, 1.8vw, 1.3rem)', whiteSpace: 'nowrap', maxWidth: '100%'}}>{formatCurrency(analytics.status_summary?.pending_to_farmer || 0)}</span>
+                  </div>
+                  <div className="rounded-lg bg-red-50 p-6 flex flex-col items-center shadow-sm min-w-[140px]">
+                    <span className="text-xs font-semibold text-red-700 tracking-wide uppercase mb-1 text-center break-words">Pending from Buyer</span>
+                    <span className="font-bold text-red-900 text-center w-full" style={{fontSize: 'clamp(0.8rem, 1.8vw, 1.3rem)', whiteSpace: 'nowrap', maxWidth: '100%'}}>{formatCurrency(analytics.status_summary?.pending_from_buyer || 0)}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Income by Status card removed as requested */}
           </div>
         </>
       )}

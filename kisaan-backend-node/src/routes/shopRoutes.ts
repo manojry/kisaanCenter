@@ -1,36 +1,35 @@
-
 import { Router } from 'express';
-import * as shopController from '../controllers/shopController';
+import { ShopController } from '../controllers/shopController';
 import * as shopProductsController from '../controllers/shopProductsController';
 import { authenticateToken } from '../middlewares/auth';
 
 export const shopRoutes = Router();
+const shopController = new ShopController();
 
 // Authentication disabled for testing
 // shopRoutes.use(authenticateToken);
 
-shopRoutes.get('/available-owners', shopController.getAvailableOwners);
-shopRoutes.get('/', shopController.getShops);
-shopRoutes.get('/:id', shopController.getShopById);
-shopRoutes.get('/:id/products', shopProductsController.getShopProducts);
-shopRoutes.get('/:id/available-products', shopProductsController.getAvailableProductsForShop);
-shopRoutes.get('/:id/categories', require('../controllers/shopCategoryController').getShopCategories);
+// Owner-related routes
+shopRoutes.get('/available-owners', shopController.getAvailableOwners.bind(shopController));
+
+// Shop CRUD routes
+shopRoutes.get('/', shopController.getShops.bind(shopController));
+shopRoutes.get('/:id', shopController.getShopById.bind(shopController));
+shopRoutes.post('/', shopController.createShop.bind(shopController));
+shopRoutes.put('/:id', shopController.updateShop.bind(shopController));
+shopRoutes.delete('/:id', shopController.deleteShop.bind(shopController));
 
 // Shop-Product mapping routes
-// Assign a product to a shop
+shopRoutes.get('/:id/products', shopProductsController.getShopProducts);
+shopRoutes.get('/:id/available-products', shopProductsController.getAvailableProductsForShop);
 shopRoutes.post('/:shopId/products/:productId', shopProductsController.assignProductToShop);
-// Remove a product from a shop
 shopRoutes.delete('/:shopId/products/:productId', shopProductsController.removeProductFromShop);
-// Toggle product active status for a shop
 shopRoutes.patch('/:shopId/products/:productId', shopProductsController.toggleProductActiveStatus);
-shopRoutes.post('/', shopController.createShop);
-shopRoutes.put('/:id', shopController.updateShop);
-shopRoutes.delete('/:id', shopController.deleteShop);
 
-// Add route logging middleware
+// Shop-Category routes
+shopRoutes.get('/:id/categories', require('../controllers/shopCategoryController').getShopCategories);
 
-
-// Add route logging middleware (moved to the end)
+// Add route logging middleware (at the end)
 shopRoutes.use((req, res, next) => {
   console.log(`Shop route: ${req.method} ${req.path}`);
   next();

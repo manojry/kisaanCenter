@@ -1,6 +1,6 @@
 
 import express from 'express';
-import * as creditAdvanceController from '../controllers/creditAdvanceController';
+import { CreditAdvanceController } from '../controllers';
 
 const router = express.Router();
 
@@ -37,38 +37,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/credits - Create a new credit
-router.post('/', async (req, res) => {
-  try {
-    const { user_id, amount, type } = req.body;
-    
-    if (!user_id || !amount) {
-      return res.status(400).json({
-        success: false,
-        error: 'user_id and amount are required'
-      });
-    }
 
-    res.status(201).json({
-      success: true,
-      data: {
-        id: Date.now(),
-        user_id,
-        amount,
-        type: type || 'advance',
-        status: 'active',
-        created_at: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create credit'
-    });
-  }
-});
+const creditAdvanceController = new CreditAdvanceController();
 
-router.post('/issue', creditAdvanceController.issueCredit);
-router.post('/repay', creditAdvanceController.repayCredit);
+// POST /api/credits - Create a new credit (if needed, implement in controller)
+// router.post('/', creditAdvanceController.createCredit.bind(creditAdvanceController));
+
+router.post('/issue', creditAdvanceController.issueCredit.bind(creditAdvanceController));
+router.post('/repay', creditAdvanceController.repayCredit.bind(creditAdvanceController));
 
 export { router as creditAdvanceRoutes };

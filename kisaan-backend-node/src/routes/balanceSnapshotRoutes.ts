@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { BalanceSnapshotController } from '../controllers/balanceSnapshotController';
+import { BalanceSnapshotController } from '../controllers';
 
 const router = Router();
 const controller = new BalanceSnapshotController();

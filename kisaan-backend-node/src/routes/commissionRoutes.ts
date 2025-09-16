@@ -1,5 +1,5 @@
 import express from 'express';
-import { CommissionController } from '../controllers/commissionController';
+import { CommissionController } from '../controllers';
 import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();

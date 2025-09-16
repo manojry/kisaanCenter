@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { getSettlements, getSettlementSummary, settleAmount, createSettlement } from '../services/settlementService';
 
-export const getSettlementsController = async (req: Request, res: Response) => {
+export class SettlementController {
+  async getSettlementsController(req: Request, res: Response) {
   try {
     const { shop_id, user_id, user_type, status } = req.query;
     
@@ -22,7 +23,7 @@ export const getSettlementsController = async (req: Request, res: Response) => {
   }
 };
 
-export const getSettlementSummaryController = async (req: Request, res: Response) => {
+  async getSettlementSummaryController(req: Request, res: Response) {
   try {
     const { shop_id } = req.query;
     
@@ -37,7 +38,7 @@ export const getSettlementSummaryController = async (req: Request, res: Response
   }
 };
 
-export const settleAmountController = async (req: Request, res: Response) => {
+  async settleAmountController(req: Request, res: Response) {
   try {
     const { settlement_id } = req.params;
     const { amount } = req.body;
@@ -53,7 +54,7 @@ export const settleAmountController = async (req: Request, res: Response) => {
   }
 };
 
-export const createExpenseController = async (req: Request, res: Response) => {
+  async createExpenseController(req: Request, res: Response) {
   try {
     const { shop_id, amount, description } = req.body;
     
@@ -74,4 +75,5 @@ export const createExpenseController = async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-};
+  }
+}
