@@ -1,6 +1,8 @@
 import { apiClient } from './apiClient';
+import config from '../config';
 
-// Removed hardcoded API_BASE_URL, use apiClient for all requests
+const API_BASE_URL = config.apiBaseUrl;
+
 interface ReportFilters {
   shop_id: string;
   user_id?: string;

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Wallet, TrendingDown } from 'lucide-react';
+import config from '../config';
 
 interface User {
   id: string;
@@ -18,7 +19,11 @@ interface User {
   contact?: string;
 }
 
-const BalanceManagement: React.FC = () => {
+interface BalanceManagementProps {
+  shopId: number;
+}
+
+const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [snapshots, setSnapshots] = useState<any[]>([]);
@@ -26,9 +31,9 @@ const BalanceManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await usersApi.getAll({ include_balance: 'true', shop_id: 7 });
+      const response = await usersApi.getAll({ include_balance: 'true', shop_id: shopId });
       const userList = Array.isArray(response.data) ? response.data : [];
-  setUsers(userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) })));
+      setUsers(userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) })));
     } catch (error) {
       setUsers([]);
       console.error('Error fetching users:', error);

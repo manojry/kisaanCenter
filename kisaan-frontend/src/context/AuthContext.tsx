@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types/api';
 import { authApi } from '../services/api';
+import config from '../config';
 
 
 interface AuthContextType {
