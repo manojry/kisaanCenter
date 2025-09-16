@@ -302,8 +302,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
                 </p>
               </div>
               {/* Desktop Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table>
+              <div className="hidden sm:block overflow-x-auto w-full max-w-full">
+                <Table className="w-full max-w-full">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product Name</TableHead>
@@ -332,9 +332,9 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
                             variant="outline" 
                             onClick={() => handleRemoveProduct(product.id)} 
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Remove"
                           >
-                            <Trash2 className="w-4 h-4 mr-1" /> 
-                            Remove
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -417,8 +417,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
                 </div>
               </div>
               {/* Desktop Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <Table>
+              <div className="hidden sm:block overflow-x-auto w-full max-w-full">
+                <Table className="min-w-max">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product Name</TableHead>
