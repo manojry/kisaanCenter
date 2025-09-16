@@ -26,13 +26,14 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       plugins: [{
-        name: 'copy-index-to-404',
-        closeBundle: () => {
-          if (existsSync('dist/index.html')) {
-            copyFileSync('dist/index.html', 'dist/404.html');
+          name: 'copy-index-to-404',
+          closeBundle: () => {
+            if (fs.existsSync('dist/index.html')) {
+              fs.copyFileSync('dist/index.html', 'dist/404.html');
+            }
           }
-        }
       }]
     }
   },
 })
+import fs from 'fs'
