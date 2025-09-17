@@ -543,7 +543,10 @@ export const balanceApi = {
 export const reportsApi = {
   getSales: (params?: { from_date?: string; to_date?: string }): Promise<ApiResponse> =>
     apiClient.get('/reports/sales', { url: `/reports/sales?${new URLSearchParams(params as any).toString()}` }),
-  
+
   getTransactions: (params?: { from_date?: string; to_date?: string }): Promise<ApiResponse> =>
-    apiClient.get('/reports/transactions', { url: `/reports/transactions?${new URLSearchParams(params as any).toString()}` })
+    apiClient.get('/reports/transactions', { url: `/reports/transactions?${new URLSearchParams(params as any).toString()}` }),
+
+  getSuperadminDashboard: (): Promise<ApiResponse> =>
+    apiClient.get('/superadmin/dashboard')
 };

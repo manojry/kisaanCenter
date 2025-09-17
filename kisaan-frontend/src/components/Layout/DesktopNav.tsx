@@ -3,7 +3,6 @@
  * Horizontal navigation with role-based access
  */
 
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
@@ -16,48 +15,40 @@ import {
 } from '../ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { 
-  Home, 
-  Users, 
-  Store, 
-  Package, 
-  CreditCard,
-  BarChart3,
   Settings,
   LogOut,
   User,
   ChevronDown
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
 
-// Navigation item interface
-interface NavItem {
-  label: string;
-  href: string;
-  roles: string[];
-}
+// interface NavItem {
+//   label: string;
+//   href: string;
+//   roles: string[];
+// }
 
 // Main navigation items
-const MAIN_NAV_ITEMS: NavItem[] = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    roles: ['SUPERADMIN', 'EMPLOYEE', 'FARMER', 'BUYER'],
-  },
-  {
-    label: 'Dashboard',
-    href: '/owner',
-    roles: ['OWNER'],
-  },
-];
+// const MAIN_NAV_ITEMS: NavItem[] = [
+//   {
+//     label: 'Dashboard',
+//     href: '/dashboard',
+//     roles: ['SUPERADMIN', 'EMPLOYEE', 'FARMER', 'BUYER'],
+//   },
+//   {
+//     label: 'Dashboard',
+//     href: '/owner',
+//     roles: ['OWNER'],
+//   },
+// ];
 
 export function DesktopNav() {
   const { user, logout, hasRole } = useAuth();
   const location = useLocation();
 
   // Filter navigation items based on user role
-  const visibleNavItems = MAIN_NAV_ITEMS.filter(item => 
-    user && item.roles.some(role => hasRole(role as any))
-  );
+  // const visibleNavItems = MAIN_NAV_ITEMS.filter(item => 
+  //   user && item.roles.some(role => hasRole(role as any))
+  // );
 
   const getUserInitials = (username: string) => {
     return username.slice(0, 2).toUpperCase();
@@ -68,7 +59,7 @@ export function DesktopNav() {
   return (
     <nav className="hidden md:flex items-center gap-6">
       {/* Main navigation */}
-      <div className="flex items-center gap-1">
+      {/* <div className="flex items-center gap-1">
         {visibleNavItems.map((item) => {
           const isActive = location.pathname === item.href;
           
@@ -87,7 +78,7 @@ export function DesktopNav() {
             </Link>
           );
         })}
-      </div>
+      </div> */}
 
       {/* User dropdown */}
       <DropdownMenu>

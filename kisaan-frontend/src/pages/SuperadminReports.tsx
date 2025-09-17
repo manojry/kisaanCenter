@@ -2,20 +2,18 @@ import { reportsApi } from '../services/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Download, RefreshCw, BarChart3, Users, Building2, ShoppingCart } from 'lucide-react';
+import { RefreshCw, BarChart3, Users, Building2, ShoppingCart } from 'lucide-react';
 
 interface ReportData {
   totalShops: number;
   totalUsers: number;
   totalTransactions: number;
   totalRevenue: number;
+  totalCommission: number;
   activeShops: number;
   activeUsers: number;
-  recentTransactions: any[];
-  topShops: any[];
+  shopStats: any[];
+  userStats: any[];
 }
 
 const SuperadminReports: React.FC = () => {
@@ -24,36 +22,34 @@ const SuperadminReports: React.FC = () => {
     totalUsers: 0,
     totalTransactions: 0,
     totalRevenue: 0,
+    totalCommission: 0,
     activeShops: 0,
     activeUsers: 0,
-    recentTransactions: [],
-    topShops: []
+    shopStats: [],
+    userStats: []
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState('30');
+  // No date range, only platform-level metrics
 
   useEffect(() => {
     fetchReportData();
-  }, [dateRange]);
+  }, []);
 
   const fetchReportData = async () => {
     setIsLoading(true);
     try {
-      // Fetch sales and transactions data in parallel
-      const [salesRes, transactionsRes] = await Promise.all([
-        reportsApi.getSales(),
-        reportsApi.getTransactions()
-      ]);
-      // Combine results for the report
+  const res = await reportsApi.getSuperadminDashboard();
+      const metrics = res.data?.metrics || {};
       setReportData({
-        totalShops: salesRes.data?.totalShops || 0,
-        activeShops: salesRes.data?.activeShops || 0,
-        totalUsers: salesRes.data?.totalUsers || 0,
-        activeUsers: salesRes.data?.activeUsers || 0,
-        totalTransactions: transactionsRes.data?.totalTransactions || 0,
-        totalRevenue: salesRes.data?.totalRevenue || 0,
-        recentTransactions: transactionsRes.data?.recentTransactions || [],
-        topShops: salesRes.data?.topShops || []
+        totalShops: metrics.totalShops || 0,
+        activeShops: metrics.activeShops || 0,
+        totalUsers: metrics.totalUsers || 0,
+        activeUsers: metrics.activeUsers || 0,
+        totalTransactions: metrics.totalTransactions || 0,
+        totalRevenue: metrics.totalRevenue || 0,
+        totalCommission: metrics.totalCommission || 0,
+        shopStats: res.data?.charts?.shopStats || [],
+        userStats: res.data?.charts?.userStats || []
       });
     } catch (err) {
       console.error('Error fetching report data:', err);
@@ -64,8 +60,9 @@ const SuperadminReports: React.FC = () => {
         activeUsers: 0,
         totalTransactions: 0,
         totalRevenue: 0,
-        recentTransactions: [],
-        topShops: []
+        totalCommission: 0,
+        shopStats: [],
+        userStats: []
       });
     } finally {
       setIsLoading(false);
@@ -74,25 +71,7 @@ const SuperadminReports: React.FC = () => {
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
 
-  const exportReport = () => {
-    const csvContent = [
-      ['Metric', 'Value'],
-      ['Total Shops', reportData.totalShops],
-      ['Active Shops', reportData.activeShops],
-      ['Total Users', reportData.totalUsers],
-      ['Active Users', reportData.activeUsers],
-      ['Total Transactions', reportData.totalTransactions],
-      ['Total Revenue', reportData.totalRevenue]
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `superadmin-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
+  // Remove exportReport and dateRange logic for now
 
   return (
     <div className="p-6 space-y-6">
@@ -102,24 +81,9 @@ const SuperadminReports: React.FC = () => {
           <p className="text-gray-600">Overview of platform performance and metrics</p>
         </div>
         <div className="flex gap-2">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="365">Last year</SelectItem>
-            </SelectContent>
-          </Select>
           <Button onClick={fetchReportData} variant="outline" size="sm" disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
-          </Button>
-          <Button onClick={exportReport} variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export
           </Button>
         </div>
       </div>
@@ -194,7 +158,7 @@ const SuperadminReports: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-600">Platform Commission</p>
-                <p className="text-xl font-bold text-blue-800">{formatCurrency(reportData.totalRevenue * 0.1)}</p>
+                <p className="text-xl font-bold text-blue-800">{formatCurrency(reportData.totalCommission)}</p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <p className="text-sm text-green-600">Active Rate</p>
@@ -207,46 +171,7 @@ const SuperadminReports: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Top Shops */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Shops</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {reportData.topShops.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No shops found</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportData.topShops.map((shop) => (
-                  <TableRow key={shop.id}>
-                    <TableCell>#{shop.id}</TableCell>
-                    <TableCell className="font-medium">{shop.name}</TableCell>
-                    <TableCell>Owner #{shop.owner_id}</TableCell>
-                    <TableCell>
-                      <Badge className={shop.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {shop.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(shop.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+  {/* Remove Top Shops section, as backend does not provide it */}
     </div>
   );
 };
