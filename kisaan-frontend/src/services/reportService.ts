@@ -1,6 +1,17 @@
 import { apiClient } from './apiClient';
 import config from '../config';
 
+// DRY helper for authorized fetch
+export const authorizedFetch = async (url: string, options: RequestInit = {}) => {
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+    }
+  });
+};
+
 const API_BASE_URL = config.apiBaseUrl;
 
 interface ReportFilters {
@@ -18,11 +29,7 @@ export const reportService = {
       if (value) params.append(key, value);
     });
     // If using fetch, get blob from response
-    const response = await fetch(`/api/reports/generate?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      }
-    });
+  const response = await authorizedFetch(`${API_BASE_URL}/reports/generate?${params.toString()}`);
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -41,11 +48,7 @@ export const reportService = {
       if (value) params.append(key, value);
     });
     // If using fetch, get blob from response
-    const response = await fetch(`/api/reports/download?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      }
-    });
+  const response = await authorizedFetch(`${API_BASE_URL}/reports/download?${params.toString()}`);
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -65,7 +68,7 @@ export const reportService = {
     });
     params.append('format', 'pdf');
     
-    const response = await apiClient.get(`/reports/generate?${params.toString()}`, {
+  const response = await apiClient.get(`${API_BASE_URL}/reports/generate?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }

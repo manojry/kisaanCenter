@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { categoriesApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -32,24 +33,16 @@ const SuperadminCategories: React.FC = () => {
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/categories', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        let filteredCategories = data.data || [];
-        
-        if (filters.search) {
-          filteredCategories = filteredCategories.filter((c: Category) => 
-            c.name.toLowerCase().includes(filters.search.toLowerCase())
-          );
-        }
-        if (filters.status) {
-          filteredCategories = filteredCategories.filter((c: Category) => c.status === filters.status);
-        }
-        
-        setCategories(filteredCategories);
+      let filteredCategories = await categoriesApi.getAll();
+      if (filters.search) {
+        filteredCategories = filteredCategories.filter((c: Category) => 
+          c.name.toLowerCase().includes(filters.search.toLowerCase())
+        );
       }
+      if (filters.status) {
+        filteredCategories = filteredCategories.filter((c: Category) => c.status === filters.status);
+      }
+      setCategories(filteredCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
@@ -60,26 +53,12 @@ const SuperadminCategories: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
-
     try {
-      const url = editingCategory ? `/api/categories/${editingCategory.id}` : '/api/categories';
-      const method = editingCategory ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        fetchCategories();
-        setShowCreateForm(false);
-        setEditingCategory(null);
-        setFormData({ name: '', status: 'active' });
-      }
+      await categoriesApi.createOrUpdate(editingCategory ? editingCategory.id : null, formData);
+      fetchCategories();
+      setShowCreateForm(false);
+      setEditingCategory(null);
+      setFormData({ name: '', status: 'active' });
     } catch (error) {
       console.error('Error saving category:', error);
     }
@@ -87,13 +66,8 @@ const SuperadminCategories: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      if (response.ok) {
-        fetchCategories();
-      }
+      await categoriesApi.delete(id);
+      fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
     }
@@ -127,6 +101,7 @@ const SuperadminCategories: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editingCategory ? 'Edit Category' : 'Create Category'}</DialogTitle>
+                <DialogDescription>Fill out the category details below.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -249,6 +224,7 @@ const SuperadminCategories: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Category</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <div className="py-4">Are you sure you want to delete this category?</div>
           <div className="flex gap-2 justify-end">

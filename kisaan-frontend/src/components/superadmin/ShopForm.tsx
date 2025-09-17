@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
@@ -30,16 +31,8 @@ export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
 
   const loadOwners = async () => {
     try {
-      // Load owners without shops
-      const response = await fetch('/api/shops/available-owners', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setOwners(data.data || []);
-      }
+      const ownersList = await shopsApi.getAvailableOwners();
+      setOwners(ownersList);
     } catch (error) {
       console.error('Error loading owners:', error);
     }

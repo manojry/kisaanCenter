@@ -1,3 +1,122 @@
+export const shopProductsApi = {
+  getShops: async () => {
+    const response = await fetch(`${config.apiBaseUrl}/shops`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch shops');
+    const data = await response.json();
+    return data.data || [];
+  },
+  getCategories: async () => {
+    const response = await fetch(`${config.apiBaseUrl}/categories`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch categories');
+    const data = await response.json();
+    return data.data?.filter((c: any) => c.status === 'active') || [];
+  },
+  getProducts: async (categoryId: number) => {
+    const response = await fetch(`${config.apiBaseUrl}/products?category_id=${categoryId}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch products');
+    const data = await response.json();
+    return data.data?.filter((p: any) => p.record_status === 'active') || [];
+  },
+  getShopProducts: async (shopId: number, categories: Category[]) => {
+    const response = await fetch(`${config.apiBaseUrl}/shops/${shopId}/products`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch shop products');
+    const data = await response.json();
+    return (data.products || []).map((p: any) => ({
+      id: p.id,
+      shop_id: shopId,
+      product_id: p.id,
+      product_name: p.name,
+      category_name: (categories.find(c => c.id === p.category_id)?.name) || '',
+      is_active: p.record_status === 'active',
+    }));
+  },
+  assignProduct: async (shopId: number, productId: number) => {
+    const response = await fetch(`${config.apiBaseUrl}/shops/${shopId}/products/${productId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to assign product');
+    return response;
+  },
+  removeProduct: async (shopId: number, productId: number) => {
+    const response = await fetch(`${config.apiBaseUrl}/shops/${shopId}/products/${productId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to remove product');
+    return response;
+  },
+  toggleProductStatus: async (shopId: number, productId: number, isActive: boolean) => {
+    const response = await fetch(`${config.apiBaseUrl}/shops/${shopId}/products/${productId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ is_active: !isActive })
+    });
+    if (!response.ok) throw new Error('Failed to toggle product status');
+    return response;
+  },
+};
+// Balance Snapshots API
+export const balanceSnapshotsApi = {
+  getByUserId: async (userId: number | string) => {
+    const response = await fetch(`${config.apiBaseUrl}/balance-snapshots/${userId}`);
+    if (!response.ok) throw new Error('Failed to fetch balance snapshots');
+    const data = await response.json();
+    return data.data || [];
+  },
+};
+// Superadmin Dashboard API
+import config from '../config';
+export const superadminDashboardApi = {
+  getDashboard: async () => {
+    const response = await fetch(`${config.apiBaseUrl}/superadmin/dashboard`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch dashboard data');
+    return await response.json();
+  },
+  getRecentShops: async () => {
+    const response = await fetch(`${config.apiBaseUrl}/shops?limit=5`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch recent shops');
+    const data = await response.json();
+    return data.data || [];
+  }
+};
+// ...existing code...
+// Owner Dashboard API
+export const ownerDashboardApi = {
+  getStats: async () => {
+    const response = await fetch(`${config.apiBaseUrl}/owner/dashboard`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+    return await response.json();
+  },
+};
+// Analytics API
+export const analyticsApi = {
+  getShopAnalytics: async (shopId: number, dateRange?: { from: string; to: string }) => {
+    let url = `/transactions/analytics?shop_id=${shopId}`;
+    if (dateRange?.from && dateRange?.to) {
+      url += `&date_from=${dateRange.from}&date_to=${dateRange.to}`;
+    }
+    const response: any = await apiClient.get(url);
+    return response?.data || null;
+  },
+};
 // Transaction Form Data API
 export const getTransactionFormData = async () => {
   // Fetch all required data in parallel
@@ -172,6 +291,19 @@ export const productsApi = {
 
 // Shops API
 export const shopsApi = {
+  getAvailableOwners: async () => {
+    const response = await fetch(
+      `${config.apiBaseUrl}/shops/available-owners`,
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      }
+    );
+    if (!response.ok) throw new Error('Failed to fetch owners');
+    const data = await response.json();
+    return data.data || [];
+  },
   getAll: async (params?: {
     status?: string;
     owner_id?: number;

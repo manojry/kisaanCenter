@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { shopProductsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,13 +94,8 @@ const ShopProducts: React.FC = () => {
 
   const fetchShops = async () => {
     try {
-      const response = await fetch('/api/shops', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setShops(data.data || []);
-      }
+      const shopsData = await shopProductsApi.getShops();
+      setShops(shopsData);
     } catch (error) {
       console.error('Error fetching shops:', error);
     }
@@ -107,13 +103,8 @@ const ShopProducts: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-  setCategories(data.data?.filter((c: Category) => c.status === 'active') || []);
-      }
+      const categoriesData = await shopProductsApi.getCategories();
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -122,13 +113,8 @@ const ShopProducts: React.FC = () => {
   // fetchProducts returns the products array for caching
   const fetchProducts = async (): Promise<Product[] | undefined> => {
     try {
-      const response = await fetch(`/api/products?category_id=${selectedCategory}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data.data?.filter((p: Product) => p.record_status === 'active') || [];
-      }
+      const productsData = await shopProductsApi.getProducts(selectedCategory);
+      return productsData;
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -138,23 +124,8 @@ const ShopProducts: React.FC = () => {
   const fetchShopProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/shops/${selectedShop}/products`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Map backend products to ShopProduct shape for table display
-        setShopProducts(
-          (data.products || []).map((p: any) => ({
-            id: p.id,
-            shop_id: selectedShop,
-            product_id: p.id,
-            product_name: p.name,
-            category_name: (categories.find(c => c.id === p.category_id)?.name) || '',
-            is_active: p.record_status === 'active',
-          }))
-        );
-      }
+      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop, categories);
+      setShopProducts(shopProductsData);
     } catch (error) {
       console.error('Error fetching shop products:', error);
     } finally {
@@ -164,15 +135,10 @@ const ShopProducts: React.FC = () => {
 
   const handleAssignProducts = async () => {
     if (!selectedShop || selectedProducts.length === 0) return;
-
     try {
       const promises = selectedProducts.map(productId =>
-        fetch(`/api/shops/${selectedShop}/products/${productId}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
+        shopProductsApi.assignProduct(selectedShop, productId)
       );
-
       await Promise.all(promises);
       fetchShopProducts();
       setShowAssignForm(false);
@@ -186,15 +152,9 @@ const ShopProducts: React.FC = () => {
 
   const handleRemoveProduct = async (productId: number) => {
     if (!confirm('Are you sure you want to remove this product from the shop?')) return;
-
     try {
-      const response = await fetch(`/api/shops/${selectedShop}/products/${productId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        fetchShopProducts();
-      }
+      await shopProductsApi.removeProduct(selectedShop, productId);
+      fetchShopProducts();
     } catch (error) {
       console.error('Error removing product:', error);
     }
@@ -202,17 +162,8 @@ const ShopProducts: React.FC = () => {
 
   const handleToggleProductStatus = async (productId: number, isActive: boolean) => {
     try {
-      const response = await fetch(`/api/shops/${selectedShop}/products/${productId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ is_active: !isActive })
-      });
-      if (response.ok) {
-        fetchShopProducts();
-      }
+      await shopProductsApi.toggleProductStatus(selectedShop, productId, isActive);
+      fetchShopProducts();
     } catch (error) {
       console.error('Error toggling product status:', error);
     }
@@ -282,6 +233,7 @@ const ShopProducts: React.FC = () => {
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Assign Products to Shop</DialogTitle>
+                    <DialogDescription>Select category and products to assign to this shop.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>

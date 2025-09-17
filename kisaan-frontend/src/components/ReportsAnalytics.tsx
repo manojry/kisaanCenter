@@ -2,7 +2,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { apiClient } from '../services/apiClient';
+import { analyticsApi } from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Alert, AlertDescription } from './ui/alert';
@@ -50,12 +50,8 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
     setIsLoading(true);
     setError(null);
     try {
-      let url = `/transactions/analytics?shop_id=${shopId}`;
-      if (dateRange.from && dateRange.to) {
-        url += `&date_from=${dateRange.from}&date_to=${dateRange.to}`;
-      }
-  const response: any = await apiClient.get(url);
-  setAnalytics(response?.data || null);
+      const analyticsData = await analyticsApi.getShopAnalytics(shopId, dateRange);
+      setAnalytics(analyticsData);
     } catch (err: any) {
       setError(err.message || 'Failed to load analytics');
     } finally {

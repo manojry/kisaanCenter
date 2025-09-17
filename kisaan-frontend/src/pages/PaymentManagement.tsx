@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { paymentsApi } from '../services/api';
+import { paymentsApi, balanceSnapshotsApi } from '../services/api';
 import { useUsers } from '../context/UsersContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchOwnerShop } from '../utils/shopUtils';
@@ -47,9 +47,8 @@ const PaymentManagement: React.FC = () => {
       return;
     }
     const fetchSnapshots = async () => {
-      const res = await fetch(`/api/balance-snapshots/${selectedUser.id}`);
-      const data = await res.json();
-      setSnapshots(data.data || []);
+      const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
+      setSnapshots(snapshotsData);
     };
     const fetchPayments = async () => {
   // Use payer_type or payee_type to filter payments for user
@@ -105,9 +104,8 @@ const PaymentManagement: React.FC = () => {
         // Refresh users, snapshots, and payments after payment
         if (fetchUsers) await fetchUsers();
         if (selectedUser) {
-          const snapRes = await fetch(`/api/balance-snapshots/${selectedUser.id}`);
-          const snapData = await snapRes.json();
-          setSnapshots(snapData.data || []);
+          const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
+          setSnapshots(snapshotsData);
           const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
           setPayments(payRes.data || []);
         }

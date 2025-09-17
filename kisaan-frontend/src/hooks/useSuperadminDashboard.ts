@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Shop, User } from '../types/api';
-import config from '../config';
+import { superadminDashboardApi } from '../services/api';
 
 interface SuperadminStats {
   total_shops: number;
@@ -30,22 +30,11 @@ export const useSuperadminDashboard = () => {
       setError(null);
 
       // Use the dedicated superadmin dashboard endpoint
-      const response = await fetch(`${config.apiBaseUrl}/superadmin/dashboard`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch dashboard data');
-      const dashboardData = await response.json();
-      
+      const dashboardData = await superadminDashboardApi.getDashboard();
       // Fetch recent shops separately
       try {
-        const shopsResponse = await fetch(`${config.apiBaseUrl}/shops?limit=5`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-        });
-        if (shopsResponse.ok) {
-          const shopsData = await shopsResponse.json();
-          setRecentShops(shopsData.data || []);
-        }
+        const recentShopsData = await superadminDashboardApi.getRecentShops();
+        setRecentShops(recentShopsData);
       } catch (shopError) {
         console.warn('Failed to fetch recent shops:', shopError);
         setRecentShops([]);

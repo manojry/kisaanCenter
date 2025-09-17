@@ -39,29 +39,40 @@ const SuperadminReports: React.FC = () => {
     setIsLoading(true);
     try {
       // Use reports API for platform-wide reports
-      const reportsResponse = await fetch(`/api/reports/generate?report_type=platform&date_from=${new Date(Date.now() - parseInt(dateRange) * 24 * 60 * 60 * 1000).toISOString()}&date_to=${new Date().toISOString()}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      const reportsData = await reportsResponse.json();
-      if (reportsData.success && reportsData.data) {
-        setReportData({
-          totalShops: reportsData.data.totalShops || 0,
-          totalUsers: reportsData.data.totalUsers || 0,
-          totalTransactions: reportsData.data.totalTransactions || 0,
-          totalRevenue: reportsData.data.totalRevenue || 0,
-          activeShops: reportsData.data.activeShops || 0,
-          activeUsers: reportsData.data.activeUsers || 0,
-          recentTransactions: reportsData.data.recentTransactions || [],
-          topShops: reportsData.data.topShops || []
-        });
-      } else {
+      try {
+        const reportsData = await reportsApi.generatePlatformReport(dateRange);
+        if (reportsData.success && reportsData.data) {
+          setReportData({
+            totalShops: reportsData.data.totalShops || 0,
+            activeShops: reportsData.data.activeShops || 0,
+            totalUsers: reportsData.data.totalUsers || 0,
+            activeUsers: reportsData.data.activeUsers || 0,
+            totalTransactions: reportsData.data.totalTransactions || 0,
+            totalRevenue: reportsData.data.totalRevenue || 0,
+            recentTransactions: reportsData.data.recentTransactions || [],
+            topShops: reportsData.data.topShops || []
+          });
+        } else {
+          setReportData({
+            totalShops: 0,
+            activeShops: 0,
+            totalUsers: 0,
+            activeUsers: 0,
+            totalTransactions: 0,
+            totalRevenue: 0,
+            recentTransactions: [],
+            topShops: []
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching report data:', error);
         setReportData({
           totalShops: 0,
+          activeShops: 0,
           totalUsers: 0,
+          activeUsers: 0,
           totalTransactions: 0,
           totalRevenue: 0,
-          activeShops: 0,
-          activeUsers: 0,
           recentTransactions: [],
           topShops: []
         });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { productsApi, categoriesApi } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,13 +41,8 @@ const SuperadminProducts: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data.data || []);
-      }
+      const data = await categoriesApi.getAll();
+      setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -55,27 +51,20 @@ const SuperadminProducts: React.FC = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/products', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        let filteredProducts = data.data || [];
-        
-        if (filters.search) {
-          filteredProducts = filteredProducts.filter((p: Product) => 
-            p.name.toLowerCase().includes(filters.search.toLowerCase())
-          );
-        }
-        if (filters.record_status) {
-          filteredProducts = filteredProducts.filter((p: Product) => p.record_status === filters.record_status);
-        }
-        if (filters.category_id) {
-          filteredProducts = filteredProducts.filter((p: Product) => p.category_id.toString() === filters.category_id);
-        }
-        
-        setProducts(filteredProducts);
+      const data = await productsApi.getAll();
+      let filteredProducts = data || [];
+      if (filters.search) {
+        filteredProducts = filteredProducts.filter((p: Product) => 
+          p.name.toLowerCase().includes(filters.search.toLowerCase())
+        );
       }
+      if (filters.record_status) {
+        filteredProducts = filteredProducts.filter((p: Product) => p.record_status === filters.record_status);
+      }
+      if (filters.category_id) {
+        filteredProducts = filteredProducts.filter((p: Product) => p.category_id.toString() === filters.category_id);
+      }
+      setProducts(filteredProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -86,26 +75,16 @@ const SuperadminProducts: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.category_id) return;
-
     try {
-      const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
-      const method = editingProduct ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        fetchProducts();
-        setShowCreateForm(false);
-        setEditingProduct(null);
-  setFormData({ name: '', category_id: 0, record_status: 'active' });
+      if (editingProduct) {
+        await productsApi.update(editingProduct.id, formData);
+      } else {
+        await productsApi.create(formData);
       }
+      fetchProducts();
+      setShowCreateForm(false);
+      setEditingProduct(null);
+      setFormData({ name: '', category_id: 0, record_status: 'active' });
     } catch (error) {
       console.error('Error saving product:', error);
     }
@@ -113,15 +92,9 @@ const SuperadminProducts: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
-    
     try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (response.ok) {
-        fetchProducts();
-      }
+      await productsApi.delete(id);
+      fetchProducts();
     } catch (error) {
       console.error('Error deleting product:', error);
     }
@@ -160,6 +133,7 @@ const SuperadminProducts: React.FC = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editingProduct ? 'Edit Product' : 'Create Product'}</DialogTitle>
+                <DialogDescription>Fill out the product details below.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

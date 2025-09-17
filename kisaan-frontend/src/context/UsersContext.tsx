@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '../types/api';
+import { usersApi } from '../services/api';
 
 interface UsersContextType {
   users: User[];
@@ -25,8 +26,7 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      // You may want to add params here if needed
-      const response = await import('../services/api').then(m => m.usersApi.getAll({}));
+      const response = await usersApi.getAll({});
       if (response.data) setUsers(response.data);
     } catch (e) {
       // handle error

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import { useAuth } from '../context/AuthContext';
-import config from '../config';
+import { ownerDashboardApi } from '../services/api';
 
 interface DashboardStats {
   today_sales: number;
@@ -34,15 +34,9 @@ export const useOwnerDashboard = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch backend-calculated dashboard stats for owner
-      const response = await fetch(`${config.apiBaseUrl}/owner/dashboard`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard stats');
-      }
-      const statsData = await response.json();
-      setStats(statsData);
+  // Fetch backend-calculated dashboard stats for owner
+  const statsData = await ownerDashboardApi.getStats();
+  setStats(statsData);
       // Optionally, fetch pending transactions if needed (legacy logic)
       setPendingTransactions([]); // Or fetch if you want to show pending transactions
     } catch (err: any) {
