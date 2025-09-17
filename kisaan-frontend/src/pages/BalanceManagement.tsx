@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { transactionsApi, usersApi } from '../services/api';
+import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { paymentsApi } from '../services/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
  // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Wallet, TrendingDown } from 'lucide-react';
-import config from '../config';
+import { Wallet, TrendingDown } from 'lucide-react';
 
 interface User {
   id: string;
@@ -31,7 +27,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
 
   const fetchUsers = async () => {
     try {
-      const response = await usersApi.getAll({ include_balance: 'true', shop_id: shopId });
+  const response = await usersApi.getAll({ shop_id: shopId });
       const userList = Array.isArray(response.data) ? response.data : [];
       setUsers(userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) })));
     } catch (error) {
@@ -83,7 +79,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       </div>
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="font-semibold">Select User:</span>
+          <span className="font-semibold" style={{whiteSpace: 'nowrap'}}>Select User:</span>
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {

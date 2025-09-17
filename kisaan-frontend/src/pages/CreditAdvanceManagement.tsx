@@ -102,7 +102,7 @@ const CreditAdvanceManagement: React.FC = () => {
       <h1 className="text-3xl font-bold mb-4">Credit Advance Management</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Select User</CardTitle>
+          <CardTitle style={{whiteSpace: 'nowrap'}}>Select User</CardTitle>
         </CardHeader>
         <CardContent>
           <Select value={selectedUser} onValueChange={setSelectedUser}>

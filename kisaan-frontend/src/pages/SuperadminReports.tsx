@@ -1,3 +1,4 @@
+import { reportsApi } from '../services/api';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,54 +39,31 @@ const SuperadminReports: React.FC = () => {
   const fetchReportData = async () => {
     setIsLoading(true);
     try {
-      // Use reports API for platform-wide reports
-      try {
-        const reportsData = await reportsApi.generatePlatformReport(dateRange);
-        if (reportsData.success && reportsData.data) {
-          setReportData({
-            totalShops: reportsData.data.totalShops || 0,
-            activeShops: reportsData.data.activeShops || 0,
-            totalUsers: reportsData.data.totalUsers || 0,
-            activeUsers: reportsData.data.activeUsers || 0,
-            totalTransactions: reportsData.data.totalTransactions || 0,
-            totalRevenue: reportsData.data.totalRevenue || 0,
-            recentTransactions: reportsData.data.recentTransactions || [],
-            topShops: reportsData.data.topShops || []
-          });
-        } else {
-          setReportData({
-            totalShops: 0,
-            activeShops: 0,
-            totalUsers: 0,
-            activeUsers: 0,
-            totalTransactions: 0,
-            totalRevenue: 0,
-            recentTransactions: [],
-            topShops: []
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching report data:', error);
-        setReportData({
-          totalShops: 0,
-          activeShops: 0,
-          totalUsers: 0,
-          activeUsers: 0,
-          totalTransactions: 0,
-          totalRevenue: 0,
-          recentTransactions: [],
-          topShops: []
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching report data:', error);
+      // Fetch sales and transactions data in parallel
+      const [salesRes, transactionsRes] = await Promise.all([
+        reportsApi.getSales(),
+        reportsApi.getTransactions()
+      ]);
+      // Combine results for the report
+      setReportData({
+        totalShops: salesRes.data?.totalShops || 0,
+        activeShops: salesRes.data?.activeShops || 0,
+        totalUsers: salesRes.data?.totalUsers || 0,
+        activeUsers: salesRes.data?.activeUsers || 0,
+        totalTransactions: transactionsRes.data?.totalTransactions || 0,
+        totalRevenue: salesRes.data?.totalRevenue || 0,
+        recentTransactions: transactionsRes.data?.recentTransactions || [],
+        topShops: salesRes.data?.topShops || []
+      });
+    } catch (err) {
+      console.error('Error fetching report data:', err);
       setReportData({
         totalShops: 0,
+        activeShops: 0,
         totalUsers: 0,
+        activeUsers: 0,
         totalTransactions: 0,
         totalRevenue: 0,
-        activeShops: 0,
-        activeUsers: 0,
         recentTransactions: [],
         topShops: []
       });

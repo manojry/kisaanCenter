@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 
 interface Category {
@@ -33,16 +33,23 @@ const SuperadminCategories: React.FC = () => {
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      let filteredCategories = await categoriesApi.getAll();
+      const response = await categoriesApi.getAll();
+      let arr = response.data ?? [];
+      // Normalize API data to match expected type
+      let normalized = arr.map((cat: any) => ({
+        ...cat,
+        created_at: cat.created_at ?? cat.createdAt,
+        updated_at: cat.updated_at ?? cat.updatedAt
+      }));
       if (filters.search) {
-        filteredCategories = filteredCategories.filter((c: Category) => 
-          c.name.toLowerCase().includes(filters.search.toLowerCase())
+        normalized = normalized.filter((c) =>
+          c.name?.toLowerCase().includes(filters.search.toLowerCase())
         );
       }
       if (filters.status) {
-        filteredCategories = filteredCategories.filter((c: Category) => c.status === filters.status);
+        normalized = normalized.filter((c) => c.status === filters.status);
       }
-      setCategories(filteredCategories);
+      setCategories(normalized);
     } catch (error) {
       console.error('Error fetching categories:', error);
     } finally {
@@ -54,7 +61,11 @@ const SuperadminCategories: React.FC = () => {
     e.preventDefault();
     if (!formData.name) return;
     try {
-      await categoriesApi.createOrUpdate(editingCategory ? editingCategory.id : null, formData);
+      if (editingCategory) {
+        await categoriesApi.update(editingCategory.id, formData);
+      } else {
+        await categoriesApi.create(formData);
+      }
       fetchCategories();
       setShowCreateForm(false);
       setEditingCategory(null);
@@ -188,7 +199,7 @@ const SuperadminCategories: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {categories.map((category) => (
+              {Array.isArray(categories) && categories.map((category) => (
                     <TableRow key={category.id}>
                       <TableCell>#{category.id}</TableCell>
                       <TableCell className="font-medium">{category.name}</TableCell>
@@ -197,7 +208,11 @@ const SuperadminCategories: React.FC = () => {
                           {category.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{
+                        category.created_at && !isNaN(Date.parse(category.created_at))
+                          ? new Date(category.created_at).toLocaleDateString()
+                          : '-'
+                      }</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => handleEdit(category)}>

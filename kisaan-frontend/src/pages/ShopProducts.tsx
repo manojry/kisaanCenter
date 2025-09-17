@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Trash2, RefreshCw, Package } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -124,7 +124,12 @@ const ShopProducts: React.FC = () => {
   const fetchShopProducts = async () => {
     setIsLoading(true);
     try {
-      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop, categories);
+      const categoriesWithDates = (categories as import("../types/api").Category[]).map(cat => ({
+        ...cat,
+        created_at: cat.created_at || '',
+        updated_at: cat.updated_at || ''
+      }));
+      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop, categoriesWithDates);
       setShopProducts(shopProductsData);
     } catch (error) {
       console.error('Error fetching shop products:', error);
@@ -256,24 +261,26 @@ const ShopProducts: React.FC = () => {
                       <div>
                         <Label>Select Products</Label>
                         <div className="max-h-60 overflow-y-auto border rounded-md p-4 space-y-2">
-                          {products.map(product => (
-                            <div key={product.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`product-${product.id}`}
-                                checked={selectedProducts.includes(product.id)}
-                                onCheckedChange={(checked: boolean) => {
-                                  if (checked) {
-                                    setSelectedProducts(prev => [...prev, product.id]);
-                                  } else {
-                                    setSelectedProducts(prev => prev.filter(id => id !== product.id));
-                                  }
-                                }}
-                              />
-                              <Label htmlFor={`product-${product.id}`} className="flex-1">
-                                {product.name}
-                              </Label>
-                            </div>
-                          ))}
+                          {products
+                            .filter(product => !shopProducts.some(sp => sp.product_id === product.id))
+                            .map(product => (
+                              <div key={product.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`product-${product.id}`}
+                                  checked={selectedProducts.includes(product.id)}
+                                  onCheckedChange={(checked: boolean) => {
+                                    if (checked) {
+                                      setSelectedProducts(prev => [...prev, product.id]);
+                                    } else {
+                                      setSelectedProducts(prev => prev.filter(id => id !== product.id));
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`product-${product.id}`} className="flex-1">
+                                  {product.name}
+                                </Label>
+                              </div>
+                            ))}
                         </div>
                       </div>
                     )}

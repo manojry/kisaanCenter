@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
 interface Product {
@@ -15,8 +15,12 @@ interface Product {
   name: string;
   category_id: number;
   category_name?: string;
+  description?: string | null;
+  price?: string | null;
+  unit?: string | null;
   record_status: 'active' | 'inactive';
   created_at: string;
+  updated_at?: string;
 }
 
 interface Category {
@@ -41,8 +45,8 @@ const SuperadminProducts: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const data = await categoriesApi.getAll();
-      setCategories(data || []);
+      const response = await categoriesApi.getAll();
+      setCategories(response.data ?? []);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -51,8 +55,9 @@ const SuperadminProducts: React.FC = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const data = await productsApi.getAll();
-      let filteredProducts = data || [];
+      const response = await productsApi.getAll();
+      let productsArr = response.data ?? [];
+      let filteredProducts = productsArr;
       if (filters.search) {
         filteredProducts = filteredProducts.filter((p: Product) => 
           p.name.toLowerCase().includes(filters.search.toLowerCase())
@@ -258,7 +263,11 @@ const SuperadminProducts: React.FC = () => {
                         {product.record_status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{
+                      product.created_at && !isNaN(Date.parse(product.created_at))
+                        ? new Date(product.created_at).toLocaleDateString()
+                        : '-'
+                    }</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleEdit(product)}>

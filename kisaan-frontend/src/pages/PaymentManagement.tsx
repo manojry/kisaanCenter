@@ -51,9 +51,13 @@ const PaymentManagement: React.FC = () => {
       setSnapshots(snapshotsData);
     };
     const fetchPayments = async () => {
-  // Use payer_type or payee_type to filter payments for user
-  const res = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
-  setPayments(res.data || []);
+      // Fetch all payments for the shop
+  const res = await paymentsApi.getAll({});
+      // Filter payments where selectedUser is either payer or payee (counterparty)
+      const userPayments = (res.data || []).filter((p: any) =>
+        Number(p.counterparty_id) === Number(selectedUser.id)
+      );
+      setPayments(userPayments);
     };
     fetchSnapshots();
     fetchPayments();
@@ -106,7 +110,7 @@ const PaymentManagement: React.FC = () => {
         if (selectedUser) {
           const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
           setSnapshots(snapshotsData);
-          const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role.toUpperCase() });
+          const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role ? selectedUser.role.toUpperCase() : '' });
           setPayments(payRes.data || []);
         }
       } else if (res && res.message) {
@@ -128,7 +132,7 @@ const PaymentManagement: React.FC = () => {
       </div>
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="font-semibold">Select User:</span>
+          <span className="font-semibold" style={{whiteSpace: 'nowrap'}}>Select User:</span>
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {
