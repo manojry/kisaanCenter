@@ -38,10 +38,10 @@ module.exports = {
       },
     });
     
-    // Add indexes for performance
-    await queryInterface.addIndex('balance_snapshots', ['user_id']);
-    await queryInterface.addIndex('balance_snapshots', ['snapshot_date']);
-    await queryInterface.addIndex('balance_snapshots', ['user_id', 'snapshot_date']);
+  // Add indexes for performance
+  try { await queryInterface.addIndex('balance_snapshots', ['user_id']); } catch (e) {}
+  try { await queryInterface.addIndex('balance_snapshots', ['snapshot_date']); } catch (e) {}
+  try { await queryInterface.addIndex('balance_snapshots', ['user_id', 'snapshot_date']); } catch (e) {}
   },
 
   down: async (queryInterface, Sequelize) => {

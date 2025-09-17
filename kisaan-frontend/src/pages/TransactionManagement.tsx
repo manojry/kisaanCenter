@@ -21,37 +21,57 @@ const TransactionManagement: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>('');
   // Set default filters to today for from_date and to_date
   const todayStr = new Date().toISOString().split('T')[0];
   const [filters, setFilters] = useState({
-    status: '',
     search: '',
     from_date: todayStr,
     to_date: todayStr
   });
+  useEffect(() => {
+    fetchUsers();
+  }, [user?.shop_id]);
+
+  const fetchUsers = async () => {
+    if (!user?.shop_id) return;
+    try {
+      const response = await import('../services/api').then(m => m.usersApi.getAll({ shop_id: user.shop_id, limit: 100 }));
+      setUsers(response.data || []);
+    } catch (error) {
+      setUsers([]);
+      console.error('Error fetching users:', error);
+    }
+  };
 
   useEffect(() => {
     fetchTransactions();
-  }, [user?.shop_id, filters]);
+  }, [user?.shop_id, filters, selectedUser]);
 
   const fetchTransactions = async () => {
     if (!user?.shop_id) return;
-    
     setIsLoading(true);
     try {
       const params: any = {
         shop_id: user.shop_id,
         limit: 50
       };
-      
-      if (filters.status) params.status = filters.status;
+      if (selectedUser && selectedUser !== 'all') {
+        // Find selected user role
+        const selectedUserObj = users.find(u => String(u.id) === selectedUser);
+        if (selectedUserObj) {
+          if (selectedUserObj.role === 'farmer') params.farmer_id = selectedUserObj.id;
+          else if (selectedUserObj.role === 'buyer') params.buyer_id = selectedUserObj.id;
+          else params.user_id = selectedUserObj.id;
+        }
+      }
+  // status filter removed
       if (filters.from_date) params.from_date = filters.from_date;
       if (filters.to_date) params.to_date = filters.to_date;
-      
       const response = await transactionsApi.getAll(params);
       if (response.data) {
         let filteredTransactions = response.data;
-        
         // Client-side search filter
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
@@ -59,7 +79,6 @@ const TransactionManagement: React.FC = () => {
             t.product_name.toLowerCase().includes(searchLower)
           );
         }
-        
         setTransactions(filteredTransactions);
       }
     } catch (error) {
@@ -151,44 +170,48 @@ const TransactionManagement: React.FC = () => {
       {/* Filters */}
       <Card>
         <CardContent className="p-3 sm:p-4">
-          <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <div className="grid grid-cols-1 gap-2 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search products..."
+                  value={filters.search}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10 text-sm"
+                />
+              </div>
+              <Select
+                value={selectedUser}
+                onValueChange={setSelectedUser}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All users</SelectItem>
+                  {users.map(u => (
+                    <SelectItem key={u.id} value={String(u.id)}>{u.name || u.firstname || u.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
               <Input
-                placeholder="Search products..."
-                value={filters.search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="pl-10 text-sm"
+                type="date"
+                placeholder="From date"
+                value={filters.from_date}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
+                className="text-sm"
+              />
+              <Input
+                type="date"
+                placeholder="To date"
+                value={filters.to_date}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
+                className="text-sm"
               />
             </div>
-            <Select 
-              value={filters.status || "all"} 
-              onValueChange={(value: string) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
-            >
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              type="date"
-              placeholder="From date"
-              value={filters.from_date}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
-              className="text-sm"
-            />
-            <Input
-              type="date"
-              placeholder="To date"
-              value={filters.to_date}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
-              className="text-sm"
-            />
           </div>
         </CardContent>
       </Card>
@@ -205,7 +228,7 @@ const TransactionManagement: React.FC = () => {
             <div className="text-center py-8 sm:py-12">
               <p className="text-gray-500 text-base sm:text-lg">No transactions found</p>
               <p className="text-gray-400 text-xs sm:text-sm mt-2">
-                {filters.search || filters.status || filters.from_date || filters.to_date
+                {filters.search || filters.from_date || filters.to_date
                   ? 'Try adjusting your filters'
                   : 'Create your first transaction to get started'}
               </p>

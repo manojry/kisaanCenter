@@ -3,28 +3,30 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Add shop_id field for tracking payments per shop
-    await queryInterface.addColumn('kisaan_payments', 'shop_id', {
-      type: Sequelize.BIGINT,
-      allowNull: true,
-      references: {
-        model: 'kisaan_shops',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    });
+    // Already exists, skip to avoid error
+    // await queryInterface.addColumn('kisaan_payments', 'shop_id', {
+    //   type: Sequelize.BIGINT,
+    //   allowNull: true,
+    //   references: {
+    //     model: 'kisaan_shops',
+    //     key: 'id',
+    //   },
+    //   onUpdate: 'CASCADE',
+    //   onDelete: 'SET NULL',
+    // });
 
     // Add counterparty_id field for bulk payments
-    await queryInterface.addColumn('kisaan_payments', 'counterparty_id', {
-      type: Sequelize.BIGINT,
-      allowNull: true,
-      references: {
-        model: 'kisaan_users',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    });
+    // Already exists, skip to avoid error
+    // await queryInterface.addColumn('kisaan_payments', 'counterparty_id', {
+    //   type: Sequelize.BIGINT,
+    //   allowNull: true,
+    //   references: {
+    //     model: 'kisaan_users',
+    //     key: 'id',
+    //   },
+    //   onUpdate: 'CASCADE',
+    //   onDelete: 'SET NULL',
+    // });
 
     // Make transaction_id nullable for bulk payments
     await queryInterface.changeColumn('kisaan_payments', 'transaction_id', {

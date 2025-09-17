@@ -32,7 +32,7 @@ module.exports = {
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
       },
     });
-    await queryInterface.addIndex('balance_snapshots', ['user_id', 'snapshot_date']);
+  try { await queryInterface.addIndex('balance_snapshots', ['user_id', 'snapshot_date']); } catch (e) {}
   },
 
   down: async (queryInterface, Sequelize) => {
