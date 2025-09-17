@@ -76,8 +76,22 @@ const OwnerSettings: React.FC = () => {
     }
     setLoading(true);
     try {
-      await apiClient.put(`/commissions`, {
-        shop_id: user.shop_id,
+      // Fetch all commissions for shop
+      const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as any;
+      let commissionId = null;
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        // Pick the latest commission (highest id)
+  const latest = res.data.sort((a: any, b: any) => Number(b.id) - Number(a.id))[0];
+        commissionId = latest.id;
+      } else if (res.data && res.data.id) {
+        commissionId = res.data.id;
+      }
+      if (!commissionId) {
+        setCommissionMessage('No commission record found to update.');
+        setLoading(false);
+        return;
+      }
+      await apiClient.put(`/commissions/${commissionId}`, {
         rate: Number(commission),
         type: 'percentage'
       });

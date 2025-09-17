@@ -4,18 +4,33 @@ import { CreateCommissionDTO, CommissionResponseDTO, UpdateCommissionDTO } from 
 
 export class CommissionService {
   async createCommission(data: CreateCommissionDTO, userId: number): Promise<CommissionResponseDTO> {
-    const commission = await Commission.create(data);
-
-    await AuditLog.create({
-      shop_id: data.shop_id,
-      user_id: userId,
-      action: 'transaction_created', // fallback to allowed value
-      entity_type: 'transaction', // fallback to allowed value
-      entity_id: commission.id,
-      new_values: JSON.stringify(commission.toJSON())
-    });
-
-    return commission.toJSON() as CommissionResponseDTO;
+    // Check if commission for shop exists
+    let commission = await Commission.findOne({ where: { shop_id: data.shop_id } });
+    if (commission) {
+      // Update existing commission
+      await commission.update({ rate: data.rate, type: data.type });
+      await AuditLog.create({
+        shop_id: data.shop_id,
+        user_id: userId,
+        action: 'transaction_created', // fallback to allowed value
+        entity_type: 'transaction', // fallback to allowed value
+        entity_id: commission.id,
+        new_values: JSON.stringify(commission.toJSON())
+      });
+      return commission.toJSON() as CommissionResponseDTO;
+    } else {
+      // Create new commission
+      commission = await Commission.create(data);
+      await AuditLog.create({
+        shop_id: data.shop_id,
+        user_id: userId,
+        action: 'transaction_created', // fallback to allowed value
+        entity_type: 'transaction', // fallback to allowed value
+        entity_id: commission.id,
+        new_values: JSON.stringify(commission.toJSON())
+      });
+      return commission.toJSON() as CommissionResponseDTO;
+    }
   }
 
   async getAllCommissions(): Promise<CommissionResponseDTO[]> {
