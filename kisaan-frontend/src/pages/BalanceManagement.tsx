@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useTransactionStore } from '../store/transactionStore';
 import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ interface BalanceManagementProps {
 
 const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const transactionStore = useTransactionStore();
+  const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [snapshots, setSnapshots] = useState<any[]>([]);
@@ -43,13 +45,14 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   };
 
 
-  // Fetch users only once on mount
+  // Fetch users only once on mount, and only if authenticated
   useEffect(() => {
+    if (!isAuthenticated) return;
     if (users.length === 0) {
       fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopId]);
+  }, [shopId, isAuthenticated]);
 
   // Fetch balance snapshots for selected user
   useEffect(() => {

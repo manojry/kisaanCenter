@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { formatDisplayDate, getToday } from '../utils/dateUtils';
+import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
@@ -74,12 +74,12 @@ const TransactionManagement: React.FC = () => {
     if (!user?.shop_id) return;
     setIsLoading(true);
     const { from_date, to_date, search } = filters;
-    // Get all dates in range
+    // Always use UTC date strings for API calls
     const start = new Date(from_date);
     const end = new Date(to_date);
     const dateList: string[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dateList.push(d.toISOString().split('T')[0]);
+      dateList.push(formatDate(d)); // formatDate always returns UTC YYYY-MM-DD
     }
     const shopIdStr = String(user.shop_id);
     // Invalidate cache for affected dates if requested
@@ -100,8 +100,8 @@ const TransactionManagement: React.FC = () => {
           const params: any = {
             shop_id: user.shop_id,
             limit: 50,
-            from_date: date,
-            to_date: date
+            from_date: formatDate(date),
+            to_date: formatDate(date)
           };
           const response = await transactionsApi.getAll(params);
           if (response.data) {
