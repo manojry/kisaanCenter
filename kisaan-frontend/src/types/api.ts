@@ -16,17 +16,18 @@ export interface BulkPaymentRequest {
 export interface User {
   id: number;
   username: string;
+  password: string;
   role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
   shop_id?: number;
   contact?: string;
   email?: string;
-  firstname?: string;
   status: 'active' | 'inactive';
   balance: number;
   cumulative_value: number;
   created_by?: number;
   created_at: string;
   updated_at: string;
+  firstname?: string;
 }
 
 export interface UserCreate {

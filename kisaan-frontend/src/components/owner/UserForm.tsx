@@ -19,7 +19,6 @@ interface UserFormProps {
 export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUser }) => {
   // Validation state
   const [contactError, setContactError] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
   const { user: currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -27,12 +26,11 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     role: editUser?.role || 'farmer',
     shop_id: currentUser?.shop_id || 0,
     contact: editUser?.contact || '',
-    email: editUser?.email || '',
-    password: '',
-    status: editUser?.status || 'active',
-    balance: editUser?.balance || 0,
     cumulative_value: editUser?.cumulative_value || 0,
-    firstname: editUser?.firstname || ''
+    firstname: editUser?.firstname || '',
+    password: editUser?.password || 'kisaan@123',
+    status: editUser?.status || 'active',
+    email: editUser?.email || 'contact@kisaancenter.com'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,27 +41,10 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     } else {
       setContactError(null);
     }
-    // Validate email (if provided)
-    if (formData.email && formData.email.length > 0) {
-      const emailPattern = /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]+)@[A-Za-z0-9][A-Za-z0-9\-]*\.[A-Za-z]{2,}$/;
-      if (!emailPattern.test(formData.email)) {
-        setEmailError('Invalid email address');
-        return;
-      } else {
-        setEmailError(null);
-      }
-    } else {
-      setEmailError(null);
-    }
     e.preventDefault();
-    
+
     if (!editUser && !formData.firstname) {
       setFormError('Please enter first name');
-      return;
-    }
-    
-    if (!editUser && !formData.password) {
-      setFormError('Please fill all required fields');
       return;
     }
 
@@ -73,12 +54,23 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
       let response;
       if (editUser) {
         // Update existing user
-        const updateData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
-        (updateData as any).password = undefined;
+        const updateData: UserCreate = {
+          ...formData,
+          role: formData.role,
+          status: editUser.status,
+          password: formData.password,
+          email: formData.email
+        };
         response = await usersApi.update(editUser.id, updateData);
       } else {
         // Create new user, backend will generate username
-        const createData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
+        // For owner and farmer, set default email and password
+        let createData: UserCreate = {
+          ...formData,
+          status: 'active',
+          password: (formData.role === 'owner' || formData.role === 'farmer') ? 'kisaan@123' : formData.password,
+          email: (formData.role === 'owner' || formData.role === 'farmer') ? 'contact@kisaancenter.com' : formData.email
+        };
         response = await usersApi.create(createData);
       }
       if (response.success && response.data) {
@@ -153,102 +145,30 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             </Select>
           </div>
 
-          {/* Contact and Email */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contact">Contact Number *</Label>
-              <div className="text-xs text-gray-500">Required. Enter a valid 10-digit phone number.</div>
-              <Input
-                id="contact"
-                value={formData.contact}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setFormData(prev => ({ ...prev, contact: e.target.value }));
-                  if (!e.target.value || e.target.value.length < 10) {
-                    setContactError('Contact number is required and must be at least 10 digits');
-                  } else {
-                    setContactError(null);
-                  }
-                }}
-                placeholder="Enter 10-digit contact number"
-                required
-              />
-              {contactError && <div className="text-xs text-red-600 mt-1">{contactError}</div>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <div className="text-xs text-gray-500">Required. Enter a valid email address.</div>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setFormData(prev => ({ ...prev, email: e.target.value }));
-                  if (!e.target.value) {
-                    setEmailError('Email is required');
-                  } else {
-                    const emailPattern = /^(?!\.)(?!.*\.\.)[A-Za-z0-9_'+\-\.]+@[A-Za-z0-9][A-Za-z0-9\-]*\.[A-Za-z]{2,}$/;
-                    if (!emailPattern.test(e.target.value)) {
-                      setEmailError('Invalid email address');
-                    } else {
-                      setEmailError(null);
-                    }
-                  }
-                }}
-                placeholder="Enter email address"
-                required
-              />
-              {emailError && <div className="text-xs text-red-600 mt-1">{emailError}</div>}
-            </div>
+          {/* Contact only */}
+          <div className="space-y-2">
+            <Label htmlFor="contact">Contact Number *</Label>
+            <div className="text-xs text-gray-500">Required. Enter a valid 10-digit phone number.</div>
+            <Input
+              id="contact"
+              value={formData.contact}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setFormData(prev => ({ ...prev, contact: e.target.value }));
+                if (!e.target.value || e.target.value.length < 10) {
+                  setContactError('Contact number is required and must be at least 10 digits');
+                } else {
+                  setContactError(null);
+                }
+              }}
+              placeholder="Enter 10-digit contact number"
+              required
+            />
+            {contactError && <div className="text-xs text-red-600 mt-1">{contactError}</div>}
           </div>
 
-          {/* Password (only for new users) */}
-          {!editUser && (
-            <div className="space-y-2">
-              <Label htmlFor="password">Password *</Label>
-              <div className="text-xs text-gray-500">Password must be at least 6 characters.</div>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Enter password"
-                minLength={6}
-                required
-              />
-            </div>
-          )}
+          {/* Password removed for owner/farmer creation (default used) */}
 
-          {/* Status and Balance */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="balance">Initial Balance (₹)</Label>
-              <div className="text-xs text-gray-500">Optional. Set an initial balance for the user (default is 0).</div>
-              <Input
-                id="balance"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.balance}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, balance: parseFloat(e.target.value) || 0 }))}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
+          {/* Status and Initial Balance removed for owner/farmer creation (default used) */}
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
