@@ -1,10 +1,10 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host: 'xxxxxx',
+  host: 'manoj-test.dev.ea.mpi-internal.com',
   database: 'kisaan_dev',
   user: 'postgres',
-  password: 'xxxxxxxx',
+  password: 'yd2A4TKG1d7J,yd2A',
   port: 5432,
   ssl: { rejectUnauthorized: false }
 });
@@ -78,6 +78,7 @@ async function deleteOwnerAndRelatedData(ownerId) {
 }
 
 // Usage: node delete_owner_and_data.js <owner_id>
+// npx ts-node .\delete_owner_and_data.js <owner_id>
 const ownerId = process.argv[2];
 if (!ownerId) {
   console.error('Usage: node delete_owner_and_data.js <owner_id>');
