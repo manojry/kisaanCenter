@@ -121,25 +121,25 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
                 </TableBody>
               </Table>
             </div>
-            {/* Mobile Card/List Layout */}
-            <div className="block sm:hidden space-y-4">
-              {users.map((user, idx) => (
-                <div key={user.id} className="rounded-lg border p-4 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-semibold text-lg break-words truncate max-w-[70%]" title={user.username}>{user.username}</span>
-                    {getRoleBadge(user.role)}
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-sm mb-2">
-                    <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Contact:</span> {user.contact || '-'}</div>
-                    <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Email:</span> {user.email || '-'}</div>
-                    <div className="break-words col-span-2"><span className="font-medium">Status:</span> {getStatusBadge(user.status)}</div>
-                    <div className="break-words col-span-2"><span className="font-medium">Created:</span> {new Date(user.created_at).toLocaleDateString()}</div>
-                  </div>
-                  {idx < users.length - 1 && <div className="border-t mt-3 pt-3" />}
-                </div>
-              ))}
-            </div>
           )}
+          {/* Mobile Card/List Layout */}
+          <div className="block sm:hidden space-y-4">
+            {users.map((user, idx) => (
+              <div key={user.id} className="rounded-lg border p-4 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold text-lg break-words truncate max-w-[70%]" title={user.username}>{user.username}</span>
+                  {getRoleBadge(user.role)}
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-sm mb-2">
+                  <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Contact:</span> {user.contact || '-'}</div>
+                  <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Email:</span> {user.email || '-'}</div>
+                  <div className="break-words col-span-2"><span className="font-medium">Status:</span> {getStatusBadge(user.status)}</div>
+                  <div className="break-words col-span-2"><span className="font-medium">Created:</span> {new Date(user.created_at).toLocaleDateString()}</div>
+                </div>
+                {idx < users.length - 1 && <div className="border-t mt-3 pt-3" />}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
