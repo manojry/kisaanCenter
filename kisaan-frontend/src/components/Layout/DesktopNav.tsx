@@ -98,12 +98,6 @@ export function DesktopNav() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem asChild>
-            <Link to="/profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Profile
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
             <Link to="/settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings

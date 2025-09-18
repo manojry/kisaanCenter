@@ -14,13 +14,7 @@
     "test:integration:watch": "jest --config jest.integration.config.js --watch",
     "test:integration:verbose": "jest --config jest.integration.config.js --verbose",
     "test:runner": "node tests/integration/run-tests.js",
-    "test:recommended": "node tests/integration/run-tests.js 3",
-    "test:business-journey": "node tests/integration/run-tests.js 1",
-    "test:missing-features": "node tests/integration/run-tests.js 2",
     "migrate": "ts-node scripts/run-migration.ts",
-    "db:setup": "ts-node scripts/setup-test-database.ts",
-    "db:setup-dev": "ts-node scripts/setup-dev-database.ts",
-    "db:fix-price": "ts-node scripts/fix-plan-price.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },

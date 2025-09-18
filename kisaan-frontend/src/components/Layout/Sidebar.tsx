@@ -25,11 +25,11 @@ const ownerNavigation = [
   { name: 'Dashboard', href: '/owner', icon: Home },
   { name: 'Transactions', href: '/transactions', icon: ShoppingCart },
   { name: 'Users', href: '/users', icon: Users },
-  { name: 'Products', href: '/products', icon: Package },
   { name: 'Payments', href: '/payments', icon: DollarSign },
   { name: 'Balance', href: '/balance', icon: BarChart3 },
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Settlements', href: '/settlements', icon: BarChart3 },
+  { name: 'Products', href: '/products', icon: Package },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -38,9 +38,9 @@ const superadminNavigation = [
   { name: 'Shops', href: '/superadmin/shops', icon: Building2 },
   { name: 'Users', href: '/superadmin/users', icon: Users },
   { name: 'Categories', href: '/superadmin/categories', icon: Tags },
-  { name: 'Products', href: '/superadmin/products', icon: Package },
   { name: 'Assign Products', href: '/superadmin/shop-products', icon: LinkIcon },
   { name: 'Reports', href: '/superadmin/reports', icon: FileText },
+  { name: 'Products', href: '/superadmin/products', icon: Package },
   { name: 'Settings', href: '/superadmin/settings', icon: Settings },
 ];
 

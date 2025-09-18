@@ -267,29 +267,33 @@ const TransactionManagement: React.FC = () => {
         </CardHeader>
         <CardContent className="p-3 sm:p-4">
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search products..."
-                value={filters.search}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                className="pl-10 text-sm w-40"
-              />
+            <div className="flex items-center w-full sm:w-auto">
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search"
+                  value={filters.search}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10 text-sm w-full sm:w-64"
+                />
+              </div>
+              <div className="ml-2 w-36">
+                <Select
+                  value={selectedUser}
+                  onValueChange={setSelectedUser}
+                >
+                  <SelectTrigger className="text-sm w-full">
+                    <SelectValue placeholder="Select user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    {users.map(u => (
+                      <SelectItem key={u.id} value={String(u.id)}>{u.firstname ? u.firstname : u.username}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <Select
-              value={selectedUser}
-              onValueChange={setSelectedUser}
-            >
-              <SelectTrigger className="text-sm w-36">
-                <SelectValue placeholder="Select user" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All users</SelectItem>
-                {users.map(u => (
-                  <SelectItem key={u.id} value={String(u.id)}>{u.firstname ? u.firstname : u.username}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <div className="flex gap-2 items-center">
               <Input
                 type="date"

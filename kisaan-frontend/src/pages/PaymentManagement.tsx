@@ -271,40 +271,37 @@ const PaymentManagement: React.FC = () => {
                   <CardTitle>{selectedUser.role === 'farmer' ? 'Record Payment to Farmer' : 'Receive Payment from Buyer'}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium mb-1">
-                      {selectedUser.role === 'farmer' ? 'Payment Amount' : 'Amount Received'}
-                    </label>
+                  <div className="flex flex-col gap-2">
                     <Input
                       type="number"
                       step="0.01"
                       value={paymentAmount}
                       onChange={e => setPaymentAmount(e.target.value)}
                       placeholder={selectedUser.role === 'farmer' ? 'Enter payment amount' : 'Enter amount received'}
+                      className="w-32"
                     />
+                    <div className="flex flex-row items-end justify-between gap-2">
+                      <select
+                        className="border rounded p-2 text-sm min-w-[120px]"
+                        value={paymentMethod}
+                        onChange={e => setPaymentMethod(e.target.value)}
+                      >
+                        <option value="CASH">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="BANK">Bank</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                      <Button
+                        onClick={handlePayment}
+                        disabled={loading || !paymentAmount}
+                        className={loading ? 'opacity-60 cursor-not-allowed' : ''}
+                      >
+                        {loading ? (
+                          <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
+                        ) : (selectedUser.role === 'farmer' ? 'Record Payment' : 'Receive Payment')}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="mb-2">
-                    <label className="block text-xs font-medium mb-1">Payment Method</label>
-                    <select
-                      className="block w-full border rounded p-2 text-sm"
-                      value={paymentMethod}
-                      onChange={e => setPaymentMethod(e.target.value)}
-                    >
-                      <option value="CASH">Cash</option>
-                      <option value="UPI">UPI</option>
-                      <option value="BANK">Bank</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-                  <Button
-                    onClick={handlePayment}
-                    disabled={loading || !paymentAmount}
-                    className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-                  >
-                    {loading ? (
-                      <span className="flex items-center"><span className="loader mr-2"></span>Processing...</span>
-                    ) : (selectedUser.role === 'farmer' ? 'Record Payment' : 'Receive Payment')}
-                  </Button>
                 </CardContent>
               </Card>
               {/* Advance payment UI removed. Only regular payments remain. */}

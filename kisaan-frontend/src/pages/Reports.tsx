@@ -12,7 +12,7 @@ import PDFReportGenerator from '../components/PDFReportGenerator';
 export default function Reports() {
   const { user } = useAuth();
   // Get shop and stats from dashboard hook
-    const { stats } = useOwnerDashboard();
+    // const { stats } = useOwnerDashboard();
     // Get all users from users hook
     const { data: usersData } = useUsers();
   // Shop info: for owner, shop is usually user.shop_id or from stats
@@ -42,7 +42,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className="container mx-auto p-2 md:p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-4">

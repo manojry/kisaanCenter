@@ -81,15 +81,15 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading
   ];
 
   return (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
       {statCards.map((stat, index) => (
-        <Card key={index} className="hover:shadow-md transition-shadow">
+        <Card key={index} className="hover:shadow-md transition-shadow rounded-lg">
           <CardContent className="p-3">
-            <div className="flex items-center">
-              <stat.icon className={`h-8 w-8 ${stat.color}`} />
-              <div className="ml-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center">
+              <stat.icon className={`h-8 w-8 mb-2 sm:mb-0 ${stat.color}`} />
+              <div className="sm:ml-4">
                 <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <p className={`text-2xl font-bold ${stat.color} break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]`} style={{overflowWrap: 'anywhere'}} title={stat.value}>
+                <p className={`text-xl sm:text-2xl font-bold ${stat.color} break-words truncate max-w-[12ch] sm:max-w-[20ch] lg:max-w-[28ch]`} style={{overflowWrap: 'anywhere'}} title={stat.value}>
                   {stat.value}
                 </p>
                 <p className="text-xs text-gray-500">{stat.subtitle}</p>
