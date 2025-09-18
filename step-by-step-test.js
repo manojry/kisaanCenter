@@ -9,10 +9,10 @@ let authToken = null;
 
 // Database connection
 const pool = new Pool({
-  host: 'manoj-test.dev.ea.mpi-internal.com',
+  host: 'xxxxxxx',
   database: 'kisaan_dev',
   user: 'postgres',
-  password: 'yd2A4TKG1d7J,yd2A',
+  password: 'yyyyyyy',
   port: 5432,
   ssl: { rejectUnauthorized: false }
 });
