@@ -66,20 +66,23 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+          <div className="flex flex-col xs:flex-row xs:items-center w-full gap-2 xs:gap-0">
+            <div className="flex flex-col flex-1 min-w-0">
+              <CardTitle className="flex items-center gap-2 text-base xs:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
                 <Users className="h-5 w-5" />
                 Users Management
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs xs:text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                 Manage farmers and buyers in your shop ({users.length} users)
               </CardDescription>
             </div>
-            <Button onClick={() => setShowAddUser(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
+            <div className="flex gap-2 items-center xs:ml-auto">
+              <Button onClick={() => setShowAddUser(true)} size="sm" className="px-2 py-1 text-xs xs:text-sm bg-green-600 hover:bg-green-700" style={{ minWidth: 0 }}>
+                <Plus className="h-4 w-4 mr-1 xs:mr-2" />
+                <span className="hidden xs:inline">Add User</span>
+                <span className="inline xs:hidden">+</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

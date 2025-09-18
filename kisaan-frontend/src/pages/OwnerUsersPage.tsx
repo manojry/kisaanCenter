@@ -94,25 +94,28 @@ const OwnerUsersPage: React.FC = () => {
   return (
   <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Users Management</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Manage farmers, buyers and other users</p>
+      <div className="flex flex-row w-full mb-2 items-center gap-2">
+        <div className="flex flex-col flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">Users Management</h1>
+          <p className="text-gray-600 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">Manage farmers, buyers and other users</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-2 items-center ml-auto">
           <Button 
             onClick={refreshUsers}
             variant="outline"
             size="sm"
             disabled={isLoading}
-            className="flex-1 sm:flex-initial"
+            className="px-2 py-1 text-xs sm:text-sm"
+            style={{ minWidth: 0 }}
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`w-4 h-4 mr-1 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden xs:inline">Refresh</span>
+            <span className="inline xs:hidden">↻</span>
           </Button>
-          <Button onClick={() => setShowCreateForm(true)} className="flex-1 sm:flex-initial">
-            <Plus className="w-4 h-4 mr-2" />
-            Add User
+          <Button onClick={() => setShowCreateForm(true)} className="px-2 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700" size="sm" style={{ minWidth: 0 }}>
+            <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden xs:inline">Add User</span>
+            <span className="inline xs:hidden">+</span>
           </Button>
         </div>
       </div>
@@ -238,36 +241,41 @@ const OwnerUsersPage: React.FC = () => {
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
                 {filteredUsers.map((user) => (
-                  <div key={user.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
-                    <div className="flex justify-between items-center mb-1 gap-2">
-                      <span className="font-semibold text-base break-words max-w-[60%]">{user.username}</span>
-                      <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500 ml-1' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
-                    <div className="flex flex-wrap gap-2 text-xs mb-1">
-                      <div className="break-words max-w-[48%]"><span className="font-medium">Balance:</span> {formatCurrency(user.balance)}</div>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => setEditingUser(user)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      {user.id !== currentUser?.id && (
+                  <div key={user.id} className="rounded-lg border p-2 bg-white shadow-sm w-full max-w-full mx-auto">
+                    <div className="flex justify-between items-center mb-1 gap-1">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <span className="font-semibold text-sm break-words truncate max-w-[60%]">{user.username}</span>
+                        <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
+                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1 items-center">
                         <Button 
                           size="sm" 
-                          variant="outline" 
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-700"
+                          variant="outline"
+                          onClick={() => setEditingUser(user)}
+                          className="px-2 py-1 text-xs"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </Button>
-                      )}
+                        {user.id !== currentUser?.id && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="text-red-600 hover:text-red-700 px-2 py-1 text-xs"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {/* Action buttons only shown in one place (table or card) to avoid duplicates */}
                     </div>
+                    <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2 h-2 rounded-full bg-green-500 ml-1' : 'inline-block w-2 h-2 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
+                    <div className="flex flex-wrap gap-1 text-xs mb-1">
+                      <div className="break-words max-w-[48%]"><span className="font-medium">Balance:</span> {formatCurrency(user.balance)}</div>
+                    </div>
+                    {/* Removed bottom action buttons for mobile cards; only side (right) buttons remain for compactness */}
                   </div>
                 ))}
               </div>
