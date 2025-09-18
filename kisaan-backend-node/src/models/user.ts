@@ -9,6 +9,7 @@ export interface UserAttributes {
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;
+  firstname?: string | null;
   status: 'active' | 'inactive';
   balance: number;
   cumulative_value: number; // total earned (farmer), spent (buyer), commission (owner)
@@ -27,6 +28,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public shop_id!: number | null;
   public contact!: string | null;
   public email!: string | null;
+  public firstname!: string | null;
   public status!: 'active' | 'inactive';
   public balance!: number;
   public cumulative_value!: number;
@@ -65,6 +67,10 @@ User.init(
       allowNull: true,
     },
     email: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    firstname: {
       type: DataTypes.STRING,
       allowNull: true,
     },

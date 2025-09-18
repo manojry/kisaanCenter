@@ -113,9 +113,13 @@ export const createUser = async (
     userData.password = await bcrypt.hash(userData.password, 12);
   }
 
-  const { firstname, ...finalUserData } = userData;
+  // Ensure firstname is persisted
+  const finalUserData = { ...userData };
   finalUserData.balance = Number(finalUserData.balance || 0);
-
+  // If firstname is undefined, set to empty string for DB
+  if (typeof finalUserData.firstname === 'undefined') {
+    finalUserData.firstname = '';
+  }
   const userModel = await User.create(finalUserData as import('../models/user').UserCreationAttributes);
   const entity = fromUserModel(userModel);
   return toUserDTO(entity);

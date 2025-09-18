@@ -20,6 +20,7 @@ export interface User {
   shop_id?: number;
   contact?: string;
   email?: string;
+  firstname?: string;
   status: 'active' | 'inactive';
   balance: number;
   cumulative_value: number;

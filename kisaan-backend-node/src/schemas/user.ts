@@ -17,6 +17,7 @@ export const UserBaseSchema = z.object({
   ),
   contact: z.string().min(10).max(15).optional().nullable(),
   email: z.string().email().max(100).optional().nullable(),
+  firstname: z.string().min(2).max(50).optional(),
   status: UserStatusEnum.default('active'),
   owner_id: z.string().max(20).optional().nullable(),
   balance: z.number().optional(),
@@ -40,6 +41,7 @@ export const UserCreateSchema = UserBaseSchema.extend({
 
 export const UserUpdateSchema = UserBaseSchema.partial().omit({ role: true }).extend({
   password: z.string().min(6).max(100).optional(),
+  firstname: z.string().min(2).max(50).optional(),
 }); // Can't change role after creation
 
 export const UserPasswordResetSchema = z.object({
@@ -73,6 +75,7 @@ export const UserReadSchema = UserBaseSchema.extend({
   created_by: z.number().int().nullable(),
   created_at: z.date(),
   updated_at: z.date(),
+  firstname: z.string().min(2).max(50).optional(),
 });
 
 // Type exports

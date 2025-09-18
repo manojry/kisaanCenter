@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTransactionStore } from '../store/transactionStore';
 import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,8 +12,9 @@ interface User {
   id: string;
   username: string;
   role: 'farmer' | 'buyer';
-  balance: number;
-  contact?: string;
+    balance: number;
+    contact?: string;
+    firstname?: string;
 }
 
 interface BalanceManagementProps {
@@ -20,18 +22,22 @@ interface BalanceManagementProps {
 }
 
 const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
-  const [users, setUsers] = useState<User[]>([]);
+  const transactionStore = useTransactionStore();
+  const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   const fetchUsers = async () => {
     try {
-  const response = await usersApi.getAll({ shop_id: shopId });
+      const response = await usersApi.getAll({ shop_id: shopId });
       const userList = Array.isArray(response.data) ? response.data : [];
-      setUsers(userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) })));
+      const filteredUsers = userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) }));
+      setUsers(filteredUsers);
+      transactionStore.setUsers(String(shopId), filteredUsers);
     } catch (error) {
       setUsers([]);
+      transactionStore.setUsers(String(shopId), []);
       console.error('Error fetching users:', error);
     }
   };
@@ -43,7 +49,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [shopId]);
 
   // Fetch balance snapshots for selected user
   useEffect(() => {
@@ -93,7 +99,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
-                  {user.username} ({user.role}) - ₹{user.balance.toLocaleString()}
+                  {(user.firstname ? user.firstname : user.username)} ({user.role}) - ₹{user.balance.toLocaleString()}
                 </SelectItem>
               ))}
             </SelectContent>

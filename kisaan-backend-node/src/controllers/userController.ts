@@ -36,8 +36,9 @@ export class UserController {
       return;
     }
 
+    // Pass firstname explicitly if present
     const user: UserDTO = await userService.createUser(
-      parsed.data, 
+      { ...parsed.data, firstname: reqBody.firstname },
       req.user?.id || 1,
       req.user?.role
     );
@@ -74,8 +75,10 @@ export class UserController {
     }
 
     const includeBalance = req.query.include_balance === 'true';
-    const result = await userService.getAllUsers(parsed.data, req.user, includeBalance);
-    res.json({ success: true, data: result.users, ...result });
+  const result = await userService.getAllUsers(parsed.data, req.user, includeBalance);
+  // Only return 'users' array, not both 'data' and 'users'
+  const { users, total, page, limit } = result;
+  res.json({ success: true, users, total, page, limit });
   } catch (err: any) {
     if (err.status) {
       res.status(err.status).json({ error: err.message });

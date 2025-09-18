@@ -112,6 +112,10 @@ const PaymentManagement: React.FC = () => {
           setSnapshots(snapshotsData);
           const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role ? selectedUser.role.toUpperCase() : '' });
           setPayments(payRes.data || []);
+          // Refetch selectedUser to get updated balance
+          await fetchUsers();
+          const updatedUser = allUsers.find((u: any) => u.id === selectedUser.id);
+          if (updatedUser) setSelectedUser(updatedUser);
         }
       } else if (res && res.message) {
         setMessage(`Error: ${res.message}`);
@@ -146,7 +150,7 @@ const PaymentManagement: React.FC = () => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
-                  {user.username} ({user.role}) - ₹{user.balance.toLocaleString()}
+                  {(user.firstname ? user.firstname : user.username)} ({user.role}) - ₹{user.balance.toLocaleString()}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -15,17 +15,6 @@ interface UserFormProps {
   editUser?: User | null;
 }
 
-interface UserCreate {
-  role: string;
-  shop_id: number;
-  contact: string;
-  email: string;
-  password: string;
-  status: string;
-  balance: number;
-  cumulative_value: number;
-  firstname?: string;
-}
 
 export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUser }) => {
   // Validation state
@@ -43,7 +32,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     status: editUser?.status || 'active',
     balance: editUser?.balance || 0,
     cumulative_value: editUser?.cumulative_value || 0,
-    firstname: ''
+    firstname: editUser?.firstname || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,13 +73,12 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
       let response;
       if (editUser) {
         // Update existing user
-  const updateData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
+        const updateData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
         (updateData as any).password = undefined;
-        (updateData as any).firstname = undefined;
         response = await usersApi.update(editUser.id, updateData);
       } else {
         // Create new user, backend will generate username
-  const createData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
+        const createData = { ...formData, role: formData.role as import('../../types/api').UserCreate['role'], status: formData.status as import('../../types/api').UserCreate['status'] };
         response = await usersApi.create(createData);
       }
       if (response.success && response.data) {
@@ -117,25 +105,23 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
 
 
           {/* First Name (for auto-generating username) */}
-          {!editUser && (
-            <div className="space-y-2">
-              <Label htmlFor="firstname">First Name *</Label>
-              <Input
-                id="firstname"
-                value={formData.firstname}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const firstname = e.target.value;
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    firstname
-                  }));
-                }}
-                placeholder="Enter first name"
-                required
-              />
-              <div className="text-xs text-gray-500">Enter the user's first name. Username will be auto-generated.</div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="firstname">First Name *</Label>
+            <Input
+              id="firstname"
+              value={formData.firstname}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const firstname = e.target.value;
+                setFormData(prev => ({ 
+                  ...prev, 
+                  firstname
+                }));
+              }}
+              placeholder="Enter first name"
+              required
+            />
+            <div className="text-xs text-gray-500">Enter the user's first name. Username will be auto-generated.</div>
+          </div>
 
           {formError && (
             <div className="text-red-600 text-sm font-medium mb-2">{formError}</div>

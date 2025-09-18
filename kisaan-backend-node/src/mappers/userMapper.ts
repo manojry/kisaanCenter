@@ -14,6 +14,7 @@ export function toUserDTO(entity: UserEntity): UserDTO {
     shop_id: entity.shop_id,
     contact: entity.contact,
     email: entity.email,
+    firstname: entity.firstname ?? null,
     status: entity.status!,
     balance: typeof entity.balance === 'string' ? parseFloat(entity.balance) : entity.balance!, // handle DECIMAL as string
     cumulative_value: typeof entity.cumulative_value === 'string' ? parseFloat(entity.cumulative_value) : (entity.cumulative_value ?? 0),

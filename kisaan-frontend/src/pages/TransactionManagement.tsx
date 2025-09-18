@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDisplayDate, getToday } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
@@ -8,23 +9,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { 
   Plus,
   Search,
-  Eye,
   RefreshCw
 } from 'lucide-react';
 import { transactionsApi } from '../services/api';
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { TransactionForm } from '../components/owner/TransactionForm';
+import { useTransactionStore } from '../store/transactionStore';
 
 const TransactionManagement: React.FC = () => {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(transactions.length / pageSize));
+  const paginatedTransactions = transactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Clamp currentPage to valid range whenever transactions change
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+    if (currentPage < 1) {
+      setCurrentPage(1);
+    }
+  }, [transactions, totalPages]);
+  const transactionStore = useTransactionStore();
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   // Set default filters to today for from_date and to_date
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getToday();
   const [filters, setFilters] = useState({
     search: '',
     from_date: todayStr,
@@ -46,51 +62,82 @@ const TransactionManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTransactions();
+    // Debounced filter change logic
+    const handler = setTimeout(() => {
+      fetchTransactions();
+      setCurrentPage(1); // Reset to first page on filter change
+    }, 300);
+    return () => clearTimeout(handler);
   }, [user?.shop_id, filters, selectedUser]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (invalidateDates?: string[]) => {
     if (!user?.shop_id) return;
     setIsLoading(true);
-    try {
-      const params: any = {
-        shop_id: user.shop_id,
-        limit: 50
-      };
-      if (selectedUser && selectedUser !== 'all') {
-        // Find selected user role
-        const selectedUserObj = users.find(u => String(u.id) === selectedUser);
-        if (selectedUserObj) {
-          if (selectedUserObj.role === 'farmer') params.farmer_id = selectedUserObj.id;
-          else if (selectedUserObj.role === 'buyer') params.buyer_id = selectedUserObj.id;
-          else params.user_id = selectedUserObj.id;
-        }
-      }
-  // status filter removed
-      if (filters.from_date) params.from_date = filters.from_date;
-      if (filters.to_date) params.to_date = filters.to_date;
-      const response = await transactionsApi.getAll(params);
-      if (response.data) {
-        let filteredTransactions = response.data;
-        // Client-side search filter
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredTransactions = filteredTransactions.filter(t => 
-            t.product_name.toLowerCase().includes(searchLower)
-          );
-        }
-        setTransactions(filteredTransactions);
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setIsLoading(false);
+    const { from_date, to_date, search } = filters;
+    // Get all dates in range
+    const start = new Date(from_date);
+    const end = new Date(to_date);
+    const dateList: string[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      dateList.push(d.toISOString().split('T')[0]);
     }
+    const shopIdStr = String(user.shop_id);
+    // Invalidate cache for affected dates if requested
+    if (invalidateDates && invalidateDates.length > 0) {
+      transactionStore.invalidateTransactions(shopIdStr, invalidateDates);
+    }
+    // Check which dates are missing in cache
+    const cachedTxns = transactionStore.getTransactions(shopIdStr, dateList);
+    const missingDates = dateList.filter(date => {
+      const shopData = transactionStore.transactionsByShopAndDate[shopIdStr] || {};
+      return !shopData[date];
+    });
+    let allTxns: Transaction[] = [...cachedTxns];
+    // If any dates missing, fetch and cache them
+    if (missingDates.length > 0) {
+      for (const date of missingDates) {
+        try {
+          const params: any = {
+            shop_id: user.shop_id,
+            limit: 50,
+            from_date: date,
+            to_date: date
+          };
+          const response = await transactionsApi.getAll(params);
+          if (response.data) {
+            transactionStore.setTransactions(shopIdStr, date, response.data);
+            allTxns = allTxns.concat(response.data);
+          }
+        } catch (error) {
+          console.error('Error fetching transactions for date', date, error);
+        }
+      }
+    }
+    // Now filter client-side for user and search
+    let filteredTransactions = [...allTxns];
+    if (selectedUser && selectedUser !== 'all') {
+      const selectedUserObj = users.find(u => String(u.id) === selectedUser);
+      if (selectedUserObj) {
+        filteredTransactions = filteredTransactions.filter(t => {
+          if (selectedUserObj.role === 'farmer') return t.farmer_id === selectedUserObj.id;
+          if (selectedUserObj.role === 'buyer') return t.buyer_id === selectedUserObj.id;
+          return t.id === selectedUserObj.id;
+        });
+      }
+    }
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredTransactions = filteredTransactions.filter(t => t.product_name.toLowerCase().includes(searchLower));
+    }
+    setTransactions(filteredTransactions);
+    setIsLoading(false);
   };
 
-  const handleTransactionCreated = (transaction: Transaction) => {
-    setShowCreateForm(false);
-    fetchTransactions();
+  const handleTransactionCreated = () => {
+  setShowCreateForm(false);
+  // Invalidate cache for the affected date(s) and refetch
+  const affectedDate = filters.from_date;
+  fetchTransactions([affectedDate]);
   };
 
   const formatCurrency = (value: string | number | undefined) => {
@@ -98,11 +145,11 @@ const TransactionManagement: React.FC = () => {
     if (typeof num !== 'number' || isNaN(num)) return '';
     return `₹${num.toLocaleString()}`;
   };
-  const formatDate = (dateString: string | undefined) => {
+  // Use formatDisplayDate from dateUtils for display
+  const formatDateDisplay = (dateString: string | undefined) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? '' : date.toLocaleString();
-  };
+    return formatDisplayDate(dateString);
+  }
 
 
   // Determine transaction status based on payment info
@@ -148,7 +195,7 @@ const TransactionManagement: React.FC = () => {
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button 
-            onClick={fetchTransactions}
+            onClick={() => fetchTransactions()}
             variant="outline"
             size="sm"
             disabled={isLoading}
@@ -191,7 +238,7 @@ const TransactionManagement: React.FC = () => {
                 <SelectContent>
                   <SelectItem value="all">All users</SelectItem>
                   {users.map(u => (
-                    <SelectItem key={u.id} value={String(u.id)}>{u.name || u.firstname || u.username}</SelectItem>
+                    <SelectItem key={u.id} value={String(u.id)}>{u.firstname ? u.firstname : u.username}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -220,6 +267,17 @@ const TransactionManagement: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center justify-between text-base sm:text-lg">
             <span>Transactions ({transactions.length})</span>
+            {totalPages > 1 && (
+              <div className="flex gap-2 items-center ml-4">
+                <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
+                  Prev
+                </Button>
+                <span className="text-xs">Page {currentPage} of {totalPages}</span>
+                <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>
+                  Next
+                </Button>
+              </div>
+            )}
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
@@ -250,12 +308,12 @@ const TransactionManagement: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map(transaction => {
+                    {paginatedTransactions.map(transaction => {
                       const derivedStatus = getTransactionStatus(transaction);
                       return (
                         <TableRow key={transaction.id}>
                           <TableCell>{transaction.product_name}</TableCell>
-                          <TableCell>{formatDate(transaction.created_at)}</TableCell>
+                          <TableCell>{formatDateDisplay(transaction.created_at)}</TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
                           </TableCell>
@@ -309,7 +367,7 @@ const TransactionManagement: React.FC = () => {
               </div>
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
-                {transactions.map(transaction => {
+                {paginatedTransactions.map(transaction => {
                   const derivedStatus = getTransactionStatus(transaction);
                   return (
                     <div key={transaction.id} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
@@ -317,7 +375,7 @@ const TransactionManagement: React.FC = () => {
                         <span className="font-semibold text-base break-words max-w-[60%]">{transaction.product_name}</span>
                         <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
                       </div>
-                      <div className="text-xs text-gray-500 mb-1 break-words">{formatDate(transaction.created_at)}</div>
+                      <div className="text-xs text-gray-500 mb-1 break-words">{formatDateDisplay(transaction.created_at)}</div>
                       <div className="flex flex-wrap gap-2 text-xs mb-1">
                         <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_sale_value)}</div>
                         <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
@@ -337,7 +395,7 @@ const TransactionManagement: React.FC = () => {
                               else label = `Paid by ${first.payer_type} to ${first.payee_type}`;
                               return (
                                 <>
-                                  {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${new Date(first.payment_date).toLocaleDateString()}` : ''})
+                                      {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${formatDisplayDate(first.payment_date)}` : ''})
                                   {transaction.payments.length > 1 && (
                                     <span title={transaction.payments.slice(1).map(p => {
                                       let l = '';
@@ -345,7 +403,7 @@ const TransactionManagement: React.FC = () => {
                                       else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
                                       else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
                                       else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
-                                      return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${new Date(p.payment_date).toLocaleDateString()}` : ''})`;
+                                          return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : ''})`;
                                     }).join('\n')}>
                                       {" "}+{transaction.payments.length - 1} more
                                     </span>

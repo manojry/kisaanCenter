@@ -9,9 +9,10 @@ export interface UserDTO {
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;
+  firstname?: string | null;
   status: 'active' | 'inactive';
-    balance: number;
-    cumulative_value: number;
+  balance: number;
+  cumulative_value: number;
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;

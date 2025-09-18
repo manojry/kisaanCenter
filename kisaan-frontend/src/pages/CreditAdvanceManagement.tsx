@@ -1,15 +1,34 @@
 import React, { useEffect, useState } from 'react';
+import { useTransactionStore } from '../store/transactionStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { creditAdvanceApi } from '../services/creditAdvanceApi';
-import { useUsers } from '../context/UsersContext';
 
 const CreditAdvanceManagement: React.FC = () => {
-  const { users: allUsers } = useUsers();
-  const users = allUsers.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) }));
+  const transactionStore = useTransactionStore();
+  const [shopId, setShopId] = useState<string>('');
+  const [users, setUsers] = useState<any[]>(shopId ? transactionStore.getUsers(String(shopId)) : []);
+  const fetchUsersZustand = async () => {
+    if (!shopId) return;
+    try {
+  const response = await import('../services/api').then(m => m.usersApi.getAll({ shop_id: Number(shopId), limit: 100 }));
+      const userList = Array.isArray(response.data) ? response.data : [];
+      const filteredUsers = userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) }));
+      setUsers(filteredUsers);
+      transactionStore.setUsers(String(shopId), filteredUsers);
+    } catch (error) {
+      setUsers([]);
+      transactionStore.setUsers(String(shopId), []);
+    }
+  };
+  useEffect(() => {
+    if (shopId && users.length === 0) {
+      fetchUsersZustand();
+    }
+  }, [shopId]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [credits, setCredits] = useState<any[]>([]);
   // Filter credits by selected user
@@ -20,7 +39,6 @@ const CreditAdvanceManagement: React.FC = () => {
 
   // Issue credit form
   const [userId, setUserId] = useState('');
-  const [shopId, setShopId] = useState('');
   const [amount, setAmount] = useState('');
   const [issuedDate, setIssuedDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -62,7 +80,7 @@ const CreditAdvanceManagement: React.FC = () => {
       if (res && (res.success || res.data)) {
         setSuccess('Credit issued successfully');
         fetchCredits();
-        setUserId(''); setShopId(''); setAmount(''); setIssuedDate(''); setDueDate('');
+  setUserId(''); setShopId(''); setAmount(''); setIssuedDate(''); setDueDate('');
       } else {
         setError(res?.error || res?.message || 'Failed to issue credit');
       }
@@ -112,7 +130,7 @@ const CreditAdvanceManagement: React.FC = () => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={user.id}>
-                  {user.username} ({user.role})
+                  {(user.firstname ? user.firstname : user.username)} ({user.role})
                 </SelectItem>
               ))}
             </SelectContent>

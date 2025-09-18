@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTransactionStore } from '@/store/transactionStore';
 import { useCategoriesCache } from '../../hooks/useCategoriesCache';
 import { useShopProductsCache } from '../../hooks/useShopProductsCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import Select from 'react-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Calculator, AlertCircle } from 'lucide-react';
 import { usersApi, categoriesApi } from '../../services/api';
 import { apiClient } from '../../services/apiClient';
 import type { TransactionCreate, User, Category } from '../../types/api';
+// Extend TransactionCreate for local form usage to include product_id
+interface TransactionFormData extends TransactionCreate {
+  product_id?: number;
+}
 import { useAuth } from '../../context/AuthContext';
 
 interface Product {
@@ -24,18 +29,23 @@ interface TransactionFormProps {
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onCancel }) => {
+  // State for product dropdown visibility
   const { user } = useAuth();
-  const [farmers, setFarmers] = useState<User[]>([]);
-  const [buyers, setBuyers] = useState<User[]>([]);
+  // Search states for dropdowns
+  // Get users from zustand store
+  const { getUsers, setUsers } = useTransactionStore();
+  const [farmers, setFarmers] = useState<User[]>(getUsers(user?.shop_id?.toString() || ''));
+  const [buyers, setBuyers] = useState<User[]>(getUsers(user?.shop_id?.toString() || ''));
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+
   // Use global shop products cache
-  const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
+  const { getShopProducts, setShopProducts } = useShopProductsCache();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState<TransactionCreate>({
+  const [formData, setFormData] = useState<TransactionFormData>({
     shop_id: user?.shop_id || 0,
     farmer_id: 0,
     buyer_id: 0,
@@ -85,11 +95,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [usersResponse] = await Promise.all([
-        usersApi.getAll({ limit: 100 })
-      ]);
-
-      const users = usersResponse.data || [];
+      let users = getUsers(user?.shop_id?.toString() || '');
+      if (!users || users.length === 0) {
+        const usersResponse = await usersApi.getAll({ limit: 100 });
+        users = usersResponse.data || [];
+        setUsers(user?.shop_id?.toString() || '', users);
+      }
       setFarmers(users.filter(u => u.role === 'farmer'));
       setBuyers(users.filter(u => u.role === 'buyer'));
 
@@ -251,90 +262,111 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Main Selection Fields - 2-column grid on md+ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-            {/* Farmer Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="farmer">Farmer *</Label>
-              <Select 
-                value={formData.farmer_id.toString()} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: parseInt(value) }))}
-              >
-                <SelectTrigger className={validationErrors.farmer_id ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select farmer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {farmers.map(farmer => (
-                    <SelectItem key={farmer.id} value={farmer.id.toString()}>
-                      {farmer.username} {farmer.contact && `(${farmer.contact})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {validationErrors.farmer_id && (
-                <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
-              )}
-            </div>
-            {/* Buyer Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="buyer">Buyer *</Label>
-              <Select 
-                value={formData.buyer_id.toString()} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, buyer_id: parseInt(value) }))}
-              >
-                <SelectTrigger className={validationErrors.buyer_id ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select buyer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buyers.map(buyer => (
-                    <SelectItem key={buyer.id} value={buyer.id.toString()}>
-                      {buyer.username} {buyer.contact && `(${buyer.contact})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {validationErrors.buyer_id && (
-                <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
-              )}
-            </div>
-            {/* Category Selection */}
+            {/* Farmer Selection with Search */}
+              <div className="mb-2">
+                <Label htmlFor="farmer">Farmer *</Label>
+                <Select
+                  options={farmers.map(farmer => ({
+                    value: farmer.id,
+                    label: `${farmer.firstname || farmer.username} (${farmer.id})`
+                  }))}
+                  value={formData.farmer_id ? { value: formData.farmer_id, label: `${farmers.find(f => f.id === formData.farmer_id)?.firstname || farmers.find(f => f.id === formData.farmer_id)?.username} (${formData.farmer_id})` } : null}
+                  onChange={(option: { value: number; label: string } | null) => {
+                    setFormData(prev => ({ ...prev, farmer_id: option ? option.value : 0 }));
+                  }}
+                  isClearable
+                  placeholder="Search and select farmer"
+                  classNamePrefix="react-select"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb', // lighter border
+                      boxShadow: 'none',
+                      '&:hover': { borderColor: '#cbd5e1' }
+                    })
+                  }}
+                />
+                {validationErrors.farmer_id && (
+                  <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
+                )}
+              </div>
+            {/* Buyer Selection with Search */}
+              <div className="mb-2">
+                <Label htmlFor="buyer">Buyer *</Label>
+                <Select
+                  options={buyers.map(buyer => ({
+                    value: buyer.id,
+                    label: `${buyer.firstname || buyer.username} (${buyer.id})`
+                  }))}
+                  value={formData.buyer_id ? { value: formData.buyer_id, label: `${buyers.find(b => b.id === formData.buyer_id)?.firstname || buyers.find(b => b.id === formData.buyer_id)?.username} (${formData.buyer_id})` } : null}
+                  onChange={(option: { value: number; label: string } | null) => {
+                    setFormData(prev => ({ ...prev, buyer_id: option ? option.value : 0 }));
+                  }}
+                  isClearable
+                  placeholder="Search and select buyer"
+                  classNamePrefix="react-select"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb',
+                      boxShadow: 'none',
+                      '&:hover': { borderColor: '#cbd5e1' }
+                    })
+                  }}
+                />
+                {validationErrors.buyer_id && (
+                  <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
+                )}
+              </div>
+            {/* Category Selection with Search */}
             <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
-              <Select 
-                value={formData.category_id.toString()} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: parseInt(value) }))}
+              <select
+                value={formData.category_id}
+                onChange={e => setFormData(prev => ({ ...prev, category_id: parseInt(e.target.value) }))}
+                className={`block w-full border rounded p-2 text-sm ${validationErrors.category_id ? 'border-red-500' : ''}`}
               >
-                <SelectTrigger className={validationErrors.category_id ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="" disabled>Select category</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               {validationErrors.category_id && (
                 <p className="text-sm text-red-500">{validationErrors.category_id}</p>
               )}
             </div>
-            {/* Product Selection */}
+            {/* Product Selection with Search */}
             <div className="space-y-2">
               <Label htmlFor="product">Product *</Label>
-              <Select 
-                value={formData.product_name} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, product_name: value }))}
-              >
-                <SelectTrigger className={validationErrors.product_name ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.name}>
-                      {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mb-2">
+                <Select
+                  options={products.map(product => ({
+                    value: product.id,
+                    label: `${product.name} (${product.id})`
+                  }))}
+                  value={formData.product_id ? { value: formData.product_id, label: `${formData.product_name} (${formData.product_id})` } : null}
+                  onChange={option => {
+                    if (option) {
+                      setFormData(prev => ({ ...prev, product_name: option.label.split(' (')[0], product_id: option.value }));
+                    } else {
+                      setFormData(prev => ({ ...prev, product_name: '', product_id: undefined }));
+                    }
+                  }}
+                  isClearable
+                  placeholder="Search and select product"
+                  classNamePrefix="react-select"
+                  styles={{
+                    control: (base, state) => ({
+                      ...base,
+                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb',
+                      boxShadow: 'none',
+                      '&:hover': { borderColor: '#cbd5e1' }
+                    })
+                  }}
+                />
+              </div>
               {validationErrors.product_name && (
                 <p className="text-sm text-red-500">{validationErrors.product_name}</p>
               )}
