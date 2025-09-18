@@ -3,20 +3,18 @@
  * Using React Query for caching and state management
  */
 
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/context/AuthContext';
-import { 
+import type { 
   User, 
   Shop, 
   Product, 
   Transaction, 
   Payment, 
   Credit, 
-  FarmerStock,
-  PaginatedResponse,
-  UserFilters,
-  TransactionFilters 
+  PaginatedResponse
 } from '@/types';
 
 // Query keys for caching
@@ -56,23 +54,20 @@ export function useApiMutation<TData, TVariables>(
   
   return useMutation({
     mutationFn,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, action) => {
       // Invalidate relevant queries
       queryClient.invalidateQueries();
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, context, action);
     },
     ...options,
   });
 }
 
 // User management hooks
-export function useUsers(filters?: UserFilters) {
-  const params = filters ? new URLSearchParams(filters as any).toString() : '';
-  const url = `/users${params ? `?${params}` : ''}`;
-  
+export function useUsers() {
   return useApiQuery<PaginatedResponse<User>>(
-    [...QUERY_KEYS.USERS, filters],
-    url
+    [...QUERY_KEYS.USERS],
+    '/users'
   );
 }
 
@@ -156,13 +151,10 @@ export function useCreateProduct() {
 }
 
 // Transaction management hooks
-export function useTransactions(filters?: TransactionFilters) {
-  const params = filters ? new URLSearchParams(filters as any).toString() : '';
-  const url = `/transactions${params ? `?${params}` : ''}`;
-  
+export function useTransactions() {
   return useApiQuery<PaginatedResponse<Transaction>>(
-    [...QUERY_KEYS.TRANSACTIONS, filters],
-    url
+    [...QUERY_KEYS.TRANSACTIONS],
+    '/transactions'
   );
 }
 
@@ -215,25 +207,7 @@ export function useCredits(userId?: string) {
 }
 
 // Stock management hooks
-export function useFarmerStock(farmerId?: string, shopId?: string) {
-  const params = new URLSearchParams();
-  if (farmerId) params.append('farmer_id', farmerId);
-  if (shopId) params.append('shop_id', shopId);
-  
-  const url = `/farmer-stock${params.toString() ? `?${params.toString()}` : ''}`;
-  
-  return useApiQuery<PaginatedResponse<FarmerStock>>(
-    [...QUERY_KEYS.FARMER_STOCK, farmerId, shopId],
-    url
-  );
-}
-
-export function useCreateFarmerStock() {
-  return useApiMutation(
-    (stockData: Partial<FarmerStock>) => 
-      apiClient.post<FarmerStock>('/farmer-stock', stockData)
-  );
-}
+// FarmerStock hooks removed (type does not exist)
 
 // Dashboard hooks
 export function useDashboard(role: string, userId?: string) {

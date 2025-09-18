@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import {
+  formatDate,
+  parseDate,
+  getToday
+} from '../utils/dateUtils';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -32,8 +37,9 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [reportRows, setReportRows] = useState<any[]>([]);
   const [reportType, setReportType] = useState<'farmer' | 'user' | 'shop'>('shop');
   const [selectedUser, setSelectedUser] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Set default dates to today
+  const [dateFrom, setDateFrom] = useState(getToday());
+  const [dateTo, setDateTo] = useState(getToday());
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -49,8 +55,8 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       const filters: ReportFilters = {
         shop_id: shopId,
         report_type: reportType,
-        ...(dateFrom && { date_from: dateFrom }),
-        ...(dateTo && { date_to: dateTo }),
+  ...(dateFrom && { date_from: formatDate(dateFrom) }),
+  ...(dateTo && { date_to: formatDate(dateTo) }),
         ...(selectedUser && { user_id: selectedUser })
       };
       if (download) {
@@ -176,30 +182,44 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         <div className="flex flex-col gap-2 w-full">
           <div className="flex flex-row items-center gap-2 w-full">
             <Label htmlFor="dateFrom" className="text-xs">From</Label>
-            <div className="relative w-full">
+            <div className="relative w-full flex items-center gap-2">
               <Calendar className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="dateFrom"
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+                onChange={e => setDateFrom(e.target.value)}
                 className="pl-8 text-sm py-1 rounded-md w-full"
                 style={{maxWidth: '140px'}}
+                min="2020-01-01"
+                max={getToday()}
               />
+              {dateFrom && (
+                <Button type="button" size="sm" variant="ghost" className="px-2 py-1" onClick={() => setDateFrom('')}>
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-row items-center gap-2 w-full">
             <Label htmlFor="dateTo" className="text-xs">To</Label>
-            <div className="relative w-full">
+            <div className="relative w-full flex items-center gap-2">
               <Calendar className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="dateTo"
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+                onChange={e => setDateTo(e.target.value)}
                 className="pl-8 text-sm py-1 rounded-md w-full"
                 style={{maxWidth: '140px'}}
+                min="2020-01-01"
+                max={getToday()}
               />
+              {dateTo && (
+                <Button type="button" size="sm" variant="ghost" className="px-2 py-1" onClick={() => setDateTo('')}>
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
         </div>

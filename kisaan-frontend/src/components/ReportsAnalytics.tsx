@@ -1,6 +1,10 @@
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { parseISO } from 'date-fns';
+import {
+  formatDate,
+  parseDate,
+  getToday
+} from '../utils/dateUtils';
 import { useState, useEffect } from 'react';
 import { analyticsApi } from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -37,8 +41,8 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
-    from: '',
-    to: ''
+    from: getToday(),
+    to: getToday()
   });
 
   useEffect(() => {
@@ -62,6 +66,7 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
   const handleDateRangeChange = (field: string, value: string) => {
     setDateRange(prev => ({ ...prev, [field]: value }));
   };
+  const clearDateRange = () => setDateRange({ from: '', to: '' });
 
 
 
@@ -115,38 +120,50 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-4 w-full items-center">
             <div className="flex flex-row items-center gap-2 flex-1 min-w-0">
               <span className="text-xs text-gray-600 flex items-center gap-1"><Calendar className="h-4 w-4" />From</span>
-                <DatePicker
-                  id="date_from"
-                  selected={dateRange.from ? parseISO(dateRange.from) : null}
-                  onChange={date => handleDateRangeChange('from', date ? date.toISOString().slice(0, 10) : '')}
-                  dateFormat="yyyy-MM-dd"
-                  className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
-                  placeholderText="Select date"
-                  /* width handled by className */
-                  isClearable
-                  showPopperArrow={false}
-                />
+              <DatePicker
+                id="date_from"
+                selected={dateRange.from ? parseDate(dateRange.from) : null}
+                onChange={date => handleDateRangeChange('from', date ? formatDate(date) : '')}
+                dateFormat="yyyy-MM-dd"
+                className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
+                placeholderText="Select date"
+                minDate={parseDate('2020-01-01')}
+                maxDate={parseDate(getToday())}
+                isClearable
+                showPopperArrow={false}
+              />
+              {dateRange.from && (
+                <Button type="button" size="sm" variant="ghost" className="px-2 py-1" onClick={() => handleDateRangeChange('from', '')}>
+                  Clear
+                </Button>
+              )}
             </div>
             <div className="flex flex-row items-center gap-2 flex-1 min-w-0">
               <span className="text-xs text-gray-600 flex items-center gap-1"><Calendar className="h-4 w-4" />To</span>
-                <DatePicker
-                  id="date_to"
-                  selected={dateRange.to ? parseISO(dateRange.to) : null}
-                  onChange={date => handleDateRangeChange('to', date ? date.toISOString().slice(0, 10) : '')}
-                  dateFormat="yyyy-MM-dd"
-                  className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
-                  placeholderText="Select date"
-                  /* width handled by className */
-                  isClearable
-                  showPopperArrow={false}
-                />
+              <DatePicker
+                id="date_to"
+                selected={dateRange.to ? parseDate(dateRange.to) : null}
+                onChange={date => handleDateRangeChange('to', date ? formatDate(date) : '')}
+                dateFormat="yyyy-MM-dd"
+                className="px-2 py-1 text-sm rounded-md border w-full min-w-0"
+                placeholderText="Select date"
+                minDate={parseDate('2020-01-01')}
+                maxDate={parseDate(getToday())}
+                isClearable
+                showPopperArrow={false}
+              />
+              {dateRange.to && (
+                <Button type="button" size="sm" variant="ghost" className="px-2 py-1" onClick={() => handleDateRangeChange('to', '')}>
+                  Clear
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Button onClick={fetchAnalytics} className="px-2 py-1 text-sm rounded-md w-full">
                 Apply
               </Button>
-              <Button variant="outline" onClick={() => handleDateRangeChange('clear', '')} className="px-2 py-1 text-xs rounded-md w-full">
-                Clear
+              <Button variant="outline" onClick={clearDateRange} className="px-2 py-1 text-xs rounded-md w-full">
+                Clear All
               </Button>
             </div>
           </div>
