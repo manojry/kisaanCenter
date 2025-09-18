@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -7,11 +6,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { 
-  Plus,
-  Search,
-  RefreshCw
-} from 'lucide-react';
+import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { transactionsApi } from '../services/api';
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';
@@ -137,40 +132,40 @@ const TransactionManagement: React.FC = () => {
     }
     // Combine user and search filters in one pass
     const searchLower = search ? search.toLowerCase() : '';
-    let filteredTransactions = allTxns.filter(t => {
-      // User filter
-      let userMatch = true;
-      if (selectedUser && selectedUser !== 'all') {
-        const selectedUserObj = users.find(u => String(u.id) === selectedUser);
-        if (selectedUserObj) {
-          if (selectedUserObj.role === 'farmer') userMatch = String(t.farmer_id) === String(selectedUserObj.id);
-          else if (selectedUserObj.role === 'buyer') userMatch = String(t.buyer_id) === String(selectedUserObj.id);
-          else userMatch = String(t.id) === String(selectedUserObj.id);
-        }
-      }
-        // Search filter
-        let searchMatch = true;
-        if (searchLower) {
-          searchMatch = false;
-          if (t.product_name && t.product_name.toLowerCase().includes(searchLower)) searchMatch = true;
-          if (String(t.buyer_id).includes(searchLower) || String(t.farmer_id).includes(searchLower)) searchMatch = true;
-          const buyerUser = users.find(u => String(u.id) === String(t.buyer_id));
-          const farmerUser = users.find(u => String(u.id) === String(t.farmer_id));
-          if ((buyerUser && buyerUser.firstname && buyerUser.firstname.trim() !== '' && buyerUser.firstname.toLowerCase().includes(searchLower)) ||
-              (farmerUser && farmerUser.firstname && farmerUser.firstname.trim() !== '' && farmerUser.firstname.toLowerCase().includes(searchLower))) searchMatch = true;
-        }
-        return userMatch && searchMatch;
-    });
-  setTransactions(allTxns); // Store all fetched transactions
-  setFilteredTransactions(filteredTransactions); // Store filtered transactions for display
-  setCurrentPage(1); // Reset to first page after filtering
-  setIsLoading(false);
+    const matchesUser = (t: Transaction, selectedUser: string, users: any[]) => {
+      if (!selectedUser || selectedUser === 'all') return true;
+      const selectedUserObj = users.find(u => String(u.id) === selectedUser);
+      if (!selectedUserObj) return true;
+      if (selectedUserObj.role === 'farmer') return String(t.farmer_id) === String(selectedUserObj.id);
+      if (selectedUserObj.role === 'buyer') return String(t.buyer_id) === String(selectedUserObj.id);
+      return String(t.id) === String(selectedUserObj.id);
+    };
+
+    const matchesSearch = (t: Transaction, searchLower: string, users: any[]) => {
+      if (!searchLower) return true;
+      if (t.product_name?.toLowerCase().includes(searchLower)) return true;
+      if (String(t.buyer_id).includes(searchLower) || String(t.farmer_id).includes(searchLower)) return true;
+      const buyerUser = users.find(u => String(u.id) === String(t.buyer_id));
+      const farmerUser = users?.find?.(u => String(u.id) === String(t.farmer_id));
+      if (buyerUser?.firstname?.trim() && buyerUser.firstname.toLowerCase().includes(searchLower)) return true;
+      if (farmerUser?.firstname?.trim() && farmerUser.firstname.toLowerCase().includes(searchLower)) return true;
+      return false;
+    };
+
+    let filteredTransactions = allTxns.filter(t =>
+      matchesUser(t, selectedUser, users) && matchesSearch(t, searchLower, users)
+    );
+    setTransactions(allTxns); // Store all fetched transactions
+    setFilteredTransactions(filteredTransactions); // Store filtered transactions for display
+    setCurrentPage(1); // Reset to first page after filtering
+    setIsLoading(false);
   };
 
   const handleTransactionCreated = () => {
   setShowCreateForm(false);
   // Invalidate cache for the affected date(s) and refetch
   const affectedDate = filters.from_date;
+  transactionStore.invalidateTransactions(String(user?.shop_id), [affectedDate]);
   fetchTransactions([affectedDate]);
   };
 
@@ -376,22 +371,37 @@ const TransactionManagement: React.FC = () => {
                       const open = openRows[rowKey] || false;
                       // Find farmer user for firstname
                       const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
-                      let farmerName = '';
-                      if (farmerUser) {
-                        farmerName = farmerUser.firstname && farmerUser.firstname.trim() ? farmerUser.firstname : farmerUser.username;
-                      }
+                      let farmerName = farmerUser?.firstname?.trim() ? farmerUser.firstname : farmerUser?.username ?? '';
                       return (
                         <React.Fragment key={rowKey}>
                           <TableRow>
                             <TableCell colSpan={6} style={{ padding: 0 }}>
-                              <div className="flex items-center cursor-pointer py-2 px-1" onClick={() => toggleRow(rowKey)}>
+                              <button
+                                type="button"
+                                className="flex items-center cursor-pointer py-2 px-1 w-full text-left focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
+                                aria-pressed={open}
+                                aria-label={open ? 'Collapse transaction details' : 'Expand transaction details'}
+                                tabIndex={0}
+                                onClick={() => {
+                                  toggleRow(rowKey);
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    toggleRow(rowKey);
+                                  }
+                                }}
+                                onTouchStart={() => {
+                                  toggleRow(rowKey);
+                                }}
+                              >
                                 <Badge className={getStatusColor(derivedStatus)} style={{ marginRight: 8 }}>{derivedStatus}</Badge>
-                                <span className="font-semibold mr-2">{transaction.product_name}</span>
+                                <span className="font-semibold mr-2">{farmerName}</span>
                                 <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
-                                <span className="text-xs text-gray-500 mr-2">Farmer: {farmerName}</span>
+                                <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
                                 <span className="font-medium mr-2">{formatCurrency(transaction.total_sale_value)}</span>
                                 {open ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
-                              </div>
+                              </button>
                             </TableCell>
                           </TableRow>
                           {open && (
@@ -416,20 +426,41 @@ const TransactionManagement: React.FC = () => {
                                         if (first.payer_type === 'BUYER' && first.payee_type === 'SHOP') label = 'Paid by Buyer';
                                         else if (first.payer_type === 'SHOP' && first.payee_type === 'FARMER') label = 'Paid to Farmer';
                                         else if (first.payer_type === 'SHOP' && first.payee_type === 'SHOP') label = 'Commission';
-                                        else label = `Paid by ${first.payer_type} to ${first.payee_type}`;
+                                        else label = 'Paid by ' + first.payer_type + ' to ' + first.payee_type;
+                                        const firstPaymentStr =
+                                          label + ': ' +
+                                          formatCurrency(first.amount) +
+                                          ' (' +
+                                          first.method +
+                                          (first.payment_date ? ', ' + new Date(first.payment_date).toLocaleDateString() : '') +
+                                          ')';
+                                        let morePaymentsStr = '';
+                                        if (transaction.payments.length > 1) {
+                                          morePaymentsStr = transaction.payments
+                                            .slice(1)
+                                            .map(p => {
+                                              let l = '';
+                                              if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
+                                              else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
+                                              else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
+                                              else l = 'Paid by ' + p.payer_type + ' to ' + p.payee_type;
+                                              return (
+                                                l + ': ' +
+                                                formatCurrency(p.amount) +
+                                                ' (' +
+                                                p.method +
+                                                (p.payment_date ? ', ' + new Date(p.payment_date).toLocaleDateString() : '') +
+                                                ')'
+                                              );
+                                            })
+                                            .join('\n');
+                                        }
                                         return (
                                           <>
-                                            {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${new Date(first.payment_date).toLocaleDateString()}` : ''})
+                                            {firstPaymentStr}
                                             {transaction.payments.length > 1 && (
-                                              <span title={transaction.payments.slice(1).map(p => {
-                                                let l = '';
-                                                if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
-                                                else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
-                                                else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
-                                                else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
-                                                return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${new Date(p.payment_date).toLocaleDateString()}` : ''})`;
-                                              }).join('\n')}>
-                                                {` ${transaction.payments.length - 1} more`}
+                                              <span title={morePaymentsStr}>
+                                                {' ' + (transaction.payments.length - 1) + ' more'}
                                               </span>
                                             )}
                                           </>
