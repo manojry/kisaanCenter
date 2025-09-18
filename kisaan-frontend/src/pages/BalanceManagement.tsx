@@ -130,10 +130,14 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Snapshot Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Balance Type</TableHead>
                     <TableHead>Prev Balance</TableHead>
                     <TableHead>Change</TableHead>
                     <TableHead>New Balance</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Reference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -142,6 +146,11 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                     if (s.createdAt) {
                       const d = new Date(s.createdAt);
                       dateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
+                    }
+                    let snapshotDateStr = '';
+                    if (s.snapshot_date) {
+                      const d = new Date(s.snapshot_date);
+                      snapshotDateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
                     }
                     function safeNumber(val: any) {
                       const n = typeof val === 'number' ? val : parseFloat(val);
@@ -153,10 +162,14 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                     return (
                       <TableRow key={s.id}>
                         <TableCell>{dateStr}</TableCell>
+                        <TableCell>{snapshotDateStr}</TableCell>
+                        <TableCell>{s.transaction_type || '-'}</TableCell>
+                        <TableCell>{s.balance_type || '-'}</TableCell>
                         <TableCell>₹{prev}</TableCell>
                         <TableCell>₹{change}</TableCell>
                         <TableCell>₹{next}</TableCell>
                         <TableCell>{s.description || '-'}</TableCell>
+                        <TableCell>{s.reference_id ? `${s.reference_type || ''} #${s.reference_id}` : '-'}</TableCell>
                       </TableRow>
                     );
                   })}

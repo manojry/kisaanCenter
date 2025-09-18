@@ -1,5 +1,5 @@
 # Node.js Dockerfile for KisaanCenter Backend
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Install necessary system packages
 RUN apk add --no-cache \
