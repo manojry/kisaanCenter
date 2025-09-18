@@ -1,6 +1,5 @@
 import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
 import { useUsers } from '../hooks/useApi';
-import { Card, CardContent } from '../components/ui/card';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription } from '../components/ui/alert';

@@ -44,6 +44,14 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Auto-generate shop report preview for today on mount
+  React.useEffect(() => {
+    if (reportType === 'shop') {
+      handleGenerateReport(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const farmers = users.filter(u => u.role === 'farmer');
   const buyers = users.filter(u => u.role === 'buyer');
 
