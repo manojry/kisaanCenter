@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
  // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, TrendingDown } from 'lucide-react';
 
@@ -223,21 +224,18 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Contact</TableHead>
                 <TableHead>Amount Owed</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === 'farmer' ? 'default' : 'secondary'}>
+                  <TableCell className="font-medium">
+                    {user.firstname ? user.firstname : user.username}
+                    <Badge variant="outline" className={`ml-2 ${getRoleBadgeClass(user.role)}`}>
                       {user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell>{user.contact || 'N/A'}</TableCell>
                   <TableCell>
                     <span className={`font-semibold text-red-600`}>
                       ₹{Math.abs(user.balance).toLocaleString()}

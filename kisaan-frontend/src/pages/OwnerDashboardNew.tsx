@@ -31,46 +31,48 @@ const OwnerDashboardNew: React.FC = () => {
   }
 
   return (
-  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+    <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Header - Responsive for mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
         <Button
           onClick={refreshData}
           variant="ghost"
           size="icon"
           disabled={isLoading}
-          className="ml-2"
+          className="sm:ml-2"
           aria-label="Refresh"
         >
           <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
-      <p className="text-gray-600 text-sm sm:text-base">
-        Welcome back, {user?.username} • Today's business overview
+      <p className="text-gray-600 text-base sm:text-lg">
+        Welcome back, <span className="font-semibold">{user?.username}</span> <span className="hidden sm:inline">•</span> <span className="block sm:inline">Today's business overview</span>
       </p>
 
-      {/* Dashboard Stats */}
-  <DashboardStats
-    stats={{
-      today_sales: stats?.today_sales ?? 0,
-      today_transactions: stats?.today_transactions ?? 0,
-      today_commission: stats?.today_commission ?? 0,
-      buyer_payments_due: stats?.buyer_payments_due ?? 0,
-      farmer_payments_due: stats?.farmer_payments_due ?? 0,
-      total_users: stats?.total_users ?? 0,
-      commission_realized: stats?.commission_realized ?? 0,
-    }}
-    isLoading={isLoading}
-  />
+      {/* Dashboard Stats - Ensure mobile-friendly layout in child */}
+      <div className="w-full">
+        <DashboardStats
+          stats={{
+            today_sales: stats?.today_sales ?? 0,
+            today_transactions: stats?.today_transactions ?? 0,
+            today_commission: stats?.today_commission ?? 0,
+            buyer_payments_due: stats?.buyer_payments_due ?? 0,
+            farmer_payments_due: stats?.farmer_payments_due ?? 0,
+            total_users: stats?.total_users ?? 0,
+            commission_realized: stats?.commission_realized ?? 0,
+          }}
+          isLoading={isLoading}
+        />
+      </div>
 
-      {/* Quick Actions */}
-      <div>
+      {/* Quick Actions - Add spacing for mobile */}
+      <div className="mt-4">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
         <QuickActions />
       </div>
 
-  {/* Pending Actions removed for cleaner UI */}
+      {/* Pending Actions removed for cleaner UI */}
     </div>
   );
 };
