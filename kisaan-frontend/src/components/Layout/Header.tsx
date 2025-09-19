@@ -11,7 +11,11 @@ const Header = () => {
   const navigate = useNavigate();
 
   // Helper to handle nav to section from any page
-  const handleNav = (e, section) => {
+  interface HandleNavEvent extends React.MouseEvent<HTMLAnchorElement, MouseEvent> {}
+
+  type HandleNav = (e: HandleNavEvent, section: string) => void;
+
+  const handleNav: HandleNav = (e, section) => {
     e.preventDefault();
     if (location.pathname !== "/") {
       navigate(`/#${section}`);
@@ -72,7 +76,7 @@ const Header = () => {
                 <Button variant="emerald" size="sm">
                   Get Started
                 </Button>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="block sm:block md:hidden lg:hidden xl:hidden">
                   <Menu className="h-4 w-4" />
                 </Button>
               </div>

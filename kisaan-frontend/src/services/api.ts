@@ -1,10 +1,18 @@
 export const shopProductsApi = {
-  getShops: async () => {
-    const response = await fetch(`${config.apiBaseUrl}/shops`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    });
+  getShops: async (user: User | null) => {
+    // Owners should only fetch their own shop
+    let url = `${config.apiBaseUrl}/shops`;
+    const headers = { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` };
+    if (user?.role === 'owner' && user?.shop_id) {
+      url = `${config.apiBaseUrl}/shops/${user.shop_id}`;
+    }
+    const response = await fetch(url, { headers });
     if (!response.ok) throw new Error('Failed to fetch shops');
     const data = await response.json();
+    // If owner, return single shop as array for consistency
+    if (user?.role === 'owner' && user?.shop_id) {
+      return data.data ? [data.data] : [];
+    }
     return data.data || [];
   },
   getCategories: async () => {

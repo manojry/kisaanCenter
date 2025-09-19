@@ -32,7 +32,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         
         {/* Sidebar for owners and superadmins */}
         {showSidebar && (
-          <div className="flex flex-shrink-0 fixed left-0 top-16 bottom-0 z-20">
+          <div className="flex flex-shrink-0 fixed left-0 top-16 bottom-0 z-50">
             <Sidebar />
           </div>
         )}

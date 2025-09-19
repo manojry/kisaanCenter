@@ -65,14 +65,13 @@ export const getAllShops = async (
   requestingUser?: { role: UserRole; id: number }
 ): Promise<ShopDTO[]> => {
   const where: any = {};
-  
-  // Role-based filtering
+  // Only allow owners to see their own shop(s)
   if (requestingUser?.role === 'owner') {
     where.owner_id = requestingUser.id;
   } else if (owner_id !== undefined) {
     where.owner_id = owner_id;
   }
-  
+  // Superadmin gets all shops (no filter)
   const shops = await Shop.findAll({ where });
   return shops.map(model => toShopDTO(fromShopModel(model)));
 };

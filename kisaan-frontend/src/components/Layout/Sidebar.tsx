@@ -13,8 +13,7 @@ import {
   Tags,
   Link as LinkIcon,
   ChevronLeft,
-  ChevronRight,
-  Menu
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../context/AuthContext';
@@ -53,31 +52,17 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="md:hidden fixed top-4 left-4 z-50"
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
+      {/* Removed fixed sidebar hamburger menu button for desktop */}
+
+      {/* Sidebar - ensure z-50 when mobile open */}
+      <div
+        className={cn(
+          "flex flex-col bg-white border-r border-gray-200 transition-all duration-300",
+          "fixed left-0 top-16",
+          isCollapsed ? "w-16" : "w-64",
+          isMobileOpen ? "z-50 translate-x-0 h-[calc(100vh-4rem)]" : "z-40 -translate-x-full md:translate-x-0 h-[calc(100vh-4rem)]"
+        )}
       >
-        <Menu className="h-5 w-5" />
-      </Button>
-
-      {/* Mobile overlay */}
-      {isMobileOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" 
-          onClick={() => setIsMobileOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={cn(
-        "flex h-full flex-col bg-white border-r border-gray-200 transition-all duration-300 z-40",
-        "fixed inset-y-0 left-0 top-16",
-        isCollapsed ? "w-16" : "w-64",
-        isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-      )}>
         {/* Toggle button for desktop */}
         <Button
           variant="ghost"
@@ -87,8 +72,8 @@ export function Sidebar() {
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
-        
-        <nav className="flex-1 space-y-1 px-3 py-4">
+
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -119,7 +104,20 @@ export function Sidebar() {
             );
           })}
         </nav>
+        {/* Logout button pinned to bottom */}
+        <div className="px-3 py-4 mt-auto">
+          <Button variant="outline" className="w-full">
+            Logout
+          </Button>
+        </div>
       </div>
+      {/* Mobile overlay - rendered after sidebar so sidebar is above overlay */}
+      {isMobileOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" 
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
     </>
   );
 }

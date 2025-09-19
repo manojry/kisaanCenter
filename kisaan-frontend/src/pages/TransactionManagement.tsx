@@ -213,6 +213,13 @@ const TransactionManagement: React.FC = () => {
   const affectedDate = filters.from_date;
   transactionStore.invalidateTransactions(String(user?.shop_id), [affectedDate]);
   fetchTransactions([affectedDate]);
+  // Refetch payments and balances after transaction
+  if (user?.shop_id) {
+    import('../services/api').then(m => {
+      m.paymentsApi.getAll({ payee_type: 'SHOP', page: 1, limit: 50 }).then(() => {});
+      m.balanceSnapshotsApi.getByUserId(String(user.shop_id)).then(() => {});
+    });
+  }
   };
 
   const formatCurrency = (value: string | number | undefined) => {
