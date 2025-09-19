@@ -8,13 +8,73 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { transactionsApi } from '../services/api';
+import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
+// Helper to get user name by id
+type User = { id: string | number; firstname?: string; username?: string };
+const getUserName = (users: User[], id: string | number): string => {
+  const user = users.find((u: User) => String(u.id) === String(id));
+  return user?.firstname?.trim() ? user.firstname! : user?.username ?? '';
+};
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { TransactionForm } from '../components/owner/TransactionForm';
 import { useTransactionStore } from '../store/transactionStore';
 
 const TransactionManagement: React.FC = () => {
-  // Collapse/Expand all rows (must be inside component to access state)
+  const { user } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>('');
+  const todayStr = getToday();
+  const [filters, setFilters] = useState({ search: '', from_date: todayStr, to_date: todayStr });
+
+  // PDF Export using utility
+  const handleExportPDF = () => {
+    const enriched = filteredTransactions.map(txn => {
+      const buyer = getUserName(users, txn.buyer_id);
+      const farmer = getUserName(users, txn.farmer_id);
+      return {
+        id: txn.id,
+        transaction_id: txn.id,
+        created_at: formatDisplayDate(txn.created_at),
+        product_name: txn.product_name,
+        buyer_name: buyer,
+        farmer_name: farmer,
+        total_sale_value: txn.total_sale_value,
+        buyer_paid: txn.buyer_paid,
+        deficit: txn.deficit,
+        farmer_paid: txn.farmer_paid,
+        farmer_due: txn.farmer_due,
+        payments: (txn.payments || []).map(p => {
+          const payer = String(p.payer_type) === 'BUYER' ? buyer : String(p.payer_type) === 'FARMER' ? farmer : String(p.payer_type) === 'SHOP' ? 'Shop' : String(p.payer_type);
+          const payee = String(p.payee_type) === 'BUYER' ? buyer : String(p.payee_type) === 'FARMER' ? farmer : String(p.payee_type) === 'SHOP' ? 'Shop' : String(p.payee_type);
+          return {
+            payer,
+            payee,
+            amount: p.amount,
+            method: p.method,
+            payment_date: p.payment_date ? formatDisplayDate(p.payment_date) : undefined,
+          };
+        })
+      };
+    });
+    exportTransactionsPDF(enriched, {
+      title: 'Transactions Report',
+      generatedBy: user?.username,
+      dateRange: { from: filters.from_date, to: filters.to_date }
+    });
+  };
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
+  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Row expansion state
+  const [openRows, setOpenRows] = useState<{[key: string]: boolean}>({});
+  const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
   const collapseAll = () => {
     const newState: {[key: string]: boolean} = {};
     paginatedTransactions.forEach((transaction: any, idx: number) => {
@@ -29,19 +89,8 @@ const TransactionManagement: React.FC = () => {
     });
     setOpenRows(newState);
   };
-  // Track which rows are open for collapsible table
-  const [openRows, setOpenRows] = useState<{[key: string]: boolean}>({});
-  const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
-  const { user } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
-  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
-    // Clamp currentPage to valid range whenever filteredTransactions or totalPages change
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
     } else if (currentPage < 1) {
@@ -49,17 +98,15 @@ const TransactionManagement: React.FC = () => {
     }
   }, [filteredTransactions, totalPages]);
   const transactionStore = useTransactionStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  // Set default filters to today for from_date and to_date
-  const todayStr = getToday();
-  const [filters, setFilters] = useState({
-    search: '',
-    from_date: todayStr,
-    to_date: todayStr
-  });
+
+  // Reset open rows when data / pagination changes
+  useEffect(() => {
+    const newState: {[key: string]: boolean} = {};
+    paginatedTransactions.forEach((transaction: any, idx: number) => {
+      newState[transaction.id + '-' + idx] = false;
+    });
+    setOpenRows(newState);
+  }, [filters, selectedUser, currentPage, filteredTransactions.length]);
   useEffect(() => {
     fetchUsers();
   }, [user?.shop_id]);
@@ -133,12 +180,11 @@ const TransactionManagement: React.FC = () => {
     // Combine user and search filters in one pass
     const searchLower = search ? search.toLowerCase() : '';
     const matchesUser = (t: Transaction, selectedUser: string, users: any[]) => {
-      if (!selectedUser || selectedUser === 'all') return true;
-      const selectedUserObj = users.find(u => String(u.id) === selectedUser);
-      if (!selectedUserObj) return true;
-      if (selectedUserObj.role === 'farmer') return String(t.farmer_id) === String(selectedUserObj.id);
-      if (selectedUserObj.role === 'buyer') return String(t.buyer_id) === String(selectedUserObj.id);
-      return String(t.id) === String(selectedUserObj.id);
+  if (!selectedUser || selectedUser === 'all') return true;
+  const selectedUserObj = users.find(u => String(u.id) === selectedUser);
+  if (!selectedUserObj) return true;
+  // Only match by user id, do not allow role-based matching
+  return String(t.farmer_id) === String(selectedUserObj.id) || String(t.buyer_id) === String(selectedUserObj.id);
     };
 
     const matchesSearch = (t: Transaction, searchLower: string, users: any[]) => {
@@ -226,11 +272,20 @@ const TransactionManagement: React.FC = () => {
   <div className="p-2 sm:p-6 space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-row w-full mb-2 items-center gap-2">
-        <div className="flex flex-col flex-1 min-w-0">
+  <div className="flex flex-col flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">Transaction Management</h1>
           <p className="text-gray-600 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">Manage all shop transactions</p>
         </div>
         <div className="flex gap-2 items-center ml-auto">
+          <Button
+            onClick={handleExportPDF}
+            variant="outline"
+            size="sm"
+            className="px-2 py-1 text-xs sm:text-sm"
+            style={{ minWidth: 0 }}
+          >
+            Export PDF
+          </Button>
           <Button 
             onClick={() => setShowCreateForm(true)} 
             className="bg-green-600 hover:bg-green-700 px-2 py-1 text-xs sm:text-sm"
@@ -407,69 +462,41 @@ const TransactionManagement: React.FC = () => {
                           {open && (
                             <TableRow>
                               <TableCell colSpan={6} style={{ background: '#f9fafb', padding: '12px 16px' }}>
-                                <div className="grid grid-cols-2 gap-4 text-xs">
-                                  <div>
+                                <div className="grid grid-cols-3 gap-4 text-xs">
+                                  <div className="col-span-1">
+                                    <div><span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)}</div>
+                                    <div><span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)}</div>
+                                  </div>
+                                  <div className="col-span-1">
                                     <div><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
                                     <div><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
-                                  </div>
-                                  <div>
                                     <div><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
                                     <div><span className="font-medium">Farmer Pending:</span> {formatCurrency(transaction.farmer_due)}</div>
                                   </div>
-                                </div>
-                                <div className="mt-2 text-xs">
-                                  <span className="font-medium">Payments:</span> {transaction.payments && transaction.payments.length > 0 ? (
-                                    <span>
-                                      {(() => {
-                                        const first = transaction.payments[0];
-                                        let label = '';
-                                        if (first.payer_type === 'BUYER' && first.payee_type === 'SHOP') label = 'Paid by Buyer';
-                                        else if (first.payer_type === 'SHOP' && first.payee_type === 'FARMER') label = 'Paid to Farmer';
-                                        else if (first.payer_type === 'SHOP' && first.payee_type === 'SHOP') label = 'Commission';
-                                        else label = 'Paid by ' + first.payer_type + ' to ' + first.payee_type;
-                                        const firstPaymentStr =
-                                          label + ': ' +
-                                          formatCurrency(first.amount) +
-                                          ' (' +
-                                          first.method +
-                                          (first.payment_date ? ', ' + new Date(first.payment_date).toLocaleDateString() : '') +
-                                          ')';
-                                        let morePaymentsStr = '';
-                                        if (transaction.payments.length > 1) {
-                                          morePaymentsStr = transaction.payments
-                                            .slice(1)
-                                            .map(p => {
-                                              let l = '';
-                                              if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
-                                              else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
-                                              else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
-                                              else l = 'Paid by ' + p.payer_type + ' to ' + p.payee_type;
-                                              return (
-                                                l + ': ' +
-                                                formatCurrency(p.amount) +
-                                                ' (' +
-                                                p.method +
-                                                (p.payment_date ? ', ' + new Date(p.payment_date).toLocaleDateString() : '') +
-                                                ')'
-                                              );
-                                            })
-                                            .join('\n');
-                                        }
-                                        return (
-                                          <>
-                                            {firstPaymentStr}
-                                            {transaction.payments.length > 1 && (
-                                              <span title={morePaymentsStr}>
-                                                {' ' + (transaction.payments.length - 1) + ' more'}
-                                              </span>
-                                            )}
-                                          </>
-                                        );
-                                      })()}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400 text-xs">No payments</span>
-                                  )}
+                                  <div className="col-span-1">
+                                    <span className="font-medium">Payments:</span>
+                                    {transaction.payments && transaction.payments.length > 0 ? (
+                                      <ul className="mt-1 ml-2 list-disc">
+                                        {transaction.payments.map((p, i) => {
+                                          let payer = String(p.payer_type) === 'BUYER' ? getUserName(users, transaction.buyer_id)
+                                            : String(p.payer_type) === 'FARMER' ? getUserName(users, transaction.farmer_id)
+                                            : String(p.payer_type) === 'SHOP' ? 'Shop' : String(p.payer_type);
+                                          let payee = String(p.payee_type) === 'BUYER' ? getUserName(users, transaction.buyer_id)
+                                            : String(p.payee_type) === 'FARMER' ? getUserName(users, transaction.farmer_id)
+                                            : String(p.payee_type) === 'SHOP' ? 'Shop' : String(p.payee_type);
+                                          let label = `${payer} → ${payee}`;
+                                          return (
+                                            <li key={i} className="mb-1">
+                                              <span className="font-medium">{label}:</span> {formatCurrency(p.amount)}
+                                              {' '}<span className="text-gray-500">({p.method}{p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : ''})</span>
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">No payments</span>
+                                    )}
+                                  </div>
                                 </div>
                               </TableCell>
                             </TableRow>

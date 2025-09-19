@@ -1,10 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useTransactionStore } from '../store/transactionStore';
-import {
-  formatDate,
-  parseDate,
-  getToday
-} from '../utils/dateUtils';
+import { formatDate, getToday } from '../utils/dateUtils';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -13,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { Download, FileText, Calendar, User, AlertCircle, Loader2 } from 'lucide-react';
 import { reportService } from '../services/reportService';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
 
 type ReportFilters = {
   shop_id: string;
@@ -24,17 +19,17 @@ type ReportFilters = {
   report_type: 'farmer' | 'user' | 'shop';
 };
 
-type UserType = { id: string; username: string; role: string };
+type UserType = { readonly id: string; readonly username: string; readonly role: string };
 
-type PDFReportGeneratorProps = {
-  shopId: string;
-  users?: UserType[];
-};
+interface PDFReportGeneratorProps {
+  readonly shopId: string;
+  readonly users?: ReadonlyArray<UserType>;
+}
 
 export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGeneratorProps) {
   // Use users from Zustand store if available
   const zustandUsers: UserType[] = useTransactionStore((state: any) => state.usersByShop?.[shopId] || []);
-  const allUsers: UserType[] = zustandUsers.length ? zustandUsers : users;
+  const allUsers: ReadonlyArray<UserType> = zustandUsers.length ? zustandUsers : users;
 
   const [reportRows, setReportRows] = useState<any[]>([]);
   const [reportType, setReportType] = useState<'farmer' | 'user' | 'shop'>('shop');
@@ -53,22 +48,37 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
 
   const handleExportPDF = () => {
     if (!reportRows.length) return;
-    const doc = new jsPDF();
-    const columns = [
-      'ID', 'Buyer', 'Farmer', 'Product', 'Qty', 'Unit Price', 'Total', 'Paid'
-    ];
-    const rows = reportRows.map(row => [
-      row.transaction_id,
-      row.buyer,
-      row.farmer,
-      row.product,
-      row.quantity,
-      row.unit_price,
-      row.total_amount,
-      row.paid_amount
-    ]);
-    doc.autoTable({ head: [columns], body: rows });
-    doc.save('report.pdf');
+    const titleMap: Record<string,string> = {
+      shop: 'Shop Transactions Report',
+      farmer: 'Farmer Transactions Report',
+      user: 'User Transactions Report'
+    };
+    const title = titleMap[reportType] || 'Report';
+    const mapped = reportRows.map((row: any, idx: number) => ({
+      id: row.transaction_id || row.id || idx + 1,
+      transaction_id: row.transaction_id || row.id || idx + 1,
+      created_at: row.date || row.created_at,
+      product_name: row.product,
+      buyer_name: row.buyer,
+      farmer_name: row.farmer,
+      total_sale_value: row.total_amount,
+      buyer_paid: row.paid_amount,
+      deficit: row.buyer_pending || row.deficit,
+      farmer_paid: row.farmer_paid,
+      farmer_due: row.farmer_due,
+      payments: (row.payments || []).map((p: any) => ({
+        payer: p.payer || p.payer_type || '',
+        payee: p.payee || p.payee_type || '',
+        amount: p.amount,
+        method: p.method,
+        payment_date: p.payment_date
+      }))
+    }));
+    exportTransactionsPDF(mapped, {
+      title,
+      generatedBy: selectedUser ? `User ${selectedUser}` : 'System',
+      dateRange: { from: dateFrom, to: dateTo }
+    });
   };
 
   const handleGenerateReport = async (download = false) => {
@@ -109,39 +119,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-2">
-        {/* Render generated report as table */}
-        {reportRows.length > 0 && (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full w-full text-xs border rounded-lg">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Buyer</th>
-                  <th>Farmer</th>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Total</th>
-                  <th>Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportRows.map(row => (
-                  <tr key={row.transaction_id} className="md:table-row block w-full mb-2 border-b md:border-none">
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">ID: </span>{row.transaction_id}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Buyer: </span>{row.buyer}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Farmer: </span>{row.farmer}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Product: </span>{row.product}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Qty: </span>{row.quantity}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Unit Price: </span>{row.unit_price}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Total: </span>{row.total_amount}</td>
-                    <td className="p-2 whitespace-nowrap block md:table-cell"><span className="md:hidden font-semibold">Paid: </span>{row.paid_amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* PDF export is card-style only, no table rendering here */}
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
