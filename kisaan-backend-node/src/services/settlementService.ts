@@ -1,3 +1,35 @@
+// FIFO repayment logic: When a payment is made, settle oldest pending settlements first
+export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repaymentAmount: number) => {
+  // Fetch all pending settlements for this shop/user, oldest first
+  const pendingSettlements = await Settlement.findAll({
+    where: {
+      shop_id,
+      user_id,
+      status: 'pending'
+    },
+    order: [['created_at', 'ASC']]
+  });
+
+  let remaining = repaymentAmount;
+  const updates = [];
+  for (const settlement of pendingSettlements) {
+    if (remaining <= 0) break;
+    const originalAmount = typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount;
+    const settleAmt = Math.min(remaining, originalAmount);
+    // If full amount is settled, mark as settled
+    if (settleAmt === originalAmount) {
+      await settlement.update({ status: 'settled', settlement_date: new Date() });
+      updates.push({ id: settlement.id, settled: settleAmt });
+    } else {
+      // Partial settlement: reduce amount, keep status pending
+  const newAmount = originalAmount - settleAmt;
+  await settlement.update({ amount: newAmount });
+      updates.push({ id: settlement.id, partial: settleAmt });
+    }
+    remaining -= settleAmt;
+  }
+  return { updates, remaining };
+};
 import { Settlement } from '../models/settlement';
 import { User } from '../models/user';
 import { Op } from 'sequelize';
@@ -26,13 +58,18 @@ export const getSettlements = async (filters: {
   user_id?: string;
   user_type?: string;
   status?: string;
+  from_date?: string;
+  to_date?: string;
 }) => {
   const where: any = { shop_id: parseInt(filters.shop_id) };
-  
   if (filters.user_id) where.user_id = filters.user_id;
   if (filters.user_type) where.user_type = filters.user_type;
   if (filters.status) where.status = filters.status;
-
+  if (filters.from_date || filters.to_date) {
+    where.created_at = {};
+    if (filters.from_date) where.created_at[Op.gte] = new Date(filters.from_date);
+    if (filters.to_date) where.created_at[Op.lte] = new Date(filters.to_date);
+  }
   const settlements = await Settlement.findAll({
     where,
     order: [['created_at', 'DESC']],
@@ -45,7 +82,6 @@ export const getSettlements = async (filters: {
       }
     ]
   });
-
   return settlements;
 };
 

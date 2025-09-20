@@ -13,14 +13,31 @@ import { Sidebar } from './Sidebar';
 import { Leaf } from 'lucide-react';
 
 interface AppLayoutProps {
-  children?: React.ReactNode;
-  className?: string;
+  readonly children?: React.ReactNode;
+  readonly className?: string;
 }
 
-export function AppLayout({ children, className }: AppLayoutProps) {
+export function AppLayout({ children, className }: Readonly<AppLayoutProps>) {
   const { user } = useAuth();
   const { isCollapsed } = useSidebar();
   const showSidebar = user?.role === 'owner' || user?.role === 'superadmin';
+
+  // Extract sidebar padding class from nested ternary
+  const sidebarPaddingClass = showSidebar
+    ? isCollapsed
+      ? 'md:pl-16'
+      : 'md:pl-64'
+    : '';
+
+  // Extract main content to avoid nested ternary in JSX
+  const mainContent = children ? children : <Outlet />;
+
+  // Extract footer padding class from nested ternary
+  const footerPaddingClass = showSidebar
+    ? isCollapsed
+      ? 'md:pl-16'
+      : 'md:pl-64'
+    : '';
 
   return (
     <div className={"min-h-screen bg-background font-sans antialiased" + (className ? ` ${className}` : "") }>
@@ -40,16 +57,12 @@ export function AppLayout({ children, className }: AppLayoutProps) {
         {/* Main content area */}
         <div className="flex flex-1 flex-col">
           {/* Main content with padding for fixed header and sidebar */}
-          <main className={`flex-1 bg-gray-50 pt-16 transition-all duration-300 ${
-            showSidebar ? (isCollapsed ? 'md:pl-16' : 'md:pl-64') : ''
-          }`}>
-            {children ?? <Outlet />}
+          <main className={`flex-1 bg-gray-50 pt-16 transition-all duration-300 ${sidebarPaddingClass}`}>
+            {mainContent}
           </main>
 
           {/* Footer */}
-          <footer className={`border-t border-gray-200 bg-white transition-all duration-300 ${
-            showSidebar ? (isCollapsed ? 'md:pl-16' : 'md:pl-64') : ''
-          }`}>
+          <footer className={`border-t border-gray-200 bg-white transition-all duration-300 ${footerPaddingClass}`}>
             <div className="px-6 py-4">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
