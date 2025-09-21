@@ -1,3 +1,42 @@
+// Settlements API
+export const settlementsApi = {
+  getAll: (params?: {
+    shop_id?: number;
+    user_id?: number;
+    status?: string;
+    reason?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Settlement>> =>
+    apiClient.get('/settlements', { url: `/settlements?${new URLSearchParams(params as any).toString()}` }),
+
+  getById: (id: number): Promise<ApiResponse<Settlement>> =>
+    apiClient.get(`/settlements/${id}`),
+
+  create: (settlement: {
+    shop_id: number;
+    user_id: number;
+    amount: number;
+    reason: 'overpayment' | 'underpayment' | 'adjustment';
+    notes?: string;
+  }): Promise<ApiResponse<Settlement>> =>
+    apiClient.post('/settlements', settlement),
+
+  update: (id: number, update: {
+    status?: 'pending' | 'settled';
+    settlement_date?: string;
+    notes?: string;
+  }): Promise<ApiResponse<Settlement>> =>
+    apiClient.put(`/settlements/${id}`, update),
+
+  getSummary: (): Promise<ApiResponse<{
+    total_pending: number;
+    total_settled: number;
+    count_pending: number;
+    count_settled: number;
+  }>> =>
+    apiClient.get('/settlements/summary'),
+};
 export const shopProductsApi = {
   getShops: async (user: User | null) => {
     // Owners should only fetch their own shop
@@ -462,47 +501,19 @@ export const paymentsApi = {
     apiClient.get(`/payments/buyers/${buyerId}`)
 };
 
-// Settlements API
-export const settlementsApi = {
-  getAll: (params?: {
-    shop_id?: number;
-    user_id?: number;
-    status?: string;
-    reason?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<PaginatedResponse<Settlement>> =>
-    apiClient.get('/settlements', { url: `/settlements?${new URLSearchParams(params as any).toString()}` }),
-  
-  getById: (id: number): Promise<ApiResponse<Settlement>> =>
-    apiClient.get(`/settlements/${id}`),
-  
-  create: (settlement: {
+// Expense API
+export const expenseApi = {
+  addExpense: (payload: {
     shop_id: number;
     user_id: number;
     amount: number;
-    reason: 'overpayment' | 'underpayment' | 'adjustment';
-    notes?: string;
-  }): Promise<ApiResponse<Settlement>> =>
-    apiClient.post('/settlements', settlement),
-  
-  update: (id: number, update: {
-    status?: 'pending' | 'settled';
-    settlement_date?: string;
-    notes?: string;
-  }): Promise<ApiResponse<Settlement>> =>
-    apiClient.put(`/settlements/${id}`, update),
-  
-  getSummary: (): Promise<ApiResponse<{
-    total_pending: number;
-    total_settled: number;
-    count_pending: number;
-    count_settled: number;
-  }>> =>
-    apiClient.get('/settlements/summary'),
-  
-  settle: (settlementId: number): Promise<ApiResponse> =>
-    apiClient.post(`/settlements/settle/${settlementId}`)
+    reason?: string;
+    description?: string;
+  }): Promise<ApiResponse> =>
+    apiClient.post('/expenses', payload),
+
+  getExpenses: (shop_id: number): Promise<ApiResponse<any[]>> =>
+    apiClient.get(`/expenses?shop_id=${shop_id}`),
 };
 
 // Dashboard API - using available endpoints
@@ -517,10 +528,10 @@ export const dashboardApi = {
       message: 'Business summary',
       data: {
         totalUsers: usersRes.data?.length || 0,
-        totalTransactions: transactionsRes.data?.total_transactions || 0,
+        totalTransactions: (transactionsRes.data && transactionsRes.data.total_transactions) ? transactionsRes.data.total_transactions : 0,
         totalPayments: 0,
         totalSettlements: 0,
-        totalRevenue: transactionsRes.data?.total_value || 0,
+        totalRevenue: (transactionsRes.data && transactionsRes.data.total_value) ? transactionsRes.data.total_value : 0,
         activeShops: shopsRes.data?.filter((s: any) => s.status === 'active').length || 0,
         pendingPayments: 0
       }

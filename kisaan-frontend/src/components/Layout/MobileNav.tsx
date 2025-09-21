@@ -36,48 +36,32 @@ interface NavItem {
 
 // Navigation items configuration
 const NAV_ITEMS: NavItem[] = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: Home,
-    roles: ['SUPERADMIN', 'EMPLOYEE', 'FARMER', 'BUYER'],
-  },
-  {
-    label: 'Dashboard',
-    href: '/owner',
-    icon: Home,
-    roles: ['OWNER'],
-  },
-  {
-    label: 'Sales',
-    href: '/new-transaction',
-    icon: ShoppingCart,
-    roles: ['OWNER', 'EMPLOYEE'],
-  },
-  {
-    label: 'Users',
-    href: '/users',
-    icon: Users,
-    roles: ['OWNER', 'SUPERADMIN'],
-  },
-  {
-    label: 'Products',
-    href: '/products',
-    icon: Package,
-    roles: ['OWNER', 'EMPLOYEE'],
-  },
-  {
-    label: 'Reports',
-    href: '/reports',
-    icon: BarChart3,
-    roles: ['OWNER', 'SUPERADMIN'],
-  },
-  {
-    label: 'Settlements',
-    href: '/settlements',
-    icon: Receipt,
-    roles: ['OWNER'],
-  },
+  // OWNER navigation
+  { label: 'Dashboard', href: '/owner', icon: Home, roles: ['OWNER'] },
+  { label: 'Transactions', href: '/transactions', icon: ShoppingCart, roles: ['OWNER'] },
+  { label: 'Users', href: '/users', icon: Users, roles: ['OWNER'] },
+  { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['OWNER'] },
+  { label: 'Balance', href: '/balance', icon: BarChart3, roles: ['OWNER'] },
+  { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['OWNER'] },
+  { label: 'Expenses', href: '/expenses', icon: Receipt, roles: ['OWNER'] },
+  { label: 'Products', href: '/products', icon: Package, roles: ['OWNER'] },
+  { label: 'Settings', href: '/settings', icon: Settings, roles: ['OWNER'] },
+  { label: 'Sales', href: '/new-transaction', icon: ShoppingCart, roles: ['OWNER', 'EMPLOYEE'] },
+
+  // SUPERADMIN navigation
+  { label: 'Dashboard', href: '/superadmin', icon: Home, roles: ['SUPERADMIN'] },
+  { label: 'Shops', href: '/superadmin/shops', icon: Store, roles: ['SUPERADMIN'] },
+  { label: 'Users', href: '/superadmin/users', icon: Users, roles: ['SUPERADMIN'] },
+  { label: 'Categories', href: '/superadmin/categories', icon: Leaf, roles: ['SUPERADMIN'] },
+  { label: 'Assign Products', href: '/superadmin/shop-products', icon: Package, roles: ['SUPERADMIN'] },
+  { label: 'Reports', href: '/superadmin/reports', icon: BarChart3, roles: ['SUPERADMIN'] },
+  { label: 'Products', href: '/superadmin/products', icon: Package, roles: ['SUPERADMIN'] },
+  { label: 'Settings', href: '/superadmin/settings', icon: Settings, roles: ['SUPERADMIN'] },
+
+  // Other roles (existing)
+  { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['EMPLOYEE', 'FARMER', 'BUYER'] },
+  { label: 'Sales', href: '/new-transaction', icon: ShoppingCart, roles: ['EMPLOYEE'] },
+  { label: 'Products', href: '/products', icon: Package, roles: ['EMPLOYEE'] },
 ];
 
 export function MobileNav() {

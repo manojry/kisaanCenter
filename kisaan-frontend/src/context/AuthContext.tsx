@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from '../types/api';
 import { authApi } from '../services/api';
 import config from '../config';
+import { useTransactionStore } from '../store/transactionStore';
 
 
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const transactionStore = useTransactionStore.getState();
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('auth_user');
     return stored ? JSON.parse(stored) : null;
@@ -47,6 +49,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsAuthenticated(true);
           localStorage.setItem('auth_token', data.token);
           localStorage.setItem('auth_user', JSON.stringify(data.user));
+          // Store shop info in Zustand store for global access
+          if (data.user.shop_id) {
+            transactionStore.setShop({ id: data.user.shop_id });
+          } else {
+            transactionStore.setShop(null);
+          }
           if (data.user.role === 'owner') {
             window.location.href = '/owner';
           } else if (data.user.role === 'superadmin') {

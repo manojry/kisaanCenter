@@ -10,7 +10,7 @@ import NotFound from './pages/NotFound';
 import ProductsPage from './pages/Products';
 import OwnerUsersPage from './pages/OwnerUsersPage';
 import ReportsPage from './pages/Reports';
-import SettlementsPage from './pages/Settlements';
+import ExpensesPage from './pages/Expenses';
 import BalanceManagement from './pages/BalanceManagement';
 import PaymentManagement from './pages/PaymentManagement';
 import TransactionManagement from './pages/TransactionManagement';
@@ -100,7 +100,11 @@ const AppRoutes = () => {
         } />
         <Route path="/balance" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <BalanceManagement />
+              {user && user.shop_id ? (
+                <BalanceManagement shopId={user.shop_id} />
+              ) : (
+                <div>Shop not found for user.</div>
+              )}
           </ProtectedRoute>
         } />
         <Route path="/payments" element={
@@ -113,9 +117,9 @@ const AppRoutes = () => {
             <ReportsPage />
           </ProtectedRoute>
         } />
-        <Route path="/settlements" element={
+        <Route path="/expenses" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <SettlementsPage />
+            <ExpensesPage />
           </ProtectedRoute>
         } />
         <Route path="/settings" element={

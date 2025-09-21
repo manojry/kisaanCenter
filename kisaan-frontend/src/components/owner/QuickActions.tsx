@@ -47,9 +47,9 @@ export const QuickActions: React.FC = () => {
       variant: 'outline' as const
     },
     {
-      title: 'Settlements',
+      title: 'Expenses',
       icon: BarChart3,
-      onClick: () => navigate('/settlements'),
+      onClick: () => navigate('/expenses'),
       variant: 'outline' as const
     }
   ];

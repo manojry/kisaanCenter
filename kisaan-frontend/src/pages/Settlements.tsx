@@ -1,3 +1,6 @@
+// This file has been renamed to Expenses.tsx. Please use Expenses.tsx instead.
+
+// ...existing code...
 import React, { useState, useEffect } from 'react';
 import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/UsersContext';
@@ -22,7 +25,7 @@ import {
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '../lib/formatters';
 
-export default function Settlements() {
+export default function Expenses() {
   const REASONS = [
     { value: 'food', label: 'Food' },
     { value: 'tea', label: 'Tea' },
@@ -236,7 +239,7 @@ export default function Settlements() {
           </Button>
           <div className="flex items-center gap-2">
             <Receipt className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl md:text-3xl font-bold">Settlements</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">Expenses</h1>
           </div>
         </div>
         <p className="text-muted-foreground">
@@ -244,11 +247,10 @@ export default function Settlements() {
         </p>
       </div>
 
-      <Tabs defaultValue="summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="settlements">All Settlements</TabsTrigger>
+  <Tabs defaultValue="expenses" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="summary">Summary</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-6">

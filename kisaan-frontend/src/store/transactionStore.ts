@@ -4,6 +4,9 @@ import type { Transaction } from '../types/api';
 interface TransactionState {
   transactionsByShopAndDate: Record<string, Record<string, Transaction[]>>;
   usersByShop: Record<string, any[]>;
+  shop: any | null;
+  setShop: (shop: any) => void;
+  getShop: () => any | null;
   setTransactions: (shopId: string, date: string, txns: Transaction[]) => void;
   getTransactions: (shopId: string, dates: string[]) => Transaction[];
   setUsers: (shopId: string, users: any[]) => void;
@@ -15,6 +18,9 @@ interface TransactionState {
 export const useTransactionStore = create<TransactionState>((set, get) => ({
   transactionsByShopAndDate: {},
   usersByShop: {},
+  shop: null,
+  setShop: (shop) => set({ shop }),
+  getShop: () => get().shop,
   setTransactions: (shopId, date, txns) => set(state => ({
     transactionsByShopAndDate: {
       ...state.transactionsByShopAndDate,

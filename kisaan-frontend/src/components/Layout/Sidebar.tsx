@@ -27,7 +27,7 @@ const ownerNavigation = [
   { name: 'Payments', href: '/payments', icon: DollarSign },
   { name: 'Balance', href: '/balance', icon: BarChart3 },
   { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Settlements', href: '/settlements', icon: BarChart3 },
+  { name: 'Expenses', href: '/expenses', icon: BarChart3 },
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
