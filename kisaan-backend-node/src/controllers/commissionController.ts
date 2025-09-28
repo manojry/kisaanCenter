@@ -1,100 +1,65 @@
 import { Request, Response } from 'express';
 import { CommissionService } from '../services/commissionService';
-import { CreateCommissionDTO, UpdateCommissionDTO } from '../dtos/CommissionDTO';
+import { CreateCommissionDTO, UpdateCommissionDTO } from '../dtos';
+import { success, created, failureCode } from '../shared/http/respond';
+import { ErrorCodes } from '../shared/errors/errorCodes';
+import { parseId } from '../shared/utils/parse';
 
 export class CommissionController {
   private commissionService = new CommissionService();
 
   async createCommission(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id || 1; // Default to 1 for testing
+      const userId = (req as any).user?.id || 1;
       const commissionData: CreateCommissionDTO = req.body;
       if (!commissionData.shop_id || !commissionData.rate || !commissionData.type) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields',
-          required: ['shop_id', 'rate', 'type']
-        });
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { required: ['shop_id', 'rate', 'type'] }, 'Missing required fields');
       }
       const commission = await this.commissionService.createCommission(commissionData, userId);
-      res.status(201).json({
-        success: true,
-        data: commission,
-        message: 'Commission created successfully'
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create commission',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      return created(res, commission, { message: 'Commission created successfully' });
+    } catch (error: any) {
+      req.log?.error({ err: error }, 'commission:create failed');
+      return failureCode(res, error.statusCode || 500, ErrorCodes.CREATE_COMMISSION_FAILED, undefined, error.message || 'Failed to create commission');
     }
   }
 
   async getAllCommissions(req: Request, res: Response) {
     try {
       const { shop_id } = req.query;
-      const commissions = shop_id 
+      const commissions = shop_id
         ? await this.commissionService.getCommissionsByShop(Number(shop_id))
         : await this.commissionService.getAllCommissions();
-
-      res.json({
-        success: true,
-        data: commissions
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch commissions',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      return success(res, commissions, { message: 'Commissions retrieved', meta: { count: commissions.length } });
+    } catch (error: any) {
+      req.log?.error({ err: error }, 'commission:list failed');
+      return failureCode(res, error.statusCode || 500, ErrorCodes.GET_COMMISSIONS_FAILED, undefined, error.message || 'Failed to fetch commissions');
     }
   }
 
   async getCommissionsByShop(req: Request, res: Response) {
     try {
-      const { shopId } = req.params;
-      const commissions = await this.commissionService.getCommissionsByShop(Number(shopId));
-
-      res.json({
-        success: true,
-        data: commissions
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch commissions',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      const shopId = parseId(req.params.shopId, 'shop');
+      const commissions = await this.commissionService.getCommissionsByShop(shopId);
+      return success(res, commissions, { message: 'Shop commissions retrieved', meta: { count: commissions.length } });
+    } catch (error: any) {
+      req.log?.error({ err: error }, 'commission:byShop failed');
+      return failureCode(res, error.statusCode || 500, ErrorCodes.GET_COMMISSIONS_FAILED, undefined, error.message || 'Failed to fetch commissions');
     }
   }
 
   async updateCommission(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = parseId(req.params.id, 'commission');
       const userId = (req as any).user?.id;
       const updateData: UpdateCommissionDTO = req.body;
-      
-      const commission = await this.commissionService.updateCommission(Number(id), updateData, userId);
-      
+      const commission = await this.commissionService.updateCommission(id, updateData, userId);
       if (!commission) {
-        return res.status(404).json({
-          success: false,
-          message: 'Commission not found'
-        });
+        return failureCode(res, 404, ErrorCodes.COMMISSION_NOT_FOUND, undefined, 'Commission not found');
       }
-
-      res.json({
-        success: true,
-        data: commission,
-        message: 'Commission updated successfully'
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update commission',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      return success(res, commission, { message: 'Commission updated successfully' });
+    } catch (error: any) {
+      req.log?.error({ err: error }, 'commission:update failed');
+      return failureCode(res, error.statusCode || 500, ErrorCodes.UPDATE_COMMISSION_FAILED, undefined, error.message || 'Failed to update commission');
     }
   }
 }

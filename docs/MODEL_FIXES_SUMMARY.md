@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Incorporated into type/system improvement notes. Reference active architecture & type docs.
+
+# Model Fixes Summary
 # Model Relationship Fixes Summary
 
 ## Issues Identified and Fixed

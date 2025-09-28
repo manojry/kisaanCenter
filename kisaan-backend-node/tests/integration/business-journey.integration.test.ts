@@ -202,8 +202,8 @@ describe('KisaanCenter Complete Business Journey', () => {
       });
       
       expect(response.status).toBe(201);
-      expect(Number(response.data.data.total_sale_value)).toBe(1000);
-      expect(Number(response.data.data.shop_commission)).toBe(150); // 15%
+  expect(Number(response.data.data.total_amount)).toBe(1000);
+  expect(Number(response.data.data.commission_amount)).toBe(150); // 15%
       expect(Number(response.data.data.farmer_earning)).toBe(850);
       
       transactionId = response.data.data.id;

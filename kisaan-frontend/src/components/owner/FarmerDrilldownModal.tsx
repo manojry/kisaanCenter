@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { transactionsApi, paymentsApi } from '@/services/api';
 
 interface FarmerDrilldownModalProps {
   farmerId: number;
@@ -18,18 +19,17 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
   useEffect(() => {
     if (!open) return;
     setIsLoading(true);
-    // Fetch transactions and payments for this farmer
     Promise.all([
-      fetch(`/api/transactions?farmer_id=${farmerId}`).then(r => r.json()),
-      fetch(`/api/payments?farmer_id=${farmerId}`).then(r => r.json())
+      transactionsApi.getAll({ farmer_id: farmerId }),
+      paymentsApi.getFarmerPayments(farmerId)
     ]).then(([txs, pays]) => {
       setTransactions(txs.data || []);
       setPayments(pays.data || []);
     }).finally(() => setIsLoading(false));
   }, [farmerId, open]);
 
-  // Calculate running balance
-  const totalDue = transactions.reduce((sum, t) => sum + (t.total - (t.farmer_paid || 0)), 0);
+  // Calculate running balance using standardized field names
+  const totalDue = transactions.reduce((sum, t) => sum + ((t.total_sale_value || t.total || 0) - (t.farmer_paid || 0)), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const outstanding = totalDue - totalPaid;
 
@@ -64,7 +64,7 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
                   <TableRow key={t.id}>
                     <TableCell>{formatDate(t.transaction_date)}</TableCell>
                     <TableCell>{t.product_name}</TableCell>
-                    <TableCell>{formatCurrency(t.total)}</TableCell>
+                    <TableCell>{formatCurrency(t.total_sale_value || t.total)}</TableCell>
                     <TableCell>{formatCurrency(t.farmer_paid)}</TableCell>
                     <TableCell>{t.status}</TableCell>
                   </TableRow>

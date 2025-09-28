@@ -1,4 +1,5 @@
 
+> ⚠️ **Deprecated (Will be Consolidated)**: Content will be merged into `ARCHITECTURE_BLUEPRINT.md`, `FRONTEND_ARCHITECTURE.md`, and focused domain docs. Use those as primary references.
 
 # KisaanCenter System Brain 🧠
 ## Single Source of Truth for Database, API, and Frontend Synchronization

@@ -1,8 +1,9 @@
 import express from 'express';
-import { getOwnerDashboardStats } from "../services/ownerDashboardService";
+import { OwnerDashboardService } from "../services/ownerDashboardService";
 import { authenticateToken, requireRole, AuthenticatedRequest } from '../middlewares/auth';
 
 const router = express.Router();
+const ownerDashboardService = new OwnerDashboardService();
 
 // GET /api/owner/dashboard
 router.get(
@@ -15,7 +16,7 @@ router.get(
       if (!ownerId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
-      const stats = await getOwnerDashboardStats(ownerId.toString());
+      const stats = await ownerDashboardService.getOwnerDashboardStats(ownerId.toString());
       res.json(stats);
     } catch (err) {
       console.error('Owner dashboard error:', err);

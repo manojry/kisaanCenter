@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
-import { Download, FileText, Calendar, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, FileText, Calendar, User, Loader2 } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
+import { useToast } from '@/hooks/use-toast';
 
 type ReportFilters = {
   shop_id: string;
@@ -38,8 +38,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [dateFrom, setDateFrom] = useState(getToday());
   const [dateTo, setDateTo] = useState(getToday());
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Remove auto-preview on mount to prevent unwanted downloads or previews
 
@@ -83,8 +82,6 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
 
   const handleGenerateReport = async (download = false) => {
     setIsGenerating(true);
-    setError(null);
-    setSuccess(null);
     try {
       const filters: ReportFilters = {
         shop_id: shopId,
@@ -95,13 +92,20 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       };
       if (download) {
         await reportService.downloadReport(filters);
-        setSuccess('PDF downloaded successfully!');
+        toast({
+          title: 'Success',
+          description: 'PDF downloaded successfully!',
+        });
       } else {
         const rows = await reportService.generateReport(filters);
         setReportRows(Array.isArray(rows) ? rows : []);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to generate report');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate report',
+        variant: 'destructive',
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -120,18 +124,6 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       </CardHeader>
       <CardContent className="space-y-3 p-2">
         {/* PDF export is card-style only, no table rendering here */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {success && (
-          <Alert variant="default">
-            <Download className="h-4 w-4" />
-            <AlertDescription>{success}</AlertDescription>
-          </Alert>
-        )}
 
         {/* Report Type Selection */}
         <div className="flex flex-col gap-2">

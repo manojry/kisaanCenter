@@ -40,7 +40,7 @@ This implementation provides a functional owner dashboard for the KisaanCenter a
 - Works with current backend response structure
 
 ## Transaction Logic (Simplified)
-Currently implements basic transaction recording. The full transaction logic from `TRANSACTION_LOGIC_AND_EDGE_CASES.md` will require backend updates to support:
+Currently implements basic transaction recording. The full canonical transaction flow and derived field logic are now defined in `TRANSACTION_FLOW.md` (replaces the deprecated `TRANSACTION_LOGIC_AND_EDGE_CASES.md`). Backend updates required to align fully:
 - `farmer_id` field (currently uses `seller_id`)
 - Commission rate from shop table
 - Payment tracking (`farmer_paid`, `buyer_paid`)

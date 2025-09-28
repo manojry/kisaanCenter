@@ -12,4 +12,6 @@ router.post('/logout', authenticateToken, (req, res) => {
   });
 });
 
+
 export default router;
+export { router as authRoutes };

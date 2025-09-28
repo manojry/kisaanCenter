@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { SettlementController } from '../controllers/settlementController';
+import { success, created, failure } from '../shared/http/respond';
 import { authenticateToken } from '../middlewares/auth';
 
 const router = Router();
@@ -20,13 +21,13 @@ router.post('/repay-fifo', authenticateToken, async (req, res) => {
   try {
     const { shop_id, user_id, amount } = req.body;
     if (!shop_id || !user_id || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'shop_id, user_id, and valid amount are required' });
+      return failure(res, 400, 'VALIDATION_ERROR', { fields: ['shop_id','user_id','amount'] }, 'shop_id, user_id, and valid amount are required');
     }
     const { applyRepaymentFIFO } = require('../services/settlementService');
     const result = await applyRepaymentFIFO(parseInt(shop_id), parseInt(user_id), parseFloat(amount));
-    res.json({ success: true, data: result });
+    success(res, result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    failure(res, 500, 'FIFO_REPAY_FAILED', { error: error.message });
   }
 });
 
@@ -35,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { shop_id, user_id, user_type, status, from_date, to_date } = req.query;
     if (!shop_id) {
-      return res.status(400).json({ error: 'shop_id is required' });
+      return failure(res, 400, 'VALIDATION_ERROR', { fields: ['shop_id'] }, 'shop_id is required');
     }
     // Expand date strings to ISO
     const expandedFromDate = from_date ? expandToFullDay(from_date as string, false) : undefined;
@@ -50,9 +51,9 @@ router.get('/', authenticateToken, async (req, res) => {
       from_date: expandedFromDate,
       to_date: expandedToDate
     });
-    res.json({ success: true, data: settlements });
+    success(res, settlements);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    failure(res, 500, 'GET_SETTLEMENTS_FAILED', { error: error.message });
   }
 });
 
@@ -64,22 +65,16 @@ router.post('/expense', authenticateToken, settlementController.createExpenseCon
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { shop_id, amount, type } = req.body;
-    res.status(201).json({
-      success: true,
-      data: {
-        id: Date.now(),
-        shop_id,
-        amount,
-        type: type || 'commission',
-        status: 'pending',
-        created_at: new Date().toISOString()
-      }
+    created(res, {
+      id: Date.now(),
+      shop_id,
+      amount,
+      type: type || 'commission',
+      status: 'pending',
+      created_at: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create settlement'
-    });
+    failure(res, 500, 'CREATE_SETTLEMENT_FAILED');
   }
 });
 
@@ -87,22 +82,16 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    res.json({
-      success: true,
-      data: {
-        id: Number(id),
-        shop_id: 1,
-        amount: 150.00,
-        type: 'commission',
-        status: 'pending',
-        created_at: new Date().toISOString()
-      }
+    success(res, {
+      id: Number(id),
+      shop_id: 1,
+      amount: 150.00,
+      type: 'commission',
+      status: 'pending',
+      created_at: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch settlement'
-    });
+    failure(res, 500, 'GET_SETTLEMENT_FAILED');
   }
 });
 
@@ -111,19 +100,13 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    res.json({
-      success: true,
-      data: {
-        id: Number(id),
-        status,
-        updated_at: new Date().toISOString()
-      }
+    success(res, {
+      id: Number(id),
+      status,
+      updated_at: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update settlement status'
-    });
+    failure(res, 500, 'UPDATE_SETTLEMENT_STATUS_FAILED');
   }
 });
 

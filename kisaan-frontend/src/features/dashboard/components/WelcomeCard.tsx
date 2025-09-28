@@ -41,7 +41,7 @@ export function WelcomeCard() {
             </div>
             <div>
               <CardTitle className="text-xl">
-                {getGreeting()}, {user.username}!
+                {getGreeting()}, {user.firstname && user.firstname.trim() ? user.firstname : user.username}!
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 Welcome to your KisaanCenter dashboard

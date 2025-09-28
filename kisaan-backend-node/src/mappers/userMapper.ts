@@ -2,25 +2,48 @@
 // Functions to map between UserEntity, UserDTO, and ORM model
 
 import { UserEntity } from '../entities/UserEntity';
-import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos/UserDTO';
+import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos';
 import { User } from '../models/user';
+import { UserAnalyticsService } from '../services/userAnalyticsService';
 
-export function toUserDTO(entity: UserEntity): UserDTO {
+export async function toUserDTO(entity: UserEntity): Promise<UserDTO> {
+  // Calculate computed fields using analytics service
+  const analytics = await UserAnalyticsService.getUserAnalytics(
+    entity.id!,
+    entity.role!,
+    entity.shop_id
+  );
+
   return {
     id: entity.id!,
     username: entity.username!,
+    email: entity.email || '',
     role: entity.role!,
-    owner_id: entity.owner_id,
     shop_id: entity.shop_id,
-    contact: entity.contact,
-    email: entity.email,
-    firstname: entity.firstname ?? null,
-    status: entity.status!,
-    balance: typeof entity.balance === 'string' ? parseFloat(entity.balance) : entity.balance!, // handle DECIMAL as string
-    cumulative_value: typeof entity.cumulative_value === 'string' ? parseFloat(entity.cumulative_value) : (entity.cumulative_value ?? 0),
-    created_by: entity.created_by,
+    firstname: entity.firstname ?? '',
+    balance: typeof (entity as any).balance === 'string' ? parseFloat((entity as any).balance) : (entity as any).balance,
     created_at: entity.created_at,
     updated_at: entity.updated_at,
+    custom_commission_rate: (entity as any).custom_commission_rate ?? null,
+    // Computed fields from analytics service
+    status: analytics.status,
+    cumulative_value: analytics.cumulative_value,
+  };
+}
+
+// Synchronous version for cases where analytics aren't needed
+export function toUserDTOSync(entity: UserEntity): Omit<UserDTO, 'status' | 'cumulative_value'> {
+  return {
+    id: entity.id!,
+    username: entity.username!,
+    email: entity.email || '',
+    role: entity.role!,
+    shop_id: entity.shop_id,
+    firstname: entity.firstname ?? '',
+    balance: typeof (entity as any).balance === 'string' ? parseFloat((entity as any).balance) : (entity as any).balance,
+    created_at: entity.created_at,
+    updated_at: entity.updated_at,
+    custom_commission_rate: (entity as any).custom_commission_rate ?? null,
   };
 }
 
@@ -29,23 +52,14 @@ export function fromCreateUserDTO(dto: CreateUserDTO): UserEntity {
     username: dto.username,
     password: dto.password,
     role: dto.role,
-    owner_id: dto.owner_id,
     shop_id: dto.shop_id,
-    contact: dto.contact,
     email: dto.email,
-    status: 'active',
+    firstname: dto.firstname ?? '',
   });
 }
 
 export function fromUserModel(model: User): UserEntity {
   const plain = model.get({ plain: true });
-  // Ensure cumulative_value is included and parsed as number
-  if (plain.cumulative_value === undefined && model.cumulative_value !== undefined) {
-    plain.cumulative_value = model.cumulative_value;
-  }
-  if (plain.cumulative_value !== undefined && typeof plain.cumulative_value === 'string') {
-    plain.cumulative_value = parseFloat(plain.cumulative_value);
-  }
   if (plain.balance !== undefined && typeof plain.balance === 'string') {
     plain.balance = parseFloat(plain.balance);
   }

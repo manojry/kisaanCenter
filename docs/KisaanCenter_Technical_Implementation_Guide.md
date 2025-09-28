@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Replaced by focused architecture, flow, and service documentation. Use `SYSTEM_BRAIN.md` + `FRONTEND_ARCHITECTURE.md`.
+
+# KisaanCenter Technical Implementation Guide
 # KisaanCenter Technical & Implementation Guide
 
 ---

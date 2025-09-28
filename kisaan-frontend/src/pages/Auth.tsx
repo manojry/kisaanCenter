@@ -10,13 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Leaf, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
-  const { login, signUp, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { login, isAuthenticated, isLoading, clearError } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
   
@@ -51,12 +50,17 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await login(loginData.email, loginData.password);
-    
-    if (!error) {
+    try {
+      await login(loginData.email, loginData.password);
       toast({
         title: 'Success',
         description: 'Welcome to KisaanCenter!',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Login Failed',
+        description: error.message || 'Please check your credentials and try again',
+        variant: 'destructive',
       });
     }
   };
@@ -92,14 +96,13 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signUp(signupData.email, signupData.password, signupData.username);
-    
-    if (!error) {
-      toast({
-        title: 'Success',
-        description: 'Please check your email to confirm your account',
-      });
-    }
+    // For now, since signup is not implemented in the backend,
+    // show a message directing users to contact admin
+    toast({
+      title: 'Account Creation',
+      description: 'Please contact your system administrator to create an account',
+      variant: 'default',
+    });
   };
 
   const handleLoginInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,13 +168,6 @@ export default function Auth() {
               {/* Login Tab */}
               <TabsContent value="login" className="space-y-4 mt-4">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  {/* Error Alert */}
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
                   {/* Email Field */}
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
@@ -223,13 +219,6 @@ export default function Auth() {
               {/* Signup Tab */}
               <TabsContent value="signup" className="space-y-4 mt-4">
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  {/* Error Alert */}
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
                   {/* Username Field */}
                   <div className="space-y-2">
                     <Label htmlFor="signup-username">Username (Optional)</Label>

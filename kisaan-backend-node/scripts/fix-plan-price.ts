@@ -1,27 +1,10 @@
-import { Sequelize } from 'sequelize';
-import sequelize from '../src/config/database';
-
-const fixPlanPrice = async () => {
-  try {
-    console.log('🔄 Fixing plan price NULL values...');
-    
-    // Update all NULL price values to 0
-    await sequelize.query(
-      `UPDATE kisaan_plans SET price = 0.00 WHERE price IS NULL;`
-    );
-    
-    console.log('✅ Updated NULL price values to 0.00');
-    console.log('✅ Plan price fix completed successfully!');
-  } catch (error) {
-    console.error('❌ Plan price fix failed:', error);
-    throw error;
-  } finally {
-    await sequelize.close();
-  }
-};
-
-if (require.main === module) {
-  fixPlanPrice().catch(console.error);
-}
-
-export { fixPlanPrice };
+/**
+ * DEPRECATED SCRIPT
+ * Data correction for NULL plan price values is now enforced via:
+ *   - NOT NULL + DEFAULT constraints in schema (complete-schema.sql)
+ *   - Application-level validation in PlanService
+ *
+ * Historical one-off fix no longer required.
+ */
+console.warn('[DEPRECATED] fix-plan-price.ts no longer needed; schema constraints enforce non-null prices.');
+export {}; // keep module shape valid

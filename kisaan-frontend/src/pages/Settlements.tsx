@@ -14,10 +14,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
-import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   ArrowLeft,
-  AlertCircle,
   Receipt,
   CheckCircle,
   Clock
@@ -219,11 +217,18 @@ export default function Expenses() {
   };
 
   if (!user || user.role !== 'owner') {
+    toast({
+      title: "Access Denied",
+      description: "Owner role required.",
+      variant: "destructive",
+    });
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Access denied. Owner role required.</AlertDescription>
-      </Alert>
+      <div className="container mx-auto p-4">
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Owner role required to access this page.</p>
+        </div>
+      </div>
     );
   }
 

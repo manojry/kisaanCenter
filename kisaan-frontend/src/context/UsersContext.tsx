@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '../types/api';
 import { usersApi } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface UsersContextType {
   users: User[];
@@ -20,16 +21,24 @@ export const useUsers = () => {
 };
 
 export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchUsers = async () => {
+    if (!isAuthenticated) {
+      setUsers([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await usersApi.getAll({});
       if (response.data) setUsers(response.data);
     } catch (e) {
-      // handle error
+      // handle error - user will see toast notification from apiClient
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -40,8 +49,13 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isAuthenticated) {
+      fetchUsers();
+    } else {
+      setUsers([]);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
   return (
   <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers, refreshUsers }}>

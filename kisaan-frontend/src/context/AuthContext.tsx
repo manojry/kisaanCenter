@@ -4,6 +4,7 @@ import type { User } from '../types/api';
 import { authApi } from '../services/api';
 import config from '../config';
 import { useTransactionStore } from '../store/transactionStore';
+import { toastService } from '../services/toastService';
 
 
 interface AuthContextType {
@@ -43,33 +44,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       try {
-        const data = await authApi.login({ username, password });
-        if (data.token && data.user) {
-          setUser(data.user);
+        const response = await authApi.login({ username, password });
+        // Handle the backend response structure: { success: true, data: { token, user } }
+        if (response.success && response.data && response.data.token && response.data.user) {
+          setUser(response.data.user);
           setIsAuthenticated(true);
-          localStorage.setItem('auth_token', data.token);
-          localStorage.setItem('auth_user', JSON.stringify(data.user));
+          localStorage.setItem('auth_token', response.data.token);
+          localStorage.setItem('auth_user', JSON.stringify(response.data.user));
           // Store shop info in Zustand store for global access
-          if (data.user.shop_id) {
-            transactionStore.setShop({ id: data.user.shop_id });
+          if (response.data.user.shop_id) {
+            transactionStore.setShop({ id: response.data.user.shop_id } as any);
           } else {
             transactionStore.setShop(null);
           }
-          if (data.user.role === 'owner') {
+          if (response.data.user.role === 'owner') {
             window.location.href = '/owner';
-          } else if (data.user.role === 'superadmin') {
+          } else if (response.data.user.role === 'superadmin') {
             window.location.href = '/superadmin';
           }
         } else {
-          setError('Invalid response format');
+          console.error('Invalid response format. Expected success=true with token and user, got:', response);
+          const errorMsg = 'Invalid response format';
+          setError(errorMsg);
+          toastService.authError(errorMsg);
           setIsAuthenticated(false);
         }
       } catch (err: any) {
-        setError(err.message || 'Login failed');
+        const errorMsg = err.message || 'Login failed';
+        setError(errorMsg);
+        toastService.authError(errorMsg);
         setIsAuthenticated(false);
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      const errorMsg = err.message || 'Login failed';
+      setError(errorMsg);
+      toastService.authError(errorMsg);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

@@ -22,8 +22,8 @@ export interface TransactionResponseDTO {
   product_name: string;
   quantity: number;
   unit_price: number;
-  total_sale_value: number;
-  shop_commission: number;
+  total_amount: number;
+  commission_amount: number;
   farmer_earning: number;
   created_at: Date;
   updated_at: Date;

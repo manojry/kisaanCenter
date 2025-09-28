@@ -1,10 +1,9 @@
 // User service for business logic related to users
-import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
 
 import { User } from '../models/user';
 import { UserEntity } from '../entities/UserEntity';
-import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos/UserDTO';
+import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos';
 import { toUserDTO, fromCreateUserDTO, fromUserModel } from '../mappers/userMapper';
 import { 
   UserCreate, 
@@ -14,25 +13,40 @@ import {
   UserRole 
 } from '../schemas/user';
 
+// Import shared utilities and constants
+import { USER_ROLES } from '../shared/constants';
+import { ValidationHelpers } from '../shared/utils/validation';
+import { PasswordManager } from '../shared/utils/auth';
+import { DatabaseHelpers } from '../shared/utils/database';
+import { StringFormatter } from '../shared/utils/formatting';
+import { 
+  ValidationError, 
+  NotFoundError, 
+  ConflictError, 
+  AuthenticationError
+} from '../shared/utils/errors';
+
 /**
- * Generates username following multi-tenancy convention
+ * Generates username following multi-tenancy convention using shared utilities
  */
 function generateUsername(firstname: string, ownerId: string): string {
-  return `${firstname.toLowerCase()}_${ownerId}`;
+  const baseName = StringFormatter.slug(firstname).toLowerCase().slice(0, 6) || 'user';
+  const uniqueNum = Math.floor(Math.random() * 10000) + 1;
+  return `${baseName}_${ownerId}_${uniqueNum}`;
 }
 
 /**
- * Validates role creation permissions
+ * Validates role creation permissions using shared constants
  */
 function validateRoleCreation(
   requestingUserRole: UserRole,
   targetRole: UserRole
 ): boolean {
-  if (requestingUserRole === 'superadmin') {
-    return ['superadmin', 'owner'].includes(targetRole);
+  if (requestingUserRole === USER_ROLES.SUPERADMIN) {
+    return (targetRole === USER_ROLES.SUPERADMIN || targetRole === USER_ROLES.OWNER);
   }
-  if (requestingUserRole === 'owner') {
-    return ['farmer', 'buyer'].includes(targetRole);
+  if (requestingUserRole === USER_ROLES.OWNER) {
+    return (targetRole === USER_ROLES.FARMER || targetRole === USER_ROLES.BUYER);
   }
   return false;
 }
@@ -40,20 +54,25 @@ function validateRoleCreation(
 
 
 export const createUser = async (
-  data: UserCreate & { firstname?: string },
+  data: UserCreate,
   requestingUserId?: number,
   requestingUserRole?: UserRole
 ): Promise<UserDTO> => {
+  // Validate input data
+  if (!data.role) {
+    throw new ValidationError('Role is required');
+  }
+
   // Validate role creation permissions
   if (requestingUserRole && !validateRoleCreation(requestingUserRole, data.role)) {
-    throw { status: 403, message: `${requestingUserRole} cannot create ${data.role} users` };
+    throw new AuthenticationError(`${requestingUserRole} cannot create ${data.role} users`);
   }
 
   let userData = { ...data };
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
 
   // For owner and superadmin, shop_id should be null
-  if (userData.role === 'owner' || userData.role === 'superadmin') {
+  if (userData.role === USER_ROLES.OWNER || userData.role === USER_ROLES.SUPERADMIN) {
     userData.shop_id = null;
   }
 
@@ -61,11 +80,7 @@ export const createUser = async (
   if (!userData.username) {
     // Use part of name (firstname or name), shop_id, and a unique number
     let baseName = '';
-    if (userData.firstname) {
-      baseName = userData.firstname.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6);
-    } else {
       baseName = 'user';
-    }
     let shopIdPart = userData.shop_id ? userData.shop_id.toString() : '0';
     let uniqueNum = 1;
     let candidate = `${baseName}_${shopIdPart}_${uniqueNum}`;
@@ -80,49 +95,50 @@ export const createUser = async (
     // If username is provided, ensure uniqueness
     const existingUser = await User.findOne({ where: { username: userData.username } });
     if (existingUser) {
-      throw { status: 409, message: 'Username already exists. Please choose a different username.' };
+      // Use structured conflict error so controller error handler can map to 409
+      const { ConflictError } = await import('../shared/utils/errors');
+      throw new ConflictError('Username already exists', { code: 'USER_ALREADY_EXISTS', field: 'username' });
     }
   }
 
   // Get requesting user's owner_id for farmer/buyer creation
-  if ((data.role === 'farmer' || data.role === 'buyer') && requestingUserId) {
+  if ((data.role === USER_ROLES.FARMER || data.role === USER_ROLES.BUYER) && requestingUserId) {
     const requestingUser = await User.findByPk(requestingUserId);
-    if (requestingUser && requestingUser.role === 'owner') {
-      userData.owner_id = requestingUser.id.toString();
+    if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
       userData.shop_id = requestingUser.shop_id;
     }
   }
 
   // Validate shop exists for farmer/buyer
-  if ((data.role === 'farmer' || data.role === 'buyer') && userData.shop_id) {
-    const { sequelize } = require('../models/index');
-    const [shopCheck] = await sequelize.query(
-      'SELECT id FROM kisaan_shops WHERE id = :shop_id',
-      { replacements: { shop_id: userData.shop_id } }
-    );
-
-    if (!shopCheck || (Array.isArray(shopCheck) && shopCheck.length === 0)) {
-      throw { status: 400, message: 'Invalid shop_id: Shop does not exist' };
+  if ((data.role === USER_ROLES.FARMER || data.role === USER_ROLES.BUYER) && userData.shop_id) {
+    const { Shop } = await import('../models/shop');
+    const shop = await Shop.findByPk(userData.shop_id);
+    if (!shop) {
+      throw new ValidationError('Invalid shop_id: Shop does not exist');
     }
   }
 
-  userData.status = data.status || 'active';
+  // status removed from simplified model
   userData.created_by = requestingUserId || null;
 
+  // Hash password using PasswordManager
   if (userData.password) {
-    userData.password = await bcrypt.hash(userData.password, 12);
+    const passwordManager = new PasswordManager();
+    userData.password = await passwordManager.hashPassword(userData.password);
   }
 
-  // Ensure firstname is persisted
   const finalUserData = { ...userData };
   finalUserData.balance = Number(finalUserData.balance || 0);
-  // If firstname is undefined, set to empty string for DB
-  if (typeof finalUserData.firstname === 'undefined') {
-    finalUserData.firstname = '';
+  if (finalUserData.custom_commission_rate != null) {
+    const n = Number(finalUserData.custom_commission_rate);
+    if (isNaN(n) || n < 0 || n > 100) {
+      throw new ValidationError('custom_commission_rate must be between 0 and 100');
+    }
+    finalUserData.custom_commission_rate = Number(n.toFixed(2));
   }
   const userModel = await User.create(finalUserData as import('../models/user').UserCreationAttributes);
   const entity = fromUserModel(userModel);
-  return toUserDTO(entity);
+  return await toUserDTO(entity);
 };
 
 export const getAllUsers = async (
@@ -131,34 +147,48 @@ export const getAllUsers = async (
   includeBalance: boolean = false
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   const where: any = {};
+  const includeShop: any[] = [];
   
-  // Role-based filtering
-  if (requestingUser.role === 'owner') {
-    // Owner sees only their farmers and buyers (by shop)
+  // Role-based filtering using shared constants with optimized JOINs
+  if (requestingUser.role === USER_ROLES.OWNER) {
+    // Owner sees only their farmers and buyers (by shop) - use JOIN instead of N+1
     const { Shop } = await import('../models/shop');
-    const shops = await Shop.findAll({ where: { owner_id: requestingUser.id }, attributes: ['id'] });
-    const shopIds = shops.map((s: any) => s.id);
-    where.shop_id = shopIds.length > 0 ? shopIds : -1; // -1 to ensure no match if no shops
-  } else if (requestingUser.role === 'farmer' || requestingUser.role === 'buyer') {
+    includeShop.push({
+      model: Shop,
+      as: 'userShop',
+      where: { owner_id: requestingUser.id },
+      required: true,
+      attributes: ['id', 'name', 'owner_id']
+    });
+  } else if (requestingUser.role === USER_ROLES.FARMER || requestingUser.role === USER_ROLES.BUYER) {
     // Users can only see themselves
     where.id = requestingUser.id;
+  } else {
+    // Superadmin sees all users - include shop info with LEFT JOIN
+    const { Shop } = await import('../models/shop');
+    includeShop.push({
+      model: Shop,
+      as: 'userShop',
+      required: false,
+      attributes: ['id', 'name', 'owner_id']
+    });
   }
-  // Superadmin sees all users
   
   if (searchParams.role) where.role = searchParams.role;
-  if (searchParams.status) where.status = searchParams.status;
   if (searchParams.shop_id) where.shop_id = searchParams.shop_id;
   
   const offset = (searchParams.page - 1) * searchParams.limit;
   const { count, rows } = await User.findAndCountAll({
     where,
+    include: includeShop,
     limit: searchParams.limit,
     offset,
     order: [['created_at', 'DESC']],
     attributes: { exclude: ['password'] },
+    distinct: true // Important for accurate count with JOINs
   });
   
-  const users = rows.map(model => toUserDTO(fromUserModel(model)));
+  const users = await Promise.all(rows.map(async model => await toUserDTO(fromUserModel(model))));
   return { users, total: count, page: searchParams.page, limit: searchParams.limit };
 };
 
@@ -166,29 +196,41 @@ export const getUserById = async (
   id: number,
   requestingUser: { id: number; role: UserRole; owner_id?: string | null }
 ): Promise<UserDTO | null> => {
-  const user = await User.findByPk(id, { attributes: { exclude: ['password'] } });
+  const { Shop } = await import('../models/shop');
+  
+  // Single query with JOIN instead of separate queries
+  const user = await User.findByPk(id, { 
+    attributes: { exclude: ['password'] },
+    include: [{
+      model: Shop,
+      as: 'userShop',
+      attributes: ['id', 'name', 'owner_id'],
+      required: false
+    }]
+  });
   if (!user) return null;
   
-  // Permission check
-  if (requestingUser.role === 'superadmin') {
+  // Permission check using shared constants - now with shop data already loaded
+  if (requestingUser.role === USER_ROLES.SUPERADMIN) {
     // Can view anyone
-  } else if (requestingUser.role === 'owner') {
+  } else if (requestingUser.role === USER_ROLES.OWNER) {
     // Can view their farmers/buyers (by shop) or themselves
     if (user.id !== requestingUser.id) {
-      if (!user.shop_id) throw { status: 403, message: 'Access denied' };
-      const shop = await (await import('../models/shop')).Shop.findByPk(user.shop_id);
+      if (!user.shop_id) throw new AuthenticationError('Access denied');
+      // No additional query needed - shop is already loaded
+      const shop = (user as any).userShop;
       if (!shop || shop.owner_id !== requestingUser.id) {
-        throw { status: 403, message: 'Access denied' };
+        throw new AuthenticationError('Access denied');
       }
     }
   } else {
     // Users can only view themselves
     if (user.id !== requestingUser.id) {
-      throw { status: 403, message: 'Access denied' };
+      throw new AuthenticationError('Access denied');
     }
   }
   
-  return toUserDTO(fromUserModel(user));
+  return await toUserDTO(fromUserModel(user));
 };
 
 export const updateUser = async (
@@ -197,29 +239,31 @@ export const updateUser = async (
   requestingUser: { id: number; role: UserRole; owner_id?: string | null }
 ): Promise<UserDTO | null> => {
   const user = await User.findByPk(id);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw new NotFoundError('User not found');
   
-  // Permission check based on role hierarchy
-  if (requestingUser.role === 'superadmin') {
+  // Permission check based on role hierarchy using shared constants
+  if (requestingUser.role === USER_ROLES.SUPERADMIN) {
     // Can update anyone
-  } else if (requestingUser.role === 'owner') {
+  } else if (requestingUser.role === USER_ROLES.OWNER) {
     // Can update their farmers/buyers (by shop) or themselves
     if (user.id !== requestingUser.id) {
-      if (!user.shop_id) throw { status: 403, message: 'Access denied' };
+      if (!user.shop_id) throw new AuthenticationError('Access denied');
       const shop = await (await import('../models/shop')).Shop.findByPk(user.shop_id);
       if (!shop || shop.owner_id !== requestingUser.id) {
-        throw { status: 403, message: 'Access denied' };
+        throw new AuthenticationError('Access denied');
       }
     }
   } else {
     // Users can only update themselves
     if (user.id !== requestingUser.id) {
-      throw { status: 403, message: 'Access denied' };
+      throw new AuthenticationError('Access denied');
     }
   }
   
+  // Hash password if provided using PasswordManager
   if (data.password) {
-    data.password = await bcrypt.hash(data.password, 12);
+    const passwordManager = new PasswordManager();
+    data.password = await passwordManager.hashPassword(data.password);
   }
   
   await user.update(data);
@@ -233,10 +277,13 @@ export const resetPassword = async (
   passwordData: UserPasswordReset
 ): Promise<void> => {
   const user = await User.findByPk(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
-  const isValid = await bcrypt.compare(passwordData.current_password, user.password);
-  if (!isValid) throw { status: 400, message: 'Current password is incorrect' };
-  const hashedPassword = await bcrypt.hash(passwordData.new_password, 12);
+  if (!user) throw new NotFoundError('User not found');
+  
+  const passwordManager = new PasswordManager();
+  const isValid = await passwordManager.verifyPassword(passwordData.current_password, user.password);
+  if (!isValid) throw new ValidationError('Current password is incorrect');
+  
+  const hashedPassword = await passwordManager.hashPassword(passwordData.new_password);
   await user.update({ password: hashedPassword });
 };
 
@@ -245,14 +292,15 @@ export const adminResetPassword = async (
   newPassword: string,
   requestingUser: { id: number; role: UserRole }
 ): Promise<void> => {
-  if (requestingUser.role !== 'superadmin' && requestingUser.role !== 'owner') {
-    throw { status: 403, message: 'Access denied' };
+  if (requestingUser.role !== USER_ROLES.SUPERADMIN && requestingUser.role !== USER_ROLES.OWNER) {
+    throw new AuthenticationError('Access denied');
   }
   
   const user = await User.findByPk(userId);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw new NotFoundError('User not found');
   
-  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  const passwordManager = new PasswordManager();
+  const hashedPassword = await passwordManager.hashPassword(newPassword);
   await user.update({ password: hashedPassword });
 };
 
@@ -261,24 +309,24 @@ export const deleteUser = async (
   requestingUser: { id: number; role: UserRole; owner_id?: string | null }
 ): Promise<boolean> => {
   const user = await User.findByPk(id);
-  if (!user) throw { status: 404, message: 'User not found' };
+  if (!user) throw new NotFoundError('User not found');
   
   if (requestingUser.id === id) {
-    throw { status: 400, message: 'Cannot delete your own account' };
+    throw new ValidationError('Cannot delete your own account');
   }
   
-  // Permission check
-  if (requestingUser.role === 'superadmin') {
+  // Permission check using shared constants
+  if (requestingUser.role === USER_ROLES.SUPERADMIN) {
     // Can delete anyone except themselves
-  } else if (requestingUser.role === 'owner') {
+  } else if (requestingUser.role === USER_ROLES.OWNER) {
     // Can delete their farmers/buyers only (by shop)
-    if (!user.shop_id) throw { status: 403, message: 'Access denied' };
+    if (!user.shop_id) throw new AuthenticationError('Access denied');
     const shop = await (await import('../models/shop')).Shop.findByPk(user.shop_id);
     if (!shop || shop.owner_id !== requestingUser.id) {
-      throw { status: 403, message: 'Access denied' };
+      throw new AuthenticationError('Access denied');
     }
   } else {
-    throw { status: 403, message: 'Access denied' };
+    throw new AuthenticationError('Access denied');
   }
   
   await user.destroy();

@@ -10,22 +10,28 @@ export interface UserDTO {
   contact?: string | null;
   email?: string | null;
   firstname?: string | null;
-  status: 'active' | 'inactive';
   balance: number;
-  cumulative_value: number;
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
+  custom_commission_rate?: number | null;
+  // Computed fields (not stored in database):
+  status: 'active' | 'inactive';        // Computed from user activity or default 'active'
+  cumulative_value: number;             // Computed based on role:
+                                        // - Farmer: sum of total_amount from their sales
+                                        // - Buyer: sum of total_amount from their purchases
+                                        // - Owner: sum of commission_amount from shop transactions
 }
 
 export interface CreateUserDTO {
-  username: string;
+  username?: string;
   password: string;
   role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
   owner_id?: string | null;
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;
+  firstname?: string | null;
 }
 
 export interface UpdateUserDTO {
@@ -35,5 +41,6 @@ export interface UpdateUserDTO {
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;
-  status?: 'active' | 'inactive';
+  firstname?: string | null;
+  // Removed: status - not in database schema
 }

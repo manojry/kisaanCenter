@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: UI layout improvements merged into forthcoming `UI_IMPROVEMENTS_HISTORY.md`.
+
+# Owner Layout Improvements
 # OwnerLayout Component Strategic Improvements
 
 ## Overview

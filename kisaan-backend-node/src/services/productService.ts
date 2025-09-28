@@ -1,155 +1,195 @@
-import { Product } from '../models/product';
-import { Category } from '../models/category';
-import { ProductCreate, ProductUpdate } from '../schemas/product';
-import { Op } from 'sequelize';
+/**
+ * Product Service
+ * Business logic layer for Product operations
+ * Follows clean architecture: Controller -> Service -> Repository -> Database
+ */
 
-export const createProduct = async (data: ProductCreate): Promise<Product> => {
-  const product = await Product.create({
-    name: data.name,
-    description: data.description ?? null,
-    category_id: data.category_id,
-    unit: data.unit ?? null,
-  });
-  return product;
-};
+import { ProductRepository } from '../repositories/ProductRepository';
+import { ProductEntity } from '../entities/ProductEntity';
+import { ValidationError, NotFoundError, DatabaseError } from '../shared/utils/errors';
+import { StringFormatter } from '../shared/utils/formatting';
 
-export const getAllProducts = async (activeOnly: boolean = false, categoryId?: number): Promise<Product[]> => {
-  const where: any = {};
-  if (activeOnly) where.is_active = true;
-  if (categoryId) where.category_id = categoryId;
-  
-  const products = await Product.findAll({ 
-    where,
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
-      }
-    ],
-    order: [['name', 'ASC']]
-  });
-  return products;
-};
+export class ProductService {
+  private productRepository: ProductRepository;
 
-export const getProductById = async (id: number): Promise<Product | null> => {
-  const product = await Product.findByPk(id, {
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
-      }
-    ]
-  });
-  return product;
-};
-
-export const updateProduct = async (id: number, data: ProductUpdate): Promise<Product | null> => {
-  const product = await Product.findByPk(id);
-  if (!product) return null;
-
-  const updateData: any = { ...data };
-  
-  // Convert null fields properly
-  if (data.description === null) {
-    updateData.description = null;
-  }
-  if (data.unit === null) {
-    updateData.unit = null;
+  constructor() {
+    this.productRepository = new ProductRepository();
   }
 
-  await product.update(updateData);
-  return product;
-};
-
-export const deleteProduct = async (id: number): Promise<boolean> => {
-  const product = await Product.findByPk(id);
-  if (!product) return false;
-
-  await product.destroy();
-  return true;
-};
-
-export const deactivateProduct = async (id: number): Promise<Product | null> => {
-  const product = await Product.findByPk(id);
-  if (!product) return null;
-
-  await product.update({ record_status: 'inactive' });
-  return product;
-};
-
-export const getActiveProducts = async (categoryId?: number): Promise<Product[]> => {
-  return getAllProducts(true, categoryId);
-};
-
-export const searchProducts = async (searchTerm: string): Promise<Product[]> => {
-  const products = await Product.findAll({
-    where: {
-      [Op.or]: [
-        { name: { [Op.iLike]: `%${searchTerm}%` } },
-        { description: { [Op.iLike]: `%${searchTerm}%` } }
-      ]
-    },
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
+  /**
+   * Create a new product
+   */
+  async createProduct(data: {
+    name: string;
+    category_id: number;
+    description?: string;
+    unit: string;
+    sku?: string;
+  }): Promise<ProductEntity | null> {
+    try {
+      // Validate required fields
+      if (!data.name?.trim()) {
+        throw new ValidationError('Product name is required');
       }
-    ],
-    order: [['name', 'ASC']]
-  });
-  return products;
-};
+      if (!data.category_id) {
+        throw new ValidationError('Category ID is required');
+      }
+      if (!data.unit?.trim()) {
+        throw new ValidationError('Unit is required');
+      }
 
-export const getProductsByCategory = async (categoryId: number, activeOnly: boolean = false): Promise<Product[]> => {
-  return getAllProducts(activeOnly, categoryId);
-};
+      // Format and create product entity
+      const productEntity = new ProductEntity({
+        name: StringFormatter.sanitizeInput(data.name.trim()),
+        category_id: data.category_id,
+        description: data.description?.trim() || null,
+        unit: data.unit.trim(),
+        sku: data.sku?.trim() || null
+      });
 
-export const bulkCreateProducts = async (products: ProductCreate[]): Promise<Product[]> => {
-  const createdProducts = await Product.bulkCreate(
-    products.map(product => ({
-      name: product.name,
-      description: product.description ?? null,
-      category_id: product.category_id,
-      unit: product.unit ?? null,
-    }))
-  );
-  return createdProducts;
-};
-
-export const getProductsForShop = async (shopId: number): Promise<Product[]> => {
-  const { Shop } = await import('../models/shop');
-  const { ShopCategory } = await import('../models/shopCategory');
-  
-  // Get all categories assigned to this shop
-  const shopCategories = await ShopCategory.findAll({
-    where: { shop_id: shopId },
-    attributes: ['category_id']
-  });
-  
-  if (shopCategories.length === 0) {
-    return [];
+      return await this.productRepository.create(productEntity);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to create product', error instanceof Error ? { message: error.message } : undefined);
+    }
   }
-  
-  const categoryIds = shopCategories.map(sc => sc.category_id);
-  
-  // Get products from all assigned categories
-  const products = await Product.findAll({
-    where: {
-      category_id: categoryIds,
-      record_status: 'active'
-    },
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
+
+  /**
+   * Get all products with optional filtering
+   */
+  async getAllProducts(filters?: {
+    activeOnly?: boolean;
+    categoryId?: number;
+    searchTerm?: string;
+  }): Promise<ProductEntity[]> {
+    try {
+      // activeOnly flag ignored: product status concept removed
+
+      if (filters?.categoryId) {
+        return await this.productRepository.findByCategory(filters.categoryId);
       }
-    ],
-    order: [['name', 'ASC']]
-  });
-  
-  return products;
-};
+
+      if (filters?.searchTerm) {
+        return await this.productRepository.searchByName(filters.searchTerm);
+      }
+
+      return await this.productRepository.findAll();
+    } catch (error) {
+      throw new DatabaseError('Failed to retrieve products', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  /**
+   * Get product by ID
+   */
+  async getProductById(id: number): Promise<ProductEntity> {
+    try {
+      if (!id || id <= 0) {
+        throw new ValidationError('Valid product ID is required');
+      }
+
+      const product = await this.productRepository.findById(id);
+      if (!product) {
+        throw new NotFoundError('Product not found');
+      }
+
+      return product;
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to retrieve product', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  /**
+   * Update product
+   */
+  async updateProduct(id: number, data: Partial<{
+    name: string;
+    description: string;
+    unit: string;
+    sku: string;
+  }>): Promise<ProductEntity | null> {
+    try {
+      const existingProduct = await this.getProductById(id);
+
+      // Validate and format update data
+      const updateEntity = new ProductEntity({
+        ...existingProduct,
+        ...data,
+        name: data.name ? StringFormatter.sanitizeInput(data.name.trim()) : existingProduct.name,
+        description: data.description ? data.description.trim() : existingProduct.description,
+        unit: data.unit ? data.unit.trim() : existingProduct.unit,
+        sku: data.sku ? data.sku.trim() : existingProduct.sku
+      });
+
+      const updatedProduct = await this.productRepository.update(id, updateEntity);
+      if (!updatedProduct) {
+        throw new DatabaseError('Product update failed or product not found');
+      }
+      return updatedProduct;
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to update product', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  /**
+   * Delete product
+   */
+  async deleteProduct(id: number): Promise<boolean> {
+    try {
+      await this.getProductById(id); // Check if exists
+      await this.productRepository.delete(id);
+      return true;
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to delete product', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  // deactivateProduct removed: central catalog remains immutable; availability handled via assignments.
+
+  /**
+   * Get products by category
+   */
+  async getProductsByCategory(categoryId: number): Promise<ProductEntity[]> {
+    try {
+      if (!categoryId || categoryId <= 0) {
+        throw new ValidationError('Valid category ID is required');
+      }
+
+      return await this.productRepository.findByCategory(categoryId);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to retrieve products by category', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  /**
+   * Search products by name
+   */
+  async searchProducts(searchTerm: string): Promise<ProductEntity[]> {
+    try {
+      if (!searchTerm?.trim()) {
+        throw new ValidationError('Search term is required');
+      }
+
+      return await this.productRepository.searchByName(searchTerm.trim());
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to search products', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+}

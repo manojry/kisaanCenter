@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Superseded by `IMPROVEMENT_OPPORTUNITIES.md`. File name retained only to avoid confusion.
+
+# improvemnts
 Farmer Stock Management System - Implementation Strategy
 After analyzing your Enhanced ERD document against the existing codebase, I've identified several key improvements needed to fully align your database layer with the requirements. Let's address them systematically:
 

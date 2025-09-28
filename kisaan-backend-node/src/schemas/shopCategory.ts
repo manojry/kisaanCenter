@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// Core base schemas
 export const ShopCategoryBaseSchema = z.object({
   shop_id: z.number().int().positive(),
   category_id: z.number().int().positive(),
@@ -13,16 +14,25 @@ export const ShopCategoryReadSchema = ShopCategoryBaseSchema.extend({
   updated_at: z.date(),
 });
 
-// Schema for assigning multiple categories to a shop
+// Bulk operations
 export const AssignCategoriesToShopSchema = z.object({
   shop_id: z.preprocess((val) => Number(val), z.number().int().positive()),
   category_ids: z.array(z.preprocess((val) => Number(val), z.number().int().positive())).min(1),
 });
 
-// Schema for removing categories from a shop
 export const RemoveCategoriesFromShopSchema = z.object({
-  shop_id: z.number().int().positive(),
-  category_ids: z.array(z.number().int().positive()).min(1),
+  shop_id: z.preprocess((val) => Number(val), z.number().int().positive()),
+  category_ids: z.array(z.preprocess((val) => Number(val), z.number().int().positive())).min(1),
+});
+
+// Simple alias schemas (previous names) for integration refactor mapping
+export const BulkAssignShopCategoriesSchema = AssignCategoriesToShopSchema;
+export const BulkRemoveShopCategoriesSchema = RemoveCategoriesFromShopSchema;
+
+// Single assign/remove param pair (route params are strings -> transform)
+export const AssignSingleCategorySchema = z.object({
+  shopId: z.string().regex(/^\d+$/).transform(Number),
+  categoryId: z.string().regex(/^\d+$/).transform(Number)
 });
 
 export type ShopCategoryCreate = z.infer<typeof ShopCategoryCreateSchema>;

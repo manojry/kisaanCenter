@@ -1,7 +1,14 @@
 import express from 'express';
-import cors from 'cors';
+import { ErrorHandler } from './shared/utils/errors';
 import dotenv from 'dotenv';
 import path from 'path';
+import { apiRegistry } from './core/apiRegistry';
+import { requestContext } from './middleware/requestContext';
+import { errorHandler } from './middleware/errorHandler';
+import { logger } from './shared/logging/logger';
+import { applySecurity } from './middleware/security';
+import { paginationParser } from './middleware/pagination';
+import sequelize from './config/database';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -9,243 +16,153 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // Import models to ensure they're initialized
 import './models';
 
-// Import routes
-
-import { shopRoutes } from './routes/shopRoutes';
-import { planRoutes } from './routes/planRoutes';
-import { categoryRoutes } from './routes/categoryRoutes';
-import { shopCategoryRoutes } from './routes/shopCategoryRoutes';
-import { transactionRoutes } from './routes/transactionRoutes';
-import { paymentRoutes } from './routes/paymentRoutes';
-import { creditAdvanceRoutes } from './routes/creditAdvanceRoutes';
-import { balanceRoutes } from './routes/balanceRoutes';
-import authRoutes from './routes/authRoutes';
-import userRoutes from './routes/userRoutes';
-import { productRoutes } from './routes/productRoutes';
-import balanceSnapshotRoutes from './routes/balanceSnapshotRoutes';
-import reportRoutes from './routes/reportRoutes';
-import settlementRoutes from './routes/settlementRoutes';
-import { commissionRoutes } from './routes/commissionRoutes';
-
-
-import superadminRoutes from './routes/superadminRoutes';
-import ownerDashboardRoute from './routes/ownerDashboardRoute';
-
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:5173', // Vite dev server
-    'http://localhost:3000',
-    'http://localhost:8080',
-    ...(process.env.CORS_ORIGINS?.split(',') || [])
-  ],
-  credentials: true
-}));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Remove framework signature
+app.disable('x-powered-by');
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+// Attach per-request context (id + logger)
+app.use(requestContext);
+
+// Security & core middleware (helmet, cors, rate limit, compression, body parsers)
+applySecurity(app);
+
+// Pagination (applies to all API requests that may paginate)
+app.use(paginationParser);
+
+// Lightweight route category logging
+app.use((req, _res, next) => {
   if (req.path.startsWith('/api/products')) {
-    console.log('🔍 PRODUCTS REQUEST DETECTED:', req.method, req.path);
-  }
-  if (req.path.startsWith('/api/transactions')) {
-    console.log('🔍 TRANSACTIONS REQUEST DETECTED:', req.method, req.path);
+    req.log?.debug({ path: req.path, method: req.method }, 'products request');
+  } else if (req.path.startsWith('/api/transactions')) {
+    req.log?.debug({ path: req.path, method: req.method }, 'transactions request');
   }
   next();
 });
 
-// Health check endpoint
+// Liveness probe (fast, no external deps)
+app.get('/healthz', (_req, res) => {
+  res.json({
+    status: 'OK',
+    ts: new Date().toISOString()
+  });
+});
+
+// Backward compatible existing health (retained, could deprecate later)
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'KisaanCenter Backend',
     version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    apiModules: apiRegistry.getModules().length,
+    totalEndpoints: apiRegistry.getAllEndpoints().length
   });
 });
 
-// Test endpoint to verify server is working
+// Readiness probe (checks DB and registry)
+app.get('/readyz', async (req, res) => {
+  const start = Date.now();
+  try {
+    await sequelize.query('SELECT 1');
+    const durationMs = Date.now() - start;
+    return res.json({
+      status: 'READY',
+      ts: new Date().toISOString(),
+      db: 'up',
+      registryModules: apiRegistry.getModules().length,
+      totalEndpoints: apiRegistry.getAllEndpoints().length,
+      latencyMs: durationMs
+    });
+  } catch (err: any) {
+    const durationMs = Date.now() - start;
+    req.log?.error({ err }, 'readiness check failed');
+    return res.status(503).json({
+      status: 'DEGRADED',
+      ts: new Date().toISOString(),
+      db: 'down',
+      error: err?.message || 'unknown',
+      latencyMs: durationMs
+    });
+  }
+});
+
+// API Documentation endpoint
+app.get('/api/docs', (req, res) => {
+  const openApiSpec = apiRegistry.getOpenApiSpec();
+  res.json(openApiSpec);
+});
+
+// API Discovery endpoint - dynamically lists all available endpoints
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  const modules = apiRegistry.getModules();
+  const summary = {
     message: 'API is working!',
     timestamp: new Date().toISOString(),
-    endpoints: [
-      'GET /health',
-      'GET /api/test',
-      'POST /api/auth/login',
-      'POST /api/auth/register',
-      'GET /api/users',
-      'POST /api/users',
-      'GET /api/products',
-      'POST /api/products',
-      'GET /api/products/:id',
-      'PUT /api/products/:id',
-      'DELETE /api/products/:id',
-      'GET /api/products/test',
-      'GET /api/shops',
-      'POST /api/shops',
-      'GET /api/shops/:id',
-      'GET /api/shops/:id/products',
-      'POST /api/shops/:shopId/products/:productId',
-      'DELETE /api/shops/:shopId/products/:productId',
-      'PATCH /api/shops/:shopId/products/:productId',
-      'PUT /api/shops/:id',
-      'DELETE /api/shops/:id',
-      'GET /api/plans',
-      'POST /api/plans',
-      'GET /api/plans/:id',
-      'PUT /api/plans/:id',
-      'DELETE /api/plans/:id',
-      'GET /api/categories',
-      'POST /api/categories',
-      'GET /api/categories/:id',
-      'PUT /api/categories/:id',
-      'DELETE /api/categories/:id',
-      'POST /api/shop-categories/assign',
-      'POST /api/shop-categories/remove',
-      'GET /api/shop-categories/shop/:shopId/categories',
-      'GET /api/transactions',
-      'POST /api/transactions',
-      'GET /api/transactions/:id',
-      'PUT /api/transactions/:id',
-      'DELETE /api/transactions/:id',
-      'GET /api/transactions/analytics',
-      'GET /api/balance/user/:id',
-      'GET /api/balance/shop/:id',
-      'POST /api/balance/update',
-      'GET /api/commissions',
-      'POST /api/commissions',
-      'POST /api/commissions/calculate',
-      'GET /api/settlements',
-      'POST /api/settlements',
-      'GET /api/settlements/:id',
-      'PATCH /api/settlements/:id/status',
-      'GET /api/credits',
-      'POST /api/credits',
-      'GET /api/payments',
-      'POST /api/payments',
-      'GET /api/reports/sales',
-      'GET /api/reports/transactions'
-    ]
-  });
+    version: '2.0.0 - Dynamic API Registry',
+    totalModules: modules.length,
+    totalEndpoints: apiRegistry.getAllEndpoints().length,
+    modules: modules.map(module => ({
+      name: module.name,
+      prefix: `/api${module.prefix}`,
+      description: module.description,
+      endpoints: module.endpoints.length
+    })),
+    registryInfo: 'All endpoints are now dynamically discovered and registered'
+  };
+  
+  res.json(summary);
 });
 
-// API Routes
-console.log('🔧 Registering product routes...');
-app.use('/api/products', productRoutes);
-console.log('🔧 Product routes registered successfully');
-console.log('🔧 Registered routes so far:', app._router?.stack?.length || 'unknown');
-
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/shops', shopRoutes);
-
-app.use('/api/plans', planRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/shop-categories', shopCategoryRoutes);
-
-console.log('🔧 Registering transaction routes...');
+// Register all API routes dynamically using the API Registry
+logger.info('Initializing API Registry...');
 try {
-  app.use('/api/transactions', transactionRoutes);
-  console.log('🔧 Transaction routes registered successfully');
+  apiRegistry.registerRoutes(app);
+  logger.info(apiRegistry.generateSummary());
 } catch (error) {
-  console.error('❌ Error registering transaction routes:', error);
+  logger.error({ err: error }, 'Error registering API routes');
+  process.exit(1);
 }
 
-app.use('/api/payments', paymentRoutes);
-app.use('/api/credits', creditAdvanceRoutes);
-app.use('/api/balance', balanceRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/settlements', settlementRoutes);
-app.use('/api/commissions', commissionRoutes);
-
-app.use('/api/owner', ownerDashboardRoute);
-app.use('/api/superadmin', superadminRoutes);
-
-// Bookkeeping: Balance snapshot API
-app.use('/api/balance-snapshots', balanceSnapshotRoutes);
-
-// Error handling middleware
+// Legacy ErrorHandler (keep temporarily for specific shape) then unified errorHandler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
-    timestamp: new Date().toISOString()
-  });
+  if (err.alreadyHandled) return next(err);
+  const legacy = new ErrorHandler(process.env.NODE_ENV === 'development');
+  const legacyResp = legacy.handleError(err, undefined);
+  // pass through to new handler for normalized shape
+  (err as any).legacyPayload = legacyResp;
+  next(err);
 });
+app.use(errorHandler);
 
-// 404 handler
+// 404 handler - now dynamically generated
 app.use('*', (req, res) => {
-  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  req.log?.warn({ method: req.method, url: req.originalUrl }, 'Route not found');
+  
+  // Generate available routes dynamically from registry
+  const availableRoutes = ['GET /health', 'GET /api/test', 'GET /api/docs'];
+  
+  for (const module of apiRegistry.getModules()) {
+    const baseRoute = `/api${module.prefix}`;
+    availableRoutes.push(
+      `GET ${baseRoute}`,
+      `POST ${baseRoute}`,
+      `GET ${baseRoute}/:id`,
+      `PUT ${baseRoute}/:id`,
+      `DELETE ${baseRoute}/:id`
+    );
+  }
+  
   res.status(404).json({ 
     error: 'Route not found',
     path: req.originalUrl,
     method: req.method,
     timestamp: new Date().toISOString(),
-    availableRoutes: [
-      'GET /health',
-      'GET /api/test',
-      'POST /api/auth/login',
-      'POST /api/auth/register',
-      'GET /api/users',
-      'POST /api/users',
-      'GET /api/products',
-      'POST /api/products',
-      'GET /api/products/:id',
-      'PUT /api/products/:id',
-      'DELETE /api/products/:id',
-      'GET /api/products/test',
-      'GET /api/shops',
-      'POST /api/shops',
-      'GET /api/shops/:id',
-      'GET /api/shops/:id/products',
-      'POST /api/shops/:shopId/products/:productId',
-      'DELETE /api/shops/:shopId/products/:productId',
-      'PATCH /api/shops/:shopId/products/:productId',
-      'PUT /api/shops/:id',
-      'DELETE /api/shops/:id',
-      'GET /api/plans',
-      'POST /api/plans',
-      'GET /api/plans/:id',
-      'PUT /api/plans/:id',
-      'DELETE /api/plans/:id',
-      'GET /api/categories',
-      'POST /api/categories',
-      'GET /api/categories/:id',
-      'PUT /api/categories/:id',
-      'DELETE /api/categories/:id',
-      'POST /api/shop-categories/assign',
-      'POST /api/shop-categories/remove',
-      'GET /api/shop-categories/shop/:shopId/categories',
-      'GET /api/transactions',
-      'POST /api/transactions',
-      'GET /api/transactions/:id',
-      'PUT /api/transactions/:id',
-      'DELETE /api/transactions/:id',
-      'GET /api/transactions/analytics',
-      'GET /api/balance/user/:id',
-      'GET /api/balance/shop/:id',
-      'POST /api/balance/update',
-      'GET /api/commissions',
-      'POST /api/commissions',
-      'POST /api/commissions/calculate',
-      'GET /api/settlements',
-      'POST /api/settlements',
-      'GET /api/settlements/:id',
-      'PATCH /api/settlements/:id/status',
-      'GET /api/credits',
-      'POST /api/credits',
-      'GET /api/payments',
-      'POST /api/payments',
-      'GET /api/reports/sales',
-      'GET /api/reports/transactions'
-    ]
+    suggestion: 'Visit /api/test for a complete list of available endpoints',
+    documentation: 'Visit /api/docs for OpenAPI specification',
+    availableModules: apiRegistry.getModules().map(m => `/api${m.prefix}`),
+    totalEndpoints: apiRegistry.getAllEndpoints().length
   });
 });
 

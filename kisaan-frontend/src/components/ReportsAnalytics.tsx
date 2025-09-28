@@ -9,10 +9,10 @@ import { useState, useEffect } from 'react';
 import { analyticsApi } from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Alert, AlertDescription } from './ui/alert';
 import { BarChart3, AlertCircle, Calendar } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
 import { Pie, Bar } from './Charts';
+import { useToast } from '@/hooks/use-toast';
 
 interface ReportsAnalyticsProps {
   shopId?: number;
@@ -39,11 +39,11 @@ interface Analytics {
 export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
     from: getToday(),
     to: getToday()
   });
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchAnalytics();
@@ -52,12 +52,15 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
   const fetchAnalytics = async () => {
     if (!shopId) return;
     setIsLoading(true);
-    setError(null);
     try {
       const analyticsData = await analyticsApi.getShopAnalytics(shopId, dateRange);
       setAnalytics(analyticsData);
     } catch (err: any) {
-      setError(err.message || 'Failed to load analytics');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to load analytics',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -97,14 +100,7 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
     );
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+
 
   return (
     <div className="space-y-6">

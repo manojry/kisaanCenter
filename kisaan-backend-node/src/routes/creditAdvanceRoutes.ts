@@ -25,9 +25,14 @@ function expandToFullDay(dateStr: string, isEnd: boolean): string {
 // GET /api/credits - List all credits
 router.get('/', async (req, res) => {
   try {
+    const { CreditAdvance } = require('../models/creditAdvance');
+    const credits = await CreditAdvance.findAll({
+      order: [['created_at', 'DESC']]
+    });
     res.json({
       success: true,
-      data: []
+      data: credits,
+      meta: { count: credits.length }
     });
   } catch (error) {
     res.status(500).json({

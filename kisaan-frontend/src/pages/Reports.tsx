@@ -2,15 +2,16 @@ import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
 import { useUsers } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
-import { Alert, AlertDescription } from '../components/ui/alert';
+import { useToast } from '../hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { BarChart3, AlertCircle, ArrowLeft, FileText } from 'lucide-react';
+import { BarChart3, ArrowLeft, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ReportsAnalytics from '../components/ReportsAnalytics';
 import PDFReportGenerator from '../components/PDFReportGenerator';
 
 export default function Reports() {
   const { user } = useAuth();
+  const { toast } = useToast();
   // Get shop and stats from dashboard hook
     // const { stats } = useOwnerDashboard();
     // Get all users from users hook
@@ -29,14 +30,17 @@ export default function Reports() {
   }));
 
   if (!user || (user.role !== 'owner' && user.role !== 'superadmin')) {
+    toast({
+      title: "Access Denied",
+      description: "Owner or SuperAdmin role required.",
+      variant: "destructive",
+    });
     return (
       <div className="container mx-auto p-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Access denied. Owner or SuperAdmin role required.
-          </AlertDescription>
-        </Alert>
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Owner or SuperAdmin role required to access this page.</p>
+        </div>
       </div>
     );
   }

@@ -4,6 +4,7 @@
  */
 
 import config from '../config';
+import { toastService } from './toastService';
 
 // Configuration - easily switchable between backends
 const API_CONFIG = {
@@ -16,11 +17,15 @@ const API_CONFIG = {
 type RequestInterceptor = (config: RequestConfig) => RequestConfig | Promise<RequestConfig>;
 
 // Response interceptor type
-type ResponseInterceptor = (response: any) => any | Promise<any>;
+type ResponseInterceptor = (response: any, config?: RequestConfig) => any | Promise<any>;
 
 interface RequestConfig extends RequestInit {
   url: string;
   timeout?: number;
+  showSuccessToast?: boolean;
+  showErrorToast?: boolean;
+  successMessage?: string;
+  errorMessage?: string;
 }
 
 class ApiClient {
@@ -62,8 +67,8 @@ class ApiClient {
     return config;
   }
 
-  // Default response handler
-  private async handleResponse<T>(response: Response): Promise<T> {
+  // Default response handler with toast integration
+  private async handleResponse<T>(response: Response, config?: RequestConfig): Promise<T> {
     const contentType = response.headers.get('content-type');
     let data;
     
@@ -74,7 +79,27 @@ class ApiClient {
     }
     
     if (!response.ok) {
-      throw new Error(data?.message || data?.error || `HTTP ${response.status}`);
+      const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;
+      
+      // Show error toast if enabled (default: true for errors)
+      if (config?.showErrorToast !== false) {
+        if (response.status === 401) {
+          toastService.authError(config?.errorMessage || 'Authentication required');
+        } else if (response.status === 403) {
+          toastService.permissionError(config?.errorMessage || 'Access denied');
+        } else if (response.status >= 500) {
+          toastService.networkError(config?.errorMessage || 'Server error occurred');
+        } else {
+          toastService.apiError(errorMessage, config?.errorMessage);
+        }
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Show success toast if enabled and it's a successful mutation
+    if (config?.showSuccessToast && (config?.method === 'POST' || config?.method === 'PUT' || config?.method === 'DELETE')) {
+      toastService.apiSuccess(data, config?.successMessage);
     }
     
     return data;
@@ -110,7 +135,7 @@ class ApiClient {
       // Apply response interceptors
       let result: any = response;
       for (const interceptor of this.responseInterceptors) {
-        result = await interceptor(result);
+        result = await interceptor(result, finalConfig);
       }
 
       return result as T;
@@ -120,7 +145,7 @@ class ApiClient {
     }
   }
 
-  // HTTP methods
+  // HTTP methods with toast support
   async get<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
       ...config,
@@ -131,6 +156,7 @@ class ApiClient {
 
   async post<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
+      showSuccessToast: true, // Default to show success toast for mutations
       ...config,
       url,
       method: 'POST',
@@ -140,6 +166,7 @@ class ApiClient {
 
   async put<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
+      showSuccessToast: true, // Default to show success toast for mutations
       ...config,
       url,
       method: 'PUT',
@@ -149,14 +176,44 @@ class ApiClient {
 
   async delete<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
+      showSuccessToast: true, // Default to show success toast for mutations
       ...config,
       url,
       method: 'DELETE',
     });
   }
 
-  // Utility methods for common patterns
+  // Utility methods for common patterns with toast customization
   
+  // Silent methods (no toast notifications)
+  async getSilent<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
+    return this.get<T>(url, { ...config, showErrorToast: false });
+  }
+
+  async postSilent<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+    return this.post<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
+  }
+
+  async putSilent<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+    return this.put<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
+  }
+
+  async deleteSilent<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
+    return this.delete<T>(url, { ...config, showSuccessToast: false, showErrorToast: false });
+  }
+
+  // Methods with custom messages
+  async postWithMessage<T>(url: string, data?: any, successMessage?: string, errorMessage?: string): Promise<T> {
+    return this.post<T>(url, data, { successMessage, errorMessage });
+  }
+
+  async putWithMessage<T>(url: string, data?: any, successMessage?: string, errorMessage?: string): Promise<T> {
+    return this.put<T>(url, data, { successMessage, errorMessage });
+  }
+
+  async deleteWithMessage<T>(url: string, successMessage?: string, errorMessage?: string): Promise<T> {
+    return this.delete<T>(url, { successMessage, errorMessage });
+  }
 }
 
 // Create singleton instance

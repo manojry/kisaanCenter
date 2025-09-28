@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,10 +11,10 @@ import {
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { FormField } from './ui/FormField';
+import { useFormState } from '@/hooks/useFormState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddUserDialogProps {
   open: boolean;
@@ -24,57 +24,71 @@ interface AddUserDialogProps {
 
 export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogProps) {
   const { user } = useAuth();
-  const [formData, setFormData] = useState({
+  const { values: formData, handleChange, reset, setField } = useFormState({
     username: '',
     password: '',
     role: '',
     contact: '',
-    email: ''
+    email: '',
+    commission_rate: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      // slight delay to ensure dialog content mounted
+      setTimeout(() => firstFieldRef.current?.focus(), 30);
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.username || !formData.password || !formData.role) {
-      setError('Please fill in all required fields');
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const userData = {
         ...formData,
         shop_id: user?.shop_id,
         created_by: user?.id,
-        status: 'active'
+        status: 'active',
+        // Convert commission_rate to number if provided, otherwise null
+        commission_rate: formData.commission_rate ? parseFloat(formData.commission_rate) : null
       };
 
       await apiClient.post('/users', userData);
       
-      // Reset form
-      setFormData({
-        username: '',
-        password: '',
-        role: '',
-        contact: '',
-        email: ''
+      toast({
+        title: 'Success',
+        description: 'User created successfully',
       });
       
+      reset();
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to create user');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to create user',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null);
+    setField(field as any, value);
   };
 
   return (
@@ -88,38 +102,30 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="username">Username *</Label>
+          <FormField id="username" label="Username" required>
             <Input
               id="username"
+              ref={firstFieldRef}
               value={formData.username}
-              onChange={(e) => handleInputChange('username', e.target.value)}
+              onChange={handleChange('username')}
               placeholder="Enter username"
               required
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
+          <FormField id="password" label="Password" required>
             <Input
               id="password"
               type="password"
               value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
+              onChange={handleChange('password')}
               placeholder="Enter password"
               required
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
+          <FormField id="role" label="Role" required>
             <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
@@ -129,28 +135,45 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
                 <SelectItem value="buyer">Buyer</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="contact">Contact</Label>
-            <Input
-              id="contact"
-              value={formData.contact}
-              onChange={(e) => handleInputChange('contact', e.target.value)}
-              placeholder="Phone number"
-            />
-          </div>
+            <FormField id="contact" label="Contact">
+              <Input
+                id="contact"
+                value={formData.contact}
+                onChange={handleChange('contact')}
+                placeholder="Phone number"
+              />
+            </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="Email address"
-            />
-          </div>
+            <FormField id="email" label="Email">
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange('email')}
+                placeholder="Email address"
+              />
+            </FormField>
+
+            {/* Commission Rate - Only for farmers and buyers */}
+            {(formData.role === 'farmer' || formData.role === 'buyer') && (
+              <FormField id="commission_rate" label="Commission Rate (%)">
+                <Input
+                  id="commission_rate"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={formData.commission_rate}
+                  onChange={handleChange('commission_rate')}
+                  placeholder="e.g., 10"
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Leave empty to use shop default (10%). Personal rate overrides shop rate.
+                </div>
+              </FormField>
+            )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

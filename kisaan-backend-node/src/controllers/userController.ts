@@ -1,288 +1,227 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth';
-import { 
-  UserCreateSchema, 
-  UserUpdateSchema, 
+import {
+  UserCreateSchema,
+  UserUpdateSchema,
   UserPasswordResetSchema,
   UserSearchSchema
 } from '../schemas/user';
 import * as userService from '../services/userService';
-import { UserDTO } from '../dtos/UserDTO';
+import { UserDTO } from '../dtos';
+
+// Shared utilities & helpers
+import { USER_ROLES } from '../shared/constants';
+import { StringFormatter } from '../shared/utils/formatting';
+import { AuthenticationError } from '../shared/utils/errors';
+import { validate, ValidationFailure } from '../shared/validation/validate';
+import { success, created, failureCode, standardDelete } from '../shared/http/respond';
+import { ErrorCodes } from '../shared/errors/errorCodes';
+
+// TODO: Replace inline parseInt/isNaN with shared parseId helper once introduced.
+const parseId = (raw: string, resource: string): number => {
+  const id = Number(raw);
+  if (!Number.isInteger(id)) throw new ValidationFailure(`${resource} id must be an integer`, []);
+  return id;
+};
 
 export class UserController {
   async createUser(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    // Auto-generate username if not present in req.body
-    let reqBody = { ...req.body };
-    if (!reqBody.username) {
-      let baseName = '';
-      if (reqBody.firstname) {
-        baseName = reqBody.firstname.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6);
-      } else {
-        baseName = 'user';
+    try {
+      req.log?.info({ actor: req.user?.id }, 'createUser attempt');
+      // Distinguish between missing username (auto-generate) and explicitly empty string (validation error)
+      let reqBody = { ...req.body };
+      if (reqBody.username === '') {
+        // Explicit empty provided -> surface validation error with consistent code path
+        failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'username' }, 'username cannot be empty');
+        return;
       }
-      let shopIdPart = reqBody.shop_id ? reqBody.shop_id.toString() : '0';
-      let uniqueNum = Math.floor(Math.random() * 10000) + 1;
-      reqBody.username = `${baseName}_${shopIdPart}_${uniqueNum}`;
-    }
+      // Auto-generate username only when undefined / null
+      if (reqBody.username == null) {
+        // Generate username using firstname + owner_id combination
+        let baseName = 'user';
+        if (reqBody.firstname && reqBody.firstname.trim()) {
+          // Use firstname, remove spaces and convert to lowercase
+          baseName = reqBody.firstname.trim().toLowerCase().replace(/\s+/g, '');
+        }
+        
+        // Get owner ID from the current user or the shop owner
+        let ownerIdPart = '0';
+        if (req.user?.role === 'owner') {
+          ownerIdPart = String(req.user.id);
+        } else if (reqBody.shop_id) {
+          // For users created under a shop, use shop_id as owner reference
+          ownerIdPart = String(reqBody.shop_id);
+        }
+        
+        const uniqueNum = Math.floor(Math.random() * 1000) + 1;
+        reqBody.username = `${baseName}_${ownerIdPart}_${uniqueNum}`;
+      }
 
-    const parsed = UserCreateSchema.safeParse(reqBody);
-    if (!parsed.success) {
-      res.status(400).json({ success: false, error: 'Validation failed', details: parsed.error.issues });
-      return;
+      const data = validate(UserCreateSchema, reqBody);
+      const user: UserDTO = await userService.createUser(
+        { ...data },
+        req.user?.id || 1,
+        req.user?.role
+      );
+  created(res, user, { message: 'User created successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'createUser failed');
+      next(err);
     }
-
-    // Pass firstname explicitly if present
-    const user: UserDTO = await userService.createUser(
-      { ...parsed.data, firstname: reqBody.firstname },
-      req.user?.id || 1,
-      req.user?.role
-    );
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      data: user,
-    });
-  } catch (err: any) {
-    console.error('CreateUser error:', err);
-    if (err.status) {
-      res.status(err.status).json({ success: false, error: err.message });
-      return;
-    }
-    next(err);
-  }
-};
+  };
 
   async getUsers(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const parsed = UserSearchSchema.safeParse(req.query);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid query parameters', details: parsed.error.issues });
-      return;
+    try {
+      const query = validate(UserSearchSchema, req.query);
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
+      const includeBalance = req.query.include_balance === 'true';
+      const result = await userService.getAllUsers(query, req.user, includeBalance);
+      const { users, total, page, limit } = result;
+      success(res, users, {
+        message: 'Users retrieved successfully',
+        meta: { total, page, limit }
+      });
+    } catch (err: any) {
+      req.log?.error({ err }, 'getUsers failed');
+      next(err);
     }
-
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const includeBalance = req.query.include_balance === 'true';
-  const result = await userService.getAllUsers(parsed.data, req.user, includeBalance);
-  // Only return 'users' array, not both 'data' and 'users'
-  const { users, total, page, limit } = result;
-  res.json({ success: true, users, total, page, limit });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    next(err);
-  }
-};
+  };
 
   async getUserById(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid user ID' });
-      return;
+    try {
+      const id = parseId(req.params.id, 'user');
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
+      const user: UserDTO | null = await userService.getUserById(id, req.user);
+      if (!user) {
+        failureCode(res, 404, ErrorCodes.USER_NOT_FOUND);
+        return;
+      }
+  success(res, user, { message: 'User retrieved successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'getUserById failed');
+      next(err);
     }
-
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const user: UserDTO | null = await userService.getUserById(id, req.user);
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    
-    res.json({ 
-      success: true,
-      message: 'User retrieved successfully', 
-      data: user 
-    });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    next(err);
-  }
-};
+  };
 
   async updateUser(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid user ID' });
-      return;
+    try {
+      const id = parseId(req.params.id, 'user');
+      // Remove password if it's an empty string so validation doesn't fail
+      let reqBody = { ...req.body };
+      if (typeof reqBody.password === 'string' && reqBody.password.trim() === '') {
+        delete reqBody.password;
+      }
+      const data = validate(UserUpdateSchema, reqBody);
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
+      const user: UserDTO | null = await userService.updateUser(id, data, req.user);
+      success(res, user, { message: 'User updated successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'updateUser failed');
+      next(err);
     }
-
-    const parsed = UserUpdateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
-      return;
-    }
-
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const user: UserDTO | null = await userService.updateUser(id, parsed.data, req.user);
-    res.json({ 
-      success: true,
-      message: 'User updated successfully', 
-      data: user 
-    });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    next(err);
-  }
-};
+  };
 
   async resetPassword(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid user ID' });
-      return;
+    try {
+      const id = parseId(req.params.id, 'user');
+      const data = validate(UserPasswordResetSchema, req.body);
+      await userService.resetPassword(id, data);
+  success(res, { }, { message: 'Password reset successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'resetPassword failed');
+      next(err);
     }
-
-    const parsed = UserPasswordResetSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
-      return;
-    }
-
-    await userService.resetPassword(id, parsed.data);
-    res.json({ 
-      success: true,
-      message: 'Password reset successfully' 
-    });
-  } catch (err: any) {
-    next(err);
-  }
-};
+  };
 
   async adminResetPassword(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid user ID' });
-      return;
+    try {
+      const id = parseId(req.params.id, 'user');
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'New password must be at least 6 characters');
+        return;
+      }
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
+      await userService.adminResetPassword(id, newPassword, req.user);
+  success(res, { }, { message: 'Password reset successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'adminResetPassword failed');
+      next(err);
     }
-
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 6) {
-      res.status(400).json({ error: 'New password must be at least 6 characters' });
-      return;
-    }
-
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    await userService.adminResetPassword(id, newPassword, req.user);
-    res.json({ 
-      success: true,
-      message: 'Password reset successfully' 
-    });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    next(err);
-  }
-};
+  };
 
   async deleteUser(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid user ID' });
-      return;
-    }
-
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
+    try {
+      const id = parseId(req.params.id, 'user');
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
     await userService.deleteUser(id, req.user);
-    res.json({ 
-      success: true,
-      message: 'User deleted successfully' 
-    });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
+    standardDelete(res, id, 'user');
+    return;
+    } catch (err: any) {
+      req.log?.error({ err }, 'deleteUser failed');
+      next(err);
     }
-    next(err);
-  }
-};
+  };
 
   async getCurrentUser(
-  req: AuthenticatedRequest, 
-  res: Response, 
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
   ): Promise<void> {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
+    try {
+      if (!req.user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+        return;
+      }
+      const user: UserDTO | null = await userService.getUserById(req.user.id, req.user);
+  success(res, user, { message: 'Current user retrieved successfully' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'getCurrentUser failed');
+      next(err);
     }
-
-    const user: UserDTO | null = await userService.getUserById(req.user.id, req.user);
-    res.json({ 
-      success: true,
-      message: 'Current user retrieved successfully', 
-      data: user 
-    });
-  } catch (err: any) {
-    if (err.status) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    next(err);
-  }
   }
 }
 const userController = new UserController();

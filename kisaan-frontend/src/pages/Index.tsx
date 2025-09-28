@@ -46,8 +46,10 @@ const Index = () => {
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button variant="outline" size="xl">
-                  Watch Demo
+                <Button variant="outline" size="xl" asChild>
+                  <Link to="/pricing">
+                    View Pricing
+                  </Link>
                 </Button>
               </div>
               

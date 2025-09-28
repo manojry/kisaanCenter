@@ -4,12 +4,12 @@ import { apiClient } from '../services/apiClient';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Alert, AlertDescription } from '../components/ui/alert';
+import { useToast } from '../hooks/use-toast';
 import { 
   Package, 
   Plus,
-  AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductsManagement from '../components/ProductsManagement';
@@ -17,8 +17,8 @@ import AddProductDialog from '../components/AddProductDialog';
 
 export default function Products() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [shop, setShop] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
@@ -32,26 +32,29 @@ export default function Products() {
     try {
       const userShop = await fetchOwnerShop(user.id);
       setShop(userShop);
-      
-      if (!userShop?.id) {
-        setError('No shop found for this owner');
-      }
     } catch (err: any) {
-      setError(err.message || 'Failed to load shop data');
+      toast({
+        title: "Error",
+        description: err.message || 'Failed to load shop data',
+        variant: "destructive"
+      });
     } finally {
       // setIsLoading(false); // removed unused isLoading
     }
   };
 
   if (!user || (user.role !== 'owner')) {
+    toast({
+      title: "Access Denied",
+      description: "Owner role required.",
+      variant: "destructive",
+    });
     return (
       <div className="container mx-auto p-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Access denied. Owner role required.
-          </AlertDescription>
-        </Alert>
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Owner role required to access this page.</p>
+        </div>
       </div>
     );
   }

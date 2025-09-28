@@ -8,6 +8,7 @@ import { Loader2, UserPlus } from 'lucide-react';
 import { usersApi } from '../../services/api';
 import type { UserCreate, User } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
+import { toastService } from '../../services/toastService';
 
 interface UserFormProps {
   onSuccess?: (user: User) => void;
@@ -23,14 +24,17 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState<UserCreate>({
-    role: editUser?.role || 'farmer',
-    shop_id: currentUser?.shop_id || 0,
+    role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
+    shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
     contact: editUser?.contact || '',
     cumulative_value: editUser?.cumulative_value || 0,
     firstname: editUser?.firstname || '',
-    password: editUser?.password || 'kisaan@123',
+    password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
     status: editUser?.status || 'active',
-    email: editUser?.email || 'contact@kisaancenter.com'
+    email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
+    username: editUser?.username || '',
+    balance: editUser?.balance || 0,
+    commission_rate: editUser?.commission_rate || undefined
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +52,22 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
       return;
     }
 
+    // Additional validation for superadmin
+    if (currentUser?.role === 'superadmin') {
+      if (!formData.email) {
+        setFormError('Email is required for superadmin user creation');
+        return;
+      }
+      if (!editUser && (!formData.password || formData.password.length < 6)) {
+        setFormError('Password must be at least 6 characters long');
+        return;
+      }
+      if (editUser && formData.password && formData.password.length < 6) {
+        setFormError('Password must be at least 6 characters long');
+        return;
+      }
+    }
+
     setIsLoading(true);
     setFormError(null);
     try {
@@ -63,22 +83,59 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         };
         response = await usersApi.update(editUser.id, updateData);
       } else {
-        // Create new user, backend will generate username
-        // For owner and farmer, set default email and password
+        // Create new user
         let createData: UserCreate = {
           ...formData,
-          status: 'active',
-          password: (formData.role === 'owner' || formData.role === 'farmer') ? 'kisaan@123' : formData.password,
-          email: (formData.role === 'owner' || formData.role === 'farmer') ? 'contact@kisaancenter.com' : formData.email
+          // Handle defaults based on current user role
+          password: currentUser?.role === 'superadmin' ? formData.password : 'kisaan@123',
+          email: currentUser?.role === 'superadmin' ? formData.email : 'contact@kisaancenter.com',
+          status: formData.status || 'active',
+          balance: formData.balance || 0,
+          shop_id: formData.role === 'owner' ? formData.shop_id : (currentUser?.shop_id || undefined)
         };
+        
+        // Remove empty username to let backend auto-generate
+        if (!createData.username || createData.username.trim() === '') {
+          delete createData.username;
+        }
+        
         response = await usersApi.create(createData);
       }
       if (response.success && response.data) {
+        // Show success toast with user details
+        const userDetails = response.data;
+        const successMessage = editUser 
+          ? `User "${userDetails.firstname && userDetails.firstname.trim() ? userDetails.firstname : userDetails.username}" updated successfully`
+          : `User "${userDetails.firstname && userDetails.firstname.trim() ? userDetails.firstname : userDetails.username}" created successfully`;
+        
+        toastService.success(successMessage, {
+          title: editUser ? 'User Updated' : 'User Created',
+          description: `Role: ${userDetails.role}${userDetails.shop_id ? ` | Shop ID: ${userDetails.shop_id}` : ''}`
+        });
+
+        // Additional info for owner without shop
+        if (!editUser && userDetails.role === 'owner' && !userDetails.shop_id) {
+          setTimeout(() => {
+            toastService.info('Remember to create a shop for this owner to manage products and transactions.', {
+              title: 'Next Step',
+              duration: 6000
+            });
+          }, 2000);
+        }
+        
         onSuccess?.(response.data);
+      } else {
+        // Handle case where response doesn't have expected data
+        setFormError('User operation completed but response was unexpected. Please refresh the page.');
+        toastService.warning('User operation may have completed but response was unexpected. Please refresh the page.');
       }
     } catch (error: any) {
       console.error('Error saving user:', error);
-      setFormError(error.message || 'Failed to save user. Please check your input.');
+      const errorMessage = error?.response?.data?.message || error.message || 'Failed to save user. Please check your input.';
+      setFormError(errorMessage);
+      toastService.error(errorMessage, {
+        title: editUser ? 'Update Failed' : 'Creation Failed'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +202,41 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             </Select>
           </div>
 
-          {/* Contact only */}
+          {/* Username - Only for superadmin */}
+          {currentUser?.role === 'superadmin' && (
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={formData.username || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData(prev => ({ ...prev, username: e.target.value }));
+                }}
+                placeholder="Leave empty for auto-generation"
+              />
+              <div className="text-xs text-gray-500">Leave empty to auto-generate from first name</div>
+            </div>
+          )}
+
+          {/* Email - Enhanced for superadmin */}
+          <div className="space-y-2">
+            <Label htmlFor="email">Email {currentUser?.role === 'superadmin' ? '*' : ''}</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setFormData(prev => ({ ...prev, email: e.target.value }));
+              }}
+              placeholder="Enter email address"
+              required={currentUser?.role === 'superadmin'}
+            />
+            {currentUser?.role !== 'superadmin' && (
+              <div className="text-xs text-gray-500">Default email will be used for farmers/buyers</div>
+            )}
+          </div>
+
+          {/* Contact */}
           <div className="space-y-2">
             <Label htmlFor="contact">Contact Number *</Label>
             <div className="text-xs text-gray-500">Required. Enter a valid 10-digit phone number.</div>
@@ -166,9 +257,103 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             {contactError && <div className="text-xs text-red-600 mt-1">{contactError}</div>}
           </div>
 
-          {/* Password removed for owner/farmer creation (default used) */}
+          {/* Password - Enhanced for superadmin (optional on edit) */}
+          {currentUser?.role === 'superadmin' && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Password {editUser ? '(leave blank to keep unchanged)' : '*'}</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData(prev => ({ ...prev, password: e.target.value }));
+                }}
+                placeholder={editUser ? "Leave blank to keep current password" : "Enter password"}
+                required={!editUser}
+              />
+              <div className="text-xs text-gray-500">{editUser ? "Password is optional. Only fill to change." : "Minimum 6 characters recommended"}</div>
+            </div>
+          )}
 
-          {/* Status and Initial Balance removed for owner/farmer creation (default used) */}
+          {/* Shop ID - Only for superadmin creating owners */}
+          {currentUser?.role === 'superadmin' && formData.role === 'owner' && (
+            <div className="space-y-2">
+              <Label htmlFor="shop_id">Shop ID</Label>
+              <Input
+                id="shop_id"
+                type="number"
+                value={formData.shop_id || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData(prev => ({ ...prev, shop_id: e.target.value ? Number(e.target.value) : undefined }));
+                }}
+                placeholder="Enter shop ID (optional)"
+              />
+              <div className="text-xs text-gray-500">Leave empty if creating shop later</div>
+            </div>
+          )}
+
+          {/* Initial Balance - Only for superadmin */}
+          {currentUser?.role === 'superadmin' && (
+            <div className="space-y-2">
+              <Label htmlFor="balance">Initial Balance</Label>
+              <Input
+                id="balance"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.balance || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData(prev => ({ ...prev, balance: e.target.value ? Number(e.target.value) : 0 }));
+                }}
+                placeholder="Enter initial balance"
+              />
+              <div className="text-xs text-gray-500">Default is 0.00</div>
+            </div>
+          )}
+
+          {/* Commission Rate - For farmers and buyers */}
+          {(formData.role === 'farmer' || formData.role === 'buyer') && (
+            <div className="space-y-2">
+              <Label htmlFor="commission_rate">Commission Rate (%)</Label>
+              <Input
+                id="commission_rate"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={formData.commission_rate || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    commission_rate: e.target.value ? Number(e.target.value) : undefined 
+                  }));
+                }}
+                placeholder="e.g., 10"
+              />
+              <div className="text-xs text-gray-500">
+                Leave empty to use shop default (10%). Personal commission rate overrides shop rate.
+              </div>
+            </div>
+          )}
+
+          {/* Status - Only for superadmin */}
+          {currentUser?.role === 'superadmin' && (
+            <div className="space-y-2">
+              <Label htmlFor="status">Status *</Label>
+              <Select 
+                value={formData.status || 'active'} 
+                onValueChange={(value: 'active' | 'inactive') => setFormData(prev => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">

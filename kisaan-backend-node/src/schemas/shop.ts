@@ -9,6 +9,7 @@ export const ShopBaseSchema = z.object({
   address: z.string().max(200).optional().nullable(),
   contact: z.string().min(10).max(15).optional().nullable(),
   status: ShopStatusEnum.default('active'),
+  category_id: z.number().int().positive(),
 });
 
 export const ShopCreateSchema = ShopBaseSchema.omit({ status: true });

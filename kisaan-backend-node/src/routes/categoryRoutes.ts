@@ -1,19 +1,21 @@
 import { Router } from 'express';
 import { CategoryController } from '../controllers';
+import { requireSuperadmin } from '../middleware/requireSuperadmin';
+import { authenticateToken } from '../middlewares/auth';
 
 export const categoryRoutes = Router();
 
 const categoryController = new CategoryController();
-// Category CRUD routes
+
+// Apply authentication to protected routes
+categoryRoutes.put('/:id', authenticateToken, requireSuperadmin, categoryController.updateCategory.bind(categoryController));
+categoryRoutes.delete('/:id', authenticateToken, requireSuperadmin, categoryController.deleteCategory.bind(categoryController));
+categoryRoutes.post('/', authenticateToken, requireSuperadmin, categoryController.createCategory.bind(categoryController));
+
+// Public routes (no authentication needed)
 categoryRoutes.get('/', categoryController.getAllCategories.bind(categoryController));
-categoryRoutes.get('/active', categoryController.getActiveCategories.bind(categoryController));
-categoryRoutes.get('/search', categoryController.searchCategories.bind(categoryController));
+// Simplified: removed /active and /search endpoints (status & advanced search removed)
 categoryRoutes.get('/:id', categoryController.getCategoryById.bind(categoryController));
-categoryRoutes.post('/', categoryController.createCategory.bind(categoryController));
-categoryRoutes.put('/:id', categoryController.updateCategory.bind(categoryController));
-categoryRoutes.patch('/:id/deactivate', categoryController.deactivateCategory.bind(categoryController));
-categoryRoutes.patch('/reorder', categoryController.reorderCategories.bind(categoryController));
-categoryRoutes.delete('/:id', categoryController.deleteCategory.bind(categoryController));
 
 // Add route logging middleware
 categoryRoutes.use((req, res, next) => {

@@ -15,6 +15,10 @@ import { AuditLog } from './auditLog';
 import { PlanUsage } from './planValidation';
 import BalanceSnapshot from './balanceSnapshot';
 import { PaymentAllocation } from './paymentAllocation';
+import { TransactionIdempotency } from './transactionIdempotency';
+import { TransactionLedger } from './transactionLedger';
+import { Feature, PlanFeature, UserFeatureOverride } from './feature';
+
 
 // Initialize all models
 const models = {
@@ -34,6 +38,11 @@ const models = {
   PlanUsage,
   BalanceSnapshot,
   PaymentAllocation,
+  TransactionIdempotency,
+  TransactionLedger,
+  Feature,
+  PlanFeature,
+  UserFeatureOverride,
 };
 
 // Set up associations
@@ -41,6 +50,12 @@ const models = {
 // Plan associations
 Plan.hasMany(Shop, { foreignKey: 'plan_id', as: 'shops' });
 Shop.belongsTo(Plan, { foreignKey: 'plan_id', as: 'plan' });
+
+// Feature associations (logical). Rename alias to avoid collision with Plan.features attribute column
+Plan.belongsToMany(Feature, { through: PlanFeature, foreignKey: 'plan_id', otherKey: 'feature_code', as: 'planFeatures' });
+Feature.belongsToMany(Plan, { through: PlanFeature, foreignKey: 'feature_code', otherKey: 'plan_id', as: 'plans' });
+User.belongsToMany(Feature, { through: UserFeatureOverride, foreignKey: 'user_id', otherKey: 'feature_code', as: 'featureOverrides' });
+Feature.belongsToMany(User, { through: UserFeatureOverride, foreignKey: 'feature_code', otherKey: 'user_id', as: 'userOverrides' });
 
 // Category associations
 Category.hasMany(Product, { foreignKey: 'category_id', as: 'products' });
@@ -90,6 +105,10 @@ Product.hasMany(ShopProducts, { foreignKey: 'product_id', as: 'shopProducts' });
 User.belongsTo(Shop, { foreignKey: 'shop_id', as: 'userShop' });
 Shop.hasMany(User, { foreignKey: 'shop_id', as: 'users' });
 
+// User self-referential creator relationship (audit trail)
+User.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+User.hasMany(User, { foreignKey: 'created_by', as: 'createdUsers' });
+
 // Transaction associations
 Transaction.belongsTo(Shop, { foreignKey: 'shop_id', as: 'transactionShop' });
 Transaction.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
@@ -105,6 +124,12 @@ User.hasMany(Transaction, { foreignKey: 'farmer_id', as: 'farmerTransactions' })
 // Payment associations
 Payment.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
 Transaction.hasMany(Payment, { foreignKey: 'transaction_id', as: 'payments' });
+
+// PaymentAllocation (junction allocation of payments to transactions)
+PaymentAllocation.belongsTo(Payment, { foreignKey: 'payment_id', as: 'payment' });
+PaymentAllocation.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transactionAllocation' });
+Payment.hasMany(PaymentAllocation, { foreignKey: 'payment_id', as: 'allocations' });
+Transaction.hasMany(PaymentAllocation, { foreignKey: 'transaction_id', as: 'paymentAllocations' });
 
 // Credit Advance associations
 CreditAdvance.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -136,6 +161,28 @@ PlanUsage.belongsTo(Plan, { foreignKey: 'plan_id', as: 'usagePlan' });
 Shop.hasMany(PlanUsage, { foreignKey: 'shop_id', as: 'planUsage' });
 Plan.hasMany(PlanUsage, { foreignKey: 'plan_id', as: 'planUsage' });
 
+// Ownership association for Shop.owner_id
+Shop.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
+User.hasMany(Shop, { foreignKey: 'owner_id', as: 'ownedShops' });
+
+// TransactionIdempotency associations (for observability / lookups)
+TransactionIdempotency.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
+Transaction.hasMany(TransactionIdempotency, { foreignKey: 'transaction_id', as: 'idempotencyRecords' });
+TransactionIdempotency.belongsTo(Shop, { foreignKey: 'shop_id', as: 'idempotencyShop' });
+Shop.hasMany(TransactionIdempotency, { foreignKey: 'shop_id', as: 'idempotencyKeys' });
+TransactionIdempotency.belongsTo(User, { foreignKey: 'buyer_id', as: 'idempotencyBuyer' });
+TransactionIdempotency.belongsTo(User, { foreignKey: 'farmer_id', as: 'idempotencyFarmer' });
+
+// TransactionLedger associations
+TransactionLedger.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
+Transaction.hasMany(TransactionLedger, { foreignKey: 'transaction_id', as: 'ledgerEntries' });
+TransactionLedger.belongsTo(User, { foreignKey: 'user_id', as: 'ledgerUser' });
+User.hasMany(TransactionLedger, { foreignKey: 'user_id', as: 'ledgerEntries' });
+
+// BalanceSnapshot associations
+BalanceSnapshot.belongsTo(User, { foreignKey: 'user_id', as: 'snapshotUser' });
+User.hasMany(BalanceSnapshot, { foreignKey: 'user_id', as: 'balanceSnapshots' });
+
 // Export sequelize instance and all models
 export { 
   sequelize, 
@@ -155,6 +202,7 @@ export {
   PlanUsage,
   BalanceSnapshot,
   PaymentAllocation
+  ,TransactionIdempotency
 };
 
 export default models;

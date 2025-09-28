@@ -4,11 +4,20 @@ import { useAuth } from '../context/AuthContext';
 import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
 import { DashboardStats } from '../components/owner/DashboardStats';
 import { QuickActions } from '../components/owner/QuickActions';
+import { Section } from '@/components/ui/Section';
+import { usePrefetchOnFocus } from '@/hooks/usePrefetchOnFocus';
 
 const OwnerDashboardNew: React.FC = () => {
 
   const { user } = useAuth();
   const { stats, isLoading, error, refreshData } = useOwnerDashboard();
+
+  // Auto refresh when returning to the tab / window.
+  usePrefetchOnFocus(() => {
+    if (!isLoading) {
+      refreshData();
+    }
+  });
 
   if (error) {
     return (
@@ -51,26 +60,14 @@ const OwnerDashboardNew: React.FC = () => {
       </p>
 
       {/* Dashboard Stats - Ensure mobile-friendly layout in child */}
-      <div className="w-full">
-        <DashboardStats
-          stats={{
-            today_sales: stats?.today_sales ?? 0,
-            today_transactions: stats?.today_transactions ?? 0,
-            today_commission: stats?.today_commission ?? 0,
-            buyer_payments_due: stats?.buyer_payments_due ?? 0,
-            farmer_payments_due: stats?.farmer_payments_due ?? 0,
-            total_users: stats?.total_users ?? 0,
-            commission_realized: stats?.commission_realized ?? 0,
-          }}
-          isLoading={isLoading}
-        />
-      </div>
+      <Section title="Today's Metrics" description="Live sales & payment status" padded>
+        <DashboardStats stats={stats as any} isLoading={isLoading} />
+      </Section>
 
       {/* Quick Actions - Add spacing for mobile */}
-      <div className="mt-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+      <Section title="Quick Actions" description="Frequent tasks" padded>
         <QuickActions />
-      </div>
+      </Section>
 
       {/* Pending Actions removed for cleaner UI */}
     </div>

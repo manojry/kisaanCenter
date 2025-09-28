@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import config from '../../config';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
-import { Loader2, Building2 } from 'lucide-react';
-import { usersApi, shopsApi } from '../../services/api';
-import type { User, Shop } from '../../types/api';
+import { Loader2, Building2, UserPlus } from 'lucide-react';
+import { shopsApi, categoriesApi } from '../../services/api';
+import type { User, Shop, Category } from '../../types/api';
 
 interface ShopFormProps {
   onSuccess?: (shop: Shop) => void;
@@ -15,39 +15,64 @@ interface ShopFormProps {
 }
 
 export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingOwners, setIsLoadingOwners] = useState(true);
+  const [ownersError, setOwnersError] = useState<string | null>(null);
   const [owners, setOwners] = useState<User[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     owner_id: 0,
     address: '',
     contact: '',
-    status: 'active' as const
+    status: 'active' as const,
+    category_id: 0
   });
 
   useEffect(() => {
     loadOwners();
+    loadCategories();
   }, []);
 
   const loadOwners = async () => {
+    setIsLoadingOwners(true);
+    setOwnersError(null);
     try {
       const ownersList = await shopsApi.getAvailableOwners();
       setOwners(ownersList);
-    } catch (error) {
+      console.log('Loaded owners:', ownersList); // Debug log
+    } catch (error: any) {
       console.error('Error loading owners:', error);
+      setOwnersError(error.message || 'Failed to load owners');
+    } finally {
+      setIsLoadingOwners(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const response = await categoriesApi.getAll();
+      setCategories(response.data || []);
+    } catch (error: any) {
+      console.error('Error loading categories:', error);
+    } finally {
+      setIsLoadingCategories(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.owner_id) {
+    if (!formData.name || !formData.owner_id || !formData.category_id) {
       alert('Please fill all required fields');
       return;
     }
     
     if (owners.length === 0) {
-      alert('No available owners. Create an owner first.');
+      alert('No available owners found. Please create users with \'owner\' role first, then return here to create shops for them.');
       return;
     }
 
@@ -91,17 +116,89 @@ export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
             <Select 
               value={formData.owner_id ? formData.owner_id.toString() : ""} 
               onValueChange={(value: string) => setFormData(prev => ({ ...prev, owner_id: parseInt(value) }))}
+              disabled={isLoadingOwners}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select owner" />
+                <SelectValue placeholder={
+                  isLoadingOwners ? "Loading owners..." : 
+                  ownersError ? "Error loading owners" : 
+                  "Select owner"
+                } />
               </SelectTrigger>
               <SelectContent>
-                {owners.length === 0 ? (
-                  <div className="px-3 py-2 text-gray-500 text-sm">No available owners (all owners already have shops)</div>
+                {isLoadingOwners ? (
+                  <div className="px-3 py-2 text-gray-500 text-sm flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Loading available owners...
+                  </div>
+                ) : ownersError ? (
+                  <div className="px-3 py-2 text-red-500 text-sm">
+                    Error: {ownersError}
+                    <button 
+                      onClick={loadOwners}
+                      className="block mt-1 text-xs underline hover:no-underline"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : owners.length === 0 ? (
+                  <div className="px-3 py-2">
+                    <div className="text-amber-600 text-sm font-medium mb-2">No owners available</div>
+                    <div className="text-xs text-gray-600 mb-3">
+                      Create users with 'owner' role first, then return here to create shops for them.
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => navigate('/superadmin/users')}
+                      className="text-xs h-7"
+                    >
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Create Owner
+                    </Button>
+                  </div>
                 ) : (
                   owners.map(owner => (
                     <SelectItem key={owner.id} value={owner.id.toString()}>
                       {owner.username} {owner.email && `(${owner.email})`}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {ownersError && (
+              <div className="text-xs text-red-600 mt-1">
+                Failed to load owners. Please try refreshing the page or create an owner first.
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Category *</Label>
+            <Select 
+              value={formData.category_id ? formData.category_id.toString() : ""} 
+              onValueChange={(value: string) => setFormData(prev => ({ ...prev, category_id: parseInt(value) }))}
+              disabled={isLoadingCategories}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={
+                  isLoadingCategories ? "Loading categories..." : "Select category"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingCategories ? (
+                  <div className="px-3 py-2 text-gray-500 text-sm flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Loading categories...
+                  </div>
+                ) : categories.length === 0 ? (
+                  <div className="px-3 py-2 text-amber-600 text-sm">
+                    No categories available
+                  </div>
+                ) : (
+                  categories.map(category => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
                     </SelectItem>
                   ))
                 )}

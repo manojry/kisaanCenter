@@ -1,103 +1,178 @@
-import { Plan, PlanCreationAttributes } from '../models/plan';
-import { PlanCreate, PlanUpdate } from '../schemas/plan';
-import { Op } from 'sequelize';
+import { PlanRepository } from '../repositories/PlanRepository';
+import { PlanEntity } from '../entities/PlanEntity';
+import { PlanCreateDTO, PlanUpdateDTO, PlanDTO } from '../dtos';
+import { StringFormatter } from '../shared/utils/formatting';
+import { BusinessRuleError, DatabaseError, ValidationError } from '../shared/utils/errors';
+import { BaseService } from './baseService';
 
-// Removed duplicate import of Plan
-
-
-export const createPlan = async (data: PlanCreationAttributes): Promise<Plan> => {
-  const plan = await Plan.create({
-    name: data.name,
-    description: data.description ?? null,
-    price: data.price ?? null,
-    monthly_price: data.monthly_price ?? null,
-    quarterly_price: data.quarterly_price ?? null,
-    yearly_price: data.yearly_price ?? null,
-    max_farmers: data.max_farmers ?? null,
-    max_buyers: data.max_buyers ?? null,
-    max_transactions: data.max_transactions ?? null,
-    data_retention_months: data.data_retention_months ?? null,
-    features: data.features,
-    status: data.status ?? 'active',
-  });
-  return plan;
-};
-
-export const getAllPlans = async (activeOnly: boolean = false): Promise<Plan[]> => {
-  try {
-    const where: any = {};
-    if (activeOnly) where.status = 'active';
-    
-    const plans = await Plan.findAll({ 
-      where,
-      order: [['name', 'ASC']]
-    });
-    return plans;
-  } catch (error: any) {
-    console.error('Error in getAllPlans:', error.message);
-    console.error('SQL:', error.sql);
-    throw error;
+export class PlanService extends BaseService<PlanEntity, PlanDTO> {
+  // getDefaultPlan simplified: no status concept, just return plan named 'Basic' if exists
+  async getDefaultPlan(): Promise<PlanDTO | null> {
+    try {
+      const plans = await this.planRepository.findAll();
+      const basicPlan = plans.find(p => p.name?.toLowerCase() === 'basic');
+      return basicPlan ? basicPlan.toDTO() : null;
+    } catch (error) {
+      throw new DatabaseError('Failed to fetch default plan', error instanceof Error ? { message: error.message } : undefined);
+    }
   }
-};
+  private planRepository: PlanRepository;
 
-export const getPlanById = async (id: number): Promise<Plan | null> => {
-  const plan = await Plan.findByPk(id);
-  return plan;
-};
-
-export const updatePlan = async (id: number, data: PlanUpdate): Promise<Plan | null> => {
-  const plan = await Plan.findByPk(id);
-  if (!plan) return null;
-
-  const updateData: any = { ...data };
-  
-  // Convert features array to JSON string if provided
-  if (data.features) {
-    updateData.features = JSON.stringify(data.features);
-  }
-  
-  // Convert null description to undefined for update
-  if (data.description === null) {
-    updateData.description = null;
+  constructor() {
+    super();
+    this.planRepository = new PlanRepository();
   }
 
-  await plan.update(updateData);
-  return plan;
-};
+  protected get repository() { return this.planRepository; }
+  protected toDTO(entity: PlanEntity): PlanDTO { return entity.toDTO(); }
 
-export const deletePlan = async (id: number): Promise<boolean> => {
-  const plan = await Plan.findByPk(id);
-  if (!plan) return false;
+  async createPlan(data: PlanCreateDTO): Promise<PlanDTO> {
+    try {
+      // Validate required fields
+      if (!data.name?.trim()) {
+        throw new ValidationError('Plan name is required');
+      }
 
-  await plan.destroy();
-  return true;
-};
+      // Sanitize input
+      const sanitizedData = {
+        ...data,
+        name: StringFormatter.sanitizeInput(data.name.trim()),
+        description: data.description ? StringFormatter.sanitizeInput(data.description.trim()) : null,
+        features: data.features || []
+      };
 
-export const deactivatePlan = async (id: number): Promise<Plan | null> => {
-  const plan = await Plan.findByPk(id);
-  if (!plan) return null;
+      // Check for duplicate plan name
+      const existingPlans = await this.planRepository.searchByName(sanitizedData.name);
+      if (existingPlans.length > 0) {
+        throw new BusinessRuleError('A plan with this name already exists');
+      }
 
-  await plan.update({ status: 'inactive' });
-  return plan;
-};
+      const planEntity = new PlanEntity(sanitizedData);
+      const createdPlan = await this.planRepository.create(planEntity);
+      return createdPlan.toDTO();
+    } catch (error) {
+      if (error instanceof BusinessRuleError || error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to create plan', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
 
-export const getActivePlans = async (): Promise<Plan[]> => {
-  const plans = await Plan.findAll({
-    where: { status: 'active' },
-    order: [['name', 'ASC']]
-  });
-  return plans;
-};
+  async getAllPlans(): Promise<PlanDTO[]> {
+    try {
+      const plans = await this.planRepository.findAll();
+      return plans.map(p => p.toDTO());
+    } catch (error) {
+      throw new DatabaseError('Failed to retrieve plans', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
 
-export const searchPlans = async (searchTerm: string): Promise<Plan[]> => {
-  const plans = await Plan.findAll({
-    where: {
-      [Op.or]: [
-        { name: { [Op.iLike]: `%${searchTerm}%` } },
-        { description: { [Op.iLike]: `%${searchTerm}%` } }
-      ]
-    },
-    order: [['name', 'ASC']]
-  });
-  return plans;
-};
+  async getPlanById(id: number): Promise<PlanDTO | null> { return this.getById(id); }
+
+  async updatePlan(id: number, data: PlanUpdateDTO): Promise<PlanDTO | null> {
+    try {
+      if (!id || id <= 0) {
+        throw new ValidationError('Invalid plan ID');
+      }
+
+      const existingPlan = await this.planRepository.findById(id);
+      if (!existingPlan) {
+        return null;
+      }
+
+      // Sanitize input data
+      const sanitizedData: any = {};
+      if (data.name !== undefined) {
+        if (!data.name.trim()) {
+          throw new ValidationError('Plan name cannot be empty');
+        }
+        sanitizedData.name = StringFormatter.sanitizeInput(data.name.trim());
+      }
+      if (data.description !== undefined) {
+        sanitizedData.description = data.description ? StringFormatter.sanitizeInput(data.description.trim()) : null;
+      }
+      if (data.features !== undefined) {
+        sanitizedData.features = data.features;
+      }
+      // removed status/pricing/limit/data_retention fields in simplified model
+
+      // Check for duplicate name if name is being updated
+      if (sanitizedData.name && sanitizedData.name !== existingPlan.name) {
+        const plansWithSameName = await this.planRepository.searchByName(sanitizedData.name);
+        if (plansWithSameName.some(p => p.id !== id)) {
+          throw new BusinessRuleError('A plan with this name already exists');
+        }
+      }
+
+  const updatedPlanEntity = new PlanEntity({ ...(existingPlan.toDTO() as any), ...sanitizedData });
+      const updatedPlan = await this.planRepository.update(id, updatedPlanEntity);
+      return updatedPlan ? updatedPlan.toDTO() : null;
+    } catch (error) {
+      if (error instanceof BusinessRuleError || error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to update plan', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  async deletePlan(id: number): Promise<boolean> {
+    try {
+      if (!id || id <= 0) {
+        throw new ValidationError('Invalid plan ID');
+      }
+
+      const existingPlan = await this.planRepository.findById(id);
+      if (!existingPlan) {
+        return false;
+      }
+
+      await this.planRepository.delete(id);
+      return true;
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to delete plan', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  async deactivatePlan(id: number): Promise<PlanDTO | null> {
+    try {
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new ValidationError('Invalid plan ID');
+      }
+      const existingPlan = await this.planRepository.findById(id);
+      if (!existingPlan) {
+        return null;
+      }
+      // raw update since repository may not have status concept
+      const [count] = await (this as any).planRepository['model'].update({ is_active: false }, { where: { id } });
+      if (count === 0) return null;
+      const updated = await this.planRepository.findById(id);
+      return updated ? updated.toDTO() : null;
+    } catch (error: any) {
+      throw new DatabaseError('Failed to deactivate plan', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  // deactivatePlan and getActivePlans removed: no status concept
+
+  async searchPlans(searchTerm: string): Promise<PlanDTO[]> {
+    try {
+      if (!searchTerm?.trim()) {
+        throw new ValidationError('Search term is required');
+      }
+
+      const sanitizedSearchTerm = StringFormatter.sanitizeInput(searchTerm.trim());
+      const plans = await this.planRepository.searchByName(sanitizedSearchTerm);
+      return plans.map(plan => plan.toDTO());
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to search plans', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  // getPlansByPriceRange removed: no pricing fields
+}

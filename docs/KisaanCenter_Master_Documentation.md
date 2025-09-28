@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: High-level content is now distributed across `CORE_IDEA.md`, `SYSTEM_BRAIN.md`, `FRONTEND_ARCHITECTURE.md`, and `TRANSACTION_FLOW.md`.
+
+# KisaanCenter Master Documentation
 
 # KisaanCenter Master Documentation
 

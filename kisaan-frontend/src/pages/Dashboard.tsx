@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -23,12 +21,9 @@ export default function Dashboard() {
   if (!user) {
     return (
       <div className="w-full max-w-xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Please log in to access the dashboard.
-          </AlertDescription>
-        </Alert>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          Please log in to access the dashboard.
+        </div>
       </div>
     );
   }
@@ -37,15 +32,14 @@ export default function Dashboard() {
   return (
     <div className="w-full max-w-xl mx-auto px-2 sm:px-4 py-6 sm:py-8">
       <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Dashboard</h1>
-      <p className="text-muted-foreground mb-3 sm:mb-4 text-sm sm:text-base">
-        Welcome, {user.username} ({user.role})
-      </p>
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
+      <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md">
+        <h1 className="text-3xl font-bold mb-2">
+        Welcome, {user.firstname && user.firstname.trim() ? user.firstname : user.username} ({user.role})
+        </h1>
+        <div className="text-sm opacity-90 mt-4">
           Dashboard for {user.role} role is under development.
-        </AlertDescription>
-      </Alert>
+        </div>
+      </div>
     </div>
   );
 }

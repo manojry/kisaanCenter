@@ -5,10 +5,10 @@ import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Plus, AlertCircle, Package, Trash2 } from 'lucide-react';
 import AddProductDialog from './AddProductDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface Product {
   id: number;
@@ -46,8 +46,8 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   // Global cache for shop categories by shopId (per session)
   const shopCategoriesCache: { [shopId: number]: Category[] } = {};
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const { toast } = useToast();
 
   console.log('📝 ProductsManagement received shopId:', shopId);
 
@@ -96,7 +96,6 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   // Fetch products assigned to this shop
   const fetchShopProducts = async (shopId: number) => {
     setIsLoading(true);
-    setError(null);
     try {
       console.log('🔍 Fetching shop products for shopId:', shopId);
       const response = await apiClient.get(`/shops/${shopId}/products`) as any;
@@ -108,7 +107,11 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     } catch (err) {
       const error = err as any;
       console.error('❌ Error fetching shop products:', error);
-      setError(error?.message || 'Failed to load shop products');
+      toast({
+        title: 'Error',
+        description: error?.message || 'Failed to load shop products',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -196,8 +199,11 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
       ]);
     } catch (err: any) {
       console.error('❌ Failed to assign product:', err);
-      setError(err.message || 'Failed to assign product');
-      setTimeout(() => setError(null), 3000);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to assign product',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -214,8 +220,11 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
       ]);
     } catch (err: any) {
       console.error('Failed to remove product:', err);
-      setError(err.message || 'Failed to remove product');
-      setTimeout(() => setError(null), 3000);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to remove product',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -237,14 +246,7 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     );
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+
 
   return (
     <>

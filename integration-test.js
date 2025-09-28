@@ -1,6 +1,7 @@
 // INTEGRATION TEST: Transaction Flow with Fixed Logic
 // This creates a real-world scenario and tests the fixed balance calculations
 
+require('dotenv').config();
 const { Pool } = require('pg');
 
 // Test scenario configuration
@@ -17,12 +18,12 @@ const TEST_SCENARIO = {
 
 // Database connection
 const pool = new Pool({
-  host: 'xxxxxxx',
-  database: 'kisaan_dev',
-  user: 'postgres',
-  password: 'yyyyyyy',
-  port: 5432,
-  ssl: { rejectUnauthorized: false }
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+  ssl: process.env.DB_SSL_MODE === 'require' ? { rejectUnauthorized: false } : false
 });
 
 async function runIntegrationTest() {

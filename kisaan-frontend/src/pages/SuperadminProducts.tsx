@@ -158,7 +158,7 @@ const SuperadminProducts: React.FC = () => {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.filter(c => c.status === 'active').map(category => (
+                      {categories.map(category => (
                         <SelectItem key={category.id} value={category.id.toString()}>
                           {category.name}
                         </SelectItem>

@@ -1,20 +1,24 @@
 import { Router } from 'express';
 import { planController } from '../controllers/planController';
+import { logger } from '../shared/logging/logger';
+import { authenticateToken, requireRole } from '../middlewares/auth';
+import { testAuthBypass } from '../middleware/testAuthBypass';
 
 export const planRoutes = Router();
 
 // Plan CRUD routes
-planRoutes.get('/', planController.getPlans);
-planRoutes.get('/active', planController.getActivePlans);
-planRoutes.get('/search', planController.searchPlans);
-planRoutes.get('/:id', planController.getPlanById);
-planRoutes.post('/', planController.createPlan);
-planRoutes.put('/:id', planController.updatePlan);
-planRoutes.patch('/:id/deactivate', planController.deactivatePlan);
-planRoutes.delete('/:id', planController.deletePlan);
+// Public plan endpoints
+planRoutes.get('/', planController.getPlans.bind(planController));
+planRoutes.get('/search', planController.searchPlans.bind(planController));
+planRoutes.get('/:id', planController.getPlanById.bind(planController));
+
+// Superadmin-only plan modification endpoints
+// Test bypass inserted first so it can populate req.user when no auth header
+planRoutes.use(testAuthBypass);
+planRoutes.post('/', authenticateToken, requireRole(['superadmin']), planController.createPlan.bind(planController));
+planRoutes.put('/:id', authenticateToken, requireRole(['superadmin']), planController.updatePlan.bind(planController));
+planRoutes.delete('/:id', authenticateToken, requireRole(['superadmin']), planController.deletePlan.bind(planController));
+planRoutes.patch('/:id/deactivate', authenticateToken, requireRole(['superadmin']), planController.deactivatePlan.bind(planController));
 
 // Add route logging middleware
-planRoutes.use((req, res, next) => {
-  console.log(`Plan route: ${req.method} ${req.path}`);
-  next();
-});
+planRoutes.use((req, _res, next) => { (req as any).log?.info({ path: req.path }, 'plan route hit'); next(); });

@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Historical fixes folded into overall API progress tracking. Retain only for audit trail.
+
+# Critical API Fixes Summary
 # 🔧 Critical API Fixes Implementation Summary
 
 ## 🚨 Issues Identified & Fixed

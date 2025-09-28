@@ -57,26 +57,50 @@ export function AppLayout({ children, className }: Readonly<AppLayoutProps>) {
         {/* Main content area */}
         <div className="flex flex-1 flex-col">
           {/* Main content with padding for fixed header and sidebar */}
-          <main className={`flex-1 bg-gray-50 pt-16 transition-all duration-300 ${sidebarPaddingClass}`}>
-            {mainContent}
+          <main className={`flex-1 bg-gradient-to-br from-background via-background to-muted/20 pt-16 transition-all duration-300 ${sidebarPaddingClass}`}>
+            <div className="min-h-full">
+              {mainContent}
+            </div>
           </main>
 
-          {/* Footer */}
-          <footer className={`border-t border-gray-200 bg-white transition-all duration-300 ${footerPaddingClass}`}>
-            <div className="px-6 py-4">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <Leaf className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm text-gray-600">
-                    © 2024 KisaanCenter. All rights reserved.
-                  </span>
+          {/* Enhanced Footer */}
+          <footer className={`border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-300 ${footerPaddingClass}`}>
+            <div className="px-6 py-6">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-6 max-w-7xl mx-auto">
+                {/* Footer branding */}
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <Leaf className="h-5 w-5 text-emerald-600" />
+                    <span className="text-sm font-medium text-foreground/80">
+                      KisaanCenter
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    © 2025 Agricultural Management Platform. All rights reserved.
+                  </div>
                 </div>
                 
-                {user && (
-                  <div className="text-sm text-gray-600">
-                    Welcome back, {user.username}
+                {/* Footer status and info */}
+                <div className="flex flex-col md:flex-row items-center gap-4 text-sm">
+                  {user && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span>System Active</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-4 text-muted-foreground">
+                    <a href="#" className="hover:text-foreground transition-colors">
+                      Support
+                    </a>
+                    <a href="#" className="hover:text-foreground transition-colors">
+                      Privacy
+                    </a>
+                    <a href="#" className="hover:text-foreground transition-colors">
+                      Terms
+                    </a>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </footer>

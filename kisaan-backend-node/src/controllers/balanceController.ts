@@ -3,6 +3,8 @@ import { User, Shop } from '../models';
 import { createSettlement } from '../services/settlementService';
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { paymentService } from '../services/paymentServiceInstance';
+import { success, failureCode } from '../shared/http/respond';
+import { ErrorCodes } from '../shared/errors/errorCodes';
 
 // Helper function to get user's shop_id
 const getUserShopId = async (userId: number): Promise<number | null> => {
@@ -31,7 +33,7 @@ export class BalanceController {
       userShopId = await getUserShopId(req.user.id);
     }
     if (!userShopId) {
-      return res.status(400).json({ success: false, message: 'User shop not found' });
+  return failureCode(res, 400, ErrorCodes.SHOP_NOT_FOUND, undefined, 'User shop not found');
     }
     // Use PaymentService to create payment and update balances/snapshots
     const paymentData = {
@@ -54,14 +56,10 @@ export class BalanceController {
       type: 'payment_made',
       description: description || `Payment made to farmer ${farmer_id}`
     });
-    res.json({
-      success: true,
-      message: 'Payment added successfully',
-      payment: paymentResult
-    });
+    success(res, { payment: paymentResult }, { message: 'Payment added successfully' });
   } catch (error) {
-    console.error('Error adding payment to farmer:', error);
-    res.status(500).json({ success: false, message: 'Failed to add payment' });
+    (req as any).log?.error({ err: error }, 'addPaymentToFarmer failed');
+  failureCode(res, 500, ErrorCodes.ADD_PAYMENT_FARMER_FAILED, { error: (error as any).message }, 'Failed to add payment');
   }
 };
 
@@ -73,7 +71,7 @@ export class BalanceController {
       userShopId = await getUserShopId(req.user.id);
     }
     if (!userShopId) {
-      return res.status(400).json({ success: false, message: 'User shop not found' });
+  return failureCode(res, 400, ErrorCodes.SHOP_NOT_FOUND, undefined, 'User shop not found');
     }
     // Use PaymentService to create payment and update balances/snapshots
     const paymentData = {
@@ -96,14 +94,10 @@ export class BalanceController {
       type: 'payment_received',
       description: description || `Payment received from buyer ${buyer_id}`
     });
-    res.json({
-      success: true,
-      message: 'Payment received successfully',
-      payment: paymentResult
-    });
+    success(res, { payment: paymentResult }, { message: 'Payment received successfully' });
   } catch (error) {
-    console.error('Error adding payment from buyer:', error);
-    res.status(500).json({ success: false, message: 'Failed to record payment' });
+    (req as any).log?.error({ err: error }, 'addPaymentFromBuyer failed');
+  failureCode(res, 500, ErrorCodes.ADD_PAYMENT_BUYER_FAILED, { error: (error as any).message }, 'Failed to record payment');
   }
 };
 
@@ -116,21 +110,17 @@ export class BalanceController {
     });
     
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+  return failureCode(res, 404, ErrorCodes.USER_NOT_FOUND, undefined, 'User not found');
     }
-
-    res.json({ 
-      success: true, 
-      data: {
-        user_id: user.id,
-        username: user.username,
-        role: user.role,
-        balance: user.balance || 0
-      }
+    success(res, {
+      user_id: user.id,
+      username: user.username,
+      role: user.role,
+      balance: user.balance || 0
     });
   } catch (error) {
-    console.error('Error getting user balance:', error);
-    res.status(500).json({ success: false, message: 'Failed to get balance' });
+    (req as any).log?.error({ err: error }, 'getUserBalance failed');
+  failureCode(res, 500, ErrorCodes.GET_BALANCE_FAILED, { error: (error as any).message }, 'Failed to get balance');
   }
 };
 
@@ -140,7 +130,7 @@ export class BalanceController {
     
     const shop = await Shop.findByPk(shopId);
     if (!shop) {
-      return res.status(404).json({ success: false, message: 'Shop not found' });
+  return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND, undefined, 'Shop not found');
     }
 
     // Get all users in this shop and sum their balances
@@ -151,23 +141,20 @@ export class BalanceController {
 
     const totalBalance = users.reduce((sum, user) => sum + (user.balance || 0), 0);
 
-    res.json({ 
-      success: true, 
-      data: {
-        shop_id: shopId,
-        total_balance: totalBalance,
-        user_count: users.length,
-        users: users.map(u => ({
-          id: u.id,
-          username: u.username,
-          role: u.role,
-          balance: u.balance || 0
-        }))
-      }
+    success(res, {
+      shop_id: shopId,
+      total_balance: totalBalance,
+      user_count: users.length,
+      users: users.map(u => ({
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        balance: u.balance || 0
+      }))
     });
   } catch (error) {
-    console.error('Error getting shop balance:', error);
-    res.status(500).json({ success: false, message: 'Failed to get shop balance' });
+    (req as any).log?.error({ err: error }, 'getShopBalance failed');
+  failureCode(res, 500, ErrorCodes.GET_SHOP_BALANCE_FAILED, { error: (error as any).message }, 'Failed to get shop balance');
   }
 };
 
@@ -177,7 +164,7 @@ export class BalanceController {
     
     const user = await User.findByPk(user_id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+  return failureCode(res, 404, ErrorCodes.USER_NOT_FOUND, undefined, 'User not found');
     }
 
     const currentBalance = user.balance || 0;
@@ -188,20 +175,17 @@ export class BalanceController {
 
     await user.update({ balance: newBalance });
 
-    res.json({ 
-      success: true, 
-      data: {
-        user_id,
-        previous_balance: currentBalance,
-        change_amount: changeAmount,
-        new_balance: newBalance,
-        type,
-        description
-      }
-    });
+    success(res, {
+      user_id,
+      previous_balance: currentBalance,
+      change_amount: changeAmount,
+      new_balance: newBalance,
+      type,
+      description
+    }, { message: 'Balance updated successfully' });
   } catch (error) {
-    console.error('Error updating balance:', error);
-    res.status(500).json({ success: false, message: 'Failed to update balance' });
+    (req as any).log?.error({ err: error }, 'updateBalance failed');
+  failureCode(res, 500, ErrorCodes.UPDATE_BALANCE_FAILED, { error: (error as any).message }, 'Failed to update balance');
   }
 };
 
@@ -211,14 +195,10 @@ export class BalanceController {
     
     // For now, return empty history as we don't have a balance history table
     // In a real implementation, you'd have a balance_transactions table
-    res.json({ 
-      success: true, 
-      data: [],
-      message: 'Balance history feature not implemented yet'
-    });
+    success(res, { items: [] }, { message: 'Balance history feature not implemented yet' });
   } catch (error) {
-    console.error('Error getting balance history:', error);
-    res.status(500).json({ success: false, message: 'Failed to get balance history' });
+    (req as any).log?.error({ err: error }, 'getBalanceHistory failed');
+  failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, { error: (error as any).message }, 'Failed to get balance history');
   }
   }
 }

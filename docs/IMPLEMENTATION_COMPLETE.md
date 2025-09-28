@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: This historical implementation snapshot is superseded by `IMPLEMENTATION_COMPLETE_REPORT.md` and current architecture/flow docs.
+
+# Complete Owner Dashboard Implementation
 # Complete Owner Dashboard Implementation
 
 ## ✅ What's Been Implemented

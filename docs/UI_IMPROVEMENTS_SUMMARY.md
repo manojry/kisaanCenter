@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Consolidated UI changes will be tracked in `UI_IMPROVEMENTS_HISTORY.md`.
+
+# UI Improvements Summary
 # UI Improvements Summary
 
 ## Overview

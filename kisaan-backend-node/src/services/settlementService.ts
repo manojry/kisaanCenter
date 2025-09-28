@@ -1,3 +1,7 @@
+import { Settlement } from '../models/settlement';
+import { User } from '../models/user';
+import { Op } from 'sequelize';
+
 // FIFO repayment logic: When a payment is made, settle oldest pending settlements first
 export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repaymentAmount: number) => {
   // Fetch all pending settlements for this shop/user, oldest first
@@ -22,17 +26,14 @@ export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repay
       updates.push({ id: settlement.id, settled: settleAmt });
     } else {
       // Partial settlement: reduce amount, keep status pending
-  const newAmount = originalAmount - settleAmt;
-  await settlement.update({ amount: newAmount });
+      const newAmount = originalAmount - settleAmt;
+      await settlement.update({ amount: newAmount });
       updates.push({ id: settlement.id, partial: settleAmt });
     }
     remaining -= settleAmt;
   }
   return { updates, remaining };
 };
-import { Settlement } from '../models/settlement';
-import { User } from '../models/user';
-import { Op } from 'sequelize';
 
 export const createSettlement = async (data: {
   shop_id: number;
@@ -76,7 +77,7 @@ export const getSettlements = async (filters: {
     include: [
       {
         model: User,
-        as: 'user',
+        as: 'settlementUser',
         attributes: ['id', 'username', 'role'],
         required: false
       }

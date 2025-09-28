@@ -3,6 +3,7 @@ import { User } from '../models/user';
 import { Payment } from '../models/payment';
 import { Transaction } from '../models/transaction';
 import { PaymentAllocation } from '../models/paymentAllocation';
+import { logger } from '../shared/logging/logger';
 import { AuditLog } from '../models/auditLog';
 import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '../dtos';
 import { Op } from 'sequelize';
@@ -127,6 +128,8 @@ export class PaymentService {
     const shopId = payment.shop_id;
     const paymentAmount = Number(payment.amount || 0);
 
+    console.log('[ALLOCATE] start', { paymentId: payment.id, buyerId, shopId, paymentAmount, txRef: payment.transaction_id });
+
     // Get all outstanding transactions for this buyer in this shop (ordered by creation date)
     const transactions = await Transaction.findAll({
       where: {
@@ -136,12 +139,48 @@ export class PaymentService {
       order: [['created_at', 'ASC']]
     });
 
+    if (!transactions.length) {
+      console.log('[ALLOCATE] No transactions found for buyer/shop criteria. Skipping distribution.', { buyerId, shopId });
+    }
+
     let remainingAmount = paymentAmount;
+
+    // Fast-path: if payment references a specific transaction_id ensure at least that transaction gets allocation
+    if (payment.transaction_id) {
+      try {
+        const targetTx = await Transaction.findByPk(payment.transaction_id);
+        if (targetTx) {
+          const transactionTotal = Number((targetTx as any).total_amount || 0);
+          const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id } });
+          const alreadyPaid = existingAllocations.reduce((sum, alloc) => sum + Number(alloc.allocated_amount || 0), 0);
+          const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
+          if (outstandingAmount > 0) {
+            const allocationAmount = Math.min(remainingAmount, outstandingAmount);
+            if (allocationAmount > 0) {
+              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+              remainingAmount -= allocationAmount;
+              console.log('[ALLOCATE] Direct allocation via payment.transaction_id', { paymentId: payment.id, transactionId: targetTx.id, allocationAmount, remainingAfter: remainingAmount });
+            }
+          } else {
+            console.log('[ALLOCATE] Target transaction already fully allocated', { transactionId: targetTx.id, alreadyPaid, transactionTotal });
+          }
+        } else {
+          console.log('[ALLOCATE] Referenced transaction_id not found', { transaction_id: payment.transaction_id });
+        }
+      } catch (directErr: any) {
+        console.warn('[ALLOCATE] Direct allocation error', directErr?.message || directErr);
+      }
+    }
 
     for (const transaction of transactions) {
       if (remainingAmount <= 0) break;
 
-      const transactionTotal = Number(transaction.total_sale_value || 0);
+      // Skip if we already directly allocated full payment to this transaction
+      if (payment.transaction_id && Number(payment.transaction_id) === Number(transaction.id)) {
+        continue;
+      }
+
+  const transactionTotal = Number((transaction as any).total_amount || 0);
       
       // Calculate how much of this transaction has already been paid
       const existingAllocations = await PaymentAllocation.findAll({
@@ -195,7 +234,7 @@ export class PaymentService {
   async updatePaymentStatus(paymentId: number, data: UpdatePaymentStatusDTO, userId: number): Promise<PaymentResponseDTO | null> {
     const payment = await Payment.findByPk(paymentId);
     if (!payment) {
-      console.error(`[updatePaymentStatus] Payment not found for id:`, paymentId);
+      logger.error({ paymentId }, '[updatePaymentStatus] Payment not found');
       return null;
     }
 
@@ -206,8 +245,8 @@ export class PaymentService {
         payment_date: data.payment_date || new Date(),
         notes: data.notes !== undefined ? data.notes : payment.notes
       });
-    } catch (err) {
-      console.error(`[updatePaymentStatus] Error updating payment:`, err);
+    } catch (err: any) {
+      logger.error({ err, paymentId }, '[updatePaymentStatus] Error updating payment');
       throw err;
     }
 
@@ -255,7 +294,7 @@ export class PaymentService {
       include: [{
         model: Transaction,
         as: 'transaction',
-        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_sale_value', 'farmer_earning']
+  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
       }],
       order: [['created_at', 'ASC']]
     });
@@ -283,7 +322,7 @@ export class PaymentService {
         model: Transaction,
         as: 'transaction',
         where: { farmer_id: farmerId },
-        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_sale_value', 'farmer_earning']
+  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
       }],
       order: [['created_at', 'DESC']]
     });
@@ -316,7 +355,7 @@ export class PaymentService {
         model: Transaction,
         as: 'transaction',
         where: { buyer_id: buyerId },
-        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_sale_value', 'farmer_earning']
+  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
       }],
       order: [['created_at', 'DESC']]
     });

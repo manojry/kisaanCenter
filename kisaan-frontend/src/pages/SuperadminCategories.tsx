@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '../components/ui/dialog';
@@ -13,8 +12,9 @@ import { Label } from '../components/ui/label';
 interface Category {
   id: number;
   name: string;
-  status: 'active' | 'inactive';
-  created_at: string;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const SuperadminCategories: React.FC = () => {
@@ -22,8 +22,8 @@ const SuperadminCategories: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<{ name: string; status: 'active' | 'inactive' }>({ name: '', status: 'active' });
-  const [filters, setFilters] = useState({ status: '', search: '' });
+  const [formData, setFormData] = useState<{ name: string; description: string }>({ name: '', description: '' });
+  const [filters, setFilters] = useState({ search: '' });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; category: Category | null }>({ open: false, category: null });
 
   useEffect(() => {
@@ -193,7 +193,7 @@ const SuperadminCategories: React.FC = () => {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -203,14 +203,12 @@ const SuperadminCategories: React.FC = () => {
                     <TableRow key={category.id}>
                       <TableCell>#{category.id}</TableCell>
                       <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell>
-                        <Badge className={category.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {category.status}
-                        </Badge>
+                      <TableCell className="text-gray-600">
+                        {category.description || '-'}
                       </TableCell>
                       <TableCell>{
-                        category.created_at && !isNaN(Date.parse(category.created_at))
-                          ? new Date(category.created_at).toLocaleDateString()
+                        category.createdAt && !isNaN(Date.parse(category.createdAt))
+                          ? new Date(category.createdAt).toLocaleDateString()
                           : '-'
                       }</TableCell>
                       <TableCell>

@@ -3,76 +3,23 @@
  * Role-based navigation with responsive design
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { 
-  Menu, 
-  Home, 
-  Users, 
-  Store, 
-  Package, 
-  CreditCard,
-  BarChart3,
-  Settings,
-  Leaf,
-  ShoppingCart,
-  Truck,
-  LogOut,
-  Plus,
-  Receipt
-} from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { normalizeRole, getVisibleNavItems, getQuickActions, isActive } from '@/config/navigationConfig';
 
-// Navigation item interface
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  roles: string[];
-}
-
-// Navigation items configuration
-const NAV_ITEMS: NavItem[] = [
-  // OWNER navigation
-  { label: 'Dashboard', href: '/owner', icon: Home, roles: ['OWNER'] },
-  { label: 'Transactions', href: '/transactions', icon: ShoppingCart, roles: ['OWNER'] },
-  { label: 'Users', href: '/users', icon: Users, roles: ['OWNER'] },
-  { label: 'Payments', href: '/payments', icon: CreditCard, roles: ['OWNER'] },
-  { label: 'Balance', href: '/balance', icon: BarChart3, roles: ['OWNER'] },
-  { label: 'Reports', href: '/reports', icon: BarChart3, roles: ['OWNER'] },
-  { label: 'Expenses', href: '/expenses', icon: Receipt, roles: ['OWNER'] },
-  { label: 'Products', href: '/products', icon: Package, roles: ['OWNER'] },
-  { label: 'Settings', href: '/settings', icon: Settings, roles: ['OWNER'] },
-  { label: 'Sales', href: '/new-transaction', icon: ShoppingCart, roles: ['OWNER', 'EMPLOYEE'] },
-
-  // SUPERADMIN navigation
-  { label: 'Dashboard', href: '/superadmin', icon: Home, roles: ['SUPERADMIN'] },
-  { label: 'Shops', href: '/superadmin/shops', icon: Store, roles: ['SUPERADMIN'] },
-  { label: 'Users', href: '/superadmin/users', icon: Users, roles: ['SUPERADMIN'] },
-  { label: 'Categories', href: '/superadmin/categories', icon: Leaf, roles: ['SUPERADMIN'] },
-  { label: 'Assign Products', href: '/superadmin/shop-products', icon: Package, roles: ['SUPERADMIN'] },
-  { label: 'Reports', href: '/superadmin/reports', icon: BarChart3, roles: ['SUPERADMIN'] },
-  { label: 'Products', href: '/superadmin/products', icon: Package, roles: ['SUPERADMIN'] },
-  { label: 'Settings', href: '/superadmin/settings', icon: Settings, roles: ['SUPERADMIN'] },
-
-  // Other roles (existing)
-  { label: 'Dashboard', href: '/dashboard', icon: Home, roles: ['EMPLOYEE', 'FARMER', 'BUYER'] },
-  { label: 'Sales', href: '/new-transaction', icon: ShoppingCart, roles: ['EMPLOYEE'] },
-  { label: 'Products', href: '/products', icon: Package, roles: ['EMPLOYEE'] },
-];
 
 export function MobileNav() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-
-  // Filter navigation items based on user role
-  const visibleNavItems = NAV_ITEMS.filter(item => 
-    user && item.roles.some(role => hasRole(role as any))
-  );
+  const role = normalizeRole(user?.role);
+  const visibleNavItems = getVisibleNavItems(role, { includeQuick: true }).filter(i => !i.desktopOnly);
+  const quick = getQuickActions(role);
 
   const handleLogout = () => {
     logout();
@@ -94,84 +41,84 @@ export function MobileNav() {
           {/* Header */}
           <div className="p-3 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="bg-primary p-2 rounded-lg">
-                <Leaf className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <div className="bg-primary p-2 rounded-lg text-primary-foreground font-bold text-sm">KC</div>
               <h2 className="text-lg font-semibold text-foreground">
                 KisaanCenter
               </h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              {user.username} • {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+              {user.firstname && user.firstname.trim() ? user.firstname : user.username} • {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
             </p>
           </div>
 
           {/* Navigation - scrollable */}
-          <nav className="flex-1 overflow-y-auto pb-20">
+          <nav className="flex-1 overflow-y-auto p-2">
             <div className="space-y-0.5">
               {visibleNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.href || 
-                  (item.href === '/owner' && location.pathname.startsWith('/owner'));
+                const Icon = item.icon!; // all configured nav items here have icon
+                const active = isActive(location.pathname, item);
 
                 return (
                   <Link
-                    key={item.href}
+                    key={item.key}
                     to={item.href}
                     onClick={() => setIsOpen(false)}
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
-                      isActive
+                      active
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span>{item.label}</span>
-                    {isActive && (
+                    {active && (
                       <div className="ml-auto w-2 h-2 bg-primary-foreground rounded-full" />
                     )}
                   </Link>
                 );
               })}
+              
+              {/* Logout item styled like other nav items */}
+              <button
+                onClick={handleLogout}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 w-full text-left',
+                  'text-destructive hover:bg-destructive/10 hover:text-destructive'
+                )}
+              >
+                <LogOut className="h-5 w-5 flex-shrink-0" />
+                <span>Logout</span>
+              </button>
             </div>
             
             {/* Quick Actions Section */}
-            {user?.role === 'owner' && (
+            {quick.length > 0 && (
               <div className="mt-3 pt-2 border-t border-border">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
                   Quick Actions
                 </h3>
                 <div className="space-y-0.5">
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          onClick={() => {
-                            setIsOpen(false);
-                            window.location.href = '/new-transaction';
-                          }}
-                          className="w-full flex items-center justify-center h-10 rounded-md border-2 border-dashed border-primary text-primary font-semibold text-base hover:bg-primary/10 transition"
-                          title="Record Sale"
-                        >
-                          <ShoppingCart className="h-5 w-5 mr-2 text-primary" />
-                          Record Sale
-                        </Button>
+                  {quick.map(action => (
+                    <Button
+                      key={action.key}
+                      variant="outline"
+                      size="lg"
+                      onClick={() => {
+                        setIsOpen(false);
+                        window.location.href = action.href;
+                      }}
+                      className="w-full flex items-center justify-center h-10 rounded-md border-2 border-dashed border-primary text-primary font-semibold text-base hover:bg-primary/10 transition"
+                      title={action.label}
+                    >
+                      {action.icon && <action.icon className="h-5 w-5 mr-2 text-primary" />}
+                      {action.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
             )}
           </nav>
-
-          {/* Footer - pinned to bottom, taller for touch */}
-          <div className="absolute left-0 right-0 bottom-0 p-2 border-t border-border bg-muted/30 h-14 flex items-center">
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 h-auto py-3"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Logout</span>
-            </Button>
-          </div>
         </div>
       </SheetContent>
     </Sheet>

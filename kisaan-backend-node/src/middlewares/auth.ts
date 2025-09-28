@@ -3,6 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user';
 import { UserRole } from '../schemas/user';
+import { failureCode } from '../shared/http/respond';
+import { ErrorCodes } from '../shared/errors/errorCodes';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
@@ -29,7 +31,7 @@ export const authenticateToken = async (
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      res.status(401).json({ error: 'Access token required' });
+      failureCode(res, 401, ErrorCodes.AUTH_TOKEN_REQUIRED, undefined, 'Access token required');
       return;
     }
 
@@ -44,9 +46,10 @@ export const authenticateToken = async (
       attributes: { exclude: ['password'] },
     });
 
-    if (!user || user.status !== 'active') {
+    // User existence check only (status field removed in simplified model)
+    if (!user) {
       req.user = undefined;
-      res.status(401).json({ error: 'Invalid or inactive user' });
+      failureCode(res, 401, ErrorCodes.INVALID_USER, undefined, 'Invalid user');
       return;
     }
 
@@ -60,7 +63,7 @@ export const authenticateToken = async (
     next();
   } catch (error) {
   req.user = undefined;
-  res.status(403).json({ error: 'Invalid token' });
+  failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
   }
 };
 
@@ -71,15 +74,12 @@ export const authenticateToken = async (
 export const requireRole = (allowedRoles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({ 
-        error: 'Access denied',
-        message: `Required role: ${allowedRoles.join(' or ')}. Your role: ${req.user.role}` 
-      });
+      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { required: allowedRoles, actual: req.user.role }, `Required role: ${allowedRoles.join(' or ')}. Your role: ${req.user.role}`);
       return;
     }
 
@@ -94,7 +94,7 @@ export const requireRole = (allowedRoles: UserRole[]) => {
 export const requireShopAccess = (getShopId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
@@ -108,9 +108,11 @@ export const requireShopAccess = (getShopId?: (req: Request) => number) => {
     const requestedShopId = getShopId ? getShopId(req) : parseInt(req.params.shop_id);
     
     if (requestedShopId) {
-      // Users can only access their own shop
-      if (req.user.shop_id !== requestedShopId) {
-        res.status(403).json({ error: 'Access denied to this shop' });
+      // Users can only access their own shop - handle type coercion
+      const userShopId = req.user.shop_id ? Number(req.user.shop_id) : null;
+      if (userShopId !== requestedShopId) {
+        failureCode(res, 403, ErrorCodes.SHOP_ACCESS_DENIED, undefined, 
+          `Access denied: User shop_id (${req.user.shop_id}) does not match requested shop (${requestedShopId})`);
         return;
       }
     }
@@ -126,7 +128,7 @@ export const requireShopAccess = (getShopId?: (req: Request) => number) => {
 export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
@@ -140,7 +142,7 @@ export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
 
     // Users can only access their own data
     if (req.user.id !== requestedUserId) {
-      res.status(403).json({ error: 'Access denied' });
+      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { requiredUser: requestedUserId, actualUser: req.user.id }, 'Access denied');
       return;
     }
 

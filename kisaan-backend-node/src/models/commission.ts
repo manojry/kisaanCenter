@@ -6,19 +6,19 @@ interface CommissionAttributes {
   shop_id: number;
   rate: number;
   type: 'percentage' | 'fixed';
-  createdAt?: Date;
-  updatedAt?: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-interface CommissionCreationAttributes extends Optional<CommissionAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface CommissionCreationAttributes extends Optional<CommissionAttributes, 'id' | 'created_at' | 'updated_at'> {}
 
 export class Commission extends Model<CommissionAttributes, CommissionCreationAttributes> implements CommissionAttributes {
   public id!: number;
   public shop_id!: number;
   public rate!: number;
   public type!: 'percentage' | 'fixed';
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
 }
 
 Commission.init(
@@ -26,9 +26,8 @@ Commission.init(
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     shop_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
     rate: { type: DataTypes.DECIMAL(5,2), allowNull: false },
-    type: { type: DataTypes.ENUM('percentage', 'fixed'), allowNull: false, defaultValue: 'percentage' },
-    createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
-    updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'updated_at' },
+    type: { type: DataTypes.ENUM('percentage', 'fixed'), allowNull: false, defaultValue: 'percentage' }
+    // timestamps handled automatically; fields mapped below
   },
   {
     sequelize,

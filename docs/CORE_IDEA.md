@@ -1,3 +1,5 @@
+> ✅ **Active**: Core vision & business framing (replaces duplicative master docs sections).
+
 # KisaanCenter Digital Mandi System - Core Idea (Business and Technical)
 
 ## Problem Statement

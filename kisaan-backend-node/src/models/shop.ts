@@ -7,8 +7,12 @@ interface ShopAttributes {
   name: string;
   owner_id: number;
   plan_id?: number | null;
+  location?: string | null;
   address: string | null;
   contact: string | null;
+  email?: string | null;
+  commission_rate?: number | null;
+  settings?: any | null;
   status: 'active' | 'inactive';
   created_at?: Date;
   updated_at?: Date;
@@ -21,8 +25,12 @@ export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implemen
   public name!: string;
   public owner_id!: number;
   public plan_id!: number | null;
+  public location!: string | null;
   public address!: string | null;
   public contact!: string | null;
+  public email!: string | null;
+  public commission_rate!: number | null;
+  public settings!: any | null;
   public status!: 'active' | 'inactive';
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -49,12 +57,29 @@ Shop.init(
       allowNull: true,
       references: { model: 'kisaan_plans', key: 'id' },
     },
+    location: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     address: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
     contact: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    email: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    commission_rate: {
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0,
+    },
+    settings: {
+      type: DataTypes.JSONB,
       allowNull: true,
     },
     status: {

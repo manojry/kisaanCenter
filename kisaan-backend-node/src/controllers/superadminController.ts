@@ -11,29 +11,21 @@ export const getSuperadminDashboard = async (req: Request, res: Response) => {
       Transaction.count()
     ]);
 
-    const [activeShops, activeUsers] = await Promise.all([
-      Shop.count({ where: { status: 'active' } }),
-      User.count({ where: { status: 'active', role: { [Op.ne]: 'superadmin' } } })
-    ]);
+    // Active shops/users concept removed (status field dropped in simplified model)
+    const activeShops = totalShops;
+    const activeUsers = totalUsers;
 
     // Get aggregated revenue (sum only, no individual transactions)
     const revenueResult = await Transaction.findOne({
       attributes: [
-        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_sale_value')), 'totalRevenue'],
-        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('shop_commission')), 'totalCommission']
+  [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_amount')), 'totalRevenue'],
+  [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('commission_amount')), 'totalCommission']
       ],
       raw: true
     }) as any;
 
     // Get shop counts by status for charts
-    const shopStats = await Shop.findAll({
-      attributes: [
-        'status',
-        [Shop.sequelize!.fn('COUNT', Shop.sequelize!.col('id')), 'count']
-      ],
-      group: ['status'],
-      raw: true
-    });
+    const shopStats = [] as any[]; // status-based grouping removed
 
     // Get user counts by role for charts  
     const userStats = await User.findAll({

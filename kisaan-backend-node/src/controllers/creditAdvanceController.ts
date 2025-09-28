@@ -1,34 +1,43 @@
 import { Request, Response } from 'express';
-
-
-import * as creditAdvanceService from '../services/creditAdvanceService';
+import { creditAdvanceService } from '../services/creditAdvanceService';
 import { z } from 'zod';
-import { CreditAdvanceSchema, RepayCreditSchema } from '../schemas/creditAdvance';
+import { CreateCreditAdvanceSchema, RepayCreditAdvanceSchema } from '../schemas/creditAdvance';
+import { created, success, failureCode } from '../shared/http/respond';
+import { ErrorCodes } from '../shared/errors/errorCodes';
 
 export class CreditAdvanceController {
   async issueCredit(req: Request, res: Response) {
     try {
-      const validated = CreditAdvanceSchema.parse(req.body);
+      const validated = CreateCreditAdvanceSchema.parse(req.body);
       const credit = await creditAdvanceService.issueCredit(validated);
-      res.status(201).json({ success: true, data: credit });
+      created(res, credit);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: 'Validation failed', details: error.issues });
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
-      res.status(500).json({ success: false, error: 'Failed to issue credit', message: error.message });
+      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: error.message }, 'Failed to issue credit');
     }
   }
 
   async repayCredit(req: Request, res: Response) {
     try {
-      const validated = RepayCreditSchema.parse(req.body);
+      const validated = RepayCreditAdvanceSchema.parse(req.body);
       const credit = await creditAdvanceService.repayCredit(validated);
-      res.status(200).json({ success: true, data: credit });
+      success(res, credit, { message: 'Credit repaid successfully' });
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: 'Validation failed', details: error.issues });
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
-      res.status(500).json({ success: false, error: 'Failed to repay credit', message: error.message });
+      failureCode(res, 500, ErrorCodes.REPAY_CREDIT_FAILED, { error: error.message }, 'Failed to repay credit');
+    }
+  }
+
+  async getAllCredits(req: Request, res: Response) {
+    try {
+      const credits = await creditAdvanceService.getAllCredits();
+      success(res, credits, { message: 'Credits retrieved successfully', meta: { count: credits.length } });
+    } catch (error: any) {
+      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: error.message }, 'Failed to fetch credits');
     }
   }
 }

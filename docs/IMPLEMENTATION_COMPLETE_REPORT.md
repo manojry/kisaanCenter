@@ -1,3 +1,5 @@
+> ℹ️ **Authoritative**: This is the current canonical implementation milestone report. Older milestone docs are deprecated.
+
 # Business Journey Implementation Summary & Validation Report
 
 ## 🎯 Project Objective

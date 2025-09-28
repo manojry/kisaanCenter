@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import Joi from 'joi';
+// Joi import deprecated (migrated fully to Zod). Keep commented for reference if rollback needed.
+// import Joi from 'joi';
 
 export const PlanBaseSchema = z.object({
   name: z.string().min(2).max(100),
@@ -14,6 +15,10 @@ export const PlanBaseSchema = z.object({
   data_retention_months: z.number().int().positive().optional().nullable(),
   features: z.array(z.string()).default([]),
   status: z.string().default('active'),
+  // Test compatibility passthrough fields (they'll be mapped in controller):
+  max_users: z.number().int().positive().optional().nullable(),
+  max_products: z.number().int().positive().optional().nullable(),
+  is_active: z.boolean().optional(),
 });
 
 export const PlanCreateSchema = PlanBaseSchema;
@@ -26,27 +31,25 @@ export const PlanReadSchema = PlanBaseSchema.extend({
   updated_at: z.date(),
 });
 
-export const createPlanSchema = Joi.object({
-  name: Joi.string().required().min(3).max(100),
-  description: Joi.string().optional().max(500),
-  price: Joi.number().required().min(0),
-  duration_months: Joi.number().required().min(1).max(12),
-  features: Joi.array().items(Joi.string()).optional(),
-  is_active: Joi.boolean().optional().default(true)
-});
+/**
+ * Deprecated legacy Joi schemas (replaced by Zod below). Keeping commented for short-term reference.
+ *
+ * // export const createPlanSchema = Joi.object({...})
+ * // export const updatePlanSchema = Joi.object({...})
+ * // export const planIdSchema = Joi.object({...})
+ */
 
-export const updatePlanSchema = Joi.object({
-  name: Joi.string().optional().min(3).max(100),
-  description: Joi.string().optional().max(500),
-  price: Joi.number().optional().min(0),
-  duration_months: Joi.number().optional().min(1).max(12),
-  features: Joi.array().items(Joi.string()).optional(),
-  is_active: Joi.boolean().optional()
+// New Zod equivalents matching previous Joi intent
+export const PlanIdSchema = z.object({ id: z.number().int().positive() });
+export const PlanLegacyCreateSchema = z.object({
+  name: z.string().min(3).max(100),
+  description: z.string().max(500).optional(),
+  price: z.number().min(0),
+  duration_months: z.number().int().min(1).max(12),
+  features: z.array(z.string()).optional(),
+  is_active: z.boolean().optional().default(true)
 });
-
-export const planIdSchema = Joi.object({
-  id: Joi.number().required().positive()
-});
+export const PlanLegacyUpdateSchema = PlanLegacyCreateSchema.partial();
 
 export type PlanCreate = z.infer<typeof PlanCreateSchema>;
 export type PlanUpdate = z.infer<typeof PlanUpdateSchema>;

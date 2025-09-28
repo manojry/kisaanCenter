@@ -1,24 +1,24 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+// Simplified to align with current physical DB columns
 export interface UserAttributes {
   id: number;
   username: string;
   password: string;
   role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
   shop_id?: number | null;
-  contact?: string | null;
   email?: string | null;
   firstname?: string | null;
-  status: 'active' | 'inactive';
-  balance: number;
-  cumulative_value: number; // total earned (farmer), spent (buyer), commission (owner)
+  contact?: string | null;
+  balance: number; // running balance (positive: platform owes user, negative: user owes platform)
   created_by?: number | null;
+  custom_commission_rate?: number | null; // user-level override (e.g., farmer specific)
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'contact' | 'email' | 'created_by' | 'createdAt' | 'updatedAt'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'email' | 'created_by' | 'createdAt' | 'updatedAt'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
@@ -26,13 +26,12 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public password!: string;
   public role!: 'superadmin' | 'owner' | 'farmer' | 'buyer';
   public shop_id!: number | null;
-  public contact!: string | null;
   public email!: string | null;
   public firstname!: string | null;
-  public status!: 'active' | 'inactive';
+  public contact!: string | null;
   public balance!: number;
-  public cumulative_value!: number;
   public created_by!: number | null;
+  public custom_commission_rate!: number | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -62,10 +61,6 @@ User.init(
       allowNull: true,
       references: { model: 'kisaan_shops', key: 'id' },
     },
-    contact: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
     email: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -74,26 +69,24 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
     },
-    status: {
-      type: DataTypes.ENUM('active', 'inactive'),
-      allowNull: false,
-      defaultValue: 'active',
+    contact: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     balance: {
       type: DataTypes.DECIMAL(12,2),
       allowNull: false,
       defaultValue: 0.00,
     },
-    cumulative_value: {
-      type: DataTypes.DECIMAL(18,2),
-      allowNull: false,
-      defaultValue: 0.00,
-      comment: 'Cumulative value: total earned (farmer), total spent (buyer), total commission (owner)'
-    },
     created_by: {
       type: DataTypes.BIGINT,
       allowNull: true,
       references: { model: 'kisaan_users', key: 'id' },
+    },
+    custom_commission_rate: {
+      type: DataTypes.DECIMAL(6,2),
+      allowNull: true,
+      defaultValue: null,
     },
     createdAt: {
       type: DataTypes.DATE,
@@ -118,6 +111,9 @@ User.init(
       { unique: true, fields: ['username'] },
       { fields: ['shop_id'] },
       { fields: ['role'] },
+      // Composite indexes for common queries
+      { fields: ['shop_id', 'role'] },
+      { fields: ['shop_id', 'created_at'] },
     ],
   }
 );

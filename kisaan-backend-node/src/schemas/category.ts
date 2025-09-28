@@ -1,11 +1,8 @@
 import { z } from 'zod';
 
-export const CategoryStatusEnum = z.enum(['active', 'inactive']);
-
 export const CategoryBaseSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional().nullable(),
-  status: CategoryStatusEnum.default('active'),
 });
 
 export const CategoryCreateSchema = CategoryBaseSchema;

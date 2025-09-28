@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Eye, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, RefreshCw, Key, Phone, Mail, Building, Wallet } from 'lucide-react';
 import { usersApi } from '../services/api';
 import type { User } from '../types/api';
 import { UserForm } from '../components/owner/UserForm';
 import { useAuth } from '../context/AuthContext';
+import { useIsMobile, useIsSmallMobile } from '../hooks/useMediaQuery';
 
 const SuperadminUsers: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -23,6 +24,10 @@ const SuperadminUsers: React.FC = () => {
     status: '',
     search: ''
   });
+
+  // Responsive hooks
+  const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
 
   useEffect(() => {
     fetchUsers();
@@ -117,7 +122,10 @@ const SuperadminUsers: React.FC = () => {
     return colors[role as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number | undefined | null) => {
+    if (amount === undefined || amount === null) return '₹0';
+    return `₹${amount.toLocaleString()}`;
+  };
 
   if (showCreateForm) {
     return (
@@ -195,38 +203,45 @@ const SuperadminUsers: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 sm:space-y-6`}>
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
-          <p className="text-gray-600">Manage all platform users</p>
+          <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+            Users Management
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">Manage all platform users</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={fetchUsers}
             variant="outline"
-            size="sm"
+            size={isMobile ? "sm" : "default"}
             disabled={isLoading}
+            className="flex-1 sm:flex-none"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {!isSmallMobile && "Refresh"}
           </Button>
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button 
+            onClick={() => setShowCreateForm(true)}
+            size={isMobile ? "sm" : "default"}
+            className="flex-1 sm:flex-none"
+          >
             <Plus className="w-4 h-4 mr-2" />
-            Add User
+            {isSmallMobile ? "Add" : "Add User"}
           </Button>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
+        <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search users..."
+                placeholder={isSmallMobile ? "Search..." : "Search users..."}
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                 className="pl-10"
@@ -286,74 +301,173 @@ const SuperadminUsers: React.FC = () => {
               <p className="text-gray-500 text-lg">No users found</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Shop ID</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card Layout - Hidden on md and larger screens */}
+              <div className="block md:hidden space-y-3">
                 {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>#{user.id}</TableCell>
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.contact || '-'}</TableCell>
-                    <TableCell>{user.email || '-'}</TableCell>
-                    <TableCell>{user.shop_id ? `#${user.shop_id}` : '-'}</TableCell>
-                    <TableCell>{formatCurrency(user.balance)}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(user.status)}>
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
+                  <Card key={user.id} className="overflow-hidden border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      {/* Header with user info and status */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</h3>
+                          <p className="text-sm text-gray-500">ID #{user.id}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 ml-3">
+                          <Badge className={`${getRoleColor(user.role)} text-xs`}>
+                            {user.role}
+                          </Badge>
+                          <Badge className={`${getStatusColor(user.status)} text-xs`}>
+                            {user.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Contact info with icons */}
+                      <div className="space-y-2 mb-4">
+                        {user.contact && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="font-medium">{user.contact}</span>
+                          </div>
+                        )}
+                        {user.email && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="font-medium truncate">{user.email}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm">
+                          <Wallet className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <span className="font-medium">{formatCurrency(user.balance)}</span>
+                        </div>
+                        {user.shop_id && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="font-medium">Shop #{user.shop_id}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Action buttons - larger for mobile */}
+                      <div className="flex gap-2 pt-3 border-t border-gray-100">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1 text-xs"
+                          title="View Details"
+                        >
                           <Eye className="w-4 h-4" />
+                          {!isSmallMobile && <span className="ml-1">View</span>}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => setEditingUser(user)}
+                          className="flex-1 text-xs"
+                          title="Edit User"
                         >
                           <Edit className="w-4 h-4" />
+                          {!isSmallMobile && <span className="ml-1">Edit</span>}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => setShowPasswordReset(user)}
-                          className="text-blue-600 hover:text-blue-700"
+                          className="flex-1 text-xs text-blue-600 hover:text-blue-700"
                           title="Reset Password"
                         >
-                          🔑
+                          <Key className="w-4 h-4" />
+                          {!isSmallMobile && <span className="ml-1">Reset</span>}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline" 
                           onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="flex-1 text-xs text-red-600 hover:text-red-700"
+                          title="Delete User"
                         >
                           <Trash2 className="w-4 h-4" />
+                          {!isSmallMobile && <span className="ml-1">Delete</span>}
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </CardContent>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop Table Layout - Hidden on smaller screens */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Shop ID</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>#{user.id}</TableCell>
+                        <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
+                        <TableCell>
+                          <Badge className={getRoleColor(user.role)}>
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{user.contact || '-'}</TableCell>
+                        <TableCell>{user.email || '-'}</TableCell>
+                        <TableCell>{user.shop_id ? `#${user.shop_id}` : '-'}</TableCell>
+                        <TableCell>{formatCurrency(user.balance)}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(user.status)}>
+                            {user.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setEditingUser(user)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setShowPasswordReset(user)}
+                              className="text-blue-600 hover:text-blue-700"
+                              title="Reset Password"
+                            >
+                              <Key className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -475,10 +475,26 @@ const TransactionManagement: React.FC = () => {
                                     <div><span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)}</div>
                                   </div>
                                   <div className="col-span-1">
-                                    <div><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
-                                    <div><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
-                                    <div><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
-                                    <div><span className="font-medium">Farmer Pending:</span> {formatCurrency(transaction.farmer_due)}</div>
+                                    {(() => {
+                                      // Map backend payments to summary fields
+                                      let buyerPaid = 0, buyerPending = 0, farmerPaid = 0, farmerPending = 0;
+                                      if (transaction.payments && transaction.payments.length > 0) {
+                                        transaction.payments.forEach(p => {
+                                          if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') buyerPaid += Number(p.amount);
+                                          if (p.payer_type === 'SHOP' && p.payee_type === 'BUYER') buyerPending += Number(p.amount);
+                                          if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') farmerPaid += Number(p.amount);
+                                          if (p.payer_type === 'FARMER' && p.payee_type === 'SHOP') farmerPending += Number(p.amount);
+                                        });
+                                      }
+                                      return (
+                                        <>
+                                          <div><span className="font-medium">Buyer Paid:</span> {formatCurrency(buyerPaid)}</div>
+                                          <div><span className="font-medium">Buyer Pending:</span> {formatCurrency(buyerPending)}</div>
+                                          <div><span className="font-medium">Farmer Paid:</span> {formatCurrency(farmerPaid)}</div>
+                                          <div><span className="font-medium">Farmer Pending:</span> {formatCurrency(farmerPending)}</div>
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="col-span-1">
                                     <span className="font-medium">Payments:</span>

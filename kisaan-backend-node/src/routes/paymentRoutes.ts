@@ -8,7 +8,7 @@ const router = express.Router();
 const paymentController = new PaymentController();
 
 // Apply authentication to all routes
-// router.use(authenticateToken);
+router.use(authenticateToken);
 
 // Payment routes
 router.get('/', async (req, res) => {

@@ -6,15 +6,12 @@ export class UserEntity {
   username?: string;
   password?: string;
   role?: 'superadmin' | 'owner' | 'farmer' | 'buyer';
-  owner_id?: string | null;
   shop_id?: number | null;
-  contact?: string | null;
   email?: string | null;
   firstname?: string | null;
-  status?: 'active' | 'inactive';
   balance?: number;
-  cumulative_value?: number;
   created_by?: number | null;
+  custom_commission_rate?: number | null;
   created_at?: Date;
   updated_at?: Date;
 

@@ -36,7 +36,13 @@ export const useOwnerDashboard = () => {
     try {
   // Fetch backend-calculated dashboard stats for owner
   const statsData = await ownerDashboardApi.getStats();
-  setStats(statsData);
+  // Basic shape guard before casting
+  if (statsData && typeof statsData === 'object') {
+    setStats(prev => ({
+      ...prev,
+      ...(statsData as Partial<DashboardStats>)
+    }));
+  }
       // Optionally, fetch pending transactions if needed (legacy logic)
       setPendingTransactions([]); // Or fetch if you want to show pending transactions
     } catch (err: any) {
@@ -54,11 +60,38 @@ export const useOwnerDashboard = () => {
     fetchDashboardData();
   };
 
+  // Optimistic transaction addition
+  // Accept minimal transaction data needed to update metrics.
+  // Returns a rollback function.
+  const addTransactionOptimistic = (t: { quantity: number; price: number; commissionRate?: number }) => {
+    const total = t.quantity * t.price;
+    const commissionRate = t.commissionRate ?? 0; // If available we can pass it, else 0
+    const commission = total * commissionRate;
+
+    setStats(prev => ({
+      ...prev,
+      today_sales: prev.today_sales + total,
+      today_transactions: prev.today_transactions + 1,
+      today_commission: prev.today_commission + commission
+    }));
+
+    const rollback = () => {
+      setStats(prev => ({
+        ...prev,
+        today_sales: prev.today_sales - total,
+        today_transactions: Math.max(0, prev.today_transactions - 1),
+        today_commission: prev.today_commission - commission
+      }));
+    };
+    return rollback;
+  };
+
   return {
     stats,
     pendingTransactions,
     isLoading,
     error,
-    refreshData
+    refreshData,
+    addTransactionOptimistic
   };
 };

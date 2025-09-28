@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Point-in-time fix log. Current API progress and verification should be tracked in unified status docs.
+
+# Real API Test Fixes
 # Real API Integration Test Fixes
 
 ## Overview

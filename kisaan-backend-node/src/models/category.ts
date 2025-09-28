@@ -5,21 +5,16 @@ interface CategoryAttributes {
   id: number;
   name: string;
   description?: string | null;
-  status: 'active' | 'inactive';
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface CategoryCreationAttributes extends Optional<
-  CategoryAttributes,
-  'id' | 'description' | 'status' | 'createdAt' | 'updatedAt'
-> {}
+interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id' | 'description' | 'createdAt' | 'updatedAt'> {}
 
 export class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
   public id!: number;
   public name!: string;
   public description!: string | null;
-  public status!: 'active' | 'inactive';
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -39,11 +34,6 @@ Category.init(
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-    status: {
-      type: DataTypes.ENUM('active', 'inactive'),
-      allowNull: false,
-      defaultValue: 'active',
     },
     createdAt: {
       type: DataTypes.DATE,

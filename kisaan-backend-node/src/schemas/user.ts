@@ -15,18 +15,18 @@ export const UserBaseSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().int().optional().nullable()
   ),
-  contact: z.string().min(10).max(15).optional().nullable(),
   email: z.string().email().max(100).optional().nullable(),
-  firstname: z.string().min(2).max(50).optional(),
-  status: UserStatusEnum.default('active'),
-  owner_id: z.string().max(20).optional().nullable(),
   balance: z.number().optional(),
+  custom_commission_rate: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
+    z.number().min(0).max(100).optional().nullable()
+  ),
 });
 
 export const UserCreateSchema = UserBaseSchema.extend({
   password: z.string().min(6).max(100),
-  created_by: z.number().int().optional().nullable(),
-  firstname: z.string().min(2).max(50).optional(), // For auto-generating usernames
+    created_by: z.number().int().optional().nullable(),
+    firstname: z.string().min(1).max(64), // required
 }).superRefine((data, ctx) => {
   // Superadmin can create: superadmin, owner
   // Owner can create: farmer, buyer (with shop_id)
@@ -41,7 +41,7 @@ export const UserCreateSchema = UserBaseSchema.extend({
 
 export const UserUpdateSchema = UserBaseSchema.partial().omit({ role: true }).extend({
   password: z.string().min(6).max(100).optional(),
-  firstname: z.string().min(2).max(50).optional(),
+  firstname: z.string().min(1).max(64).optional(), // allow edit
 }); // Can't change role after creation
 
 export const UserPasswordResetSchema = z.object({
@@ -54,8 +54,6 @@ export const UserPasswordResetSchema = z.object({
 
 export const UserSearchSchema = z.object({
   role: UserRoleEnum.optional(),
-  status: UserStatusEnum.optional(),
-  owner_id: z.string().optional(),
   shop_id: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().int().optional()
@@ -75,7 +73,6 @@ export const UserReadSchema = UserBaseSchema.extend({
   created_by: z.number().int().nullable(),
   created_at: z.date(),
   updated_at: z.date(),
-  firstname: z.string().min(2).max(50).optional(),
 });
 
 // Type exports

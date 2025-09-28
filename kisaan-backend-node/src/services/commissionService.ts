@@ -1,6 +1,6 @@
 import { Commission } from '../models/commission';
 import { AuditLog } from '../models/auditLog';
-import { CreateCommissionDTO, CommissionResponseDTO, UpdateCommissionDTO } from '../dtos/CommissionDTO';
+import { CreateCommissionDTO, CommissionResponseDTO, UpdateCommissionDTO } from '../dtos';
 
 export class CommissionService {
   async createCommission(data: CreateCommissionDTO, userId: number): Promise<CommissionResponseDTO> {

@@ -211,7 +211,7 @@ export function useCredits(userId?: string) {
 
 // Dashboard hooks
 export function useDashboard(role: string, userId?: string) {
-  const endpoint = role === 'OWNER' ? '/owner/dashboard' :
+  const endpoint = role === 'OWNER' ? '/owner-dashboard/dashboard' :
                   role === 'FARMER' ? '/farmer/dashboard' :
                   role === 'BUYER' ? '/buyer/dashboard' :
                   role === 'EMPLOYEE' ? '/employee/dashboard' :

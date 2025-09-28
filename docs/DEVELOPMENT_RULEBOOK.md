@@ -1,3 +1,5 @@
+> ✅ **Active**: Primary engineering standards & conventions reference.
+
 # Development Rulebook - Market Management System
 
 ## 🎯 Overview

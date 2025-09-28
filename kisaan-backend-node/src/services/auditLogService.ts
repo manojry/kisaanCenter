@@ -28,8 +28,8 @@ export class AuditLogService {
     const auditLogs = await AuditLog.findAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'username', 'role'] },
-        { model: Shop, as: 'shop', attributes: ['id', 'name'] }
+        { model: User, as: 'auditUser', attributes: ['id', 'username', 'role'] },
+        { model: Shop, as: 'auditShop', attributes: ['id', 'name'] }
       ],
       order: [['created_at', 'DESC']],
       limit: 100

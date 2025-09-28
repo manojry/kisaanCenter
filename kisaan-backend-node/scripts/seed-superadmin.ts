@@ -8,11 +8,9 @@ export async function seedSuperadmin() {
     username: 'superadmin',
     password: passwordHash,
     role: 'superadmin',
-    status: 'active',
-    balance: 0,
-    cumulative_value: 0,
-    contact: null,
+    // Model currently defines: username, password, role, shop_id, email, balance, created_by
     email: 'superadmin@example.com',
+    balance: 0,
   });
   console.log('Seeded superadmin user');
 }

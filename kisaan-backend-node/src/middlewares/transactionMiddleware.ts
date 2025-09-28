@@ -1,6 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query, validationResult } from 'express-validator';
+import { failure } from '../shared/http/respond';
 
 // Validation middleware
 export const validateTransactionCreation = [
@@ -9,14 +10,14 @@ export const validateTransactionCreation = [
   body('buyer_id').notEmpty().withMessage('Buyer ID is required'),
   body('product_id').isInt().withMessage('Product ID must be an integer'),
   body('quantity').isFloat({ min: 0.01 }).withMessage('Quantity must be positive'),
-  body('price').isFloat({ min: 0.01 }).withMessage('Price must be positive'),
+  // Product-level price removed; unit_price handled in transaction routes separately
   body('type').optional().isIn(['sale', 'purchase', 'credit', 'return']).withMessage('Invalid transaction type'),
   body('commission_rate').optional().isFloat({ min: 0, max: 100 }).withMessage('Commission rate must be between 0-100'),
   body('payment_method').optional().isIn(['cash', 'credit', 'bank_transfer', 'upi']).withMessage('Invalid payment method'),
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return failure(res, 400, 'VALIDATION_ERROR', { errors: errors.array() });
     }
     next();
   }
@@ -26,14 +27,14 @@ export const validateTransactionUpdate = [
   param('id').isInt().withMessage('Transaction ID must be an integer'),
   body('status').optional().isIn(['pending', 'completed', 'cancelled', 'partial', 'credit', 'farmer_due']).withMessage('Invalid status'),
   body('quantity').optional().isFloat({ min: 0.01 }).withMessage('Quantity must be positive'),
-  body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be positive'),
+  // price removed
   body('farmer_paid').optional().isFloat({ min: 0 }).withMessage('Farmer paid amount must be non-negative'),
   body('buyer_paid').optional().isFloat({ min: 0 }).withMessage('Buyer paid amount must be non-negative'),
   body('payment_method').optional().isIn(['cash', 'credit', 'bank_transfer', 'upi']).withMessage('Invalid payment method'),
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return failure(res, 400, 'VALIDATION_ERROR', { errors: errors.array() });
     }
     next();
   }
@@ -46,7 +47,7 @@ export const validatePagination = [
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return failure(res, 400, 'VALIDATION_ERROR', { errors: errors.array() });
     }
     next();
   }
@@ -60,7 +61,7 @@ export const validatePaymentUpdate = [
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return failure(res, 400, 'VALIDATION_ERROR', { errors: errors.array() });
     }
     next();
   }
@@ -73,7 +74,7 @@ export const checkTransactionAccess = async (req: any, res: Response, next: Next
     const transactionId = req.params.id;
     
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return failure(res, 401, 'AUTH_REQUIRED', undefined, 'Authentication required');
     }
 
     // For now, allow access - implement proper authorization based on user role
@@ -81,7 +82,7 @@ export const checkTransactionAccess = async (req: any, res: Response, next: Next
     
     next();
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Authorization check failed' });
+    failure(res, 500, 'AUTHZ_CHECK_FAILED', { error: (error as any).message }, 'Authorization check failed');
   }
 };
 
@@ -93,11 +94,11 @@ export const validateBulkTransactionCreation = [
   body('transactions.*.buyer_id').notEmpty().withMessage('Buyer ID is required'),
   body('transactions.*.product_id').isInt().withMessage('Product ID must be an integer'),
   body('transactions.*.quantity').isFloat({ min: 0.01 }).withMessage('Quantity must be positive'),
-  body('transactions.*.price').isFloat({ min: 0.01 }).withMessage('Price must be positive'),
+  // price removed per product; expect unit_price inside transaction processor if needed
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return failure(res, 400, 'VALIDATION_ERROR', { errors: errors.array() });
     }
     next();
   }

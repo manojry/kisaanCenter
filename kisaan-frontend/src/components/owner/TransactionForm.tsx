@@ -4,14 +4,15 @@ import { useCategoriesCache } from '../../hooks/useCategoriesCache';
 import { useShopProductsCache } from '../../hooks/useShopProductsCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import Select from 'react-select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Calculator, AlertCircle } from 'lucide-react';
-import { usersApi, categoriesApi } from '../../services/api';
+// Imports for UI primitives removed after modular refactor (Label, Input, Select) handled inside subcomponents
+import { Loader2, Calculator } from 'lucide-react';
+import { usersApi, categoriesApi, transactionsApi } from '../../services/api';
+import { buildTransactionPayload } from '../../utils/buildTransactionPayload';
+import { TransactionPartySelectors, TransactionQuantityPricing, TransactionSummary, TransactionPayments } from '@/features/transactions/components';
+import { calculateTransactionAmounts } from '@/features/transactions/utils/transactionCalculations';
 import { apiClient } from '../../services/apiClient';
 import type { TransactionCreate, User, Category } from '../../types/api';
+import { useToast } from '@/hooks/use-toast';
 // Extend TransactionCreate for local form usage to include product_id
 interface TransactionFormData extends TransactionCreate {
   product_id?: number;
@@ -43,8 +44,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const { getShopProducts, setShopProducts } = useShopProductsCache();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const { toast } = useToast();
   const [formData, setFormData] = useState<TransactionFormData>({
     shop_id: user?.shop_id || 0,
     farmer_id: 0,
@@ -162,15 +163,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   };
 
   const calculateAmounts = () => {
-    const total = formData.quantity * formData.unit_price;
-    const commission = total * commissionRate;
-    const farmerEarning = total - commission;
-
-    setCalculations({
-      total_sale_value: total,
-      shop_commission: commission,
-      farmer_earning: farmerEarning
+    const result = calculateTransactionAmounts({
+      quantity: formData.quantity,
+      unit_price: formData.unit_price,
+      commissionRateDecimal: commissionRate
     });
+    setCalculations(result);
   };
 
   const validateForm = () => {
@@ -189,7 +187,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     
     if (!validateForm()) {
       return;
@@ -197,16 +194,24 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
     setIsSubmitting(true);
     try {
-      const { transaction_date, ...transactionData } = formData;
+      // Build base payload using TransactionCreate shape + additional backend-supported fields
+      // Backend computes totals but we send explicit commission_rate to avoid relying on shop default.
       const now = new Date().toISOString();
-      const payload = {
-        ...transactionData,
+      const payload = buildTransactionPayload({
         shop_id: Number(formData.shop_id),
         farmer_id: Number(formData.farmer_id),
         buyer_id: Number(formData.buyer_id),
         category_id: Number(formData.category_id),
+        product_name: formData.product_name,
+        product_id: formData.product_id,
         quantity: Number(formData.quantity),
         unit_price: Number(formData.unit_price),
+        commission_rate_decimal: commissionRate,
+        totals: {
+          total_sale_value: calculations.total_sale_value,
+          shop_commission: calculations.shop_commission,
+            farmer_earning: calculations.farmer_earning
+        },
         payments: [
           {
             payer_type: 'BUYER',
@@ -225,12 +230,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
             payment_date: now
           }
         ]
-      };
-      const response = await apiClient.post('/transactions', payload);
-      onSuccess?.(response);
+      });
+
+      const response = await transactionsApi.create(payload);
+      onSuccess?.(response.data);
     } catch (error: any) {
       console.error('Error creating transaction:', error);
-      setError(error.message || 'Failed to create transaction');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create transaction',
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -247,12 +257,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       </CardTitle>
     </CardHeader>
     <CardContent>
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -260,251 +265,57 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-          {/* Main Selection Fields - 2-column grid on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-            {/* Farmer Selection with Search */}
-              <div className="mb-2">
-                <Label htmlFor="farmer">Farmer *</Label>
-                <Select
-                  options={farmers.map(farmer => ({
-                    value: farmer.id,
-                    label: `${farmer.firstname || farmer.username} (${farmer.id})`
-                  }))}
-                  value={formData.farmer_id ? { value: formData.farmer_id, label: `${farmers.find(f => f.id === formData.farmer_id)?.firstname || farmers.find(f => f.id === formData.farmer_id)?.username} (${formData.farmer_id})` } : null}
-                  onChange={(option: { value: number; label: string } | null) => {
-                    setFormData(prev => ({ ...prev, farmer_id: option ? option.value : 0 }));
-                  }}
-                  isClearable
-                  placeholder="Search and select farmer"
-                  classNamePrefix="react-select"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb', // lighter border
-                      boxShadow: 'none',
-                      '&:hover': { borderColor: '#cbd5e1' }
-                    })
-                  }}
-                />
-                {validationErrors.farmer_id && (
-                  <p className="text-sm text-red-500">{validationErrors.farmer_id}</p>
-                )}
-              </div>
-            {/* Buyer Selection with Search */}
-              <div className="mb-2">
-                <Label htmlFor="buyer">Buyer *</Label>
-                <Select
-                  options={buyers.map(buyer => ({
-                    value: buyer.id,
-                    label: `${buyer.firstname || buyer.username} (${buyer.id})`
-                  }))}
-                  value={formData.buyer_id ? { value: formData.buyer_id, label: `${buyers.find(b => b.id === formData.buyer_id)?.firstname || buyers.find(b => b.id === formData.buyer_id)?.username} (${formData.buyer_id})` } : null}
-                  onChange={(option: { value: number; label: string } | null) => {
-                    setFormData(prev => ({ ...prev, buyer_id: option ? option.value : 0 }));
-                  }}
-                  isClearable
-                  placeholder="Search and select buyer"
-                  classNamePrefix="react-select"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb',
-                      boxShadow: 'none',
-                      '&:hover': { borderColor: '#cbd5e1' }
-                    })
-                  }}
-                />
-                {validationErrors.buyer_id && (
-                  <p className="text-sm text-red-500">{validationErrors.buyer_id}</p>
-                )}
-              </div>
-            {/* Category Selection with Search */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category *</Label>
-              <select
-                value={formData.category_id}
-                onChange={e => setFormData(prev => ({ ...prev, category_id: parseInt(e.target.value) }))}
-                className={`block w-full border rounded p-2 text-sm ${validationErrors.category_id ? 'border-red-500' : ''}`}
-              >
-                <option value="" disabled>Select category</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              {validationErrors.category_id && (
-                <p className="text-sm text-red-500">{validationErrors.category_id}</p>
-              )}
-            </div>
-            {/* Product Selection with Search */}
-            <div className="space-y-2">
-              <Label htmlFor="product">Product *</Label>
-              <div className="mb-2">
-                <Select
-                  options={products.map(product => ({
-                    value: product.id,
-                    label: `${product.name} (${product.id})`
-                  }))}
-                  value={formData.product_id ? { value: formData.product_id, label: `${formData.product_name} (${formData.product_id})` } : null}
-                  onChange={option => {
-                    if (option) {
-                      setFormData(prev => ({ ...prev, product_name: option.label.split(' (')[0], product_id: option.value }));
-                    } else {
-                      setFormData(prev => ({ ...prev, product_name: '', product_id: undefined }));
-                    }
-                  }}
-                  isClearable
-                  placeholder="Search and select product"
-                  classNamePrefix="react-select"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: state.isFocused ? '#cbd5e1' : '#e5e7eb',
-                      boxShadow: 'none',
-                      '&:hover': { borderColor: '#cbd5e1' }
-                    })
-                  }}
-                />
-              </div>
-              {validationErrors.product_name && (
-                <p className="text-sm text-red-500">{validationErrors.product_name}</p>
-              )}
-            </div>
-          </div>
+          <TransactionPartySelectors
+            farmers={farmers}
+            buyers={buyers}
+            categories={categories}
+            products={products}
+            values={{
+              farmer_id: formData.farmer_id,
+              buyer_id: formData.buyer_id,
+              category_id: formData.category_id,
+              product_id: formData.product_id,
+              product_name: formData.product_name
+            }}
+            errors={validationErrors}
+            onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
+          />
 
-          {/* Quantity and Unit Price - 2 columns on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.quantity === 0 ? '' : formData.quantity}
-                onChange={e => {
-                  const val = e.target.value;
-                  setFormData(prev => ({ ...prev, quantity: val === '' ? 0 : parseFloat(val) }));
-                }}
-                placeholder="0.00"
-                className={validationErrors.quantity ? 'border-red-500' : ''}
-                required
-              />
-              {validationErrors.quantity && (
-                <p className="text-sm text-red-500">{validationErrors.quantity}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="unit_price">Unit Price (₹) *</Label>
-              <Input
-                id="unit_price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.unit_price === 0 ? '' : formData.unit_price}
-                onChange={e => {
-                  const val = e.target.value;
-                  setFormData(prev => ({ ...prev, unit_price: val === '' ? 0 : parseFloat(val) }));
-                }}
-                placeholder="0.00"
-                className={validationErrors.unit_price ? 'border-red-500' : ''}
-                required
-              />
-              {validationErrors.unit_price && (
-                <p className="text-sm text-red-500">{validationErrors.unit_price}</p>
-              )}
-            </div>
-          </div>
+          <TransactionQuantityPricing
+            quantity={formData.quantity}
+            unit_price={formData.unit_price}
+            errors={validationErrors}
+            onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
+          />
 
 
 
           {/* Calculations & Payment Display */}
           {(formData.quantity > 0 && formData.unit_price > 0) && (
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
-              <h4 className="font-medium text-gray-900">Transaction Summary</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600">Total Sale Value</p>
-                  <p className="font-semibold text-lg">{formatCurrency(calculations.total_sale_value)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Shop Commission ({(commissionRate * 100).toFixed(2)}%)</p>
-                  <p className="font-semibold text-lg text-green-600">{formatCurrency(calculations.shop_commission)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Farmer Earning</p>
-                  <p className="font-semibold text-lg text-blue-600">{formatCurrency(calculations.farmer_earning)}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mt-4">
-                <div>
-                  <Label>Buyer Paid (to Shop)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={buyerPaid === 0 ? '' : buyerPaid}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setBuyerPaid(val === '' ? 0 : Number(Number(val).toFixed(2)));
-                    }}
-                    className="text-sm"
-                  />
-                  <Label className="mt-1">Buyer → Shop Payment Method</Label>
-                  <select
-                    className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
-                    value={buyerPaymentMethod}
-                    onChange={e => setBuyerPaymentMethod(e.target.value as any)}
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="BANK">Bank</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <Label>Farmer Paid (by Shop)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={farmerPaid === 0 ? '' : farmerPaid}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setFarmerPaid(val === '' ? 0 : Number(Number(val).toFixed(2)));
-                    }}
-                    className="text-sm"
-                  />
-                  <Label className="mt-1">Shop → Farmer Payment Method</Label>
-                  <select
-                    className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
-                    value={farmerPaymentMethod}
-                    onChange={e => setFarmerPaymentMethod(e.target.value as any)}
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="BANK">Bank</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <Label>Commission Received</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={commissionReceived === 0 ? '' : commissionReceived}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setCommissionReceived(val === '' ? 0 : Number(Number(val).toFixed(2)));
-                    }}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">You can edit payment values and payment methods before creating the transaction.</p>
-            </div>
+            <>
+              <TransactionSummary
+                total_sale_value={calculations.total_sale_value}
+                shop_commission={calculations.shop_commission}
+                farmer_earning={calculations.farmer_earning}
+                commissionRate={commissionRate}
+                onCommissionRateChange={setCommissionRate}
+                formatCurrency={formatCurrency}
+              />
+              <TransactionPayments
+                buyerPaid={buyerPaid}
+                farmerPaid={farmerPaid}
+                commissionReceived={commissionReceived}
+                buyerPaymentMethod={buyerPaymentMethod}
+                farmerPaymentMethod={farmerPaymentMethod}
+                onChange={patch => {
+                  if (patch.buyerPaid !== undefined) setBuyerPaid(patch.buyerPaid);
+                  if (patch.farmerPaid !== undefined) setFarmerPaid(patch.farmerPaid);
+                  if (patch.commissionReceived !== undefined) setCommissionReceived(patch.commissionReceived);
+                  if (patch.buyerPaymentMethod) setBuyerPaymentMethod(patch.buyerPaymentMethod);
+                  if (patch.farmerPaymentMethod) setFarmerPaymentMethod(patch.farmerPaymentMethod);
+                }}
+              />
+            </>
           )}
 
           {/* Action Buttons */}

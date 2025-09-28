@@ -85,7 +85,7 @@ BalanceSnapshot.init(
   {
     sequelize,
     modelName: 'BalanceSnapshot',
-    tableName: 'balance_snapshots',
+    tableName: 'kisaan_balance_snapshots',
     timestamps: true,
     underscored: true,
   }

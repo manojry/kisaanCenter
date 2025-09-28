@@ -14,20 +14,25 @@ import ExpensesPage from './pages/Expenses';
 import BalanceManagement from './pages/BalanceManagement';
 import PaymentManagement from './pages/PaymentManagement';
 import TransactionManagement from './pages/TransactionManagement';
+import QuickSalePage from './pages/QuickSalePage';
 import SuperadminDashboard from './pages/SuperadminDashboard';
 import SuperadminShops from './pages/SuperadminShops';
 import SuperadminUsers from './pages/SuperadminUsers';
 import SuperadminCategories from './pages/SuperadminCategories';
 import SuperadminProducts from './pages/SuperadminProducts';
+import PricingPage from './pages/PricingPage';
 import SuperadminReports from './pages/SuperadminReports';
 import SuperadminSettings from './pages/SuperadminSettings';
 import ShopProducts from './pages/ShopProducts';
 import { AuthProvider } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { UsersProvider } from './context/UsersContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import OwnerSettings from './pages/OwnerSettings';
+import { Toaster } from './components/ui/toaster';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
@@ -71,6 +76,10 @@ const AppRoutes = () => {
             <Navigate to="/dashboard" replace />
           ) : <Auth />
         } />
+        
+        {/* Public pricing page */}
+        <Route path="/pricing" element={<PricingPage />} />
+        
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
@@ -129,7 +138,7 @@ const AppRoutes = () => {
         } />
         <Route path="/new-transaction" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <NewTransactionPage />
+            <QuickSalePage />
           </ProtectedRoute>
         } />
         
@@ -149,6 +158,7 @@ const AppRoutes = () => {
             <SuperadminUsers />
           </ProtectedRoute>
         } />
+        {/* Plans moved to public pricing page at /pricing */}
         <Route path="/superadmin/categories" element={
           <ProtectedRoute allowedRoles={['superadmin']}>
             <SuperadminCategories />
@@ -185,9 +195,14 @@ const App = () => (
   <AuthProvider>
     <SidebarProvider>
       <UsersProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
+        <ThemeProvider>
+          <NotificationProvider>
+            <Router>
+              <AppRoutes />
+            </Router>
+            <Toaster />
+          </NotificationProvider>
+        </ThemeProvider>
       </UsersProvider>
     </SidebarProvider>
   </AuthProvider>

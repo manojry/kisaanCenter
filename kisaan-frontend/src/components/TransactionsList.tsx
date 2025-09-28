@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -6,28 +6,29 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Alert, AlertDescription } from './ui/alert';
-import { Calendar, Filter, RefreshCw, AlertCircle, FileText, Download, Package } from 'lucide-react';
+import { Calendar, Filter, RefreshCw, FileText, Download, Package } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import { formatCurrency, formatNumber, formatQuantity, formatDate } from '../lib/formatters';
+import { useToast } from '@/hooks/use-toast';
+import { useSharedUsers } from '../hooks/useSharedUsers';
 
 interface Transaction {
   id: number;
-  farmer_id: string;
-  farmer_name: string;
-  buyer_id: string;
-  buyer_name: string;
+  farmer_id: number;
+  buyer_id: number;
   product_id: number;
   product_name: string;
   quantity: number;
-  price: number;
-  total: number;
+  unit_price: number;
+  total_amount: number;
   commission_amount: number;
-  farmer_paid: number;
-  buyer_paid: number;
-  deficit: number;
+  farmer_earning: number;
+  commission_rate: number;
   status: string;
   transaction_date: string;
+  created_at: string;
+  updated_at: string;
+  payments: any[];
 }
 
 interface TransactionsListProps {
@@ -39,13 +40,25 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     status: '',
     date_from: '',
     date_to: '',
     search: ''
   });
+  const { toast } = useToast();
+  
+  // Get users data for name lookup
+  const { users } = useSharedUsers({ enabled: true });
+  
+  // Create user lookup maps
+  const userLookup = useMemo(() => {
+    const lookup: { [id: number]: string } = {};
+    users.forEach(user => {
+      lookup[user.id] = user.username || `User ${user.id}`;
+    });
+    return lookup;
+  }, [users]);
 
   useEffect(() => {
     fetchTransactions();
@@ -57,16 +70,22 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
 
   const fetchTransactions = async () => {
     if (!shopId) return;
-    
+
     setIsLoading(true);
-    setError(null);
-    
+
     try {
-      const response = await apiClient.get(`/transactions?shop_id=${shopId}&include_analytics=true`);
-      const transactionsData = response?.data || [];
+      let url = `/transactions?shop_id=${shopId}&include_analytics=true`;
+      if (filters.date_from) url += `&startDate=${encodeURIComponent(filters.date_from)}`;
+      if (filters.date_to) url += `&endDate=${encodeURIComponent(filters.date_to)}`;
+      const response = await apiClient.get(url) as any;
+      const transactionsData = response?.data || response || [];
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load transactions');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to load transactions',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -88,14 +107,16 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
       filtered = filtered.filter(t => new Date(t.transaction_date) <= new Date(filters.date_to));
     }
 
-    // Search filter (farmer_name, buyer_name)
+    // Search filter (farmer_name, buyer_name, product_name)
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(t => 
-        (t.farmer_name && t.farmer_name.toLowerCase().includes(searchLower)) ||
-        (t.buyer_name && t.buyer_name.toLowerCase().includes(searchLower)) ||
-        (t.product_name && t.product_name.toLowerCase().includes(searchLower))
-      );
+      filtered = filtered.filter(t => {
+        const farmerName = userLookup[t.farmer_id] || '';
+        const buyerName = userLookup[t.buyer_id] || '';
+        return farmerName.toLowerCase().includes(searchLower) ||
+               buyerName.toLowerCase().includes(searchLower) ||
+               (t.product_name && t.product_name.toLowerCase().includes(searchLower));
+      });
     }
 
     setFilteredTransactions(filtered);
@@ -135,7 +156,7 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
       shopId,
       transactions: filteredTransactions,
       dateRange: filters.date_from && filters.date_to ? `${filters.date_from} to ${filters.date_to}` : 'All Time',
-      totalSales: filteredTransactions.reduce((sum, t) => sum + t.total, 0),
+      totalSales: filteredTransactions.reduce((sum, t) => sum + t.total_amount, 0),
       totalTransactions: filteredTransactions.length
     };
 
@@ -179,10 +200,10 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
             ${reportData.transactions.map(t => `
             <tr>
                 <td>${formatDate(t.transaction_date)}</td>
-                <td>${t.farmer_name}</td>
+                <td>Farmer ${t.farmer_id}</td>
                 <td>${t.product_name}</td>
                 <td>${formatQuantity(t.quantity)}</td>
-                <td>${formatCurrency(t.total)}</td>
+                <td>${formatCurrency(t.total_amount)}</td>
                 <td>${t.status.toUpperCase()}</td>
             </tr>
             `).join('')}
@@ -215,14 +236,7 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
     );
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+
 
   return (
     <Card>
@@ -294,7 +308,7 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Farmer</TableHead>
+                  <TableHead>Parties</TableHead>
                   <TableHead className="hidden xs:table-cell">Product</TableHead>
                   <TableHead className="hidden sm:table-cell">Qty</TableHead>
                   <TableHead className="hidden md:table-cell">Total</TableHead>
@@ -305,7 +319,16 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
                 {filteredTransactions.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>{formatDate(transaction.transaction_date)}</TableCell>
-                    <TableCell className="font-medium truncate max-w-[80px]">{transaction.farmer_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="space-y-1">
+                        <div className="text-sm">
+                          <span className="text-xs text-green-600">F:</span> {userLookup[transaction.farmer_id] || `Farmer ${transaction.farmer_id}`}
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-xs text-blue-600">B:</span> {userLookup[transaction.buyer_id] || `Buyer ${transaction.buyer_id}`}
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium hidden xs:table-cell truncate max-w-[80px]">{transaction.product_name}</TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">
                       <div className="flex items-center gap-1">
@@ -313,7 +336,7 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
                         {formatQuantity(transaction.quantity)}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell font-semibold">{formatCurrency(transaction.total)}</TableCell>
+                    <TableCell className="hidden md:table-cell font-semibold">{formatCurrency(transaction.total_amount)}</TableCell>
                     <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                   </TableRow>
                 ))}

@@ -10,9 +10,9 @@ describe('Plan and Category Management Flow', () => {
   let createdShop: any;
 
   beforeAll(async () => {
-    // Ensure database connection and sync
+    // Ensure database connection only; schema is managed by migrations in global setup.
     await sequelize.authenticate();
-    await sequelize.sync({ force: false });
+    // Removed sequelize.sync to avoid duplicate index / constraint creation during tests.
   });
 
   afterAll(async () => {

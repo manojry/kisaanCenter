@@ -1,5 +1,6 @@
 
 import app from './app';
+import { logger } from './shared/logging/logger';
 import sequelize from './config/database';
 import './models'; // Import models to ensure they're initialized
 import dotenv from 'dotenv';
@@ -39,8 +40,8 @@ async function startServer() {
     });
 
     return server;
-  } catch (error) {
-    console.error('❌ Unable to start server:', error);
+  } catch (error: any) {
+    logger.error({ err: error }, 'unable to start server');
     process.exit(1);
   }
 }
@@ -51,8 +52,8 @@ process.on('SIGTERM', async () => {
   try {
     await sequelize.close();
     console.log('✅ Database connection closed.');
-  } catch (error) {
-    console.error('❌ Error closing database connection:', error);
+  } catch (error: any) {
+    logger.error({ err: error }, 'error closing database connection (SIGTERM)');
   }
   process.exit(0);
 });
@@ -62,15 +63,15 @@ process.on('SIGINT', async () => {
   try {
     await sequelize.close();
     console.log('✅ Database connection closed.');
-  } catch (error) {
-    console.error('❌ Error closing database connection:', error);
+  } catch (error: any) {
+    logger.error({ err: error }, 'error closing database connection (SIGINT)');
   }
   process.exit(0);
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason: any, promise) => {
+  logger.error({ reason, promise }, 'unhandled promise rejection');
   process.exit(1);
 });
 

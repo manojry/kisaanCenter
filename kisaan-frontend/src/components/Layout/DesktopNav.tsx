@@ -5,6 +5,7 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { normalizeRole, getVisibleNavItems, isActive } from '@/config/navigationConfig';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,
@@ -14,12 +15,8 @@ import {
   DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { 
-  Settings,
-  LogOut,
-  User,
-  ChevronDown
-} from 'lucide-react';
+import { Settings, LogOut, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // interface NavItem {
 //   label: string;
@@ -42,43 +39,38 @@ import {
 // ];
 
 export function DesktopNav() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const role = normalizeRole(user?.role);
+  const navItems = getVisibleNavItems(role).filter(i => !i.mobileOnly && !i.quick); // omit quick and mobile-only from desktop top bar
 
-  // Filter navigation items based on user role
-  // const visibleNavItems = MAIN_NAV_ITEMS.filter(item => 
-  //   user && item.roles.some(role => hasRole(role as any))
-  // );
-
-  const getUserInitials = (username: string) => {
-    return username.slice(0, 2).toUpperCase();
+  const getUserInitials = (firstname?: string | null, username?: string) => {
+    const name = (firstname && firstname.trim()) ? firstname : username || '';
+    return name.slice(0, 2).toUpperCase();
   };
 
   if (!user) return null;
 
   return (
     <nav className="hidden md:flex items-center gap-6">
-      {/* Main navigation */}
-      {/* <div className="flex items-center gap-1">
-        {visibleNavItems.map((item) => {
-          const isActive = location.pathname === item.href;
-          
+      {/* Main navigation (desktop horizontal) */}
+      <div className="flex items-center gap-1">
+        {navItems.map(item => {
+          const active = isActive(location.pathname, item);
           return (
             <Link
-              key={item.href}
+              key={item.key}
               to={item.href}
               className={cn(
                 'px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-foreground hover:bg-muted'
+                active ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
               )}
             >
               {item.label}
             </Link>
           );
         })}
-      </div> */}
+      </div>
 
       {/* User dropdown */}
       <DropdownMenu>
@@ -86,11 +78,11 @@ export function DesktopNav() {
           <Button variant="ghost" className="flex items-center gap-2 h-auto p-2">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs">
-                {getUserInitials(user.username)}
+                {getUserInitials(user.firstname, user.username)}
               </AvatarFallback>
             </Avatar>
             <div className="hidden lg:block text-left">
-              <p className="text-sm font-medium">{user.username}</p>
+              <p className="text-sm font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</p>
               <p className="text-xs text-muted-foreground">{user.role}</p>
             </div>
             <ChevronDown className="h-4 w-4" />

@@ -81,7 +81,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment to ${selectedUser.username}`,
+          notes: `Payment to ${selectedUser.firstname && selectedUser.firstname.trim() ? selectedUser.firstname : selectedUser.username}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };
@@ -92,7 +92,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment from ${selectedUser.username}`,
+          notes: `Payment from ${selectedUser.firstname && selectedUser.firstname.trim() ? selectedUser.firstname : selectedUser.username}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };

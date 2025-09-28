@@ -13,11 +13,9 @@ import { Input } from '../components/ui/input';
 import { Link } from "react-router-dom";
 import { Label } from '../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Alert, AlertDescription } from '../components/ui/alert';
 import { Badge } from '../components/ui/badge';
 import { 
   ArrowLeft,
-  AlertCircle,
   Receipt,
 } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
@@ -55,14 +53,29 @@ import { formatCurrency } from '../lib/formatters';
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+      // If storeShop is missing but user.shop_id exists, set it globally
+      if (!storeShop && user?.shop_id) {
+        // Create a minimal Shop object with required fields
+        setStoreShop({
+          id: user.shop_id,
+          name: '',
+          owner_id: user.id,
+          address: '',
+          contact: '',
+          created_at: '',
+          updated_at: '',
+          status: 'active'
+        });
+      }
       if (storeShop?.id) {
-        let users = transactionStore.getUsers(storeShop.id);
+        const shopIdStr = String(storeShop.id);
+        let users = transactionStore.getUsers(shopIdStr);
         if (!users || users.length === 0) {
           (async () => {
             // You should use a users API here, but keeping logic as is
             const usersRes: any = await expenseApi.getExpenses(storeShop.id); // Replace with getUsers API if available
             users = usersRes?.data || [];
-            transactionStore.setUsers(storeShop.id, users);
+            transactionStore.setUsers(shopIdStr, users);
           })();
         }
       }
@@ -82,8 +95,8 @@ import { formatCurrency } from '../lib/formatters';
         const firstShop = shopRes?.shops?.[0] ?? null;
         setStoreShop(firstShop);
         if (firstShop?.id) {
-          // Expenses
-          const expensesRes: any = await expenseApi.getExpenses(firstShop.id);
+          // Expenses (fetch as settlements with reason 'adjustment')
+          const expensesRes: any = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'adjustment' });
           const expensesData = expensesRes?.data || [];
           setExpenses(expensesData);
           setTotalExpenses(expensesData.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0));
@@ -97,7 +110,7 @@ import { formatCurrency } from '../lib/formatters';
           const recoverableRes: any = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'expense', status: 'pending' });
           setRecoverableExpenses(recoverableRes?.data || []);
           // Shop expenses
-          // const shopExpRes: any = await settlementsApi.getAll({ shop_id: firstShop.id, user_id: firstShop.id, reason: 'expense' });
+            // Removed unused shopExpRes variable (was: await settlementsApi.getAll({ shop_id: firstShop.id, settlementUser_id: firstShop.id, reason: 'expense' }))
     // Removed setShopExpenses, no longer needed
           // Net earnings (commission - expenses)
           setNetEarnings(expensesData.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0));
@@ -120,7 +133,7 @@ import { formatCurrency } from '../lib/formatters';
       try {
         await settlementsApi.create({
           shop_id: storeShop.id,
-          user_id: Number(fifoUserId),
+          settlementUser_id: Number(fifoUserId),
           amount: parseFloat(fifoAmount),
           reason: 'adjustment',
         });
@@ -178,12 +191,13 @@ import { formatCurrency } from '../lib/formatters';
       }
       setIsLoading(true);
       try {
-        const res = await expenseApi.addExpense({
+        const res = await settlementsApi.create({
           shop_id: storeShop.id,
-          user_id: Number(expenseUserId),
+          settlementUser_id: Number(expenseUserId),
+          owner_id: user?.id ?? undefined,
           amount: parseFloat(expenseAmount),
-          reason: expenseReason,
-          description: expenseDescription
+          reason: 'adjustment',
+          notes: expenseDescription
         });
         console.log('Expense API response:', res);
         setExpenseAmount('');
@@ -209,20 +223,30 @@ import { formatCurrency } from '../lib/formatters';
     };
 
     if (!user || user.role !== 'owner') {
-      return (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Access denied. Owner role required.</AlertDescription>
-        </Alert>
-      );
+      toast({
+        title: "Access Denied",
+        description: "Owner role required.",
+        variant: "destructive",
+      });
+      return <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-gray-600">Owner role required to access this page.</p>
+        </div>
+      </div>;
     }
     if (!user.shop_id) {
-      return (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>No shop assigned to your account. Please contact support or your administrator.</AlertDescription>
-        </Alert>
-      );
+      toast({
+        title: "Setup Required",
+        description: "No shop assigned to your account. Please contact support or your administrator.",
+        variant: "destructive",
+      });
+      return <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-semibold mb-2">Setup Required</h2>
+          <p className="text-gray-600">No shop assigned to your account. Please contact support.</p>
+        </div>
+      </div>;
     }
 
     return (

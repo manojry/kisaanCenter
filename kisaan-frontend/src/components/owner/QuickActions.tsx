@@ -1,74 +1,43 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  ShoppingCart,
-  Users,
-  Package,
-  DollarSign,
-  Plus,
-  FileText,
-  BarChart3
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { normalizeRole, getQuickActions } from '@/config/navigationConfig';
+import { ResponsiveGrid } from '@/components/ui/ResponsiveGrid';
+import { colors } from '@/config/designTokens';
 
 export const QuickActions: React.FC = () => {
   const navigate = useNavigate();
 
-  const actions = [
-    {
-      title: 'Transactions',
-      icon: ShoppingCart,
-      onClick: () => navigate('/transactions'),
-      variant: 'default' as const,
-      className: 'bg-green-600 hover:bg-green-700'
-    },
-    {
-      title: 'Manage Users',
-      icon: Users,
-      onClick: () => navigate('/users'),
-      variant: 'outline' as const
-    },
-    {
-      title: 'Manage Products',
-      icon: Package,
-      onClick: () => navigate('/products'),
-      variant: 'outline' as const
-    },
-    {
-      title: 'Record Payment',
-      icon: DollarSign,
-      onClick: () => navigate('/balance'),
-      variant: 'outline' as const
-    },
-    {
-      title: 'View Reports',
-      icon: FileText,
-      onClick: () => navigate('/reports'),
-      variant: 'outline' as const
-    },
-    {
-      title: 'Expenses',
-      icon: BarChart3,
-      onClick: () => navigate('/expenses'),
-      variant: 'outline' as const
-    }
-  ];
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+  const quick = getQuickActions(role);
+
+  if (!quick.length) return null;
 
   return (
-  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
-      {actions.map((action, index) => (
-        <Button
-          key={index}
-          onClick={action.onClick}
-          variant={action.variant}
-          className={`h-20 flex-col space-y-2 ${action.className || ''}`}
-        >
-          <action.icon className="h-6 w-6" />
-          <span className="text-sm font-medium break-words truncate max-w-[10ch] md:max-w-[16ch] lg:max-w-[20ch] text-center" style={{overflowWrap: 'anywhere'}} title={action.title}>
-            {action.title}
-          </span>
-        </Button>
-      ))}
-    </div>
+    <ResponsiveGrid minColWidth="8.5rem" className="w-full" gap="gap-3 sm:gap-4">
+      {quick.map(item => {
+  const highlight = item.key.includes('transaction');
+        return (
+          <Button
+            key={item.key}
+            onClick={() => navigate(item.href)}
+            aria-label={item.label}
+            variant={highlight ? 'default' : 'outline'}
+            className={`h-24 sm:h-24 flex flex-col items-center justify-center space-y-2 focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors text-center ${highlight ? colors.accentGreen + ' text-white' : ''}`}
+          >
+            {item.icon && <item.icon className="h-6 w-6" />}
+            <span
+              className="text-xs sm:text-sm font-medium leading-snug break-words whitespace-normal max-w-[9ch] sm:max-w-[14ch] md:max-w-[16ch]"
+              style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              title={item.label}
+            >
+              {item.label}
+            </span>
+          </Button>
+        );
+      })}
+    </ResponsiveGrid>
   );
 };

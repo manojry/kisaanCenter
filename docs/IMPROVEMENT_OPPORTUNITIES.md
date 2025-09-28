@@ -1,3 +1,5 @@
+> ✅ **Active**: This supersedes scattered historical improvement & optimization summaries.
+
 # KisaanCenter Backend: Improvement Opportunities
 
 This document summarizes the main weaknesses and actionable improvements identified across the KisaanCenter backend codebase and documentation. Use this as a refactoring and enhancement checklist for future development cycles.

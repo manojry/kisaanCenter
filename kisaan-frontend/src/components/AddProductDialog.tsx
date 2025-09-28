@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCategoriesCache } from '../hooks/useCategoriesCache';
 import { apiClient } from '../services/apiClient';
 import {
@@ -11,11 +11,12 @@ import {
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { MoneyInput } from './ui/MoneyInput';
+import { FormField } from './ui/FormField';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { useFormState } from '@/hooks/useFormState';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddProductDialogProps {
   open: boolean;
@@ -30,7 +31,7 @@ interface Category {
 }
 
 export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId }: AddProductDialogProps) {
-  const [formData, setFormData] = useState({
+  const { values: formData, handleChange, setField, reset } = useFormState({
     name: '',
     description: '',
     category_id: '',
@@ -39,7 +40,14 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
   });
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => firstFieldRef.current?.focus(), 30);
+    }
+  }, [open]);
 
   const { getCategories, setCategoriesCache } = useCategoriesCache();
 
@@ -56,24 +64,33 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get('/categories');
-      const categoriesData = Array.isArray(response) ? response : response?.data || [];
+      const response: any = await apiClient.get('/categories');
+      const categoriesData = Array.isArray(response)
+        ? response
+        : (Array.isArray(response?.data) ? response.data : []);
       setCategoriesCache(categoriesData);
       setCategories(categoriesData);
     } catch (err: any) {
-      setError('Failed to load categories');
+      toast({
+        title: 'Error',
+        description: 'Failed to load categories',
+        variant: 'destructive',
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.price || !formData.category_id) {
-      setError('Please fill in all required fields');
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsLoading(true);
-    setError(null);
 
     try {
       const productData = {
@@ -81,33 +98,45 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
         description: formData.description || null,
         category_id: parseInt(formData.category_id),
         price: parseFloat(formData.price),
-        unit: formData.unit || null,
-        shop_id: shopId
+        unit: formData.unit || null
       };
 
-      await apiClient.post('/products', productData);
+      // Create the product first
+      const productResponse = await apiClient.post('/products', productData);
+      const createdProduct = (productResponse as any)?.data || productResponse;
       
-      // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        category_id: '',
-        price: '',
-        unit: ''
+      // If product was created and we have a shopId, assign it to the shop
+      if (createdProduct?.id && shopId) {
+        try {
+          await apiClient.post(`/shops/${shopId}/products/${createdProduct.id}`);
+        } catch (assignError) {
+          console.warn('Product created but failed to assign to shop:', assignError);
+          // Still continue - product was created successfully
+        }
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Product created successfully',
+        variant: 'success',
       });
       
+      reset();
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to create product');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to create product',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null);
+    setField(field as any, value);
   };
 
   return (
@@ -121,26 +150,19 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Product Name *</Label>
+          <FormField id="name" label="Product Name" required>
             <Input
               id="name"
+              ref={firstFieldRef}
               value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
+              onChange={handleChange('name')}
               placeholder="Enter product name"
               required
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="category_id">Category *</Label>
+          <FormField id="category_id" label="Category" required>
             <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -153,43 +175,39 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price *</Label>
-              <Input
+            <FormField id="price" label="Price" required>
+              <MoneyInput
                 id="price"
-                type="number"
-                step="0.01"
                 value={formData.price}
-                onChange={(e) => handleInputChange('price', e.target.value)}
+                onRawChange={(raw) => setField('price', raw)}
+                onValueChange={(num) => setField('price', num.toFixed(2))}
+                minValue={0}
                 placeholder="0.00"
                 required
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
+            </FormField>
+            <FormField id="unit" label="Unit">
               <Input
                 id="unit"
                 value={formData.unit}
-                onChange={(e) => handleInputChange('unit', e.target.value)}
+                onChange={handleChange('unit')}
                 placeholder="kg, piece, etc."
               />
-            </div>
+            </FormField>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+          <FormField id="description" label="Description">
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={handleChange('description')}
               placeholder="Product description (optional)"
               rows={3}
             />
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

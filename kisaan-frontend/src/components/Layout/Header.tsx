@@ -1,25 +1,25 @@
-
-import { Button } from "../ui/button"
+import { Button } from "../ui/button";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Leaf, Menu, UserCircle, Home } from "lucide-react"
+import { Menu, UserCircle, Sun, Moon } from "lucide-react";
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { DesktopNav } from './DesktopNav';
-import { MobileNav } from './MobileNav';
+import { useSidebar } from '../../context/SidebarContext';
+import { Logo } from '../ui/logo';
+import { Badge } from '../ui/badge';
+import { NotificationDropdown } from '../ui/NotificationDropdown';
+import { SearchDropdown } from '../ui/SearchDropdown';
 
 const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { setIsMobileOpen } = useSidebar();
 
-  // Helper to handle nav to section from any page
-  interface HandleNavEvent extends React.MouseEvent<HTMLAnchorElement, MouseEvent> {}
-
-  type HandleNav = (e: HandleNavEvent, section: string) => void;
-
-  const handleNav: HandleNav = (e, section) => {
+  const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, section: string) => {
     e.preventDefault();
     if (location.pathname !== "/") {
       navigate(`/#${section}`);
-      // Delay scroll to allow page to load
       setTimeout(() => {
         const el = document.getElementById(section);
         if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -30,54 +30,97 @@ const Header = () => {
       else window.location.hash = `#${section}`;
     }
   };
-  const { user } = useAuth();
+  
   return (
-    <header className="bg-white border-b border-gray-200 w-full h-16">
-      <div className="flex h-16 items-center px-6 justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="bg-green-600 p-2 rounded-lg">
-            <Leaf className="h-6 w-6 text-white" />
-          </div>
-          <span className="font-bold text-xl text-gray-900">
-            KisaanCenter
-          </span>
-        </div>
-        <div className="flex items-center space-x-4">
-          {/* Show nav for logged-in users, else show landing nav and login */}
+    <header className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/40 w-full h-16 sticky top-0 z-50">
+      <div className="flex h-16 items-center px-6 justify-between max-w-7xl mx-auto">
+        <Link to="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
+          <Logo size="md" variant="default" />
+        </Link>
+        
+        <div className="flex items-center space-x-3">
           {user ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex flex-col items-end">
+                <span className="text-sm font-medium text-foreground">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs capitalize">
+                    {user.role}
+                  </Badge>
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="Online" />
+                </div>
+              </div>
               
-              {/* Desktop navigation */}
-              <DesktopNav />
-              
-              {/* Mobile navigation */}
-              <MobileNav />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="md:hidden"
+                onClick={() => setIsMobileOpen(true)}
+                aria-label="Open mobile menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+
+              <div className="hidden md:flex items-center gap-2">
+                <NotificationDropdown />
+                <SearchDropdown />
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Toggle theme"
+                  onClick={toggleTheme}
+                  title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                >
+                  {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           ) : (
             <>
-              <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-                <a href="/#features" className="text-foreground/60 hover:text-foreground transition-colors" onClick={e => handleNav(e, 'features')}>
+              <nav className="hidden lg:flex items-center space-x-8 text-sm font-medium">
+                <a href="/#features" className="text-foreground/70 hover:text-foreground transition-colors hover:underline underline-offset-4" onClick={e => handleNav(e, 'features')}>
                   Features
                 </a>
-                <a href="/#about" className="text-foreground/60 hover:text-foreground transition-colors" onClick={e => handleNav(e, 'about')}>
-                  About
+                <a href="/#about" className="text-foreground/70 hover:text-foreground transition-colors hover:underline underline-offset-4" onClick={e => handleNav(e, 'about')}>
+                  About Us
                 </a>
-                <a href="/#contact" className="text-foreground/60 hover:text-foreground transition-colors" onClick={e => handleNav(e, 'contact')}>
+                <a href="/#contact" className="text-foreground/70 hover:text-foreground transition-colors hover:underline underline-offset-4" onClick={e => handleNav(e, 'contact')}>
                   Contact
                 </a>
               </nav>
-              <div className="flex items-center space-x-2">
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/login">
-                    <UserCircle className="h-4 w-4" />
-                    Login
-                  </Link>
+              
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Toggle theme"
+                  onClick={toggleTheme}
+                  title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                >
+                  {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
-                <Button variant="emerald" size="sm">
-                  Get Started
-                </Button>
-                <Button variant="ghost" size="icon" className="block sm:block md:hidden lg:hidden xl:hidden">
-                  <Menu className="h-4 w-4" />
+                
+                <div className="hidden md:flex items-center space-x-2">
+                  <Button asChild variant="ghost" size="sm" className="font-medium">
+                    <Link to="/login">
+                      <UserCircle className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-sm">
+                    <Link to="/auth">Get Started</Link>
+                  </Button>
+                </div>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="md:hidden"
+                  onClick={() => setIsMobileOpen(true)}
+                  aria-label="Open mobile menu"
+                >
+                  <Menu className="h-5 w-5" />
                 </Button>
               </div>
             </>
@@ -85,7 +128,7 @@ const Header = () => {
         </div>
       </div>
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

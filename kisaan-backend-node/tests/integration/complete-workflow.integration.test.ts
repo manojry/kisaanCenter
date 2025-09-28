@@ -202,8 +202,8 @@ describe('KisaanCenter Complete Workflow Integration Test', () => {
       });
       expect(response.status).toBe(201);
       expect(response.data.success).toBe(true);
-      expect(Number(response.data.data.total_sale_value)).toBe(1250);
-      expect(Number(response.data.data.shop_commission)).toBe(156.25);
+  expect(Number(response.data.data.total_amount)).toBe(1250);
+  expect(Number(response.data.data.commission_amount)).toBe(156.25);
       expect(Number(response.data.data.farmer_earning)).toBe(1093.75);
       transactionId = response.data.data.id;
       // Check balances and cumulative_value after transaction (should reflect sale, not yet paid)

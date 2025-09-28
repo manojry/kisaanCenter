@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { shopProductsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ interface ShopProduct {
 }
 
 const ShopProducts: React.FC = () => {
+  const { user } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -94,7 +96,7 @@ const ShopProducts: React.FC = () => {
 
   const fetchShops = async () => {
     try {
-      const shopsData = await shopProductsApi.getShops();
+      const shopsData = await shopProductsApi.getShops(user);
       setShops(shopsData);
     } catch (error) {
       console.error('Error fetching shops:', error);
@@ -184,25 +186,42 @@ const ShopProducts: React.FC = () => {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Shop Products Assignment</h1>
-          <p className="text-gray-600">Assign categories and products to shops</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {user?.role === 'superadmin' ? 'Shop Products Assignment' : 'Shop Products'}
+          </h1>
+          <p className="text-gray-600">
+            {user?.role === 'superadmin' 
+              ? 'Assign existing products from the catalog to specific shops' 
+              : 'View products assigned to your shop'
+            }
+          </p>
+          {user?.role === 'superadmin' && (
+            <p className="text-sm text-blue-600 mt-1">
+              💡 To create new products, go to <strong>Products Management</strong> page
+            </p>
+          )}
         </div>
       </div>
 
       {/* Shop Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Shop</CardTitle>
+          <CardTitle>
+            {user?.role === 'superadmin' ? 'Select Shop' : 'Your Shop'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Select value={selectedShop ? selectedShop.toString() : ""} onValueChange={(value) => setSelectedShop(parseInt(value))}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a shop to manage products" />
+              <SelectValue placeholder={user?.role === 'superadmin' ? "Select a shop to manage products" : "Select your shop"} />
             </SelectTrigger>
             <SelectContent>
               {shops.map(shop => (
                 <SelectItem key={shop.id} value={shop.id.toString()}>
-                  {shop.name} (Owner: #{shop.owner_id})
+                  {user?.role === 'superadmin' 
+                    ? `${shop.name} (Owner: #${shop.owner_id})`
+                    : shop.name
+                  }
                 </SelectItem>
               ))}
             </SelectContent>
@@ -228,13 +247,14 @@ const ShopProducts: React.FC = () => {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Dialog open={showAssignForm} onOpenChange={setShowAssignForm}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Assign Products
-                  </Button>
-                </DialogTrigger>
+              {user?.role === 'superadmin' && (
+                <Dialog open={showAssignForm} onOpenChange={setShowAssignForm}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Assign Products
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Assign Products to Shop</DialogTitle>
@@ -300,6 +320,7 @@ const ShopProducts: React.FC = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
           </div>
 
@@ -325,7 +346,7 @@ const ShopProducts: React.FC = () => {
                       <TableHead>Product Name</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      {user?.role === 'superadmin' && <TableHead>Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -342,25 +363,27 @@ const ShopProducts: React.FC = () => {
                             {shopProduct.is_active ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleToggleProductStatus(shopProduct.product_id, shopProduct.is_active)}
-                            >
-                              {shopProduct.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleRemoveProduct(shopProduct.product_id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {user?.role === 'superadmin' && (
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleToggleProductStatus(shopProduct.product_id, shopProduct.is_active)}
+                              >
+                                {shopProduct.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleRemoveProduct(shopProduct.product_id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

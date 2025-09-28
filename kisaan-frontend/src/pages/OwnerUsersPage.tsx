@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useFarmerProductAssignment } from '../services/hooks/useFarmerProductAssignment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { usersApi } from '../services/api';
 import type { User } from '../types/api';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +17,21 @@ import { useUsers } from '../context/UsersContext';
 const OwnerUsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const { users, isLoading, refreshUsers } = useUsers();
+  
+  // Modal state for assigning products
+  const [assignProductsUser, setAssignProductsUser] = useState<User | null>(null);
+  const {
+    shopProducts,
+    assignedProductIds,
+    selectedProductIds,
+    setSelectedProductIds,
+    assignLoading,
+    fetchProductsForFarmer,
+    handleAssignProducts
+  } = useFarmerProductAssignment(currentUser?.shop_id, assignProductsUser?.id, () => {
+    setAssignProductsUser(null);
+    refreshUsers();
+  });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [filters, setFilters] = useState({
@@ -39,12 +55,12 @@ const OwnerUsersPage: React.FC = () => {
     return true;
   });
 
-  const handleUserCreated = (user: User) => {
+  const handleUserCreated = () => {
     refreshUsers();
     setShowCreateForm(false);
   };
 
-  const handleUserUpdated = (user: User) => {
+  const handleUserUpdated = () => {
     refreshUsers();
     setEditingUser(null);
   };
@@ -61,10 +77,7 @@ const OwnerUsersPage: React.FC = () => {
     }
   };
 
-  const getRoleColor = (role: string) => {
-  // Deprecated: use RoleBadge component instead
-  return '';
-  };
+
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
 
@@ -205,7 +218,7 @@ const OwnerUsersPage: React.FC = () => {
                             <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'} title={user.status}></span>
                           </span>
                         </TableCell>
-                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
                             {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
@@ -231,6 +244,20 @@ const OwnerUsersPage: React.FC = () => {
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
+                            {/* Assign Products button for farmers only */}
+                            {user.role === 'farmer' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-orange-600 hover:text-orange-700"
+                                onClick={() => {
+                                  setAssignProductsUser(user);
+                                  fetchProductsForFarmer(user.id);
+                                }}
+                              >
+                                <Plus className="w-4 h-4 mr-1" /> Assign Products
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -244,7 +271,7 @@ const OwnerUsersPage: React.FC = () => {
                   <div key={user.id} className="rounded-lg border p-2 bg-white shadow-sm w-full max-w-full mx-auto">
                     <div className="flex justify-between items-center mb-1 gap-1">
                       <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <span className="font-semibold text-sm break-words truncate max-w-[60%]">{user.username}</span>
+                        <span className="font-semibold text-sm break-words truncate max-w-[60%]">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
                         <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </Badge>
@@ -283,6 +310,50 @@ const OwnerUsersPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      
+      {/* Product Assignment Modal */}
+      {assignProductsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-bold mb-2">Assign Products to {assignProductsUser.firstname || assignProductsUser.username}</h2>
+            <div className="mb-4">
+              <div className="text-sm mb-2">Select products to assign:</div>
+              <div className="max-h-48 overflow-y-auto border rounded p-2">
+                {shopProducts.length === 0 ? (
+                  <div className="text-gray-500">No products available</div>
+                ) : (
+                  shopProducts.map((prod: any) => (
+                    <label key={prod.id} className="flex items-center gap-2 mb-1">
+                      <input
+                        type="checkbox"
+                        disabled={assignedProductIds.includes(prod.id)}
+                        checked={selectedProductIds.includes(prod.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedProductIds((prev: number[]) => [...prev, prod.id]);
+                          } else {
+                            setSelectedProductIds((prev: number[]) => prev.filter(id => id !== prod.id));
+                          }
+                        }}
+                      />
+                      <span className={assignedProductIds.includes(prod.id) ? 'line-through text-gray-400' : ''}>
+                        {prod.product_name || prod.name || ''}
+                        {assignedProductIds.includes(prod.id) && ' (Already assigned)'}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setAssignProductsUser(null)} disabled={assignLoading}>Cancel</Button>
+              <Button onClick={() => handleAssignProducts(assignProductsUser?.id, selectedProductIds)} disabled={assignLoading || selectedProductIds.length === 0} className="bg-orange-600 hover:bg-orange-700 text-white">
+                {assignLoading ? 'Assigning...' : 'Assign Selected'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

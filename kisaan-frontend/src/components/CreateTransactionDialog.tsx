@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+// Define Product type for type safety
+interface Product {
+  id: number;
+  name: string;
+  category_id: number;
+  unit?: string;
+}
 import { apiClient } from '../services/apiClient';
-import { useTransactionFormData } from '../hooks/useTransactionFormData';
+import { useTransactionFormData } from '@/hooks/useTransactionFormData';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { MoneyInput } from './ui/MoneyInput';
+import { FormField } from './ui/FormField';
+import { useFormState } from '@/hooks/useFormState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { useOwnerDashboard } from '@/hooks/useOwnerDashboard';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateTransactionDialogProps {
   open: boolean;
@@ -17,66 +26,122 @@ interface CreateTransactionDialogProps {
 }
 
 export default function CreateTransactionDialog({ open, onOpenChange, onSuccess, shopId }: CreateTransactionDialogProps) {
-  const { farmers, buyers, products, isLoading: dataLoading, error: dataError, refetch } = useTransactionFormData();
+  const { farmers, buyers, products, categories, isLoading: dataLoading, error: dataError, refetch } = useTransactionFormData();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   
-  const [formData, setFormData] = useState({
+  const { values: formData, setField, handleChange, reset } = useFormState({
     farmer_id: '',
     buyer_id: '',
+    category_id: '',
     product_id: '',
     quantity: '',
-    price: '',
-    buyer_paid: '',
-    farmer_paid: ''
+    unit_price: '',
+    commission_rate: '12'
   });
+  const { addTransactionOptimistic, refreshData } = useOwnerDashboard();
+  const { toast } = useToast();
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (open && (farmers.length === 0 || buyers.length === 0 || products.length === 0)) {
+    if (open) {
+      setTimeout(() => firstFieldRef.current?.focus(), 30);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && (farmers.length === 0 || buyers.length === 0 || categories.length === 0)) {
       refetch();
     }
-  }, [open, farmers.length, buyers.length, products.length, refetch]);
+  }, [open, farmers.length, buyers.length, categories.length, refetch]);
+
+  // Filter products by selected category
+  useEffect(() => {
+    if (formData.category_id) {
+  const categoryId = parseInt(formData.category_id);
+  const filtered = (products as Product[]).filter((product) => product.category_id === categoryId);
+      setFilteredProducts(filtered);
+      // Reset product selection if current product doesn't belong to selected category
+      if (formData.product_id) {
+  const currentProduct = (products as Product[]).find((p) => p.id === parseInt(formData.product_id));
+        if (!currentProduct || currentProduct.category_id !== categoryId) {
+          setField('product_id', '');
+        }
+      }
+    } else {
+      setFilteredProducts(products);
+    }
+  }, [formData.category_id, products, formData.product_id, setField]);
+
+  useEffect(() => {
+    if (dataError) {
+      toast({
+        title: 'Error',
+        description: dataError,
+        variant: 'destructive',
+      });
+    }
+  }, [dataError, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopId) return;
 
     setIsSubmitting(true);
-    setError(null);
 
     try {
+      const selectedProduct = products.find((p: any) => p.id === parseInt(formData.product_id));
       const payload = {
         shop_id: shopId,
         farmer_id: parseInt(formData.farmer_id),
         buyer_id: parseInt(formData.buyer_id),
-        product_id: parseInt(formData.product_id),
+        category_id: parseInt(formData.category_id),
+        product_name: selectedProduct?.name || 'Custom Product',
         quantity: parseInt(formData.quantity),
-        price: parseFloat(formData.price),
-        buyer_paid: parseFloat(formData.buyer_paid || '0'),
-        farmer_paid: parseFloat(formData.farmer_paid || '0')
+        unit_price: parseFloat(formData.unit_price),
+        commission_rate: parseFloat(formData.commission_rate)
       };
 
-      await apiClient.post('/transactions', payload);
+      // Optimistic update: assume commission rate if derivable
+      let rollback: (() => void) | undefined;
+      try {
+        rollback = addTransactionOptimistic({
+          quantity: payload.quantity,
+          price: payload.unit_price,
+          commissionRate: payload.commission_rate
+        });
+      } catch { /* no-op */ }
+
+      try {
+        await apiClient.post('/transactions', payload);
+      } catch (postErr) {
+        rollback?.();
+        throw postErr;
+      }
+      // Re-sync to get authoritative backend values (commission etc.)
+      refreshData();
+      
+      toast({
+        title: 'Success',
+        description: 'Transaction created successfully',
+      });
+      
       onSuccess();
       onOpenChange(false);
-      setFormData({
-        farmer_id: '',
-        buyer_id: '',
-        product_id: '',
-        quantity: '',
-        price: '',
-        buyer_paid: '',
-        farmer_paid: ''
-      });
+      reset();
     } catch (err: any) {
-      setError(err.message || 'Failed to create transaction');
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to create transaction',
+        variant: 'destructive',
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const selectedProduct = products.find(p => p.id === parseInt(formData.product_id));
-  const calculatedTotal = parseFloat(formData.quantity || '0') * parseFloat(formData.price || '0');
+  // derived values
+  const calculatedTotal = parseFloat(formData.quantity || '0') * parseFloat(formData.unit_price || '0');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,92 +150,100 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
           <DialogTitle>Record New Sale</DialogTitle>
         </DialogHeader>
 
-        {(error || dataError) && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error || dataError}</AlertDescription>
-          </Alert>
-        )}
+
 
         {dataLoading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-8" role="status" aria-live="polite" aria-busy="true">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-2">Loading form data...</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="farmer_id">Farmer</Label>
-            <Select value={formData.farmer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, farmer_id: value }))}>
+          <FormField id="farmer_id" label="Farmer">
+            <Select value={formData.farmer_id} onValueChange={(value) => setField('farmer_id', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select farmer" />
               </SelectTrigger>
               <SelectContent>
-                {farmers.map(farmer => (
+                {farmers.map((farmer: any) => (
                   <SelectItem key={farmer.id} value={farmer.id.toString()}>{farmer.username}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div>
-            <Label htmlFor="buyer_id">Buyer</Label>
-            <Select value={formData.buyer_id} onValueChange={(value) => setFormData(prev => ({ ...prev, buyer_id: value }))}>
+          <FormField id="buyer_id" label="Buyer">
+            <Select value={formData.buyer_id} onValueChange={(value) => setField('buyer_id', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select buyer" />
               </SelectTrigger>
               <SelectContent>
-                {buyers.map(buyer => (
+                {buyers.map((buyer: any) => (
                   <SelectItem key={buyer.id} value={buyer.id.toString()}>{buyer.username}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div>
-            <Label htmlFor="product_id">Product</Label>
-            <Select value={formData.product_id} onValueChange={(value) => {
-              setFormData(prev => ({ 
-                ...prev, 
-                product_id: value,
-                price: '' // Let user set price manually since products may not have default prices
-              }));
+          <FormField id="category_id" label="Category" required>
+            <Select value={formData.category_id} onValueChange={(value) => {
+              setField('category_id', value);
+              setField('product_id', '');
             }}>
               <SelectTrigger>
-                <SelectValue placeholder="Select product" />
+                <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {products.map(product => (
-                  <SelectItem key={product.id} value={product.id.toString()}>
-                    {product.name}
+                {categories.map((category: any) => (
+                  <SelectItem key={category.id} value={category.id.toString()}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
+
+          <FormField id="product_id" label="Product" required>
+            <Select 
+              value={formData.product_id} 
+              onValueChange={(value) => setField('product_id', value)}
+              disabled={!formData.category_id}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.category_id ? "Select product" : "Select category first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredProducts.map((product: any) => (
+                  <SelectItem key={product.id} value={product.id.toString()}>
+                    {product.name} {product.unit && `(${product.unit})`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quantity">Quantity</Label>
+            <FormField id="quantity" label="Quantity" required>
               <Input
                 id="quantity"
+                ref={firstFieldRef}
                 type="number"
                 value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                onChange={handleChange('quantity')}
                 required
               />
-            </div>
-            <div>
-              <Label htmlFor="price">Price per unit</Label>
-              <Input
+            </FormField>
+            <FormField id="price" label="Price per unit" required>
+              <MoneyInput
                 id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                value={formData.unit_price}
+                onRawChange={(raw) => setField('unit_price', raw)}
+                onValueChange={(num) => setField('unit_price', num.toFixed(2))}
+                minValue={0}
+                placeholder="0.00"
                 required
               />
-            </div>
+            </FormField>
           </div>
 
           {calculatedTotal > 0 && (
@@ -180,35 +253,34 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="buyer_paid">Buyer Paid</Label>
+            <FormField id="commission_rate" label="Commission Rate (%)" required>
               <Input
-                id="buyer_paid"
+                id="commission_rate"
+                value={formData.commission_rate}
+                onChange={(e) => setField('commission_rate', e.target.value)}
+                placeholder="Commission percentage"
                 type="number"
-                step="0.01"
-                value={formData.buyer_paid}
-                onChange={(e) => setFormData(prev => ({ ...prev, buyer_paid: e.target.value }))}
-                placeholder="0.00"
+                min="0"
+                max="100"
+                step="0.1"
+                required
               />
-            </div>
-            <div>
-              <Label htmlFor="farmer_paid">Farmer Paid</Label>
+            </FormField>
+            <FormField id="calculated_total" label="Total Amount">
               <Input
-                id="farmer_paid"
-                type="number"
-                step="0.01"
-                value={formData.farmer_paid}
-                onChange={(e) => setFormData(prev => ({ ...prev, farmer_paid: e.target.value }))}
-                placeholder="0.00"
+                id="calculated_total"
+                value={`₹${calculatedTotal.toFixed(2)}`}
+                disabled
+                className="bg-gray-50"
               />
-            </div>
+            </FormField>
           </div>
 
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoading}>
+            <Button type="submit" disabled={isSubmitting || dataLoading}>
               {isSubmitting ? 'Creating...' : 'Create Transaction'}
             </Button>
           </div>

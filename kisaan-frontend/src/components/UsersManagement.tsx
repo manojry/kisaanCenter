@@ -108,7 +108,7 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
                       <TableCell>{user.contact || '-'}</TableCell>
                       <TableCell>{user.email || '-'}</TableCell>
@@ -127,7 +127,7 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
             {users.map((user, idx) => (
               <div key={user.id} className="rounded-lg border p-4 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold text-lg break-words truncate max-w-[70%]" title={user.username}>{user.username}</span>
+                  <span className="font-semibold text-lg break-words truncate max-w-[70%]" title={user.firstname && user.firstname.trim() ? user.firstname : user.username}>{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
                   {getRoleBadge(user.role)}
                 </div>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-sm mb-2">

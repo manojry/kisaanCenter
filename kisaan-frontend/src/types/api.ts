@@ -21,13 +21,15 @@ export interface User {
   shop_id?: number;
   contact?: string;
   email?: string;
-  status: 'active' | 'inactive';
   balance: number;
-  cumulative_value: number;
+  custom_commission_rate?: number; // Updated to match backend field name
   created_by?: number;
   created_at: string;
   updated_at: string;
   firstname?: string;
+  // Computed fields from backend analytics service
+  status: 'active' | 'inactive';        // Computed user status
+  cumulative_value: number;             // Role-based total value (sales/purchases/commissions)
 }
 
 export interface UserCreate {
@@ -37,18 +39,18 @@ export interface UserCreate {
   contact?: string;
   email?: string;
   password: string;
-  status?: 'active' | 'inactive';
   balance?: number;
-  cumulative_value?: number;
+  custom_commission_rate?: number; // Updated to match backend field name
   firstname?: string; // For auto-generating usernames
+  // Note: status and cumulative_value removed - not in database schema
 }
 
 export interface Category {
   id: number;
   name: string;
-  status: 'active' | 'inactive';
-  created_at: string;
-  updated_at: string;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
@@ -68,6 +70,7 @@ export interface Shop {
   address: string;
   contact: string;
   status: 'active' | 'inactive';
+  commission_rate?: number;
   created_at: string;
   updated_at: string;
 }
@@ -81,11 +84,17 @@ export interface Transaction {
   product_name: string;
   quantity: number;
   unit_price: number;
-  total_sale_value: number;
-  shop_commission: number;
+  total_amount: number;        // Backend field name (was total_sale_value)
+  commission_amount: number;   // Backend field name (was shop_commission)
   farmer_earning: number;
-  status: 'pending' | 'completed' | 'cancelled' | 'to_collect' | 'credit' | 'partial' | 'farmer_due';
+  commission_rate?: number;    // percentage form (e.g. 10 for 10%)
+  commission_type?: string;    // Added to match backend
+  product_id?: number;         // Added to match backend
+  status: 'pending' | 'completed' | 'cancelled' | 'to_collect' | 'credit' | 'partial' | 'farmer_due' | 'active';
   transaction_date: string;
+  settlement_date?: string;    // Added to match backend
+  notes?: string;              // Added to match backend
+  metadata?: any;              // Added to match backend
   created_at: string;
   updated_at: string;
   payments: Payment[];
@@ -105,6 +114,23 @@ export interface TransactionCreate {
   quantity: number;
   unit_price: number;
   transaction_date?: string;
+}
+
+// Extended creation payload when frontend supplies derived values explicitly
+export interface TransactionCreateExtended extends TransactionCreate {
+  commission_rate?: number; // percentage input expected by backend
+  total_amount?: number;     // Updated to match backend (was total_sale_value)
+  commission_amount?: number; // Updated to match backend (was shop_commission)
+  farmer_earning?: number;
+  payments?: Array<{
+    payer_type: 'BUYER' | 'SHOP';
+    payee_type: 'SHOP' | 'FARMER';
+    amount: number;
+    status: 'PAID' | 'PENDING';
+    method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+    payment_date: string;
+    notes?: string;
+  }>;
 }
 
 export interface Payment {
@@ -184,6 +210,8 @@ export interface LoginRequest {
 export interface LoginResponse {
   success: boolean;
   message: string;
-  token: string;
-  user: User;
+  data: {
+    token: string;
+    user: User;
+  };
 }

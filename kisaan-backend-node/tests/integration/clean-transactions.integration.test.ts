@@ -32,8 +32,8 @@ describe('Clean Transaction Model Integration', () => {
         expect(res.status).toBe(201);
         expect(res.data.success).toBe(true);
         expect(res.data.data).toHaveProperty('id');
-        expect(res.data.data).toHaveProperty('total_sale_value', 250.00);
-        expect(res.data.data).toHaveProperty('shop_commission');
+  expect(res.data.data).toHaveProperty('total_amount', 250.00);
+  expect(res.data.data).toHaveProperty('commission_amount');
         expect(res.data.data).toHaveProperty('farmer_earning');
         
         createdTransactionId = res.data.data.id;
@@ -51,11 +51,11 @@ describe('Clean Transaction Model Integration', () => {
           headers: { Authorization: `Bearer ${adminToken}` }
         });
         
-        const transaction = res.data.data;
-        const expectedCommission = transaction.total_sale_value * 0.10; // 10% default
-        const expectedFarmerEarning = transaction.total_sale_value - expectedCommission;
+  const transaction = res.data.data;
+  const expectedCommission = transaction.total_amount * 0.10; // 10% default
+  const expectedFarmerEarning = transaction.total_amount - expectedCommission;
         
-        expect(transaction.shop_commission).toBeCloseTo(expectedCommission, 2);
+  expect(transaction.commission_amount).toBeCloseTo(expectedCommission, 2);
         expect(transaction.farmer_earning).toBeCloseTo(expectedFarmerEarning, 2);
       } catch (error: any) {
         console.warn('Commission calculation check failed:', error.response?.data);

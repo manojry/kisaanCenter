@@ -6,4 +6,6 @@ export const config = {
   isProduction: import.meta.env.PROD,
 };
 
+export const OWNER_DASHBOARD_API = `${config.apiBaseUrl}/owner-dashboard/dashboard`;
+
 export default config;

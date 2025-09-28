@@ -1,4 +1,5 @@
 import { Category } from '../models/category';
+import { logger } from '../shared/logging/logger';
 
 export const seedCategories = async () => {
   const categories = [
@@ -28,7 +29,7 @@ if (require.main === module) {
     console.log('Category seeding completed');
     process.exit(0);
   }).catch(error => {
-    console.error('Error seeding categories:', error);
+    logger.error({ err: error }, 'Error seeding categories');
     process.exit(1);
   });
 }

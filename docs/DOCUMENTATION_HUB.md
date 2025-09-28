@@ -1,3 +1,5 @@
+> ✅ **Active Hub**: Central index. Deprecated files are bannered. See `DOCS_STATUS.md` for lifecycle states.
+
 # 🌾 KisaanCenter Market Management System - Documentation Hub
 
 
@@ -14,6 +16,8 @@ All frontend documentation is now consolidated in `frontend/docs`:
 1. **[Frontend README](../frontend/docs/README.md)** - Overview and architecture
 2. **[Frontend Development & API Guide](../frontend/docs/FRONTEND_DEVELOPMENT_AND_API_GUIDE.md)** - Developer guide and API usage
 3. **[Mobile UI Guide](../frontend/docs/MOBILE_UI_README.md)** - Mobile-first design and component documentation
+ 4. **[Frontend Architecture (Core Layers)](./FRONTEND_ARCHITECTURE.md)** - Current layering, patterns, helpers & endpoint consolidation strategy
+ 5. **[Transaction Flow & Derived Fields](./TRANSACTION_FLOW.md)** - End-to-end payload building, derived value logic, and related endpoints
 
 ---
 

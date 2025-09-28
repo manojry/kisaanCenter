@@ -1,18 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { LoginSchema } from '../schemas/auth';
-import { loginUser } from '../services/authService';
+import { AuthService } from '../services/authService';
+import { validate, ValidationFailure } from '../shared/validation/validate';
+import { success, failure } from '../shared/http/respond';
+import { z } from 'zod';
 
 class AuthController {
+  private authService: AuthService;
+
+  constructor() {
+    this.authService = new AuthService();
+  }
+
   async loginController(req: Request, res: Response, next: NextFunction) {
     try {
-      const parsed = LoginSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.issues });
+      req.log?.info({ bodyKeys: Object.keys(req.body || {}) }, 'auth:login attempt');
+      const data = validate(LoginSchema, req.body);
+      const result = await this.authService.loginUser(data);
+      return success(res, result, { message: 'Login successful' });
+    } catch (err: any) {
+      req.log?.error({ err }, 'auth:login failed');
+      if (err instanceof ValidationFailure || err instanceof z.ZodError) {
+        return failure(res, 400, 'Validation failed', (err as any).issues);
       }
-      const result = await loginUser(parsed.data);
-      res.json(result);
-    } catch (err) {
-      next(err);
+      return next(err);
     }
   }
 

@@ -1,26 +1,41 @@
+
+// =============================================
+// SCHEMA MANAGEMENT NOTICE
+// =============================================
+// Database schema is now managed by ./schema/schema-manager.js
+// Do NOT use sequelize.sync() or force sync in production
+// Use: npm run schema:init for schema initialization
+// =============================================
+
 import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env from project root
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load .env from project root - handle both dev and production paths
+const envPath = process.env.NODE_ENV === 'production' 
+  ? path.resolve(__dirname, '../../../.env') 
+  : path.resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
 
-const dbDialect = process.env.DB_DIALECT || 'sqlite';
-const dbName = process.env.DB_NAME || 'kisaan_dev.db';
-const dbUser = process.env.DB_USER || '';
+console.log('[ENV] Loading from:', envPath);
+
+const dbDialect = process.env.DB_DIALECT || 'postgres';
+const dbName = process.env.DB_NAME || 'kisaan_dev';
+const dbUser = process.env.DB_USER || 'postgres';
 const dbPassword = process.env.DB_PASSWORD || '';
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = parseInt(process.env.DB_PORT || '5432');
 const sslMode = process.env.DB_SSL_MODE || '';
 
-console.log('[DB CONFIG]', {
+console.log('[DB CONFIG] Environment variables loaded:', {
   DB_HOST: dbHost,
   DB_NAME: dbName,
   DB_USER: dbUser,
-  DB_PASSWORD: dbPassword ? '***' : '',
+  DB_PASSWORD: dbPassword ? '***masked***' : 'empty',
   DB_PORT: dbPort,
   DB_DIALECT: dbDialect,
   DB_SSL_MODE: sslMode,
+  ENV_PATH: envPath
 });
 
 const sequelize = new Sequelize(dbName, dbUser, dbPassword, {

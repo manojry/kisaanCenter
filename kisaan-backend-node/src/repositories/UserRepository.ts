@@ -1,0 +1,91 @@
+import { BaseRepository } from './BaseRepository';
+import { User } from '../models/user';
+import { UserEntity } from '../entities/UserEntity';
+
+/**
+ * User Repository Implementation
+ */
+export class UserRepository extends BaseRepository<User, UserEntity> {
+  protected model = User;
+  protected entityName = 'User';
+
+  /**
+   * Convert database model to domain entity
+   */
+  protected toDomainEntity(model: User): UserEntity {
+    return new UserEntity({
+      id: model.id,
+      username: model.username,
+      password: model.password,
+      email: model.email,
+      role: model.role as any,
+      shop_id: model.shop_id,
+      balance: model.balance,
+      created_at: model.createdAt,
+      updated_at: model.updatedAt,
+      created_by: model.created_by,
+      custom_commission_rate: (model as any).custom_commission_rate ?? null
+    });
+  }
+
+  /**
+   * Convert domain entity to database model data
+   */
+  protected toModelData(entity: Partial<UserEntity>): any {
+    return {
+      username: entity.username,
+      email: entity.email,
+      role: entity.role,
+      shop_id: entity.shop_id,
+      balance: entity.balance,
+      created_by: entity.created_by
+      ,custom_commission_rate: (entity as any).custom_commission_rate
+    };
+  }
+
+  /**
+   * Find user by username
+   */
+  async findByUsername(username: string): Promise<UserEntity | null> {
+    const model = await this.model.findOne({
+      where: { username }
+    });
+
+    return model ? this.toDomainEntity(model) : null;
+  }
+
+  /**
+   * Find users by shop
+   */
+  async findByShop(shopId: number): Promise<UserEntity[]> {
+    const models = await this.model.findAll({
+      where: { shop_id: shopId }
+    });
+
+  return models.map((model: User) => this.toDomainEntity(model));
+  }
+
+  /**
+   * Find users by role
+   */
+  async findByRole(role: string): Promise<UserEntity[]> {
+    const models = await this.model.findAll({
+      where: { role }
+    });
+
+  return models.map((model: User) => this.toDomainEntity(model));
+  }
+
+  /**
+   * Check if username exists
+   */
+  async usernameExists(username: string, excludeId?: number): Promise<boolean> {
+    const where: any = { username };
+    if (excludeId) {
+      where.id = { [require('sequelize').Op.ne]: excludeId };
+    }
+
+    const count = await this.model.count({ where });
+    return count > 0;
+  }
+}

@@ -1,3 +1,6 @@
+> ⚠️ **Deprecated**: Optimization items should migrate into consolidated technical debt/improvement tracking.
+
+# Optimization Summary
 # 🎯 Optimization Summary - Market Management System
 
 ## 📊 **What Was Optimized**

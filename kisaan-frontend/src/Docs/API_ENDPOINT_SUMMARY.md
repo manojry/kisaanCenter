@@ -104,7 +104,7 @@ With the addition of **Transaction Management** and **Stock Management** endpoin
 - `GET /api/v1/credits/{credit_id}` - Get credit by ID
 
 #### Missing Role-Specific Dashboards:
-- `GET /api/v1/owner/dashboard` - Owner dashboard
+- `GET /api/owner-dashboard/dashboard` - Owner dashboard
 - `GET /api/v1/farmer/dashboard` - Farmer dashboard  
 - `GET /api/v1/buyer/dashboard` - Buyer dashboard
 - `GET /api/v1/employee/dashboard` - Employee dashboard
