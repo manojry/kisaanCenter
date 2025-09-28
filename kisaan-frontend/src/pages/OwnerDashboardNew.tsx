@@ -40,7 +40,7 @@ const OwnerDashboardNew: React.FC = () => {
   }
 
   return (
-    <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-2 sm:p-6 space-y-4 sm:space-y-6 bg-blue-50 min-h-screen">
       {/* Header - Responsive for mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>

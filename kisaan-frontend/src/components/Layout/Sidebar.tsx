@@ -19,8 +19,7 @@ function getActiveIconColor(itemKey: string): string {
     'owner-transactions': 'text-slate-400 group-hover:text-green-500',
     'owner-payments': 'text-slate-400 group-hover:text-green-500',
     'owner-balance': 'text-slate-400 group-hover:text-green-500',
-  'owner-new-transaction': 'text-slate-400 group-hover:text-green-500',
-  'simple-transactions': 'text-emerald-600',
+    'simple-transactions': 'text-emerald-600',
     
     // Users & Team - Purple
     'owner-users': 'text-purple-600',
@@ -58,7 +57,6 @@ function getInactiveIconColor(itemKey: string): string {
     'owner-transactions': 'text-green-400 group-hover:text-green-500',
     'owner-payments': 'text-green-400 group-hover:text-green-500',
     'owner-balance': 'text-green-400 group-hover:text-green-500',
-    'owner-new-transaction': 'text-green-400 group-hover:text-green-500',
     
     // Users & Team - Purple
     'owner-users': 'text-purple-400 group-hover:text-purple-500',
@@ -96,7 +94,6 @@ function getActiveBackgroundColor(itemKey: string): string {
     'owner-transactions': 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm border border-green-200/50',
     'owner-payments': 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm border border-green-200/50',
     'owner-balance': 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm border border-green-200/50',
-    'owner-new-transaction': 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm border border-green-200/50',
     'simple-transactions': 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 shadow-sm border border-emerald-200/50',
     
     // Users & Team - Purple
@@ -135,7 +132,6 @@ function getActiveDotColor(itemKey: string): string {
     'owner-transactions': 'bg-green-500',
     'owner-payments': 'bg-green-500',
     'owner-balance': 'bg-green-500',
-    'owner-new-transaction': 'bg-green-500',
     'simple-transactions': 'bg-emerald-500',
     
     // Users & Team - Purple

@@ -5,7 +5,7 @@ import Auth from './pages/Auth';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import OwnerDashboardNew from './pages/OwnerDashboardNew';
-import NewTransactionPage from './pages/NewTransactionPage';
+
 import NotFound from './pages/NotFound';
 import ProductsPage from './pages/Products';
 import OwnerUsersPage from './pages/OwnerUsersPage';
@@ -89,12 +89,12 @@ const AppRoutes = () => {
         {/* Owner Routes */}
         <Route path="/owner" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <OwnerDashboardNew />
+            <OwnerDashboardNew  key="owner-dashboard"/>
           </ProtectedRoute>
         } />
         <Route path="/transactions" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <TransactionManagement />
+            <TransactionManagement key="transactions" />
           </ProtectedRoute>
         } />
         <Route path="/users" element={
@@ -136,8 +136,8 @@ const AppRoutes = () => {
             <OwnerSettings />
           </ProtectedRoute>
         } />
-        <Route path="/new-transaction" element={
-          <ProtectedRoute allowedRoles={['owner']}>
+        <Route path="/simple-transactions" element={
+          <ProtectedRoute allowedRoles={['owner', 'employee']}>
             <QuickSalePage />
           </ProtectedRoute>
         } />

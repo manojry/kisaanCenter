@@ -3,8 +3,7 @@
  * Mobile-first responsive design with role-based navigation
  */
 
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSidebar } from '../../context/SidebarContext';
 
@@ -13,13 +12,13 @@ import { Sidebar } from './Sidebar';
 import { Leaf } from 'lucide-react';
 
 interface AppLayoutProps {
-  readonly children?: React.ReactNode;
   readonly className?: string;
 }
 
-export function AppLayout({ children, className }: Readonly<AppLayoutProps>) {
+export function AppLayout({ className }: Readonly<AppLayoutProps>) {
   const { user } = useAuth();
   const { isCollapsed } = useSidebar();
+  const location = useLocation();
   const showSidebar = user?.role === 'owner' || user?.role === 'superadmin';
 
   // Extract sidebar padding class from nested ternary
@@ -30,7 +29,7 @@ export function AppLayout({ children, className }: Readonly<AppLayoutProps>) {
     : '';
 
   // Extract main content to avoid nested ternary in JSX
-  const mainContent = children ? children : <Outlet />;
+  const mainContent = <Outlet key={location.pathname} />;
 
   // Extract footer padding class from nested ternary
   const footerPaddingClass = showSidebar

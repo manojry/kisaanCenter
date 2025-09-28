@@ -13,6 +13,7 @@ import { TransactionPartySelectors, TransactionQuantityPricing, TransactionSumma
 import { calculateTransactionAmounts } from '@/features/transactions/utils/transactionCalculations';
 import type { TransactionCreate } from '../types/api';
 import { Loader2, Calculator } from 'lucide-react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface Product { 
   id: number; 
@@ -26,7 +27,7 @@ interface TransactionFormData extends TransactionCreate {
   product_id?: number;
 }
 
-export default function QuickSalePage() {
+function QuickSalePageInner() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -107,12 +108,12 @@ export default function QuickSalePage() {
         }
       }
       setProducts((shopProducts || []).map(p => ({
-  ...p,
-  name: p.name || p.product_name
+        ...p,
+        name: p.name || p.product_name
       })));
     };
     loadShopProducts();
-  }, [user?.shop_id, categories, setShopProducts, getShopProducts]);
+  }, [user?.shop_id, categories]);
   
   // Update products when farmer is selected - show farmer's products first
   useEffect(() => {
@@ -168,8 +169,8 @@ export default function QuickSalePage() {
         // Fallback to shop products
         const shopProducts = getShopProducts(user.shop_id) || [];
         setProducts((shopProducts || []).map(p => ({
-  ...p,
-  name: p.name || p.product_name
+          ...p,
+          name: p.name || p.product_name
         })));
       }
     };
@@ -257,7 +258,7 @@ export default function QuickSalePage() {
       };
       const response = await simplifiedApi.createTransaction(transactionData);
       
-      if (response.success) {
+  if (response.success) {
         toast({
           title: '✅ Sale Created Successfully!',
           description: `Total: ₹${calculations.total_sale_value.toFixed(2)} | Payments recorded`,
@@ -392,5 +393,13 @@ export default function QuickSalePage() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export default function QuickSalePage() {
+  return (
+    <ErrorBoundary>
+      <QuickSalePageInner />
+    </ErrorBoundary>
   );
 }
