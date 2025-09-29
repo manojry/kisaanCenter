@@ -41,7 +41,36 @@ export function MobileNav() {
           {/* Header */}
           <div className="p-3 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="bg-primary p-2 rounded-lg text-primary-foreground font-bold text-sm">KC</div>
+              <svg 
+                className="h-8 w-8" 
+                viewBox="0 0 44 44"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="mobileNavIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+                    <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+                    <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+                  </linearGradient>
+                </defs>
+                
+                <circle cx="22" cy="22" r="22" fill="url(#mobileNavIconGradient)" />
+                
+                <g fill="white" opacity="0.95">
+                  <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24" 
+                        stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  
+                  <circle cx="16" cy="14" r="1.5"/>
+                  <circle cx="15" cy="17" r="1.5"/>
+                  <circle cx="16" cy="20" r="1.5"/>
+                  <circle cx="17" cy="23" r="1.5"/>
+                  
+                  <circle cx="28" cy="14" r="1.5"/>
+                  <circle cx="29" cy="17" r="1.5"/>
+                  <circle cx="28" cy="20" r="1.5"/>
+                  <circle cx="27" cy="23" r="1.5"/>
+                </g>
+              </svg>
               <h2 className="text-lg font-semibold text-foreground">
                 KisaanCenter
               </h2>

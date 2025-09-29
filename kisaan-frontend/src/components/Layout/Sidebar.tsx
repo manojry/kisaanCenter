@@ -169,28 +169,31 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Removed fixed sidebar hamburger menu button for desktop */}
+      {/* Toggle button for desktop - rendered outside sidebar for max visibility */}
+      <div
+        style={{ position: 'fixed', top: 80, left: isCollapsed ? 64 : 256, zIndex: 99999 }}
+        className="hidden md:flex"
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 rounded-full border bg-white shadow-md hover:shadow-lg transition-shadow"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
 
       {/* Sidebar - ensure z-50 when mobile open */}
       <div
         className={cn(
-          "flex flex-col bg-white border-r border-gray-200 transition-all duration-300",
+          "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden",
           "fixed left-0 top-16",
           isCollapsed ? "w-16" : "w-64",
           isMobileOpen ? "z-50 translate-x-0 h-[calc(100vh-4rem)]" : "z-40 -translate-x-full md:translate-x-0 h-[calc(100vh-4rem)]"
         )}
       >
-        {/* Toggle button for desktop */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="hidden md:flex absolute -right-3 top-4 h-6 w-6 rounded-full border bg-white shadow-md"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-
-        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
           {navigation.map((item) => {
             const active = isActive(location.pathname, item);
             return (

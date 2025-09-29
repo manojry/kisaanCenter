@@ -18,7 +18,7 @@ export const QuickActions: React.FC = () => {
   return (
     <ResponsiveGrid minColWidth="8.5rem" className="w-full" gap="gap-3 sm:gap-4">
       {quick.map(item => {
-  const highlight = item.key.includes('transaction');
+  const highlight = item.key === 'simple-transactions'; // Only highlight Quick Sale
         return (
           <Button
             key={item.key}

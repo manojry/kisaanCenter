@@ -73,9 +73,36 @@ const PricingPage: React.FC = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">K</span>
-              </div>
+              <svg 
+                className="h-8 w-8" 
+                viewBox="0 0 44 44"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="pricingIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+                    <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+                    <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+                  </linearGradient>
+                </defs>
+                
+                <circle cx="22" cy="22" r="22" fill="url(#pricingIconGradient)" />
+                
+                <g fill="white" opacity="0.95">
+                  <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24" 
+                        stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  
+                  <circle cx="16" cy="14" r="1.5"/>
+                  <circle cx="15" cy="17" r="1.5"/>
+                  <circle cx="16" cy="20" r="1.5"/>
+                  <circle cx="17" cy="23" r="1.5"/>
+                  
+                  <circle cx="28" cy="14" r="1.5"/>
+                  <circle cx="29" cy="17" r="1.5"/>
+                  <circle cx="28" cy="20" r="1.5"/>
+                  <circle cx="27" cy="23" r="1.5"/>
+                </g>
+              </svg>
               <span className="text-xl font-bold text-gray-900">KisaanCenter</span>
             </div>
             <div className="flex items-center space-x-4">
@@ -256,7 +283,39 @@ const PricingPage: React.FC = () => {
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">K</span>
             </div>
-            <span className="text-xl font-bold">KisaanCenter</span>
+            <div className="flex items-center space-x-2">
+              <svg 
+                className="h-6 w-6" 
+                viewBox="0 0 44 44"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient id="footerIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+                    <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+                    <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+                  </linearGradient>
+                </defs>
+                
+                <circle cx="22" cy="22" r="22" fill="url(#footerIconGradient)" />
+                
+                <g fill="white" opacity="0.95">
+                  <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24" 
+                        stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  
+                  <circle cx="16" cy="14" r="1.5"/>
+                  <circle cx="15" cy="17" r="1.5"/>
+                  <circle cx="16" cy="20" r="1.5"/>
+                  <circle cx="17" cy="23" r="1.5"/>
+                  
+                  <circle cx="28" cy="14" r="1.5"/>
+                  <circle cx="29" cy="17" r="1.5"/>
+                  <circle cx="28" cy="20" r="1.5"/>
+                  <circle cx="27" cy="23" r="1.5"/>
+                </g>
+              </svg>
+              <span className="text-xl font-bold">KisaanCenter</span>
+            </div>
           </div>
           <p className="text-gray-400 max-w-md mx-auto">
             Empowering agricultural businesses with modern technology and comprehensive management solutions.

@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'minimal' | 'text-only';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  variant?: 'default' | 'minimal' | 'text-only' | 'icon-only';
   className?: string;
 }
 
@@ -10,21 +10,27 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
   const sizeClasses = {
     sm: {
       icon: 'h-6 w-6',
-      container: 'p-1.5',
-      text: 'text-lg',
+      text: 'text-sm',
+      subtext: 'text-xs',
       spacing: 'space-x-2'
     },
     md: {
       icon: 'h-8 w-8',
-      container: 'p-2',
-      text: 'text-xl',
+      text: 'text-lg',
+      subtext: 'text-xs',
       spacing: 'space-x-3'
     },
     lg: {
-      icon: 'h-10 w-10',
-      container: 'p-2.5',
-      text: 'text-2xl',
+      icon: 'h-12 w-12',
+      text: 'text-xl',
+      subtext: 'text-sm',
       spacing: 'space-x-4'
+    },
+    xl: {
+      icon: 'h-16 w-16',
+      text: 'text-3xl',
+      subtext: 'text-base',
+      spacing: 'space-x-6'
     }
   };
 
@@ -40,47 +46,134 @@ export function Logo({ size = 'md', variant = 'default', className }: LogoProps)
     );
   }
 
+  if (variant === 'icon-only') {
+    return (
+      <div className={cn('flex items-center justify-center', className)}>
+        <svg 
+          className={cn(currentSize.icon)} 
+          viewBox="0 0 44 44"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+              <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+              <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+            </linearGradient>
+          </defs>
+          
+          <circle cx="22" cy="22" r="22" fill="url(#iconGradient)" />
+          
+          <g fill="white" opacity="0.95">
+            <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24 M21 27 L23 27" 
+                  stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            
+            <circle cx="16" cy="14" r="1.5"/>
+            <circle cx="15" cy="17" r="1.5"/>
+            <circle cx="16" cy="20" r="1.5"/>
+            <circle cx="17" cy="23" r="1.5"/>
+            
+            <circle cx="28" cy="14" r="1.5"/>
+            <circle cx="29" cy="17" r="1.5"/>
+            <circle cx="28" cy="20" r="1.5"/>
+            <circle cx="27" cy="23" r="1.5"/>
+            
+            <circle cx="22" cy="16" r="1"/>
+            <circle cx="22" cy="19" r="1"/>
+            <circle cx="22" cy="22" r="1"/>
+            <circle cx="22" cy="25" r="1"/>
+          </g>
+          
+          <circle cx="22" cy="22" r="22" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+        </svg>
+      </div>
+    );
+  }
+
   if (variant === 'minimal') {
     return (
       <div className={cn('flex items-center', currentSize.spacing, className)}>
-        <div className={cn(
-          'bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-sm',
-          currentSize.container
-        )}>
-          {/* Modern agricultural symbol */}
-          <svg 
-            className={cn(currentSize.icon, 'text-white')} 
-            fill="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path d="M12 2L13.09 8.26L20.75 7.75L13.5 14.5L16 21L12 18L8 21L10.5 14.5L3.25 7.75L10.91 8.26L12 2Z"/>
-          </svg>
-        </div>
+        <svg 
+          className={cn(currentSize.icon)} 
+          viewBox="0 0 44 44"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="iconGradientMinimal" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+              <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+              <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+            </linearGradient>
+          </defs>
+          
+          <circle cx="22" cy="22" r="22" fill="url(#iconGradientMinimal)" />
+          
+          <g fill="white" opacity="0.95">
+            <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24" 
+                  stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+            
+            <circle cx="16" cy="14" r="1.5"/>
+            <circle cx="15" cy="17" r="1.5"/>
+            <circle cx="16" cy="20" r="1.5"/>
+            <circle cx="17" cy="23" r="1.5"/>
+            
+            <circle cx="28" cy="14" r="1.5"/>
+            <circle cx="29" cy="17" r="1.5"/>
+            <circle cx="28" cy="20" r="1.5"/>
+            <circle cx="27" cy="23" r="1.5"/>
+          </g>
+        </svg>
+        <span className={cn('font-semibold text-foreground', currentSize.text)}>
+          KisaanCenter
+        </span>
       </div>
     );
   }
 
   return (
     <div className={cn('flex items-center', currentSize.spacing, className)}>
-      <div className={cn(
-        'bg-gradient-to-br from-emerald-500 via-emerald-600 to-green-600 rounded-xl shadow-lg ring-1 ring-emerald-200/20',
-        currentSize.container
-      )}>
-        {/* Enhanced agricultural symbol with grain/wheat inspiration */}
-        <svg 
-          className={cn(currentSize.icon, 'text-white drop-shadow-sm')} 
-          fill="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path d="M12 2L13.09 8.26L20.75 7.75L13.5 14.5L16 21L12 18L8 21L10.5 14.5L3.25 7.75L10.91 8.26L12 2Z"/>
-          <circle cx="12" cy="12" r="1.5" opacity="0.6"/>
-        </svg>
-      </div>
+      <svg 
+        className={cn(currentSize.icon)} 
+        viewBox="0 0 44 44"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="iconGradientDefault" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+            <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+            <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+          </linearGradient>
+        </defs>
+        
+        <circle cx="22" cy="22" r="22" fill="url(#iconGradientDefault)" />
+        
+        <g fill="white" opacity="0.95">
+          <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24 M21 27 L23 27" 
+                stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          
+          <circle cx="16" cy="14" r="1.5"/>
+          <circle cx="15" cy="17" r="1.5"/>
+          <circle cx="16" cy="20" r="1.5"/>
+          <circle cx="17" cy="23" r="1.5"/>
+          
+          <circle cx="28" cy="14" r="1.5"/>
+          <circle cx="29" cy="17" r="1.5"/>
+          <circle cx="28" cy="20" r="1.5"/>
+          <circle cx="27" cy="23" r="1.5"/>
+          
+          <circle cx="22" cy="16" r="1"/>
+          <circle cx="22" cy="19" r="1"/>
+          <circle cx="22" cy="22" r="1"/>
+          <circle cx="22" cy="25" r="1"/>
+        </g>
+        
+        <circle cx="22" cy="22" r="22" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+      </svg>
       <div className="flex flex-col">
         <span className={cn('font-bold text-foreground leading-tight', currentSize.text)}>
           KisaanCenter
         </span>
-        <span className="text-xs text-muted-foreground font-medium -mt-1">
+        <span className={cn('text-muted-foreground font-medium -mt-1', currentSize.subtext)}>
           Agricultural Hub
         </span>
       </div>

@@ -9,7 +9,7 @@ import { useSidebar } from '../../context/SidebarContext';
 
 import Header from './Header';
 import { Sidebar } from './Sidebar';
-import { Leaf } from 'lucide-react';
+// Removed unused import
 
 interface AppLayoutProps {
   readonly className?: string;
@@ -69,7 +69,36 @@ export function AppLayout({ className }: Readonly<AppLayoutProps>) {
                 {/* Footer branding */}
                 <div className="flex flex-col md:flex-row items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <Leaf className="h-5 w-5 text-emerald-600" />
+                    <svg 
+                      className="h-5 w-5" 
+                      viewBox="0 0 44 44"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <defs>
+                        <linearGradient id="appLayoutIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+                          <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+                          <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+                        </linearGradient>
+                      </defs>
+                      
+                      <circle cx="22" cy="22" r="22" fill="url(#appLayoutIconGradient)" />
+                      
+                      <g fill="white" opacity="0.95" transform="scale(0.5) translate(22, 22)">
+                        <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24" 
+                              stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                        
+                        <circle cx="16" cy="14" r="1.5"/>
+                        <circle cx="15" cy="17" r="1.5"/>
+                        <circle cx="16" cy="20" r="1.5"/>
+                        <circle cx="17" cy="23" r="1.5"/>
+                        
+                        <circle cx="28" cy="14" r="1.5"/>
+                        <circle cx="29" cy="17" r="1.5"/>
+                        <circle cx="28" cy="20" r="1.5"/>
+                        <circle cx="27" cy="23" r="1.5"/>
+                      </g>
+                    </svg>
                     <span className="text-sm font-medium text-foreground/80">
                       KisaanCenter
                     </span>

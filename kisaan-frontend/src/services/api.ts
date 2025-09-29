@@ -72,7 +72,7 @@ export const shopProductsApi = {
       shop_id: shopId,
       product_id: p.id,
       product_name: p.name,
-      category_name: (categories.find(c => c.id === p.category_id)?.name) || '',
+      category_name: p.category_name || '',
       is_active: p.record_status === 'active'
     }));
   },

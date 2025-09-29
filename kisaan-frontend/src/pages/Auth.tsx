@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Leaf, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Auth() {
@@ -126,10 +126,44 @@ export default function Auth() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="flex items-center justify-center w-12 h-12 bg-primary-emerald/10 rounded-xl">
-              <Leaf className="h-7 w-7 text-primary-emerald" />
-            </div>
+          <div className="flex justify-center mb-4">
+            <svg 
+              className="h-12 w-12" 
+              viewBox="0 0 44 44"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <linearGradient id="authIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor:"#10b981", stopOpacity:1}} />
+                  <stop offset="50%" style={{stopColor:"#059669", stopOpacity:1}} />
+                  <stop offset="100%" style={{stopColor:"#047857", stopOpacity:1}} />
+                </linearGradient>
+              </defs>
+              
+              <circle cx="22" cy="22" r="22" fill="url(#authIconGradient)" />
+              
+              <g fill="white" opacity="0.95">
+                <path d="M22 10 L22 34 M20 12 L24 12 M19 15 L25 15 M18 18 L26 18 M19 21 L25 21 M20 24 L24 24 M21 27 L23 27" 
+                      stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                
+                <circle cx="16" cy="14" r="1.5"/>
+                <circle cx="15" cy="17" r="1.5"/>
+                <circle cx="16" cy="20" r="1.5"/>
+                <circle cx="17" cy="23" r="1.5"/>
+                
+                <circle cx="28" cy="14" r="1.5"/>
+                <circle cx="29" cy="17" r="1.5"/>
+                <circle cx="28" cy="20" r="1.5"/>
+                <circle cx="27" cy="23" r="1.5"/>
+                
+                <circle cx="22" cy="16" r="1"/>
+                <circle cx="22" cy="19" r="1"/>
+                <circle cx="22" cy="22" r="1"/>
+                <circle cx="22" cy="25" r="1"/>
+              </g>
+              
+              <circle cx="22" cy="22" r="22" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/>
+            </svg>
           </div>
           <h1 className="text-3xl font-bold text-primary-foreground">
             Welcome to KisaanCenter
