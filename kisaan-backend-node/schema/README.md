@@ -6,15 +6,10 @@ This directory contains the complete database schema management system for Kisaa
 
 ```
 schema/
-├── complete-schema.sql     # Complete unified schema
-├── indexes.sql            # All database indexes
-├── schema-manager.js      # CLI management utility
-├── modules/               # Modular schema components
-│   ├── core-entities.sql  # Users, Shops, Plans, Categories
-│   ├── transactions.sql   # Transactions and Payments
-│   └── financial.sql      # Credits, Settlements, Commissions
+├── unified-schema.sql     # Complete unified schema (all tables, indexes, constraints)
+├── schema-manager.js      # CLI management utility (optional)
 ├── extensions/            # Optional schema extensions
-└── README.md             # This file
+└── README.md              # This file
 ```
 
 ## 🚀 Quick Start
@@ -22,49 +17,18 @@ schema/
 ### Initialize Schema
 ```bash
 cd schema
-node schema-manager.js init
+psql -h <host> -U <user> -d <db> -f unified-schema.sql
 ```
 
 ### Validate Current Schema
-```bash
-node schema-manager.js validate
-```
+Run your preferred DB tool or ORM to inspect tables and constraints.
 
 ### Reset Schema (⚠️ DANGER: Drops all data)
-```bash
-node schema-manager.js reset
-```
+Re-run the unified-schema.sql after dropping all tables if needed.
 
 ## 📋 Schema Components
 
-### Core Tables
-- **kisaan_users** - User management (farmers, buyers, owners, superadmins)
-- **kisaan_shops** - Shop/business entities
-- **kisaan_plans** - Subscription plans
-- **kisaan_categories** - Product categories
-- **kisaan_products** - Product catalog
-
-### Business Logic Tables
-- **kisaan_transactions** - Core transaction records
-- **kisaan_payments** - Payment tracking
-- **payment_allocations** - Payment to transaction mapping
-- **kisaan_commissions** - Commission structure
-
-### Financial Management
-- **kisaan_credits** - Credit/advance management
-- **kisaan_settlements** - Settlement tracking
-- **balance_snapshots** - Balance history and auditing
-
-### Relationship Tables
-- **kisaan_shop_categories** - Shop-Category mappings
-- **kisaan_shop_products** - Shop-Product mappings
-
-### Administration
-- **kisaan_plan_usage** - Plan usage tracking
-- **kisaan_audit_logs** - System audit trail
-- **SequelizeMeta** - Migration tracking (Sequelize compatibility)
-
-## 🔧 Schema Features
+All tables, constraints, and indexes are now defined in `unified-schema.sql` for simplicity.
 
 ### Enum Types
 All status fields and categorical data use PostgreSQL enums for data integrity:
@@ -88,33 +52,12 @@ All status fields and categorical data use PostgreSQL enums for data integrity:
 
 ## 🔄 Extending the Schema
 
-### Adding New Tables
-1. Create a new module file in `modules/`
-2. Follow the existing naming conventions
-3. Add appropriate indexes to `indexes.sql`
-4. Update the schema manager if needed
-
-### Adding New Extensions
-1. Create `.sql` files in `extensions/`
-2. Files are executed in alphabetical order
-3. Use `IF NOT EXISTS` clauses for safety
-
-### Example Extension
-```sql
--- extensions/analytics.sql
-CREATE TABLE IF NOT EXISTS kisaan_analytics (
-    id BIGSERIAL PRIMARY KEY,
-    shop_id BIGINT REFERENCES kisaan_shops(id),
-    metric_name VARCHAR(100) NOT NULL,
-    metric_value NUMERIC(15,2),
-    recorded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-```
+To add new tables or features, edit `unified-schema.sql` directly. For optional features, you may still use the `extensions/` folder.
 
 ## 🛠 Migration from Old System
 
 ### Cleanup Old Migrations
-The new system replaces the old migration-based approach. Old migration files in `/migrations/` can be safely removed after schema initialization.
+The new system replaces the old migration-based approach. Old migration files in `/migrations/` and `/modules/` can be safely removed after schema initialization.
 
 ### Model Alignment
 Backend Sequelize models should be updated to match the schema:
