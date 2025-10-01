@@ -189,9 +189,9 @@ function QuickSalePageInner() {
   
   // Auto-set payment amounts based on calculations
   useEffect(() => {
-    setBuyerPaid(Number(calculations.total_sale_value.toFixed(2)));
-    setFarmerPaid(Number(calculations.farmer_earning.toFixed(2)));
-    setCommissionReceived(Number(calculations.shop_commission.toFixed(2)));
+  setBuyerPaid(Number((calculations?.total_sale_value ?? 0).toFixed(2)));
+  setFarmerPaid(Number((calculations?.farmer_earning ?? 0).toFixed(2)));
+  setCommissionReceived(Number((calculations?.shop_commission ?? 0).toFixed(2)));
   }, [calculations]);
   
   // Commission rate handling
@@ -261,7 +261,7 @@ function QuickSalePageInner() {
   if (response.success) {
         toast({
           title: '✅ Sale Created Successfully!',
-          description: `Total: ₹${calculations.total_sale_value.toFixed(2)} | Payments recorded`,
+          description: `Total: ₹${(calculations?.total_sale_value ?? 0).toFixed(2)} | Payments recorded`,
           variant: 'success' // Make toaster green
         });
         // Reset form

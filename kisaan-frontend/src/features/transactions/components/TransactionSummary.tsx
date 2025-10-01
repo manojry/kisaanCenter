@@ -15,38 +15,38 @@ export const TransactionSummary: React.FC<Props> = ({ total_sale_value, shop_com
   return (
     <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
       <h4 className="font-medium text-gray-900">Transaction Summary</h4>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 text-sm">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-sm">
         <div>
           <p className="text-gray-600">Total Sale Value</p>
           <p className="font-semibold text-lg">{formatCurrency(total_sale_value)}</p>
         </div>
         <div>
-          <Label htmlFor="commissionRate">Shop Commission Rate (%)</Label>
-          <Input
-            id="commissionRate"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={(commissionRate * 100).toString()}
-            onChange={e => {
-              let val = parseFloat(e.target.value);
-              if (isNaN(val) || val < 0) val = 0;
-              if (val > 100) val = 100;
-              onCommissionRateChange(val / 100);
-            }}
-            className="text-sm"
-          />
-          <p className="text-xs text-gray-500">You can change the commission rate for this transaction.</p>
-        </div>
-        <div>
-          <p className="text-gray-600">Shop Commission ({(commissionRate * 100).toFixed(2)}%)</p>
+          <p className="text-gray-600">Shop Commission</p>
           <p className="font-semibold text-lg text-green-600">{formatCurrency(shop_commission)}</p>
         </div>
         <div>
           <p className="text-gray-600">Farmer Earning</p>
           <p className="font-semibold text-lg text-blue-600">{formatCurrency(farmer_earning)}</p>
         </div>
+      </div>
+      <div className="mt-2">
+        <Label htmlFor="commissionRate">Shop Commission Rate (%)</Label>
+        <Input
+          id="commissionRate"
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={(commissionRate * 100).toString()}
+          onChange={e => {
+            let val = parseFloat(e.target.value);
+            if (isNaN(val) || val < 0) val = 0;
+            if (val > 100) val = 100;
+            onCommissionRateChange(val / 100);
+          }}
+          className="text-sm w-32"
+        />
+        <p className="text-xs text-gray-500">You can change the commission rate for this transaction.</p>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/utils/format';
 import React, { useState, useEffect, useRef } from 'react';
 import { useTransactionStore } from '@/store/transactionStore';
 import { useCategoriesCache } from '../../hooks/useCategoriesCache';
@@ -56,7 +57,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     unit_price: 0
   });
   const [calculations, setCalculations] = useState({
-    total_sale_value: 0,
+  total_amount: 0,
     shop_commission: 0,
     farmer_earning: 0
   });
@@ -88,10 +89,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
   // Set default payment values when calculations change, rounded to 2 decimals
   useEffect(() => {
-    setBuyerPaid(Number(calculations.total_sale_value.toFixed(2)));
-    setFarmerPaid(Number(calculations.farmer_earning.toFixed(2)));
-    setCommissionReceived(Number(calculations.shop_commission.toFixed(2)));
-  }, [calculations.total_sale_value, calculations.farmer_earning, calculations.shop_commission]);
+    setBuyerPaid(Number((calculations?.total_amount ?? 0).toFixed(2)));
+    setFarmerPaid(Number((calculations?.farmer_earning ?? 0).toFixed(2)));
+    setCommissionReceived(Number((calculations?.shop_commission ?? 0).toFixed(2)));
+  }, [calculations.total_amount, calculations.farmer_earning, calculations.shop_commission]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -208,9 +209,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         unit_price: Number(formData.unit_price),
         commission_rate_decimal: commissionRate,
         totals: {
-          total_sale_value: calculations.total_sale_value,
-          shop_commission: calculations.shop_commission,
-            farmer_earning: calculations.farmer_earning
+          total_amount: calculations.total_amount,
+          commission_amount: calculations.shop_commission,
+          farmer_earning: calculations.farmer_earning
         },
         payments: [
           {
@@ -246,7 +247,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     }
   };
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+  // Use global formatCurrency utility for all currency display
 
   return (
   <Card className="w-full max-w-2xl mx-auto px-2 sm:px-0">
@@ -294,7 +295,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
           {(formData.quantity > 0 && formData.unit_price > 0) && (
             <>
               <TransactionSummary
-                total_sale_value={calculations.total_sale_value}
+                total_amount={calculations.total_amount}
                 shop_commission={calculations.shop_commission}
                 farmer_earning={calculations.farmer_earning}
                 commissionRate={commissionRate}

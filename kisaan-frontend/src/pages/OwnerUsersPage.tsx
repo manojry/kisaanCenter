@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
+import { formatCurrency } from '@/utils/format';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { usersApi } from '../services/api';
@@ -79,7 +80,6 @@ const OwnerUsersPage: React.FC = () => {
 
 
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
 
   if (showCreateForm) {
     return (
@@ -103,9 +103,9 @@ const OwnerUsersPage: React.FC = () => {
       </div>
     );
   }
-
   return (
-  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
+    <>
+      <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-row w-full mb-2 items-center gap-2">
         <div className="flex flex-col flex-1 min-w-0">
@@ -296,13 +296,25 @@ const OwnerUsersPage: React.FC = () => {
                           </Button>
                         )}
                       </div>
-                      {/* Action buttons only shown in one place (table or card) to avoid duplicates */}
                     </div>
                     <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2 h-2 rounded-full bg-green-500 ml-1' : 'inline-block w-2 h-2 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
                     <div className="flex flex-wrap gap-1 text-xs mb-1">
                       <div className="break-words max-w-[48%]"><span className="font-medium">Balance:</span> {formatCurrency(user.balance)}</div>
                     </div>
-                    {/* Removed bottom action buttons for mobile cards; only side (right) buttons remain for compactness */}
+                    {/* Assign Products button for farmers only (mobile) */}
+                    {user.role === 'farmer' && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                        onClick={() => {
+                          setAssignProductsUser(user);
+                          fetchProductsForFarmer(user.id);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> Assign Products
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -354,7 +366,8 @@ const OwnerUsersPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

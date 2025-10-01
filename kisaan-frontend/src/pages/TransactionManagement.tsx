@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
+import { formatCurrency } from '../utils/format';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { UserTypeBadge } from '../components/ui/UserTypeBadge';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
@@ -222,11 +224,7 @@ const TransactionManagement: React.FC = () => {
   }
   };
 
-  const formatCurrency = (value: string | number | undefined) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (typeof num !== 'number' || isNaN(num)) return '';
-    return `₹${num.toLocaleString()}`;
-  };
+  // Use global formatCurrency utility from utils/format
   // Use formatDisplayDate from dateUtils for display
   const formatDateDisplay = (dateString: string | undefined) => {
     if (!dateString) return '';
@@ -460,7 +458,6 @@ const TransactionManagement: React.FC = () => {
                                 <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
                                 <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
                                 <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
-                   <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
                                 {open ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
                               </button>
                             </TableCell>
@@ -470,8 +467,12 @@ const TransactionManagement: React.FC = () => {
                               <TableCell colSpan={6} style={{ background: '#f9fafb', padding: '12px 16px' }}>
                                 <div className="grid grid-cols-3 gap-4 text-xs">
                                   <div className="col-span-1">
-                                    <div><span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)}</div>
-                                    <div><span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)}</div>
+                                    <div>
+                                      <span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)} <UserTypeBadge type="BUYER" />
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)} <UserTypeBadge type="FARMER" />
+                                    </div>
                                   </div>
                                   <div className="col-span-1">
                                     {(() => {
@@ -499,16 +500,19 @@ const TransactionManagement: React.FC = () => {
                                     {transaction.payments && transaction.payments.length > 0 ? (
                                       <ul className="mt-1 ml-2 list-disc">
                                         {transaction.payments.map((p, i) => {
-                                          let payer = String(p.payer_type) === 'BUYER' ? getUserName(users, transaction.buyer_id)
-                                            : String(p.payer_type) === 'FARMER' ? getUserName(users, transaction.farmer_id)
-                                            : String(p.payer_type) === 'SHOP' ? 'Shop' : String(p.payer_type);
-                                          let payee = String(p.payee_type) === 'BUYER' ? getUserName(users, transaction.buyer_id)
-                                            : String(p.payee_type) === 'FARMER' ? getUserName(users, transaction.farmer_id)
-                                            : String(p.payee_type) === 'SHOP' ? 'Shop' : String(p.payee_type);
-                                          let label = `${payer} → ${payee}`;
+                                          const renderParty = (type: string) => {
+                                            if (type === 'BUYER' || type === 'FARMER' || type === 'SHOP') return <UserTypeBadge type={type} />;
+                                            // fallback: show user name for unknown type
+                                            // Try to resolve user id from payment context
+                                            if (type === String(transaction.buyer_id)) return getUserName(users, transaction.buyer_id);
+                                            if (type === String(transaction.farmer_id)) return getUserName(users, transaction.farmer_id);
+                                            return type;
+                                          };
+                                          let payer = renderParty(String(p.payer_type));
+                                          let payee = renderParty(String(p.payee_type));
                                           return (
-                                            <li key={i} className="mb-1">
-                                              <span className="font-medium">{label}:</span> {formatCurrency(p.amount)}
+                                            <li key={i} className="mb-1 flex items-center gap-1">
+                                              <span className="font-medium flex items-center gap-1">{payer} <span className="mx-1">→</span> {payee}:</span> {formatCurrency(p.amount)}
                                               {' '}<span className="text-gray-500">({p.method}{p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : ''})</span>
                                             </li>
                                           );

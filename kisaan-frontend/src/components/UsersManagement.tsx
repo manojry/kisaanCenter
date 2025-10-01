@@ -3,7 +3,7 @@ import { useUsers } from '../context/UsersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Badge } from './ui/badge';
+import { UserTypeBadge } from './ui/UserTypeBadge';
 import { Plus, Users } from 'lucide-react';
 import AddUserDialog from './AddUserDialog';
 
@@ -27,16 +27,12 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
   };
 
   const getRoleBadge = (role: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      owner: "default", // green
-      farmer: "default",   // blue
-      buyer: "secondary",
-    };
-    return (
-      <Badge variant={variants[role] || "outline"}>
-        {role.toUpperCase()}
-      </Badge>
-    );
+    // Use UserTypeBadge for farmer, buyer, shop; fallback to default badge for others
+    if (role === 'farmer') return <UserTypeBadge type="FARMER" />;
+    if (role === 'buyer') return <UserTypeBadge type="BUYER" />;
+    if (role === 'shop') return <UserTypeBadge type="SHOP" />;
+    // For owner, superadmin, employee, etc. use a simple badge
+    return <span className="inline-block rounded bg-gray-200 text-gray-800 px-2 py-1 text-xs font-semibold uppercase">{role}</span>;
   };
 
   const getStatusBadge = (status: string) => {

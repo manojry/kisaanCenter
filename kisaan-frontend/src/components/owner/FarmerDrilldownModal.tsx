@@ -29,7 +29,7 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
   }, [farmerId, open]);
 
   // Calculate running balance using standardized field names
-  const totalDue = transactions.reduce((sum, t) => sum + ((t.total_sale_value || t.total || 0) - (t.farmer_paid || 0)), 0);
+  const totalDue = transactions.reduce((sum, t) => sum + ((t.total_amount || t.total || 0) - (t.farmer_paid || 0)), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const outstanding = totalDue - totalPaid;
 
@@ -64,7 +64,7 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
                   <TableRow key={t.id}>
                     <TableCell>{formatDate(t.transaction_date)}</TableCell>
                     <TableCell>{t.product_name}</TableCell>
-                    <TableCell>{formatCurrency(t.total_sale_value || t.total)}</TableCell>
+                    <TableCell>{formatCurrency(t.total_amount || t.total)}</TableCell>
                     <TableCell>{formatCurrency(t.farmer_paid)}</TableCell>
                     <TableCell>{t.status}</TableCell>
                   </TableRow>

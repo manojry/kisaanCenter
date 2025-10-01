@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Users, Eye } from 'lucide-react';
 import type { Transaction } from '../../types/api';
+import { formatCurrency } from '@/utils/format';
 
 interface PendingActionsProps {
   pendingTransactions: Transaction[];
@@ -11,7 +12,7 @@ interface PendingActionsProps {
   onViewTransaction?: (id: number) => void;
 }
 
-const formatCurrency = (amount: number) => `₹${amount.toLocaleString()}`;
+// Use global formatCurrency utility for all currency display
 
 export const PendingActions: React.FC<PendingActionsProps> = ({ 
   pendingTransactions, 
@@ -50,7 +51,7 @@ export const PendingActions: React.FC<PendingActionsProps> = ({
 
   // Filter transactions by type
   const collectionsDue = pendingTransactions.filter(t => 
-    t.status === 'pending' && t.total_sale_value > 0
+  t.status === 'pending' && t.total_amount > 0
   );
   
   const farmerPaymentsDue = pendingTransactions.filter(t => 
@@ -89,7 +90,7 @@ export const PendingActions: React.FC<PendingActionsProps> = ({
                   <p className={`font-bold ${colorClass}`}>
                     {formatCurrency(
                       title.includes('Collection') 
-                        ? transaction.total_sale_value 
+                        ? transaction.total_amount 
                         : transaction.farmer_earning
                     )}
                   </p>
