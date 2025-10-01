@@ -44,7 +44,7 @@ const TransactionManagement: React.FC = () => {
         product_name: txn.product_name,
         buyer_name: buyer,
         farmer_name: farmer,
-        total_sale_value: txn.total_sale_value,
+  total_sale_value: txn.total_amount,
         buyer_paid: txn.buyer_paid,
         deficit: txn.deficit,
         farmer_paid: txn.farmer_paid,
@@ -276,14 +276,14 @@ const TransactionManagement: React.FC = () => {
   }
 
   return (
-  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6 overflow-x-hidden">
+  <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-row w-full mb-2 items-center gap-2">
-  <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col sm:flex-row w-full mb-2 items-start sm:items-center gap-2">
+        <div className="flex flex-col flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">Transaction Management</h1>
           <p className="text-gray-600 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">Manage all shop transactions</p>
         </div>
-        <div className="flex gap-2 items-center ml-auto">
+        <div className="flex flex-row gap-2 items-center ml-auto w-auto">
           <Button
             onClick={handleExportPDF}
             variant="outline"
@@ -313,7 +313,6 @@ const TransactionManagement: React.FC = () => {
           >
             <RefreshCw className={`w-4 h-4 mr-1 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden xs:inline">Refresh</span>
-            <span className="inline xs:hidden">↻</span>
           </Button>
         </div>
       </div>
@@ -387,7 +386,6 @@ const TransactionManagement: React.FC = () => {
                 </Button>
               </div>
             )}
-            {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
   <CardContent className="p-1 sm:p-2">
@@ -461,7 +459,8 @@ const TransactionManagement: React.FC = () => {
                                 <span className="font-semibold mr-2">{farmerName}</span>
                                 <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
                                 <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
-                                <span className="font-medium mr-2">{formatCurrency(transaction.total_sale_value)}</span>
+                                <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
+                   <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
                                 {open ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
                               </button>
                             </TableCell>
@@ -481,9 +480,8 @@ const TransactionManagement: React.FC = () => {
                                       if (transaction.payments && transaction.payments.length > 0) {
                                         transaction.payments.forEach(p => {
                                           if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') buyerPaid += Number(p.amount);
-                                          if (p.payer_type === 'SHOP' && p.payee_type === 'BUYER') buyerPending += Number(p.amount);
+                                          // Removed invalid: if (p.payer_type === 'SHOP' && p.payee_type === 'BUYER')
                                           if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') farmerPaid += Number(p.amount);
-                                          if (p.payer_type === 'FARMER' && p.payee_type === 'SHOP') farmerPending += Number(p.amount);
                                         });
                                       }
                                       return (
@@ -531,18 +529,18 @@ const TransactionManagement: React.FC = () => {
                 </Table>
               </div>
               {/* Mobile Card/List Layout */}
-              <div className="block sm:hidden space-y-3">
+              <div className="block sm:hidden space-y-3 w-full">
                  {paginatedTransactions.map((transaction, idx) => {
                   const derivedStatus = getTransactionStatus(transaction);
                   return (
-                    <div key={transaction.id + '-' + idx} className="rounded-lg border p-3 bg-white shadow-sm w-[90vw] max-w-[90vw] overflow-x-auto mx-auto">
+                    <div key={transaction.id + '-' + idx} className="rounded-lg border p-3 bg-white shadow-sm w-full mx-auto break-words">
                       <div className="flex justify-between items-center mb-1 gap-2">
-                        <span className="font-semibold text-base break-words max-w-[60%]">{transaction.product_name}</span>
+                        <span className="font-semibold text-base break-words max-w-[60%] truncate">{transaction.product_name}</span>
                         <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
                       </div>
                       <div className="text-xs text-gray-500 mb-1 break-words">{formatDateDisplay(transaction.created_at)}</div>
                       <div className="flex flex-wrap gap-2 text-xs mb-1">
-                        <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_sale_value)}</div>
+            <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_amount)}</div>
                         <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
                         <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
                         <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
