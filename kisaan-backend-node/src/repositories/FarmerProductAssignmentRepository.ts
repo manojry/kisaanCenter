@@ -29,7 +29,7 @@ export class FarmerProductAssignmentRepository extends BaseRepository<FarmerProd
     try {
       const models = await this.model.findAll({
         where: { farmer_id: farmerId },
-        include: [{ model: Product, attributes: ['id', 'name', 'category_id'] }]
+        include: [{ model: Product, as: 'Product', attributes: ['id', 'name', 'category_id'] }]
       });
       return models.map(m => {
         const entity = this.toDomainEntity(m);

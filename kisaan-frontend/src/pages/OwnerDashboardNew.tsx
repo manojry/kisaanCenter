@@ -40,27 +40,28 @@ const OwnerDashboardNew: React.FC = () => {
   }
 
   return (
-    <div className="p-2 sm:p-6 space-y-4 sm:space-y-6 bg-blue-50 min-h-screen">
+  <div className="p-2 sm:p-6 space-y-2 sm:space-y-6 bg-blue-50">
       {/* Header - Responsive for mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+
+      <div className="flex flex-row items-center justify-between mb-2 gap-2">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Owner Dashboard</h1>
+          <p className="text-gray-600 text-base sm:text-lg mt-1">Key metrics for today</p>
+        </div>
         <Button
           onClick={refreshData}
           variant="ghost"
           size="icon"
           disabled={isLoading}
-          className="sm:ml-2"
+          className="ml-2"
           aria-label="Refresh"
         >
           <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
-      <p className="text-gray-600 text-base sm:text-lg">
-        Welcome back, <span className="font-semibold">{user?.username}</span> <span className="hidden sm:inline">•</span> <span className="block sm:inline">Today's business overview</span>
-      </p>
 
       {/* Dashboard Stats - Ensure mobile-friendly layout in child */}
-      <Section title="Today's Metrics" description="Live sales & payment status" padded>
+      <Section title={undefined} description={undefined} padded>
         <DashboardStats stats={stats as any} isLoading={isLoading} />
       </Section>
 
