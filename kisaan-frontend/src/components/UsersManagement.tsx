@@ -28,9 +28,9 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
 
   const getRoleBadge = (role: string) => {
     // Use UserTypeBadge for farmer, buyer, shop; fallback to default badge for others
-    if (role === 'farmer') return <UserTypeBadge type="FARMER" />;
-    if (role === 'buyer') return <UserTypeBadge type="BUYER" />;
-    if (role === 'shop') return <UserTypeBadge type="SHOP" />;
+  if (role === 'farmer') return <UserTypeBadge type="FARMER" />;
+  if (role === 'buyer') return <UserTypeBadge type="BUYER" />;
+  if (role === 'shop') return <UserTypeBadge type="SHOP" />;
     // For owner, superadmin, employee, etc. use a simple badge
     return <span className="inline-block rounded bg-gray-200 text-gray-800 px-2 py-1 text-xs font-semibold uppercase">{role}</span>;
   };

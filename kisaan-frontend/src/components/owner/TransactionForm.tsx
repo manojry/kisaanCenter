@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 interface Product {
   id: number;
   name: string;
+  category_id: number;
 }
 
 interface TransactionFormProps {
@@ -57,7 +58,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     unit_price: 0
   });
   const [calculations, setCalculations] = useState({
-  total_amount: 0,
+    total_sale_value: 0,
     shop_commission: 0,
     farmer_earning: 0
   });
@@ -89,10 +90,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
 
   // Set default payment values when calculations change, rounded to 2 decimals
   useEffect(() => {
-    setBuyerPaid(Number((calculations?.total_amount ?? 0).toFixed(2)));
+    setBuyerPaid(Number((calculations?.total_sale_value ?? 0).toFixed(2)));
     setFarmerPaid(Number((calculations?.farmer_earning ?? 0).toFixed(2)));
     setCommissionReceived(Number((calculations?.shop_commission ?? 0).toFixed(2)));
-  }, [calculations.total_amount, calculations.farmer_earning, calculations.shop_commission]);
+  }, [calculations.total_sale_value, calculations.farmer_earning, calculations.shop_commission]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -120,15 +121,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       if (user?.shop_id) {
         const cached = getShopProducts(user.shop_id);
         if (cached) {
+          console.log('[TransactionForm] Using cached products for shop_id', user.shop_id, cached);
           setProducts(cached);
         } else {
+          console.log('[TransactionForm] Fetching products from API for shop_id', user.shop_id);
           const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
           const productsResponse = productsResponseRaw as any;
-          const prods = productsResponse.products || [];
+          const prods = productsResponse.data || [];
+          console.log('[TransactionForm] Products fetched from API:', prods);
           setShopProducts(user.shop_id, prods);
           setProducts(prods);
         }
       } else {
+        console.log('[TransactionForm] No valid shop_id, products not fetched.');
         setProducts([]);
       }
 
@@ -158,6 +163,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       commissionRateCache.current[user.shop_id] = rate;
       setCommissionRate(rate);
     } catch (err) {
+      console.error('Failed to fetch commission rate:', err);
       commissionRateCache.current[user.shop_id] = 0.1;
       setCommissionRate(0.1); // fallback to 10%
     }
@@ -209,7 +215,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         unit_price: Number(formData.unit_price),
         commission_rate_decimal: commissionRate,
         totals: {
-          total_amount: calculations.total_amount,
+          total_amount: calculations.total_sale_value,
           commission_amount: calculations.shop_commission,
           farmer_earning: calculations.farmer_earning
         },
@@ -266,21 +272,29 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-          <TransactionPartySelectors
-            farmers={farmers}
-            buyers={buyers}
-            categories={categories}
-            products={products}
-            values={{
-              farmer_id: formData.farmer_id,
-              buyer_id: formData.buyer_id,
-              category_id: formData.category_id,
-              product_id: formData.product_id,
-              product_name: formData.product_name
-            }}
-            errors={validationErrors}
-            onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
-          />
+          {/* Filter products by selected category for dropdown */}
+          {(() => {
+            const filteredProducts = formData.category_id
+              ? products.filter(p => p.category_id === formData.category_id)
+              : products;
+            return (
+              <TransactionPartySelectors
+                farmers={farmers}
+                buyers={buyers}
+                categories={categories}
+                products={filteredProducts}
+                values={{
+                  farmer_id: formData.farmer_id,
+                  buyer_id: formData.buyer_id,
+                  category_id: formData.category_id,
+                  product_id: formData.product_id,
+                  product_name: formData.product_name
+                }}
+                errors={validationErrors}
+                onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
+              />
+            );
+          })()}
 
           <TransactionQuantityPricing
             quantity={formData.quantity}
@@ -295,7 +309,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
           {(formData.quantity > 0 && formData.unit_price > 0) && (
             <>
               <TransactionSummary
-                total_amount={calculations.total_amount}
+                total_sale_value={calculations.total_sale_value}
                 shop_commission={calculations.shop_commission}
                 farmer_earning={calculations.farmer_earning}
                 commissionRate={commissionRate}

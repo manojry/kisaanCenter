@@ -455,6 +455,7 @@ const TransactionManagement: React.FC = () => {
                               >
                                 <Badge className={getStatusColor(derivedStatus)} style={{ marginRight: 8 }}>{derivedStatus}</Badge>
                                 <span className="font-semibold mr-2">{farmerName}</span>
+                                {farmerUser && <UserTypeBadge type="FARMER" className="mr-2 align-middle" />}
                                 <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
                                 <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
                                 <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
@@ -468,23 +469,39 @@ const TransactionManagement: React.FC = () => {
                                 <div className="grid grid-cols-3 gap-4 text-xs">
                                   <div className="col-span-1">
                                     <div>
-                                      <span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)} <UserTypeBadge type="BUYER" />
+                                      <span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)} {(() => {
+                                        const buyerUser = users.find(u => String(u.id) === String(transaction.buyer_id));
+                                        return buyerUser ? <UserTypeBadge type="BUYER" /> : null;
+                                      })()}
                                     </div>
                                     <div>
-                                      <span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)} <UserTypeBadge type="FARMER" />
+                                      <span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)} {(() => {
+                                        const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
+                                        return farmerUser ? <UserTypeBadge type="FARMER" /> : null;
+                                      })()}
                                     </div>
                                   </div>
                                   <div className="col-span-1">
                                     {(() => {
                                       // Map backend payments to summary fields
-                                      let buyerPaid = 0, buyerPending = 0, farmerPaid = 0, farmerPending = 0;
+                                      let buyerPaid = 0, buyerTotal = 0, farmerPaid = 0, farmerTotal = 0;
                                       if (transaction.payments && transaction.payments.length > 0) {
                                         transaction.payments.forEach(p => {
-                                          if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') buyerPaid += Number(p.amount);
-                                          // Removed invalid: if (p.payer_type === 'SHOP' && p.payee_type === 'BUYER')
-                                          if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') farmerPaid += Number(p.amount);
+                                          if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') {
+                                            buyerPaid += Number(p.amount);
+                                            buyerTotal += Number(p.amount);
+                                          }
+                                          if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') {
+                                            farmerPaid += Number(p.amount);
+                                            farmerTotal += Number(p.amount);
+                                          }
                                         });
                                       }
+                                      // Use transaction.total_amount for buyer total, transaction.farmer_earning for farmer total if available
+                                      if (transaction.total_amount) buyerTotal = Number(transaction.total_amount);
+                                      if (transaction.farmer_earning) farmerTotal = Number(transaction.farmer_earning);
+                                      const buyerPending = buyerTotal - buyerPaid;
+                                      const farmerPending = farmerTotal - farmerPaid;
                                       return (
                                         <>
                                           <div><span className="font-medium">Buyer Paid:</span> {formatCurrency(buyerPaid)}</div>
