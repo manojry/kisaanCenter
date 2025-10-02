@@ -109,8 +109,8 @@ export const getTransactionsOptimized = async (
     created_at: transaction.createdAt,
     updated_at: transaction.updatedAt,
     // Related data
-    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : null,
-    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : null,
+    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : undefined,
+    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : undefined,
     shop_name: transaction.shop?.name,
     payments: transaction.payments || [],
     // Computed fields
@@ -299,8 +299,8 @@ export const getUserBalanceWithHistory = async (
     status: transaction.status,
     created_at: transaction.createdAt,
     updated_at: transaction.updatedAt,
-    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : null,
-    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : null,
+    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : undefined,
+    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : undefined,
     shop_name: transaction.shop?.name
   });
 
@@ -373,12 +373,12 @@ export const createTransactionOptimized = async (
       shop_id: createdTransaction!.shop_id,
       product_name: createdTransaction!.product_name,
       quantity: createdTransaction!.quantity,
-      rate: createdTransaction!.rate,
+      rate: createdTransaction!.unit_price,
       total_amount: createdTransaction!.total_amount,
       commission_amount: createdTransaction!.commission_amount,
-      status: createdTransaction!.status,
-      created_at: createdTransaction!.createdAt,
-      updated_at: createdTransaction!.updatedAt
+      status: (createdTransaction!.status as 'pending' | 'completed' | 'cancelled') || 'pending',
+      created_at: createdTransaction!.created_at,
+      updated_at: createdTransaction!.updated_at
     };
     
   } catch (error) {

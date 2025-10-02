@@ -4,6 +4,7 @@
  */
 
 import express, { Request, Response } from 'express';
+import { authenticateToken, requireRole } from '../middlewares/auth';
 import {
   getAllUsersOptimized,
   getUsersByShopOptimized,
@@ -41,7 +42,7 @@ router.get('/',
  */
 router.get('/shop/:shopId', 
   authenticateToken,
-  authorizeRoles(['owner', 'superadmin', 'employee']),
+  requireRole(['owner', 'superadmin']),
   getUsersByShopOptimized
 );
 
@@ -52,7 +53,7 @@ router.get('/shop/:shopId',
  */
 router.get('/shop/:shopId/balance',
   authenticateToken,
-  authorizeRoles(['owner', 'superadmin']),
+  requireRole(['owner', 'superadmin']),
   getUsersWithBalanceOptimized
 );
 
@@ -63,7 +64,7 @@ router.get('/shop/:shopId/balance',
  */
 router.post('/',
   authenticateToken,
-  authorizeRoles(['owner', 'superadmin']),
+  requireRole(['owner', 'superadmin']),
   createUserOptimizedController
 );
 
@@ -74,7 +75,7 @@ router.post('/',
  */
 router.put('/:id',
   authenticateToken,
-  authorizeRoles(['owner', 'superadmin']),
+  requireRole(['owner', 'superadmin']),
   updateUserOptimizedController
 );
 
@@ -85,7 +86,7 @@ router.put('/:id',
  */
 router.delete('/shop/:shopId/cache',
   authenticateToken,
-  authorizeRoles(['owner', 'superadmin']),
+  requireRole(['owner', 'superadmin']),
   clearUserCacheController
 );
 

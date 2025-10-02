@@ -226,14 +226,14 @@ export const getUsersWithBalance = async (
   return users.map(user => ({
     id: user.id,
     username: user.username,
-    firstname: user.firstname,
-    email: user.email,
-    contact: user.contact,
+    firstname: user.firstname || '',
+    email: user.email || '',
+    contact: user.contact || undefined,
     role: user.role,
-    shop_id: user.shop_id,
-    shop_name: user.shop?.name,
+    shop_id: user.shop_id || undefined,
+    shop_name: (user as any).shop?.name,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate,
+    custom_commission_rate: user.custom_commission_rate || undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   }));
@@ -258,13 +258,13 @@ export const createUserOptimized = async (
   return {
     id: user.id,
     username: user.username,
-    firstname: user.firstname,
-    email: user.email,
-    contact: user.contact,
+    firstname: user.firstname || '',
+    email: user.email || '',
+    contact: user.contact || undefined,
     role: user.role,
-    shop_id: user.shop_id,
+    shop_id: user.shop_id || undefined,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate,
+    custom_commission_rate: user.custom_commission_rate || undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   };
@@ -302,13 +302,13 @@ export const updateUserOptimized = async (
   return {
     id: user.id,
     username: user.username,
-    firstname: user.firstname,
-    email: user.email,
-    contact: user.contact,
+    firstname: user.firstname || '',
+    email: user.email || '',
+    contact: user.contact || undefined,
     role: user.role,
-    shop_id: user.shop_id,
+    shop_id: user.shop_id || undefined,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate,
+    custom_commission_rate: user.custom_commission_rate || undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   };
