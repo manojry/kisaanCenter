@@ -18,7 +18,7 @@ interface AuthRequest extends Request {
   user?: {
     id: number;
     role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
-    shop_id?: number;
+    shop_id?: number | null;
     username: string;
   };
 }

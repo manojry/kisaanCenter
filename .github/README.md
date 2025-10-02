@@ -1,249 +1,250 @@
 # 🚀 KisaanCenter GitHub Actions Workflows
 
-This repository includes comprehensive GitHub Actions workflows for CI/CD, testing, releases, and monitoring. All workflows are designed for public GitHub repositories and include advanced options for workflow optimization.
+This repository includes comprehensive GitHub Actions workflows for CI/CD, testing, and deployment. The workflows are specifically designed for the KisaanCenter application with TypeScript backend and React frontend.
 
 ## 📋 Available Workflows
 
-### 1. 🔄 **Main CI/CD Pipeline** (`.github/workflows/ci-cd.yml`)
+### 1. 🔄 **Continuous Integration** (`.github/workflows/ci.yml`)
 
 **Triggers:**
-- 🔀 Push to `main` branch (required stages only)
-- 🔀 Pull requests to `main`
-- 🎯 Manual dispatch with advanced options
+- 🔀 Pull requests to `main`/`develop` branches
+- 🔀 Push to `main`/`develop` branches
+- ❌ Excludes documentation changes (*.md files)
+
+**Jobs:**
+- **Backend Validation** 🔍
+  - TypeScript compilation check
+  - ESLint code linting  
+  - Unit and integration tests
+  - Security dependency audit
+  - Test coverage upload
+  
+- **Frontend Validation** 🔍
+  - TypeScript compilation check
+  - ESLint code linting
+  - Security dependency audit
+  - Build artifact generation
+
+- **Security Scan** 🔒 (main branch only)
+  - Trivy vulnerability scanning
+  - SARIF upload to GitHub Security
+
+### 2. � **Backend Deployment** (`.github/workflows/deploy-backend.yml`)
+
+**Triggers:**
+- Push to `main` branch with backend changes
+- Manual workflow dispatch
+
+**Jobs:**
+- **Validate** 🔍 (prerequisite)
+  - TypeScript build validation
+  - Code linting and testing
+  - Security audit
+
+- **Deploy** 🐳 (after validation)
+  - Docker image build with GitHub Actions cache
+  - Push to GitHub Container Registry (ghcr.io)
+  - Deploy to Azure Container Apps
+  - Health check verification
 
 **Features:**
-- ✅ Code quality & linting (Black, isort, flake8, mypy)
-- 🧪 Comprehensive test suite with coverage
-- 🔒 Security vulnerability scanning
-- 🐳 Docker image building and publishing
-- 🚀 Automated releases with changelog generation
-- 🌍 Multi-environment deployment support
+- Multi-layer Docker caching for faster builds
+- Zero-downtime deployment
+- Automated health checks
+- Comprehensive deployment summary
 
-**Manual Dispatch Options:**
-```yaml
-Skip Stages:
-  - skip_lint: Skip code linting and formatting checks
-  - skip_tests: Skip test execution (not recommended)
-  - skip_security: Skip security vulnerability scans
-  - skip_build: Skip Docker image build
+### 3. 🌐 **Frontend Deployment** (`.github/workflows/deploy-frontend.yml`)
 
-Release Options:
-  - create_release: Create a new release
-  - release_tag: Custom tag (e.g., v1.0.0, v0.0.1)
-  - release_type: patch/minor/major
-  - environment: development/staging/production
-```
+**Triggers:**
+- Push to `main` branch with frontend changes
+- Manual workflow dispatch
 
-### 2. 🐳 **Docker Build & Push** (`.github/workflows/docker.yml`)
+**Jobs:**
+- **Validate** 🔍 (prerequisite)
+  - TypeScript build validation
+  - Code linting
+  - Security audit
 
-**Purpose:** Build and publish Docker images on-demand
+- **Build** 🏗️ (after validation)
+  - Production build with Vite
+  - Environment configuration
+  - Static asset optimization
 
-**Features:**
-- 🏗️ Multi-stage optimized builds
-- 🌍 Multi-platform support (AMD64, ARM64)
-- 📦 GitHub Container Registry publishing
-- 🔒 Security-hardened images
+- **Deploy** 📤
+  - GitHub Pages deployment
+  - Custom domain configuration
 
-**Usage:**
-```bash
-# Manual trigger with custom tag
-Inputs:
-  - tag: Docker image tag (default: latest)
-  - push_to_registry: Push to GitHub Container Registry (default: true)
-```
+## � Key Improvements Made
 
-### 3. 🧪 **Test Suite** (`.github/workflows/test.yml`)
+Based on the recent TypeScript fixes, the workflows now include:
 
-**Purpose:** Comprehensive testing with matrix support
+### Enhanced TypeScript Validation
+- **Early Error Detection:** TypeScript compilation runs before deployment
+- **Type Safety:** Prevents runtime errors from type mismatches
+- **Build Consistency:** Ensures the same build process locally and in CI
 
-**Features:**
-- 🔄 Matrix testing (Python 3.10, 3.11, 3.12)
-- 🧪 Unit, Integration, API, and Performance tests
-- 📊 Coverage reporting with Codecov integration
-- 🗄️ PostgreSQL and Redis test services
-- ⏰ Scheduled daily runs at 2 AM UTC
-
-**Test Types:**
+### Comprehensive Testing Strategy
 - **Unit Tests:** Core business logic validation
-- **Integration Tests:** Database and service integration
-- **API Tests:** Endpoint functionality testing
-- **Performance Tests:** Benchmark and load testing
+- **Integration Tests:** Database and API integration testing
+- **Test Artifacts:** Coverage reports and test results preserved
+- **Non-blocking Tests:** Tests run with continue-on-error for optional scenarios
 
-### 4. 🚀 **Release Manager** (`.github/workflows/release.yml`)
+### Advanced Security Measures
+- **Dependency Auditing:** npm audit with high-severity threshold
+- **Container Scanning:** Trivy security scanner for Docker images
+- **SARIF Integration:** Security findings integrated with GitHub Security tab
+- **Regular Monitoring:** Scheduled security scans
 
-**Purpose:** Automated release creation with version management
+### Performance Optimizations
+- **Docker Layer Caching:** GitHub Actions cache for faster builds
+- **npm Dependency Caching:** Cached node_modules across runs
+- **Build Artifact Reuse:** Frontend builds cached between jobs
+- **Parallel Execution:** Frontend and backend validation run concurrently
 
-**Features:**
-- 📈 Semantic versioning (patch/minor/major)
-- 📝 Automatic changelog generation
-- 🐳 Release-specific Docker images
-- 🏷️ Git tagging and GitHub releases
-- 📋 Custom release notes support
+## �️ Required Configuration
 
-**Version Examples:**
+### GitHub Secrets
+
+For Azure deployment:
 ```
-Current: v0.0.5
-├── patch → v0.0.6
-├── minor → v0.1.0
-├── major → v1.0.0
-└── prerelease → v0.0.6-rc.1
-```
-
-### 5. 🏥 **Health Check** (`.github/workflows/health.yml`)
-
-**Purpose:** Monitor service health and dependencies
-
-**Features:**
-- 🔄 Scheduled health checks every 6 hours
-- 🔍 Endpoint availability monitoring
-- 🔒 Dependency security scanning
-- 📊 Health status reporting
-
-## 🎯 Quick Start Guide
-
-### Running Your First Workflow
-
-1. **Trigger Main CI/CD Pipeline:**
-   ```
-   Go to Actions → KisaanCenter CI/CD Pipeline → Run workflow
-   ```
-
-2. **Create Your First Release:**
-   ```
-   Go to Actions → Release Manager → Run workflow
-   Input: release_type = patch (for v0.0.1)
-   ```
-
-3. **Run Tests Only:**
-   ```
-   Go to Actions → Test Suite → Run workflow
-   Select: test_type = unit, python_version = 3.11
-   ```
-
-### Release Versioning Strategy
-
-Starting from `v0.0.1`, follow semantic versioning:
-
-```
-v0.0.1 → v0.0.2 → v0.0.3 ... → v0.1.0 → v0.1.1 ... → v1.0.0
+AZURE_CLIENT_ID          # Azure Service Principal ID
+AZURE_CLIENT_SECRET      # Azure Service Principal Secret
+AZURE_SUBSCRIPTION_ID    # Azure Subscription ID
+AZURE_TENANT_ID          # Azure Tenant ID
+AZURE_CONTAINER_APP_NAME # Container App name
+AZURE_RESOURCE_GROUP     # Resource Group name
 ```
 
-**When to use each type:**
-- **Patch** (v0.0.1 → v0.0.2): Bug fixes, small improvements
-- **Minor** (v0.0.x → v0.1.0): New features, API additions
-- **Major** (v0.x.x → v1.0.0): Breaking changes, major releases
-
-## 🔧 Workflow Configuration
-
-### Environment Variables
-
-The workflows use these environment variables:
-
-```yaml
-PYTHON_VERSION: '3.11'        # Default Python version
-NODE_VERSION: '18'           # Node.js version (if needed)
-REGISTRY: ghcr.io           # Container registry
-IMAGE_NAME: ${{ github.repository }}  # Docker image name
+For database configuration:
+```
+DB_HOST                  # Database host
+DB_PORT                  # Database port
+DB_NAME                  # Database name
+DB_USER                  # Database user
+DB_PASSWORD              # Database password
 ```
 
-### Required Secrets
+### Package.json Scripts
 
-All workflows use the default `GITHUB_TOKEN` - no additional secrets needed for basic functionality.
+Ensure these scripts exist in your package.json:
 
-### Optional Enhancements
-
-For advanced features, consider adding:
-
-```yaml
-# For external services
-CODECOV_TOKEN: xxx          # Enhanced coverage reporting
-SLACK_WEBHOOK: xxx          # Deployment notifications
-DOCKER_HUB_TOKEN: xxx       # Additional registry publishing
+**Backend** (`kisaan-backend-node/package.json`):
+```json
+{
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts",
+    "test": "jest",
+    "test:integration": "jest --config jest.integration.config.js"
+  }
+}
 ```
 
-## 📊 Workflow Outputs
+**Frontend** (`kisaan-frontend/package.json`):
+```json
+{
+  "scripts": {
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx"
+  }
+}
+```
 
-### Artifacts Generated
+## 🚀 Deployment Architecture
 
-Each workflow produces relevant artifacts:
+```mermaid
+graph TD
+    A[Developer Push] --> B[CI Validation]
+    B --> C{TypeScript Build OK?}
+    C -->|❌ No| D[Block Deployment]
+    C -->|✅ Yes| E[Security Scan]
+    E --> F[Deploy Backend]
+    E --> G[Deploy Frontend]
+    F --> H[Azure Container Apps]
+    G --> I[GitHub Pages]
+    H --> J[Health Check]
+    I --> K[Custom Domain]
+```
 
-- **CI/CD:** Test results, coverage reports, security scans
-- **Test Suite:** HTML reports, coverage data, benchmark results
-- **Docker:** Multi-platform container images
-- **Release:** GitHub releases with changelogs
-- **Health:** Security and health reports
+## � Workflow Status Monitoring
 
-### GitHub Releases
+### Success Indicators
+- ✅ All TypeScript compilation passes
+- ✅ No high-severity security vulnerabilities
+- ✅ Deployment health checks pass
+- ✅ Build artifacts generated successfully
 
-Releases include:
-- 📝 Auto-generated changelogs
-- 🐳 Docker image references
-- 📊 API documentation links
-- 🔗 Full changelog comparisons
+### Failure Scenarios
+- ❌ TypeScript compilation errors
+- ❌ ESLint violations (blocking)
+- ❌ Docker build failures
+- ❌ Azure deployment issues
+- ❌ Health check failures
 
-## 🚀 Production Deployment
+## � Troubleshooting Guide
 
-### Docker Usage
+### Common Build Issues
 
+**TypeScript Compilation Errors:**
 ```bash
-# Pull the latest release
-docker pull ghcr.io/yourusername/kisaancenter:v1.0.0
-
-# Run the application
-docker run -p 8000:8000 ghcr.io/yourusername/kisaancenter:v1.0.0
-
-# Health check
-curl http://localhost:8000/health
+# Local debugging
+cd kisaan-backend-node
+npm run build
+# Fix type errors before pushing
 ```
 
-### Environment-Specific Deployments
+**Docker Build Failures:**
+```bash
+# Test Docker build locally
+cd kisaan-backend-node
+docker build -t test-build .
+```
 
-The workflows support multiple environments:
+**Azure Deployment Issues:**
+- Verify secrets are configured correctly
+- Check Azure Container Apps logs
+- Ensure database connection strings are valid
 
-- **Development:** Automatic deploys from `main`
-- **Staging:** Manual workflow dispatch
-- **Production:** Release-triggered deployments
+### Security Alert Resolution
 
-## 🔍 Monitoring and Debugging
+1. **High-Severity npm Vulnerabilities:**
+   ```bash
+   npm audit fix
+   # Review and test changes
+   ```
 
-### Workflow Status
+2. **Container Security Issues:**
+   - Update base Docker images
+   - Review Trivy scan results
+   - Apply security patches
 
-Monitor workflow status through:
-- GitHub Actions tab
-- Workflow summary pages
-- Artifact downloads
-- Release notifications
+## 🎯 Best Practices
 
-### Common Issues
+### Development Workflow
+1. **Local Testing:** Always run `npm run build` and `npm run lint` locally
+2. **Branch Strategy:** Use feature branches and pull requests
+3. **Commit Messages:** Follow conventional commit format
+4. **Type Safety:** Address TypeScript errors immediately
 
-1. **Test Failures:** Check test artifacts for detailed reports
-2. **Build Failures:** Review Docker build logs
-3. **Security Issues:** Download security scan reports
-4. **Version Conflicts:** Verify release tag formatting
+### Deployment Strategy
+1. **Gradual Rollout:** Test in development environment first
+2. **Monitor Health:** Check deployment health endpoints
+3. **Rollback Plan:** Keep previous versions available
+4. **Database Migrations:** Handle schema changes carefully
 
-## 🎉 Best Practices
-
-### For Development
-
-1. **Use Draft Releases** for testing
-2. **Run tests locally** before pushing
-3. **Follow conventional commits** for better changelogs
-4. **Use workflow dispatch** for testing new features
-
-### For Production
-
-1. **Always use tagged releases**
-2. **Monitor health check results**
-3. **Review security scan reports**
-4. **Backup before major version updates**
+### Security Practices
+1. **Regular Updates:** Keep dependencies current
+2. **Secret Management:** Use GitHub Secrets for sensitive data
+3. **Access Control:** Limit deployment permissions
+4. **Audit Logs:** Monitor deployment activities
 
 ## 📚 Additional Resources
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [Semantic Versioning](https://semver.org/)
-- [KisaanCenter API Documentation](./API_DOCUMENTATION.md)
+- [TypeScript Configuration Guide](../docs/typescript-setup.md)
+- [Azure Container Apps Documentation](https://docs.microsoft.com/en-us/azure/container-apps/)
+- [GitHub Actions Best Practices](https://docs.github.com/en/actions/learn-github-actions/security-hardening-for-github-actions)
+- [Docker Security Best Practices](https://docs.docker.com/engine/security/)
 
 ---
 
-🎯 **Ready to deploy?** Start with running the main CI/CD pipeline to validate your setup!
+🎯 **Ready to deploy?** Push your changes to `main` branch and watch the automated workflows handle the rest!

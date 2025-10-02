@@ -18,8 +18,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
+    name: 🔍 Validate Code Quality
+    
+    steps:
+    - name: 🛎️ Checkout
+      uses: actions/checkout@v4
+
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: kisaan-frontend/package-lock.json
+
+    - name: 📥 Install dependencies
+      working-directory: kisaan-frontend
+      run: npm ci
+
+    - name: 🔍 TypeScript type checking
+      working-directory: kisaan-frontend
+      run: npm run build
+
+    - name: 🧹 Lint code
+      working-directory: kisaan-frontend
+      run: npm run lint
+      continue-on-error: true
+
+    - name: 🔒 Audit dependencies
+      working-directory: kisaan-frontend
+      run: npm audit --audit-level=high
+      continue-on-error: true
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    name: 🏗️ Build Frontend
     
     steps:
     - name: 🛎️ Checkout
@@ -35,21 +70,21 @@ jobs:
     - name: 🔧 Create production environment file
       working-directory: kisaan-frontend
       run: |
-        echo "Creating .env.production with Azure backend URL..."
+        echo "Creating .env.production with values from GitHub secrets..."
         cat > .env.production << EOF
         # Production environment configuration (auto-generated)
-        VITE_API_BASE_URL=https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api
+        VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
         VITE_APP_TITLE=KisaanCenter
         VITE_APP_DESCRIPTION=Market Management System
         VITE_APP_VERSION=1.0.0
         VITE_ENVIRONMENT=production
-        VITE_BACKEND_URL=https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api
+        VITE_BACKEND_URL=${{ secrets.VITE_API_BASE_URL }}
         VITE_API_TIMEOUT=30000
         VITE_ENABLE_LOGGING=false
         EOF
         
         echo "✅ Environment file created successfully"
-        echo "Backend URL will be: https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api"
+        echo "Backend URL will be: ${{ secrets.VITE_API_BASE_URL }}"
 
     - name: 📥 Install dependencies
       working-directory: kisaan-frontend
@@ -85,5 +120,5 @@ jobs:
         echo "=============================="
         echo "✅ Site URL: ${{ steps.deployment.outputs.page_url }}"
         echo "✅ Custom Domain: https://kisaancenter.com"
-        echo "✅ Backend API: https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api"
+        echo "✅ Backend API: ${{ secrets.VITE_API_BASE_BASE_URL }}"
         echo "✅ Commit SHA: ${{ github.sha }}"
