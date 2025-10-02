@@ -1,11 +1,10 @@
+import { Badge } from '../components/ui/badge';
 import React, { useState, useEffect } from 'react';
 import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/format';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { UserTypeBadge } from '../components/ui/UserTypeBadge';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
@@ -455,7 +454,7 @@ const TransactionManagement: React.FC = () => {
                               >
                                 <Badge className={getStatusColor(derivedStatus)} style={{ marginRight: 8 }}>{derivedStatus}</Badge>
                                 <span className="font-semibold mr-2">{farmerName}</span>
-                                {farmerUser && <UserTypeBadge type="FARMER" className="mr-2 align-middle" />}
+                                {farmerUser && <Badge userType="FARMER" className="mr-2 align-middle" />}
                                 <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
                                 <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
                                 <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
@@ -471,13 +470,13 @@ const TransactionManagement: React.FC = () => {
                                     <div>
                                       <span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)} {(() => {
                                         const buyerUser = users.find(u => String(u.id) === String(transaction.buyer_id));
-                                        return buyerUser ? <UserTypeBadge type="BUYER" /> : null;
+                                        return buyerUser ? <Badge userType="BUYER" /> : null;
                                       })()}
                                     </div>
                                     <div>
                                       <span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)} {(() => {
                                         const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
-                                        return farmerUser ? <UserTypeBadge type="FARMER" /> : null;
+                                        return farmerUser ? <Badge userType="FARMER" /> : null;
                                       })()}
                                     </div>
                                   </div>
@@ -518,7 +517,7 @@ const TransactionManagement: React.FC = () => {
                                       <ul className="mt-1 ml-2 list-disc">
                                         {transaction.payments.map((p, i) => {
                                           const renderParty = (type: string) => {
-                                            if (type === 'BUYER' || type === 'FARMER' || type === 'SHOP') return <UserTypeBadge type={type} />;
+                                            if (type === 'BUYER' || type === 'FARMER' || type === 'SHOP') return <Badge userType={type} />;
                                             // fallback: show user name for unknown type
                                             // Try to resolve user id from payment context
                                             if (type === String(transaction.buyer_id)) return getUserName(users, transaction.buyer_id);

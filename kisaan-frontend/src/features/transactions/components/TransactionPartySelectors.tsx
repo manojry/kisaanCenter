@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserTypeBadge } from '@/components/ui/UserTypeBadge';
+import { Badge } from '@/components/ui/badge';
 import Select from 'react-select';
 import { Label } from '@/components/ui/label';
 import type { User, Category } from '@/types/api';
@@ -26,7 +26,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
       <div className="mb-2">
-  <Label>Farmer * <UserTypeBadge type="FARMER" className="ml-1 align-middle" /></Label>
+  <Label>Farmer * <Badge userType="FARMER" className="ml-1 align-middle" /></Label>
         <Select
           options={farmers.map(f => ({ value: f.id, label: `${f.firstname || f.username} (${f.id})` }))}
           value={values.farmer_id ? { value: values.farmer_id, label: `${farmers.find(f => f.id === values.farmer_id)?.firstname || farmers.find(f => f.id === values.farmer_id)?.username} (${values.farmer_id})` } : null}
@@ -38,7 +38,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         {errors.farmer_id && <p className="text-sm text-red-500">{errors.farmer_id}</p>}
       </div>
       <div className="mb-2">
-  <Label>Buyer * <UserTypeBadge type="BUYER" className="ml-1 align-middle" /></Label>
+  <Label>Buyer * <Badge userType="BUYER" className="ml-1 align-middle" /></Label>
         <Select
           options={buyers.map(b => ({ value: b.id, label: `${b.firstname || b.username} (${b.id})` }))}
           value={values.buyer_id ? { value: values.buyer_id, label: `${buyers.find(b => b.id === values.buyer_id)?.firstname || buyers.find(b => b.id === values.buyer_id)?.username} (${values.buyer_id})` } : null}
