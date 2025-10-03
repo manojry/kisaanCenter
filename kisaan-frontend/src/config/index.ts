@@ -6,6 +6,14 @@ export const config = {
   isProduction: import.meta.env.PROD,
 };
 
-export const OWNER_DASHBOARD_API = `${config.apiBaseUrl}/owner-dashboard/dashboard`;
+// Safe getter for owner dashboard API so callers can get a sanitized URL at runtime
+export const getOwnerDashboardApi = (): string => {
+  const base = import.meta.env.VITE_API_BASE_URL || config.apiBaseUrl || '';
+  if (typeof base === 'string' && (base.includes('<') || base.includes('>') || /^\s*$/.test(base))) {
+    // Fallback to relative path
+    return '/owner-dashboard/dashboard';
+  }
+  return `${base.replace(/\/$/, '')}/owner-dashboard/dashboard`;
+};
 
 export default config;

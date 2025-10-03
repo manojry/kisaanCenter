@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient, getSanitizedApiBase } from './apiClient';
 import config from '../config';
 
 // DRY helper for authorized fetch
@@ -12,7 +12,7 @@ export const authorizedFetch = async (url: string, options: RequestInit = {}) =>
   });
 };
 
-const API_BASE_URL = config.apiBaseUrl;
+const API_BASE_URL = getSanitizedApiBase() || config.apiBaseUrl || '';
 
 interface ReportFilters {
   shop_id: string;

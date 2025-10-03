@@ -35,7 +35,20 @@ class ApiClient {
   private responseInterceptors: ResponseInterceptor[] = [];
 
   constructor(config: typeof API_CONFIG) {
-    this.baseURL = config.baseURL;
+    // Sanitize baseURL to avoid malformed placeholders injected at runtime
+    let base = config.baseURL || '';
+    try {
+      // If base contains angle-bracket placeholders or is obviously invalid, fallback to relative path
+      if (typeof base === 'string' && (base.includes('<') || base.includes('>') || /^\s*$/.test(base))) {
+        console.warn('[apiClient] Invalid API base URL detected, falling back to relative URLs:', base);
+        base = '';
+      }
+    } catch (e) {
+      // On any unexpected error, fallback to safe relative URLs
+      console.warn('[apiClient] Error validating API base URL, falling back to relative URLs', e);
+      base = '';
+    }
+    this.baseURL = base;
     this.timeout = config.timeout;
     
     // Add default request interceptor for auth
@@ -218,6 +231,9 @@ class ApiClient {
 
 // Create singleton instance
 export const apiClient = new ApiClient(API_CONFIG);
+
+// Expose sanitized base URL for services that need to build full URLs
+export const getSanitizedApiBase = (): string => apiClient['baseURL'] || '';
 
 // Export types for use in services
 export type { RequestConfig, RequestInterceptor, ResponseInterceptor };
