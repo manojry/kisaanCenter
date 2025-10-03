@@ -6,7 +6,6 @@ import * as transactionProductsController from '../controllers/transactionProduc
 import { authenticateToken, requireRole, requireShopAccess } from '../middlewares/auth';
 import { Request } from 'express';
 import { testAuthBypass } from '../middleware/testAuthBypass';
-import { logger } from '../shared/logging/logger';
 import { getShopCategories } from '../controllers/shopCategoryController';
 
 export const shopRoutes = Router();

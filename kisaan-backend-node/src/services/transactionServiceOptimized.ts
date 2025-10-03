@@ -22,7 +22,7 @@ export const getTransactionsOptimized = async (
   filters: TransactionFilters = {}
 ): Promise<{ transactions: TransactionDTO[]; total: number; page: number; limit: number }> => {
   
-  const where: any = {};
+  const where: { [key: string | symbol]: unknown } = {};
   const includeConditions = [];
 
   // Build WHERE clause based on user role and permissions
@@ -95,34 +95,41 @@ export const getTransactionsOptimized = async (
     distinct: true
   });
 
-  const transactions = rows.map((transaction: any): TransactionDTO => ({
-    id: Number(transaction.id),
-    farmer_id: transaction.farmer_id !== undefined ? Number(transaction.farmer_id) : undefined,
-    buyer_id: transaction.buyer_id !== undefined ? Number(transaction.buyer_id) : undefined,
-    shop_id: Number(transaction.shop_id),
-    product_name: String(transaction.product_name),
-    quantity: Number(transaction.quantity),
-    rate: Number(transaction.rate),
-    total_amount: Number(transaction.total_amount),
-    commission_amount: Number(transaction.commission_amount),
-    status: transaction.status as 'pending' | 'completed' | 'cancelled',
-    created_at: new Date(transaction.createdAt),
-    updated_at: new Date(transaction.updatedAt),
+  const transactions = rows.map((transaction: unknown): TransactionDTO => {
+    const txn = transaction as Record<string, unknown>;
+    return {
+    id: Number(txn.id),
+    farmer_id: txn.farmer_id !== undefined ? Number(txn.farmer_id) : undefined,
+    buyer_id: txn.buyer_id !== undefined ? Number(txn.buyer_id) : undefined,
+    shop_id: Number(txn.shop_id),
+    product_name: String(txn.product_name),
+    quantity: Number(txn.quantity),
+    rate: Number(txn.rate),
+    total_amount: Number(txn.total_amount),
+    commission_amount: Number(txn.commission_amount),
+    status: String(txn.status) as 'pending' | 'completed' | 'cancelled',
+    created_at: new Date(String(txn.createdAt)),
+    updated_at: new Date(String(txn.updatedAt)),
     // Related data
-    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : undefined,
-    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : undefined,
-    shop_name: transaction.shop?.name,
-    payments: transaction.payments || [],
+    farmer_name: (txn.farmer as { firstname?: string; username?: string } | undefined)?.firstname && (txn.farmer as { firstname?: string; username?: string } | undefined)?.username 
+      ? `${(txn.farmer as { firstname: string; username: string }).firstname} (${(txn.farmer as { firstname: string; username: string }).username})` 
+      : undefined,
+    buyer_name: (txn.buyer as { firstname?: string; username?: string } | undefined)?.firstname && (txn.buyer as { firstname?: string; username?: string } | undefined)?.username 
+      ? `${(txn.buyer as { firstname: string; username: string }).firstname} (${(txn.buyer as { firstname: string; username: string }).username})` 
+      : undefined,
+    shop_name: (txn.shop as { name?: string } | undefined)?.name,
+    payments: Array.isArray(txn.payments) ? txn.payments : [],
     // Computed fields
-    paid_amount: Array.isArray(transaction.payments)
-      ? transaction.payments.reduce((sum: number, payment: any) =>
-          payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0)
+    paid_amount: Array.isArray(txn.payments)
+      ? (txn.payments as Array<{ status?: string; amount?: string | number }>).reduce((sum: number, payment) =>
+          payment.status === 'PAID' ? sum + parseFloat(String(payment.amount || 0)) : sum, 0)
       : 0,
-    pending_amount: typeof transaction.total_amount === 'number' && Array.isArray(transaction.payments)
-      ? transaction.total_amount - transaction.payments.reduce((sum: number, payment: any) =>
-          payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0)
+    pending_amount: typeof txn.total_amount === 'number' && Array.isArray(txn.payments)
+      ? Number(txn.total_amount) - (txn.payments as Array<{ status?: string; amount?: string | number }>).reduce((sum: number, payment) =>
+          payment.status === 'PAID' ? sum + parseFloat(String(payment.amount || 0)) : sum, 0)
       : 0
-  }));
+    };
+  });
 
   return {
     transactions,
@@ -159,7 +166,7 @@ export const getTransactionStatsOptimized = async (
   }
 
   const whereClause = ['t.shop_id = :shopId'];
-  const replacements: any = { shopId };
+  const replacements: { [key: string]: unknown } = { shopId };
 
   if (dateRange) {
     whereClause.push('t.created_at >= :dateFrom');
@@ -190,7 +197,7 @@ export const getTransactionStatsOptimized = async (
   const [results] = await sequelize.query(query, {
     replacements,
     type: QueryTypes.SELECT
-  }) as any[];
+  }) as Array<Record<string, string | number>>;
 
   return {
     total_transactions: parseInt(String(results.total_transactions)),
@@ -301,15 +308,15 @@ export const getUserBalanceWithHistory = async (
     shop_id: transaction.shop_id,
     product_name: transaction.product_name,
     quantity: transaction.quantity,
-    rate: (transaction as any).rate ?? 0,
+    rate: typeof (transaction as unknown as Record<string, unknown>).rate === 'number' ? (transaction as unknown as Record<string, unknown>).rate as number : 0,
     total_amount: transaction.total_amount,
     commission_amount: transaction.commission_amount,
     status: transaction.status as 'pending' | 'completed' | 'cancelled',
   created_at: transaction.created_at as Date,
   updated_at: transaction.updated_at as Date,
-    farmer_name: transaction.farmer ? `${(transaction.farmer as any).firstname} (${(transaction.farmer as any).username})` : undefined,
-    buyer_name: transaction.buyer ? `${(transaction.buyer as any).firstname} (${(transaction.buyer as any).username})` : undefined,
-    shop_name: transaction.shop ? (transaction.shop as any).name : undefined
+    farmer_name: transaction.farmer ? `${(transaction.farmer as { firstname: string; username: string }).firstname} (${(transaction.farmer as { firstname: string; username: string }).username})` : undefined,
+    buyer_name: transaction.buyer ? `${(transaction.buyer as { firstname: string; username: string }).firstname} (${(transaction.buyer as { firstname: string; username: string }).username})` : undefined,
+    shop_name: transaction.shop ? (transaction.shop as { name: string }).name : undefined
   });
 
   return {

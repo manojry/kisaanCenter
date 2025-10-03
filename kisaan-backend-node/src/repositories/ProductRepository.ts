@@ -28,7 +28,7 @@ export class ProductRepository extends BaseRepository<Product, ProductEntity> {
    * Convert domain entity to database model data
    */
   protected toModelData(entity: Partial<ProductEntity>): Record<string, unknown> {
-    let rawName = entity.name || '';
+    const rawName = entity.name || '';
     const normalized = rawName.trim().toLowerCase();
     if (!normalized) {
       throw new Error('Product name cannot be empty');

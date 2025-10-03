@@ -9,10 +9,10 @@ export const validateSchema = (schema: z.ZodSchema) => {
       next();
     } catch (err: unknown) {
       if (err instanceof ZodError) {
-        // @ts-ignore: ZodError.errors is always present
+        // @ts-expect-error: ZodError.errors is always present
         const errorList = err.errors;
         if (!Array.isArray(errorList) || errorList.length === 0) {
-          (req as unknown as { log?: { warn: Function } }).log?.warn({ err }, 'zod validation error (raw)');
+          (req as unknown as { log?: { warn: (msg: unknown, context?: string) => void } }).log?.warn({ err }, 'zod validation error (raw)');
         }
         return res.status(400).json({
           success: false,

@@ -1,5 +1,5 @@
 import { BaseRepository } from './BaseRepository';
-import { Model, Transaction } from 'sequelize';
+import { Transaction } from 'sequelize';
 import { TransactionIdempotency, TransactionIdempotencyCreationAttributes } from '../models/transactionIdempotency';
 
 export interface IdempotencyRecordEntity {

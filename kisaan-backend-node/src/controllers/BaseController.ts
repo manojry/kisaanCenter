@@ -11,7 +11,7 @@ export abstract class BaseController {
   /**
    * Standard async handler wrapper
    */
-  public asyncHandler<T extends (...args: any[]) => any>(fn: T) {
+  public asyncHandler<T extends (req: Request, res: Response, next: NextFunction) => void | Promise<void>>(fn: T) {
     return ControllerUtils.asyncHandler(fn);
   }
 
@@ -298,6 +298,7 @@ export function createStandardController(serviceName: string) {
     public getService() {
       // Dynamic service loading
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const ServiceClass = require(`../services/${this.serviceName}Service`)[`${this.serviceName.charAt(0).toUpperCase() + this.serviceName.slice(1)}Service`];
         return new ServiceClass();
       } catch (error) {

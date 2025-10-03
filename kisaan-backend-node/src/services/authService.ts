@@ -88,7 +88,7 @@ export class AuthService {
   /**
    * Verify a JWT token and return the decoded payload
    */
-  verifyToken(token: string): any {
+  verifyToken(token: string): unknown {
     try {
       if (!token?.trim()) {
         throw new ValidationError('Token is required');

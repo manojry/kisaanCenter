@@ -148,7 +148,7 @@ export class PlanService extends BaseService<PlanEntity, PlanDTO> {
         return null;
       }
       // raw update since repository may not have status concept
-  const [count] = await (this as unknown as { planRepository: { model: { update: Function } } }).planRepository['model'].update({ is_active: false }, { where: { id } });
+  const [count] = await (this as unknown as { planRepository: { model: { update: (values: unknown, options: unknown) => Promise<[number]> } } }).planRepository['model'].update({ is_active: false }, { where: { id } });
       if (count === 0) return null;
       const updated = await this.planRepository.findById(id);
       return updated ? updated.toDTO() : null;

@@ -24,7 +24,7 @@ export class CategoryService {
     const category = await Category.findByPk(id);
     if (!category) return null;
 
-    const updateData: any = { ...data };
+    const updateData: Record<string, unknown> = { ...data };
     
     // Convert null description to undefined for update
     if (data.description === null) {

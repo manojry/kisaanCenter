@@ -41,8 +41,8 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     if (params.farmerId) where.farmer_id = params.farmerId;
     if (params.buyerId) where.buyer_id = params.buyerId;
     // Always convert to Date objects before checking validity
-    let startDate = params.startDate instanceof Date ? params.startDate : params.startDate ? new Date(params.startDate) : undefined;
-    let endDate = params.endDate instanceof Date ? params.endDate : params.endDate ? new Date(params.endDate) : undefined;
+    const startDate = params.startDate instanceof Date ? params.startDate : params.startDate ? new Date(params.startDate) : undefined;
+    const endDate = params.endDate instanceof Date ? params.endDate : params.endDate ? new Date(params.endDate) : undefined;
     if (startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())) {
       where.transaction_date = { [Op.between]: [startDate, endDate] };
     }

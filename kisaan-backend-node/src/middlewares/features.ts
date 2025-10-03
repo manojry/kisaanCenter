@@ -15,24 +15,24 @@ const CACHE_MS = 30_000; // 30s window
 
 export async function loadFeatures(req: Request, _res: Response, next: NextFunction) {
   try {
-    const userId = (req as any).user?.id;
+    const userId = (req as { user?: { id?: number } }).user?.id;
     if (!userId) return next();
     const now = Date.now();
     const cached = global.__featureCache.get(userId);
     if (cached && (now - cached.ts) < CACHE_MS) {
-      (req as any).features = cached.data;
+      (req as { features?: unknown }).features = cached.data;
       return next();
     }
     const data = await FeatureService.getEffectiveFeatures(userId);
     global.__featureCache.set(userId, { ts: now, data });
-    (req as any).features = data;
+    (req as { features?: unknown }).features = data;
     next();
   } catch (e) { next(e); }
 }
 
 export function requireFeature(code: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const features = (req as any).features?.features;
+    const features = (req as { features?: { features?: Record<string, boolean> } }).features?.features;
     if (!features) return failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Auth required');
     if (!features[code]) {
       return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { feature: code }, `Feature '${code}' not enabled`);
@@ -44,12 +44,12 @@ export function requireFeature(code: string) {
 // Helper to constrain date filters for history endpoints
 export function enforceRetention(paramFrom: string, paramTo: string) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    const eff = (req as any).features;
+    const eff = (req as { features?: { retentionDays?: number } }).features;
     if (!eff) return next();
-    const days = eff.retentionDays;
-    const now = new Date();
-    const minDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    const q: any = (req as any).query || {};
+  const days = eff.retentionDays ?? 90;
+  const now = new Date();
+  const minDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const q: Record<string, string> = (req as { query?: Record<string, string> }).query || {};
     if (q[paramFrom]) {
       const reqFrom = new Date(q[paramFrom]);
       if (reqFrom < minDate) q[paramFrom] = minDate.toISOString();
@@ -57,7 +57,7 @@ export function enforceRetention(paramFrom: string, paramTo: string) {
       q[paramFrom] = minDate.toISOString();
     }
     if (!q[paramTo]) q[paramTo] = now.toISOString();
-    (req as any).query = q;
+    (req as { query?: Record<string, string> }).query = q;
     next();
   };
 }

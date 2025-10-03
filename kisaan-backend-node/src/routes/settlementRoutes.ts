@@ -23,6 +23,7 @@ router.post('/repay-fifo', authenticateToken, async (req, res) => {
     if (!shop_id || !user_id || !amount || amount <= 0) {
       return failure(res, 400, 'VALIDATION_ERROR', { fields: ['shop_id','user_id','amount'] }, 'shop_id, user_id, and valid amount are required');
     }
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { applyRepaymentFIFO } = require('../services/settlementService');
     const result = await applyRepaymentFIFO(parseInt(shop_id), parseInt(user_id), parseFloat(amount));
     success(res, result);
@@ -43,6 +44,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const expandedFromDate = from_date ? expandToFullDay(from_date as string, false) : undefined;
     const expandedToDate = to_date ? expandToFullDay(to_date as string, true) : undefined;
     // Call service directly
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getSettlements } = require('../services/settlementService');
     const settlements = await getSettlements({
       shop_id: shop_id as string,

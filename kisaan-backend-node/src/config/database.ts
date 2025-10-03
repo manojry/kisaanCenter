@@ -41,7 +41,7 @@ console.log('[DB CONFIG] Environment variables loaded:', {
 const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   host: dbHost,
   port: dbPort,
-  dialect: dbDialect as any,
+  dialect: dbDialect as 'postgres' | 'mysql' | 'mariadb' | 'sqlite' | 'mssql',
   logging: false,
   ...(sslMode === 'require'
     ? {

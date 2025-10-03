@@ -3,7 +3,7 @@
  * API endpoints for balance validation and reconciliation
  */
 
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { balanceReconciliationService } from '../balance-reconciliation-service';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
@@ -24,9 +24,9 @@ export class BalanceReconciliationController {
       return success(res, result, { 
         message: result.isReconciled ? 'Balance is reconciled' : 'Balance discrepancy found' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'balance reconciliation failed');
-  return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, (error as Error).message);
     }
   }
 

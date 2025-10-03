@@ -3,7 +3,7 @@
  * Provides improved performance with single queries and caching
  */
 
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth';
 import {
   getAllUsersOptimized,

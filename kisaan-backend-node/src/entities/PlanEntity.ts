@@ -4,7 +4,7 @@ export class PlanEntity {
   id?: number;
   name: string;
   description?: string | null;
-  features: any[];
+  features: unknown[];
   is_active?: boolean; // surfaced for deactivate semantics
   created_at?: Date;
   updated_at?: Date;

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { User, Shop } from '../models';
 import { createSettlement } from '../services/settlementService';
 import { AuthenticatedRequest } from '../middlewares/auth';
@@ -58,8 +58,8 @@ export class BalanceController {
     });
     success(res, { payment: paymentResult }, { message: 'Payment added successfully' });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'addPaymentToFarmer failed');
-  failureCode(res, 500, ErrorCodes.ADD_PAYMENT_FARMER_FAILED, { error: (error as any).message }, 'Failed to add payment');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'addPaymentToFarmer failed');
+    failureCode(res, 500, ErrorCodes.ADD_PAYMENT_FARMER_FAILED, { error: (error as Error).message }, 'Failed to add payment');
   }
 };
 
@@ -96,8 +96,8 @@ export class BalanceController {
     });
     success(res, { payment: paymentResult }, { message: 'Payment received successfully' });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'addPaymentFromBuyer failed');
-  failureCode(res, 500, ErrorCodes.ADD_PAYMENT_BUYER_FAILED, { error: (error as any).message }, 'Failed to record payment');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'addPaymentFromBuyer failed');
+    failureCode(res, 500, ErrorCodes.ADD_PAYMENT_BUYER_FAILED, { error: (error as Error).message }, 'Failed to record payment');
   }
 };
 
@@ -119,8 +119,8 @@ export class BalanceController {
       balance: user.balance || 0
     });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'getUserBalance failed');
-  failureCode(res, 500, ErrorCodes.GET_BALANCE_FAILED, { error: (error as any).message }, 'Failed to get balance');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getUserBalance failed');
+    failureCode(res, 500, ErrorCodes.GET_BALANCE_FAILED, { error: (error as Error).message }, 'Failed to get balance');
   }
 };
 

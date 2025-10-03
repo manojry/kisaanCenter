@@ -19,7 +19,7 @@ export class PlanRepository extends BaseRepository<Plan, PlanEntity> {
     });
   }
 
-  protected toModelData(entity: PlanEntity): any {
+  protected toModelData(entity: PlanEntity): Record<string, unknown> {
     return {
       name: entity.name,
       description: entity.description,

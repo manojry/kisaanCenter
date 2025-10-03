@@ -6,7 +6,6 @@ import {
   updateProduct,
   deleteProduct,
 } from '../controllers/productController';
-import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();
 

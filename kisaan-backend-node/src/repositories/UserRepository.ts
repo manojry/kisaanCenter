@@ -82,6 +82,7 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
   async usernameExists(username: string, excludeId?: number): Promise<boolean> {
   const where: Record<string, unknown> = { username };
     if (excludeId) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       where.id = { [require('sequelize').Op.ne]: excludeId };
     }
 

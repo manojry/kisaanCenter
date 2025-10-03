@@ -4,15 +4,7 @@ import { CreditAdvanceController } from '../controllers';
 
 const router = express.Router();
 
-// Utility: expand YYYY-MM-DD to full day ISO string
-function expandToFullDay(dateStr: string, isEnd: boolean): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return isEnd
-      ? `${dateStr}T23:59:59.999Z`
-      : `${dateStr}T00:00:00.000Z`;
-  }
-  return dateStr;
-}
+
 
 // Example usage for future: (uncomment and adapt as needed)
 // router.get('/filter', async (req, res) => {
@@ -25,6 +17,7 @@ function expandToFullDay(dateStr: string, isEnd: boolean): string {
 // GET /api/credits - List all credits
 router.get('/', async (req, res) => {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { CreditAdvance } = require('../models/creditAdvance');
     const credits = await CreditAdvance.findAll({
       order: [['created_at', 'DESC']]

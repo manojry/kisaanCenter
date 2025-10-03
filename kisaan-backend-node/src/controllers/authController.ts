@@ -18,24 +18,24 @@ class AuthController {
       const data = validate(LoginSchema, req.body);
       const result = await this.authService.loginUser(data);
       return success(res, result, { message: 'Login successful' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       req.log?.error({ err }, 'auth:login failed');
       if (err instanceof ValidationFailure || err instanceof z.ZodError) {
-        return failure(res, 400, 'Validation failed', (err as any).issues);
+        return failure(res, 400, 'Validation failed', (err as { issues?: unknown }).issues);
       }
       return next(err);
     }
   }
 
-  async logoutController(req: Request, res: Response) {
+  async logoutController(_req: Request, _res: Response) {
     // Implementation for logout
   }
   
-  async refreshTokenController(req: Request, res: Response) {
+  async refreshTokenController(_req: Request, _res: Response) {
     // Implementation for refresh token
   }
   
-  async verifyController(req: Request, res: Response) {
+  async verifyController(_req: Request, _res: Response) {
     // Implementation for verify
   }
 }

@@ -1,7 +1,6 @@
 import express from 'express';
 import { CommissionController } from '../controllers';
 import { success, failure } from '../shared/http/respond';
-import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();
 const commissionController = new CommissionController();

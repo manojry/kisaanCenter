@@ -29,6 +29,7 @@ export class ApiRegistry {
     console.log('🔧 Registering API routes manually...');
     // Import routes dynamically to avoid circular dependencies
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const routes = require('../routes');
       // Authentication routes
       app.use('/api/auth', routes.authRoutes);
@@ -72,14 +73,20 @@ export class ApiRegistry {
       }
       // Diagnostics routes (commission integrity)
       try {
-        const express = require('express');
-        const { authenticateToken } = require('../middlewares/auth');
-        const { loadFeatures, requireFeature } = require('../middlewares/features');
-        // Use standardized success responder from shared/http/respond
-        const { success } = require('../shared/http/respond');
-        const { Transaction } = require('../models/transaction');
-        const { logger } = require('../shared/logging/logger');
-        const diagnostics = express.Router();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const express = require('express');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { authenticateToken } = require('../middlewares/auth');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { loadFeatures, requireFeature } = require('../middlewares/features');
+  // Use standardized success responder from shared/http/respond
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { success } = require('../shared/http/respond');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Transaction } = require('../models/transaction');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { logger } = require('../shared/logging/logger');
+  const diagnostics = express.Router();
         diagnostics.get('/commission-integrity', authenticateToken, loadFeatures, requireFeature('diagnostics.integrity'), async (req: Request, res: Response) => {
           try {
             const started = Date.now();
@@ -106,7 +113,7 @@ export class ApiRegistry {
               mismatch_samples: samples,
               duration_ms: Date.now() - started
             };
-            try { logger.info({ ...payload }, '[Diagnostics] commission-integrity'); } catch(_){}
+            try { logger.info({ ...payload }, '[Diagnostics] commission-integrity'); } catch(_err){}
             success(res, payload);
           } catch (e: unknown) {
             const errMsg = (typeof e === 'object' && e && 'message' in e) ? (e as { message?: string }).message : undefined;

@@ -2,7 +2,7 @@ export interface PlanDTO {
   id?: number;
   name: string;
   description?: string | null;
-  features: string | any[];
+  features: string | unknown[];
   is_active?: boolean;
   created_at?: Date;
   updated_at?: Date;

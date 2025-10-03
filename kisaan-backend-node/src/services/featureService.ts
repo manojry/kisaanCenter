@@ -31,7 +31,7 @@ export class FeatureService {
     const featureRows = await Feature.findAll({ raw: true });
     const base: Record<string, boolean> = {};
     featureRows.forEach(f => { base[f.code] = !!f.default_enabled; });
-    const defaultsEnabled = Object.entries(base).filter(([_, v]) => v).map(([c]) => c);
+    const defaultsEnabled = Object.entries(base).filter(([_key, v]) => v).map(([c]) => c);
 
   const planFeatures: Record<string, boolean> = {};
     if (user.shop_id) {

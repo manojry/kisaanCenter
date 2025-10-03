@@ -110,8 +110,9 @@ export class PaymentService {
             description: `Payment ${payment.payer_type} -> ${payment.payee_type}: ${payment.amount}`
           });
         }
-      } catch (snapshotError: any) {
-        console.warn(`[BALANCE SNAPSHOT WARNING] Could not create snapshot for user ${userIdToUpdate}:`, snapshotError?.message || 'Unknown error');
+      } catch (snapshotError: unknown) {
+        const error = snapshotError as Error;
+        console.warn(`[BALANCE SNAPSHOT WARNING] Could not create snapshot for user ${userIdToUpdate}:`, error?.message || 'Unknown error');
       }
 
       console.log(`[${userRole.toUpperCase()} BALANCE UPDATE] UserID: ${userIdToUpdate}, New Balance: ${newBalance}`);
@@ -167,8 +168,9 @@ export class PaymentService {
         } else {
           console.log('[ALLOCATE] Referenced transaction_id not found', { transaction_id: payment.transaction_id });
         }
-      } catch (directErr: any) {
-        console.warn('[ALLOCATE] Direct allocation error', directErr?.message || directErr);
+      } catch (directErr: unknown) {
+        const error = directErr as Error;
+        console.warn('[ALLOCATE] Direct allocation error', error?.message || directErr);
       }
     }
 
@@ -243,7 +245,7 @@ export class PaymentService {
         payment_date: data.payment_date || new Date(),
         notes: data.notes !== undefined ? data.notes : payment.notes
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error({ err, paymentId }, '[updatePaymentStatus] Error updating payment');
       throw err;
     }
@@ -279,8 +281,7 @@ export class PaymentService {
   }
 
   async getOutstandingPayments(shopId?: number): Promise<PaymentResponseDTO[]> {
-    const whereClause: Record<string, unknown> = {};
-    let transactionInclude: any = {
+    const transactionInclude: Record<string, unknown> = {
       model: Transaction,
       as: 'transaction',
       attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']

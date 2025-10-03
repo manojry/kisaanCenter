@@ -12,7 +12,7 @@ interface ShopAttributes {
   contact: string | null;
   email?: string | null;
   commission_rate?: number | null;
-  settings?: any | null;
+  settings?: Record<string, unknown> | null;
   status: 'active' | 'inactive';
   created_at?: Date;
   updated_at?: Date;
@@ -30,7 +30,7 @@ export class Shop extends Model<ShopAttributes, ShopCreationAttributes> implemen
   public contact!: string | null;
   public email!: string | null;
   public commission_rate!: number | null;
-  public settings!: any | null;
+  public settings!: Record<string, unknown> | null;
   public status!: 'active' | 'inactive';
   public readonly created_at!: Date;
   public readonly updated_at!: Date;

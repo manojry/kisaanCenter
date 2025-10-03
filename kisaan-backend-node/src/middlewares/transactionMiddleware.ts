@@ -68,10 +68,12 @@ export const validatePaymentUpdate = [
 ];
 
 // Authorization middleware
-export const checkTransactionAccess = async (req: any, res: Response, next: NextFunction) => {
+import { RequestHandler } from 'express';
+
+export const checkTransactionAccess: RequestHandler = async (req, res, next) => {
   try {
-    const user = req.user;
-    const transactionId = req.params.id;
+  const user = (req as { user?: unknown }).user;
+  const transactionId = req.params.id;
     
     if (!user) {
       return failure(res, 401, 'AUTH_REQUIRED', undefined, 'Authentication required');
@@ -82,7 +84,8 @@ export const checkTransactionAccess = async (req: any, res: Response, next: Next
     
     next();
   } catch (error) {
-    failure(res, 500, 'AUTHZ_CHECK_FAILED', { error: (error as any).message }, 'Authorization check failed');
+    const errMsg = error instanceof Error ? error.message : String(error);
+    failure(res, 500, 'AUTHZ_CHECK_FAILED', { error: errMsg }, 'Authorization check failed');
   }
 };
 

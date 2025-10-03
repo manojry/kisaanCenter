@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { planController } from '../controllers/planController';
-import { logger } from '../shared/logging/logger';
 import { authenticateToken, requireRole } from '../middlewares/auth';
 import { testAuthBypass } from '../middleware/testAuthBypass';
 

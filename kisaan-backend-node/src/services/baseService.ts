@@ -1,7 +1,7 @@
 // Generic BaseService to encapsulate repeated CRUD flows using a repository interface
 export interface CrudRepository<TEntity> {
   findById(id: number): Promise<TEntity | null>;
-  findAll(options?: any): Promise<TEntity[]>;
+  findAll(options?: unknown): Promise<TEntity[]>;
   create(entity: TEntity): Promise<TEntity>;
   update(id: number, entity: TEntity): Promise<TEntity | null>;
   delete(id: number): Promise<boolean>;
