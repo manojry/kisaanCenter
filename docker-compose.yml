@@ -23,6 +23,7 @@ services:
       - DB_NAME=kisaan_center
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+      - JWT_SECRET=kisaan-jwt-secret-key-2024-development
     depends_on:
       - db
     volumes:
