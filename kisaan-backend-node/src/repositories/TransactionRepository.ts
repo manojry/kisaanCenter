@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { Transaction } from '../models/transaction';
+import { ModelStatic } from 'sequelize';
 import type { Payment } from '../models/payment';
 import { Op } from 'sequelize';
 import { TransactionEntity } from '../entities/TransactionEntity';
@@ -22,7 +23,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     });
     return models.map((model) => this.toDomainEntity(model));
   }
-  protected model = Transaction;
+  protected model: ModelStatic<Transaction> = Transaction;
   protected entityName = 'Transaction';
 
   async findByFilters(params: {
@@ -135,7 +136,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
       transaction_date: model.transaction_date ?? undefined,
       settlement_date: model.settlement_date ?? undefined,
       notes: model.notes ?? undefined,
-      metadata: model.metadata ?? undefined,
+  metadata: (model.metadata as Record<string, unknown>) ?? undefined,
       created_at: model.created_at,
       updated_at: model.updated_at
     });

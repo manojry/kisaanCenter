@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { TransactionLedger } from '../models/transactionLedger';
+import { ModelStatic } from 'sequelize';
 
 export interface LedgerEntry {
   id?: number;
@@ -14,7 +15,7 @@ export interface LedgerEntry {
 }
 
 export class TransactionLedgerRepository extends BaseRepository<TransactionLedger, LedgerEntry> {
-  protected model = TransactionLedger;
+  protected model: ModelStatic<TransactionLedger> = TransactionLedger;
   protected entityName = 'TransactionLedger';
 
   protected toDomainEntity(model: TransactionLedger): LedgerEntry {

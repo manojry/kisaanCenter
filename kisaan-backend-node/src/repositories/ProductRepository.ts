@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { Product } from '../models/product';
+import { ModelStatic } from 'sequelize';
 import { ProductEntity } from '../entities/ProductEntity';
 
 import { Op } from 'sequelize';
@@ -8,7 +9,7 @@ import { Op } from 'sequelize';
  * Product Repository Implementation
  */
 export class ProductRepository extends BaseRepository<Product, ProductEntity> {
-  protected model = Product;
+  protected model: ModelStatic<Product> = Product;
   protected entityName = 'Product';
 
   /**

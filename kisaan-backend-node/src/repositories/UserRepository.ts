@@ -1,12 +1,13 @@
 import { BaseRepository } from './BaseRepository';
 import { User } from '../models/user';
+import { ModelStatic } from 'sequelize';
 import { UserEntity } from '../entities/UserEntity';
 
 /**
  * User Repository Implementation
  */
 export class UserRepository extends BaseRepository<User, UserEntity> {
-  protected model = User;
+  protected model: ModelStatic<User> = User;
   protected entityName = 'User';
 
   /**

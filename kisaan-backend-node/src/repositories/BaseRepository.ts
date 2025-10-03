@@ -1,15 +1,9 @@
 // src/repositories/BaseRepository.ts
 // Generic base repository for CRUD operations
-import { Model, FindOptions, Transaction } from 'sequelize';
+import { Model, ModelStatic, FindOptions, Transaction } from 'sequelize';
 
 export abstract class BaseRepository<TModel extends Model, TEntity> {
-  protected abstract model: {
-    findByPk(id: number): Promise<TModel | null>;
-    findAll(options?: FindOptions): Promise<TModel[]>;
-    create(data: Record<string, unknown>, options?: { transaction?: Transaction }): Promise<TModel>;
-    update(data: Record<string, unknown>, options: { where: { id: number }; returning: boolean; transaction?: Transaction }): Promise<[number, TModel[]]>;
-    destroy(options: { where: { id: number } }): Promise<number>;
-  };
+  protected abstract model: ModelStatic<TModel>;
   protected abstract entityName: string;
 
   protected abstract toDomainEntity(model: TModel): TEntity;
@@ -29,7 +23,8 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
     const data = this.toModelData(entity);
     const createOpts: { transaction?: Transaction } = {};
     if (options?.tx) createOpts.transaction = options.tx as Transaction;
-    const result = await this.model.create(data, createOpts);
+    // Cast to any because model.create has model-specific creation attribute types
+    const result = await this.model.create(data as any, createOpts);
     return this.toDomainEntity(result);
   }
 
@@ -37,7 +32,8 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
     const data = this.toModelData(entity);
     const updateOpts: { where: { id: number }; returning: boolean; transaction?: Transaction } = { where: { id }, returning: true };
     if (options?.tx) updateOpts.transaction = options.tx as Transaction;
-    const [count, rows] = await this.model.update(data, updateOpts);
+  // Cast data to any to satisfy model-specific update/create attribute typings
+  const [count, rows] = await this.model.update(data as any, updateOpts as any) as [number, TModel[]];
     if (count > 0 && rows[0]) {
       return this.toDomainEntity(rows[0]);
     }
@@ -45,7 +41,7 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
   }
 
   async delete(id: number): Promise<boolean> {
-    const count = await this.model.destroy({ where: { id } });
+  const count = await this.model.destroy({ where: { id } } as any);
     return count > 0;
   }
 }

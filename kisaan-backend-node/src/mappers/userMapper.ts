@@ -6,6 +6,15 @@ import { UserDTO, CreateUserDTO } from '../dtos';
 import { User } from '../models/user';
 import { UserAnalyticsService } from '../services/userAnalyticsService';
 
+function normalizeBalance(value: string | number | undefined | null): number {
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value as string);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return value as number;
+  return 0;
+}
+
 export async function toUserDTO(entity: UserEntity): Promise<UserDTO> {
   // Calculate computed fields using analytics service
   const analytics = await UserAnalyticsService.getUserAnalytics(
@@ -21,7 +30,7 @@ export async function toUserDTO(entity: UserEntity): Promise<UserDTO> {
     role: entity.role!,
     shop_id: entity.shop_id,
     firstname: entity.firstname ?? '',
-  balance: typeof (entity as { balance?: string | number }).balance === 'string' ? parseFloat((entity as { balance?: string | number }).balance as string) : (entity as { balance?: string | number }).balance,
+  balance: normalizeBalance((entity as { balance?: string | number }).balance),
     created_at: entity.created_at,
     updated_at: entity.updated_at,
   custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,
@@ -40,7 +49,7 @@ export function toUserDTOSync(entity: UserEntity): Omit<UserDTO, 'status' | 'cum
     role: entity.role!,
     shop_id: entity.shop_id,
     firstname: entity.firstname ?? '',
-  balance: typeof (entity as { balance?: string | number }).balance === 'string' ? parseFloat((entity as { balance?: string | number }).balance as string) : (entity as { balance?: string | number }).balance,
+  balance: normalizeBalance((entity as { balance?: string | number }).balance),
     created_at: entity.created_at,
     updated_at: entity.updated_at,
   custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,

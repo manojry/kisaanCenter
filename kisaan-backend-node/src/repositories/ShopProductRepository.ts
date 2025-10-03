@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { ShopProducts } from '../models/shopProducts';
+import { ModelStatic } from 'sequelize';
 
 export interface ShopProductEntity {
   id?: number;
@@ -11,7 +12,7 @@ export interface ShopProductEntity {
 }
 
 export class ShopProductRepository extends BaseRepository<ShopProducts, ShopProductEntity> {
-  protected model = ShopProducts;
+  protected model: ModelStatic<ShopProducts> = ShopProducts;
   protected entityName = 'ShopProduct';
 
   protected toDomainEntity(model: ShopProducts): ShopProductEntity {

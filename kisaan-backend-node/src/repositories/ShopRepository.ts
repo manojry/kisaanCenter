@@ -1,12 +1,13 @@
 import { BaseRepository } from './BaseRepository';
 import { Shop } from '../models/shop';
+import { ModelStatic } from 'sequelize';
 import { ShopEntity } from '../entities/ShopEntity';
 
 /**
  * Shop Repository Implementation
  */
 export class ShopRepository extends BaseRepository<Shop, ShopEntity> {
-  protected model = Shop;
+  protected model: ModelStatic<Shop> = Shop;
   protected entityName = 'Shop';
 
   /**

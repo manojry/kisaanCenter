@@ -2,10 +2,11 @@ import { Op } from 'sequelize';
 import { BaseRepository } from './BaseRepository';
 import { Plan } from '../models/plan';
 import { PlanEntity } from '../entities/PlanEntity';
+import { ModelStatic } from 'sequelize';
 // Simplified repository after plan model flattening
 
 export class PlanRepository extends BaseRepository<Plan, PlanEntity> {
-  protected model = Plan;
+  protected model: ModelStatic<Plan> = Plan;
   protected entityName = 'Plan';
 
   protected toDomainEntity(model: Plan): PlanEntity {

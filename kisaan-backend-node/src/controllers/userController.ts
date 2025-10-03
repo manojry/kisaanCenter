@@ -85,8 +85,9 @@ export class UserController {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-      const includeBalance = req.query.include_balance === 'true';
-      const result = await userService.getAllUsers(query, req.user, includeBalance);
+  // include_balance is no longer accepted by service; keep parsing for backward compatibility but don't pass it
+  const includeBalance = req.query.include_balance === 'true';
+  const result = await userService.getAllUsers(query, req.user);
       const { users, total, page, limit } = result;
       success(res, users, {
         message: 'Users retrieved successfully',

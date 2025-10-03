@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { FarmerProductAssignment } from '../models/farmerProductAssignment';
+import { ModelStatic } from 'sequelize';
 import { Product } from '../models/product';
 
 export interface FarmerProductAssignmentEntity {
@@ -14,7 +15,7 @@ export interface FarmerProductAssignmentEntity {
 }
 
 export class FarmerProductAssignmentRepository extends BaseRepository<FarmerProductAssignment, FarmerProductAssignmentEntity> {
-  protected model = FarmerProductAssignment;
+  protected model: ModelStatic<FarmerProductAssignment> = FarmerProductAssignment;
   protected entityName = 'FarmerProductAssignment';
 
   protected toDomainEntity(model: FarmerProductAssignment): FarmerProductAssignmentEntity {
