@@ -62,8 +62,8 @@ router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.li
       orderBy: order_by as string | undefined,
       orderDir: (order_dir as string | undefined)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
     });
-    const meta = req.pagination ? buildPaginationMeta(count, req.pagination) : { total: count };
-    return success(res, rows, { meta });
+  const meta = req.pagination ? buildPaginationMeta(count, req.pagination) : { total: count };
+  return success(res, rows, { meta: meta as unknown as Record<string, unknown> });
   } catch (err) {
     next(err);
   }

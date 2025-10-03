@@ -58,11 +58,13 @@ export class TypeValidators {
     return value instanceof Date && !isNaN(value.getTime());
   }
 
-  static isEmail(value: string): boolean {
+  static isEmail(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
     return VALIDATION.EMAIL_PATTERN.test(value) && value.length <= VALIDATION.EMAIL_MAX_LENGTH;
   }
 
-  static isPhone(value: string): boolean {
+  static isPhone(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
     const cleanPhone = value.replace(/\s/g, '');
     return VALIDATION.PHONE_PATTERN.test(cleanPhone) && 
            cleanPhone.length >= VALIDATION.PHONE_MIN_LENGTH && 
@@ -75,7 +77,8 @@ export class TypeValidators {
            value.length <= VALIDATION.USERNAME_MAX_LENGTH;
   }
 
-  static isStrongPassword(value: string): boolean {
+  static isStrongPassword(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
     if (value.length < VALIDATION.PASSWORD_MIN_LENGTH || value.length > VALIDATION.PASSWORD_MAX_LENGTH) {
       return false;
     }

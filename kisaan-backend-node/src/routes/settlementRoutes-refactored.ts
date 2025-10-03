@@ -51,8 +51,8 @@ router.get('/',
       return ResponseUtils.error(res, 'shop_id is required');
     }
 
-    // Use common date parsing utility
-    const { startDate, endDate } = DateUtils.parseDateRange(req.query);
+  // Use common date parsing utility - cast req.query to the expected shape
+  const { startDate, endDate } = DateUtils.parseDateRange(req.query as unknown as Record<string, string | undefined>);
 
     const result = await ServiceUtils.executeService(
       () => {

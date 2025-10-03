@@ -159,4 +159,17 @@ export class PaymentController {
       failureCode(res, 500, ErrorCodes.GET_OUTSTANDING_PAYMENTS_FAILED, { error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to fetch outstanding payments');
     }
   }
+
+  // Bulk create payments - thin controller that delegates to service
+  async createBulkPayments(req: Request, res: Response) {
+    try {
+      // Body validation already applied by route middleware
+      const bulk = req.body as import('../dtos/PaymentDTO').BulkPaymentDTO;
+      const userId = (req as { user?: { id?: number } }).user?.id || 1;
+      const results = await this.paymentService.createBulkPayments(bulk, userId);
+      created(res, results, { message: 'Bulk payments processed' });
+    } catch (err) {
+      failureCode(res, 500, ErrorCodes.CREATE_PAYMENT_FAILED, { error: err instanceof Error ? err.message : 'Unknown error' }, 'Failed to create bulk payments');
+    }
+  }
 }
