@@ -1,13 +1,13 @@
 // src/repositories/BaseRepository.ts
 // Generic base repository for CRUD operations
-import { Model, FindOptions, Op } from 'sequelize';
+import { Model, FindOptions, Transaction } from 'sequelize';
 
 export abstract class BaseRepository<TModel extends Model, TEntity> {
-  protected abstract model: any;
+  protected abstract model: { findByPk: Function; findAll: Function; create: Function; update: Function; destroy: Function };
   protected abstract entityName: string;
 
   protected abstract toDomainEntity(model: TModel): TEntity;
-  protected abstract toModelData(entity: TEntity): any;
+  protected abstract toModelData(entity: TEntity): Record<string, unknown>;
 
   async findById(id: number): Promise<TEntity | null> {
     const result = await this.model.findByPk(id);
@@ -20,16 +20,16 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
   }
 
   async create(entity: TEntity, options?: { tx?: any }): Promise<TEntity> {
-    const data = this.toModelData(entity);
-    const createOpts: any = {};
-    if (options?.tx) createOpts.transaction = options.tx;
-    const result = await this.model.create(data, createOpts);
-    return this.toDomainEntity(result);
+  const data = this.toModelData(entity);
+  const createOpts: { transaction?: Transaction } = {};
+  if (options?.tx) createOpts.transaction = options.tx;
+  const result = await this.model.create(data, createOpts);
+  return this.toDomainEntity(result);
   }
 
   async update(id: number, entity: TEntity, options?: { tx?: any }): Promise<TEntity | null> {
     const data = this.toModelData(entity);
-    const updateOpts: any = { where: { id }, returning: true };
+    const updateOpts: { where: { id: number }; returning: boolean; transaction?: Transaction } = { where: { id }, returning: true };
     if (options?.tx) updateOpts.transaction = options.tx;
     const [count, rows] = await this.model.update(data, updateOpts);
     if (count > 0 && rows[0]) {

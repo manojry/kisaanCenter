@@ -4,7 +4,6 @@
  */
 
 import { Transaction } from '../models/transaction';
-import { Op } from 'sequelize';
 
 export class UserAnalyticsService {
   
@@ -16,7 +15,7 @@ export class UserAnalyticsService {
    */
   static async calculateCumulativeValue(userId: number, role: string, shopId?: number | null): Promise<number> {
     try {
-      let whereClause: any = {};
+  let whereClause: Record<string, unknown> = {};
       let sumColumn = 'total_amount';
 
       switch (role) {
@@ -51,7 +50,7 @@ export class UserAnalyticsService {
         raw: true
       });
 
-      return Number((result as any)?.total || 0);
+  return Number((result as { total?: number | string } | null)?.total || 0);
     } catch (error) {
       console.error('Error calculating cumulative value:', error);
       return 0;
@@ -75,10 +74,10 @@ export class UserAnalyticsService {
   /**
    * Get analytics summary for a user (balance, cumulative value, status)
    */
-  static async getUserAnalytics(userId: number, role: string, shopId?: number | null) {
+  static async getUserAnalytics(_userId: number, role: string, shopId?: number | null) {
     const [cumulativeValue, status] = await Promise.all([
-      this.calculateCumulativeValue(userId, role, shopId),
-      this.calculateUserStatus(userId)
+      this.calculateCumulativeValue(_userId, role, shopId),
+      this.calculateUserStatus(_userId)
     ]);
 
     return {

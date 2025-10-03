@@ -1,10 +1,9 @@
 // User service for business logic related to users
-import { Op } from 'sequelize';
+import { USER_ROLES } from '../shared/constants';
 
 import { User } from '../models/user';
-import { UserEntity } from '../entities/UserEntity';
-import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos';
-import { toUserDTO, fromCreateUserDTO, fromUserModel } from '../mappers/userMapper';
+import { UserDTO } from '../dtos';
+import { toUserDTO, fromUserModel } from '../mappers/userMapper';
 import { 
   UserCreate, 
   UserUpdate, 
@@ -14,26 +13,16 @@ import {
 } from '../schemas/user';
 
 // Import shared utilities and constants
-import { USER_ROLES } from '../shared/constants';
-import { ValidationHelpers } from '../shared/utils/validation';
 import { PasswordManager } from '../shared/utils/auth';
-import { DatabaseHelpers } from '../shared/utils/database';
-import { StringFormatter } from '../shared/utils/formatting';
 import { 
   ValidationError, 
   NotFoundError, 
-  ConflictError, 
   AuthenticationError
 } from '../shared/utils/errors';
 
 /**
  * Generates username following multi-tenancy convention using shared utilities
  */
-function generateUsername(firstname: string, ownerId: string): string {
-  const baseName = StringFormatter.slug(firstname).toLowerCase().slice(0, 6) || 'user';
-  const uniqueNum = Math.floor(Math.random() * 10000) + 1;
-  return `${baseName}_${ownerId}_${uniqueNum}`;
-}
 
 /**
  * Validates role creation permissions using shared constants
@@ -68,7 +57,7 @@ export const createUser = async (
     throw new AuthenticationError(`${requestingUserRole} cannot create ${data.role} users`);
   }
 
-  let userData = { ...data };
+  const userData = { ...data };
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
 
   // For owner and superadmin, shop_id should be null
@@ -81,7 +70,7 @@ export const createUser = async (
     // Use part of name (firstname or name), shop_id, and a unique number
     let baseName = '';
       baseName = 'user';
-    let shopIdPart = userData.shop_id ? userData.shop_id.toString() : '0';
+  const shopIdPart = userData.shop_id ? userData.shop_id.toString() : '0';
     let uniqueNum = 1;
     let candidate = `${baseName}_${shopIdPart}_${uniqueNum}`;
     // Find a unique username
@@ -126,17 +115,7 @@ export const createUser = async (
     const passwordManager = new PasswordManager();
     userData.password = await passwordManager.hashPassword(userData.password);
   }
-
-  const finalUserData = { ...userData };
-  finalUserData.balance = Number(finalUserData.balance || 0);
-  if (finalUserData.custom_commission_rate != null) {
-    const n = Number(finalUserData.custom_commission_rate);
-    if (isNaN(n) || n < 0 || n > 100) {
-      throw new ValidationError('custom_commission_rate must be between 0 and 100');
-    }
-    finalUserData.custom_commission_rate = Number(n.toFixed(2));
-  }
-  const userModel = await User.create(finalUserData as import('../models/user').UserCreationAttributes);
+    const userModel = await User.create(userData as import('../models/user').UserCreationAttributes);
   const entity = fromUserModel(userModel);
   return await toUserDTO(entity);
 };
@@ -144,10 +123,10 @@ export const createUser = async (
 export const getAllUsers = async (
   searchParams: UserSearch,
   requestingUser: { id: number; role: UserRole; owner_id?: string | null },
-  includeBalance: boolean = false
+  // includeBalance: boolean = false // Removed unused parameter
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
-  const where: any = {};
-  const includeShop: any[] = [];
+  const where: Record<string, unknown> = {};
+  const includeShop: Array<Record<string, unknown>> = [];
   
   // Role-based filtering using shared constants with optimized JOINs
   if (requestingUser.role === USER_ROLES.OWNER) {
@@ -188,7 +167,7 @@ export const getAllUsers = async (
     distinct: true // Important for accurate count with JOINs
   });
   
-  const users = await Promise.all(rows.map(async model => await toUserDTO(fromUserModel(model))));
+  const users = await Promise.all(rows.map(async (model) => await toUserDTO(fromUserModel(model as User))));
   return { users, total: count, page: searchParams.page, limit: searchParams.limit };
 };
 
@@ -218,8 +197,8 @@ export const getUserById = async (
     if (user.id !== requestingUser.id) {
       if (!user.shop_id) throw new AuthenticationError('Access denied');
       // No additional query needed - shop is already loaded
-      const shop = (user as any).userShop;
-      if (!shop || shop.owner_id !== requestingUser.id) {
+  const shop = (user as { userShop?: { owner_id?: string | null } }).userShop;
+  if (!shop || shop.owner_id !== String(requestingUser.id)) {
         throw new AuthenticationError('Access denied');
       }
     }

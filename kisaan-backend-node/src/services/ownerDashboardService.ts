@@ -1,4 +1,3 @@
-import { Request } from 'express';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
@@ -54,16 +53,14 @@ export class OwnerDashboardService {
       
       const todayTransactions = transactions.filter((t) => {
         // Use transaction_date (business date) instead of created_at (system timestamp)
-        const transactionDate = (t as any).transaction_date;
+        const transactionDate: Date | string | undefined = (t as Transaction & { transaction_date?: Date | string }).transaction_date;
         if (!transactionDate) return false;
-        
         try {
-          const dateStr = transactionDate instanceof Date 
-            ? transactionDate.toISOString().split('T')[0] 
+          const dateStr = transactionDate instanceof Date
+            ? transactionDate.toISOString().split('T')[0]
             : new Date(transactionDate).toISOString().split('T')[0];
-            
           const isToday = dateStr === today;
-          if (transactions.length <= 10) { // Only log for small datasets to avoid spam
+          if (transactions.length <= 10) {
             console.log(`${logPrefix} Transaction ${t.id}: transaction_date=${dateStr}, isToday=${isToday}`);
           }
           return isToday;
@@ -86,19 +83,19 @@ export class OwnerDashboardService {
         .toFixed(2));
 
       const today_sales = Number(todayTransactions
-        .reduce((sum, t) => sum + Number((t as any).total_amount || 0), 0)
+        .reduce((sum, t) => sum + Number((t as Transaction).total_amount || 0), 0)
         .toFixed(2));
       const today_commission = Number(todayTransactions
-        .reduce((sum, t) => sum + Number((t as any).commission_amount || 0), 0)
+        .reduce((sum, t) => sum + Number((t as Transaction).commission_amount || 0), 0)
         .toFixed(2));
         
       // Log today's transaction details for debugging
       if (todayTransactions.length > 0) {
         console.log(`${logPrefix} Today's transactions breakdown:`, todayTransactions.map(t => ({
           id: t.id,
-          total_amount: (t as any).total_amount,
-          commission_amount: (t as any).commission_amount,
-          transaction_date: (t as any).transaction_date,
+          total_amount: (t as Transaction).total_amount,
+          commission_amount: (t as Transaction).commission_amount,
+          transaction_date: (t as Transaction & { transaction_date?: Date | string }).transaction_date,
           created_at: t.created_at
         })));
         console.log(`${logPrefix} Today's totals - sales: ${today_sales}, commission: ${today_commission}, count: ${todayTransactions.length}`);
@@ -106,13 +103,13 @@ export class OwnerDashboardService {
 
       // Commission realized: sum allocated amounts per transaction, then apply commission rate proportionally
       let commission_realized = 0;
-      let rawCommissionSum = 0;
-      let recomputedCommissionSum = 0;
-      let mismatchCount = 0;
-      const mismatchSamples: any[] = [];
-      const overAllocated: any[] = [];
-      const allocByTxn: Record<string, number> = {};
-      const allocMultiMap: Record<string, number> = {};
+  let rawCommissionSum = 0;
+  let recomputedCommissionSum = 0;
+  let mismatchCount = 0;
+  const mismatchSamples: Array<{ id: number; stored: number; recomputed: number; rate: number; qty: number; unit_price: number }> = [];
+  const overAllocated: Array<{ id: number; total: number; buyerPaid: number; over: number }> = [];
+  const allocByTxn: Record<string, number> = {};
+  const allocMultiMap: Record<string, number> = {};
 
       // Pre-index allocations for faster lookups
       for (const alloc of allocations) {
@@ -123,15 +120,22 @@ export class OwnerDashboardService {
       }
 
       for (const t of transactions) {
-        const total = Number((t as any).total_amount || 0);
-        const commission = Number((t as any).commission_amount || 0);
+        const total = Number((t as Transaction).total_amount || 0);
+        const commission = Number((t as Transaction).commission_amount || 0);
         rawCommissionSum += commission;
-        const recomputed = Number(((Number((t as any).quantity) * Number((t as any).unit_price) * Number((t as any).commission_rate)) / 100).toFixed(2));
+        const recomputed = Number(((Number((t as Transaction).quantity) * Number((t as Transaction).unit_price) * Number((t as Transaction).commission_rate)) / 100).toFixed(2));
         recomputedCommissionSum += recomputed;
         if (Math.abs(recomputed - commission) > 0.01) {
           mismatchCount++;
           if (mismatchSamples.length < 10) {
-            mismatchSamples.push({ id: t.id, stored: commission, recomputed, rate: (t as any).commission_rate, qty: (t as any).quantity, unit_price: (t as any).unit_price });
+            mismatchSamples.push({
+              id: t.id,
+              stored: commission,
+              recomputed,
+              rate: (t as Transaction).commission_rate as number,
+              qty: (t as Transaction).quantity,
+              unit_price: (t as Transaction).unit_price
+            });
           }
         }
         const buyerPaid = allocByTxn[String(t.id)] || 0;
@@ -147,7 +151,7 @@ export class OwnerDashboardService {
       commission_realized = Number(commission_realized.toFixed(2));
 
       // Duplicate allocation detection (same payment -> same txn multiple rows)
-      const duplicateAllocations = Object.entries(allocMultiMap)
+      const duplicateAllocations: Array<{ key: string; rows: number }> = Object.entries(allocMultiMap)
         .filter(([, count]) => count > 1)
         .slice(0, 10)
         .map(([k, count]) => ({ key: k, rows: count }));
@@ -167,7 +171,7 @@ export class OwnerDashboardService {
           duplicateAllocationsCount: duplicateAllocations.length,
           duplicateAllocations
         }, '[OwnerDashboardService] Integrity snapshot');
-      } catch(_) {}
+  } catch(_) { /* ignore logging errors */ }
 
       const result = {
         today_sales,
@@ -180,8 +184,9 @@ export class OwnerDashboardService {
         duration_ms: Date.now() - started
       };
       return result;
-    } catch (err: any) {
-      console.error(`${logPrefix} Failed to compute dashboard`, { ownerId, error: err?.message || err });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`${logPrefix} Failed to compute dashboard`, { ownerId, error: errorMsg });
       // Safe fallback
       return {
         today_sales: 0,

@@ -1,29 +1,33 @@
 // CreditAdvance service class-based implementation
 
-import { CreditAdvance } from '../models/creditAdvance';
+import { CreditAdvance, CreditAdvanceCreationAttributes } from '../models/creditAdvance';
 import { CreateCreditAdvanceSchema, RepayCreditAdvanceSchema } from '../schemas/creditAdvance';
-import { z } from 'zod';
 
 export class CreditAdvanceService {
   
-  async issueCredit(data: any) {
+  async issueCredit(data: unknown) {
     const validated = CreateCreditAdvanceSchema.parse(data);
     // Issue date = now, due date = +30 days (temporary business rule)
     const issued = new Date();
     const due = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const credit = await CreditAdvance.create({
+    const creditData: Record<string, unknown> = {
       user_id: validated.user_id,
       amount: validated.amount,
       issued_date: issued,
       due_date: due,
       status: 'active',
-      repaid_amount: 0,
-      shop_id: data.shop_id || 1,
-    } as any);
+      repaid_amount: 0
+    };
+    if ('shop_id' in validated && validated.shop_id !== undefined) {
+      creditData.shop_id = validated.shop_id;
+    } else {
+      creditData.shop_id = 1;
+    }
+  const credit = await CreditAdvance.create(creditData as CreditAdvanceCreationAttributes);
     return credit;
   }
 
-  async repayCredit(data: any) {
+  async repayCredit(data: unknown) {
     const validated = RepayCreditAdvanceSchema.parse(data);
     const credit = await CreditAdvance.findByPk(validated.credit_id);
     if (!credit) throw new Error('Credit record not found');
@@ -54,7 +58,7 @@ export class CreditAdvanceService {
 export const creditAdvanceService = new CreditAdvanceService();
 
 // Export function-style methods for backward compatibility
-export const issueCredit = (data: any) => creditAdvanceService.issueCredit(data);
-export const repayCredit = (data: any) => creditAdvanceService.repayCredit(data);
+export const issueCredit = (data: unknown) => creditAdvanceService.issueCredit(data);
+export const repayCredit = (data: unknown) => creditAdvanceService.repayCredit(data);
 
 

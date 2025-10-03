@@ -254,7 +254,7 @@ export class RouteFactory {
     // Helper to safely access dynamic properties
     type ExpressHandler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
     function getControllerMethod<T extends keyof any>(key: T): ExpressHandler {
-      const value = (controller as Record<T, unknown>)[key];
+  const value = (controller as Record<string, unknown>)[key as string];
       if (typeof value === 'function') {
         return value.bind(controller) as ExpressHandler;
       }
@@ -310,8 +310,8 @@ export class RouteFactory {
     const controller = new controllerClass();
 
     type ExpressHandler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
-    function getControllerMethod<T extends keyof any>(key: T): ExpressHandler {
-      const value = (controller as Record<T, unknown>)[key];
+  function getControllerMethod(key: string): ExpressHandler {
+  const value = (controller as Record<string, unknown>)[key];
       if (typeof value === 'function') {
         return value.bind(controller) as ExpressHandler;
       }

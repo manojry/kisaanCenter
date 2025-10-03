@@ -130,13 +130,19 @@ export class ShopService {
     } catch (error) {
       // Enhanced diagnostic logging before error mapping so we can surface root cause of generic DatabaseError
       // (Avoid importing logger directly here to keep service decoupled; use console for now – upgrade later to injected logger)
-      const diag: Record<string, unknown> = {};
+      const diag: {
+        name?: string;
+        message?: string;
+        original?: string;
+        sql?: string;
+        fields?: Record<string, unknown>;
+      } = {};
       if (error && typeof error === 'object') {
-        const errObj = error as { [key: string]: any };
-        diag.name = errObj.name;
-        diag.message = errObj.message;
-        diag.original = errObj.original?.message || errObj.parent?.message || undefined;
-        diag.sql = errObj.original?.sql || errObj.sql || undefined;
+        const errObj = error as { [key: string]: unknown };
+        diag.name = typeof errObj.name === 'string' ? errObj.name : undefined;
+        diag.message = typeof errObj.message === 'string' ? errObj.message : undefined;
+        diag.original = typeof errObj.original === 'object' && errObj.original && 'message' in errObj.original ? (errObj.original as { message?: string }).message : undefined;
+        diag.sql = typeof errObj.original === 'object' && errObj.original && 'sql' in errObj.original ? (errObj.original as { sql?: string }).sql : (typeof errObj.sql === 'string' ? errObj.sql : undefined);
         diag.fields = {
           name: data.name,
           owner_id: data.owner_id,
@@ -302,7 +308,6 @@ export class ShopService {
           availableOwners.push(ownerDTO);
         }
       }
-
       return availableOwners;
     } catch (error) {
       throw new DatabaseError('Failed to retrieve available owners', error instanceof Error ? { message: error.message } : undefined);
@@ -315,11 +320,7 @@ export class ShopService {
    * Get shops for superadmin view
    */
   async getShopsForSuperadmin(): Promise<ShopEntity[]> {
-    try {
-      return await this.shopRepository.findAll();
-    } catch (error) {
-      throw new DatabaseError('Failed to retrieve shops for superadmin', error instanceof Error ? { message: error.message } : undefined);
-    }
+    return this.shopRepository.findAll();
   }
 
   /**

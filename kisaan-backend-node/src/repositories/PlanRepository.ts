@@ -2,7 +2,6 @@ import { Op } from 'sequelize';
 import { BaseRepository } from './BaseRepository';
 import { Plan } from '../models/plan';
 import { PlanEntity } from '../entities/PlanEntity';
-import { PlanCreateDTO, PlanUpdateDTO } from '../dtos';
 // Simplified repository after plan model flattening
 
 export class PlanRepository extends BaseRepository<Plan, PlanEntity> {
@@ -17,14 +16,14 @@ export class PlanRepository extends BaseRepository<Plan, PlanEntity> {
       features: model.features,
       created_at: model.createdAt,
       updated_at: model.updatedAt
-    } as any);
+    });
   }
 
   protected toModelData(entity: PlanEntity): any {
     return {
       name: entity.name,
       description: entity.description,
-      features: Array.isArray((entity as any).features) ? JSON.stringify((entity as any).features) : (entity as any).features
+      features: Array.isArray(entity.features) ? JSON.stringify(entity.features) : entity.features
     };
   }
   // findActive / findByStatus removed (no status field in simplified model)

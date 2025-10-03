@@ -184,8 +184,7 @@ export class ErrorHandler {
     let message = 'Internal server error';
     let details: unknown = undefined;
 
-    // Log the error
-    this.logError(error, requestId);
+      this.logError(error, requestId);
 
     if (error instanceof AppError) {
       statusCode = error.statusCode;
@@ -200,7 +199,6 @@ export class ErrorHandler {
         details = this.formatSequelizeValidationError(error as { errors: Array<{ path: string; value: unknown; message: string; validatorKey?: string }> });
       }
     } else if (error.name === 'SequelizeUniqueConstraintError') {
-      statusCode = HTTP_STATUS.CONFLICT;
       errorCode = ERROR_CODES.DUPLICATE_ENTRY;
       message = 'Duplicate entry';
       if (typeof error === 'object' && error !== null && 'fields' in error && 'value' in error) {

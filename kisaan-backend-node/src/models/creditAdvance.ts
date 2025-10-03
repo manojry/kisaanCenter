@@ -14,7 +14,7 @@ interface CreditAdvanceAttributes {
   updated_at?: Date;
 }
 
-interface CreditAdvanceCreationAttributes extends Optional<CreditAdvanceAttributes, 'id' | 'repaid_amount' | 'status' | 'created_at' | 'updated_at'> {}
+export interface CreditAdvanceCreationAttributes extends Optional<CreditAdvanceAttributes, 'id' | 'repaid_amount' | 'status' | 'created_at' | 'updated_at'> {}
 
 export class CreditAdvance extends Model<CreditAdvanceAttributes, CreditAdvanceCreationAttributes> implements CreditAdvanceAttributes {
   public id!: number;

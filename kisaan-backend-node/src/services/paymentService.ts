@@ -20,7 +20,7 @@ export class PaymentService {
     }
 
     // Create payment record first
-    const paymentData: any = { ...data, status: 'PAID' };
+  const paymentData: CreatePaymentDTO = { ...data, status: 'PAID' };
     if (data.transaction_id !== undefined) paymentData.transaction_id = data.transaction_id;
     else delete paymentData.transaction_id;
     
@@ -56,7 +56,7 @@ export class PaymentService {
     return payment.toJSON() as PaymentResponseDTO;
   }
 
-  private async updateUserBalancesAfterPayment(payment: any): Promise<void> {
+  private async updateUserBalancesAfterPayment(payment: Payment): Promise<void> {
     let userIdToUpdate: number | null = null;
     let userRole: 'buyer' | 'farmer' | null = null;
 
@@ -118,7 +118,7 @@ export class PaymentService {
     }
   }
 
-  private async allocatePaymentToTransactions(payment: any): Promise<void> {
+  private async allocatePaymentToTransactions(payment: Payment): Promise<void> {
     // Only allocate buyer payments to shop (these fund commission realization)
     if (payment.payer_type !== 'BUYER' || payment.payee_type !== 'SHOP') {
       return;
@@ -131,11 +131,11 @@ export class PaymentService {
     console.log('[ALLOCATE] start', { paymentId: payment.id, buyerId, shopId, paymentAmount, txRef: payment.transaction_id });
 
     // Get all outstanding transactions for this buyer in this shop (ordered by creation date)
+    const whereClause: Record<string, number> = {};
+    if (typeof buyerId === 'number') whereClause.buyer_id = buyerId;
+    if (typeof shopId === 'number') whereClause.shop_id = shopId;
     const transactions = await Transaction.findAll({
-      where: {
-        buyer_id: buyerId,
-        shop_id: shopId,
-      },
+      where: whereClause,
       order: [['created_at', 'ASC']]
     });
 
@@ -150,7 +150,7 @@ export class PaymentService {
       try {
         const targetTx = await Transaction.findByPk(payment.transaction_id);
         if (targetTx) {
-          const transactionTotal = Number((targetTx as any).total_amount || 0);
+          const transactionTotal = Number((targetTx as Transaction).total_amount || 0);
           const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id } });
           const alreadyPaid = existingAllocations.reduce((sum, alloc) => sum + Number(alloc.allocated_amount || 0), 0);
           const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
@@ -180,7 +180,7 @@ export class PaymentService {
         continue;
       }
 
-  const transactionTotal = Number((transaction as any).total_amount || 0);
+  const transactionTotal = Number((transaction as Transaction).total_amount || 0);
       
       // Calculate how much of this transaction has already been paid
       const existingAllocations = await PaymentAllocation.findAll({
@@ -211,12 +211,10 @@ export class PaymentService {
     }
   }
 
-  async createBulkPayments(data: any, userId: number): Promise<PaymentResponseDTO[]> {
-    // data.payments: BulkPaymentItemDTO[]
-    // Other fields: payer_type, payee_type, method, status, notes
+  async createBulkPayments(data: import('../dtos/PaymentDTO').BulkPaymentDTO, userId: number): Promise<PaymentResponseDTO[]> {
     const results: PaymentResponseDTO[] = [];
     for (const item of data.payments) {
-      const paymentData = {
+      const paymentData: CreatePaymentDTO = {
         transaction_id: item.transaction_id,
         payer_type: data.payer_type,
         payee_type: data.payee_type,
@@ -280,26 +278,24 @@ export class PaymentService {
     return payments.map(p => p.toJSON() as PaymentResponseDTO);
   }
 
-  async getOutstandingPayments(shopId?: number): Promise<any> {
-    const whereClause: any = {};
+  async getOutstandingPayments(shopId?: number): Promise<PaymentResponseDTO[]> {
+    const whereClause: Record<string, unknown> = {};
+    let transactionInclude: any = {
+      model: Transaction,
+      as: 'transaction',
+      attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
+    };
     if (shopId) {
-      whereClause['$transaction.shop_id$'] = shopId;
+      transactionInclude.where = { shop_id: shopId };
     }
-
     const payments = await Payment.findAll({
       where: {
         status: 'PENDING',
-        ...whereClause
       },
-      include: [{
-        model: Transaction,
-        as: 'transaction',
-  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
-      }],
+      include: [transactionInclude],
       order: [['created_at', 'ASC']]
     });
-
-    return payments.map(p => p.toJSON());
+    return payments.map(p => p.toJSON() as PaymentResponseDTO);
   }
   /**
    * Get all payments to a farmer (payee_type = 'FARMER'), with optional date filtering and aggregation
@@ -307,22 +303,21 @@ export class PaymentService {
   async getPaymentsToFarmer(
     farmerId: number,
     options?: { startDate?: Date; endDate?: Date }
-  ): Promise<{ totalPayments: number; totalPaid: number; payments: any[] }> {
-    const where: any = {
+  ): Promise<{ totalPayments: number; totalPaid: number; payments: PaymentResponseDTO[] }> {
+    const where: Record<string, unknown> = {
       payee_type: 'FARMER',
       status: { [Op.not]: 'FAILED' }
     };
     if (options?.startDate && options?.endDate) {
       where.created_at = { [Op.between]: [options.startDate, options.endDate] };
     }
-    // Join with transaction to filter by farmer_id
     const payments = await Payment.findAll({
       where,
       include: [{
         model: Transaction,
         as: 'transaction',
         where: { farmer_id: farmerId },
-  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
+        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
       }],
       order: [['created_at', 'DESC']]
     });
@@ -330,7 +325,7 @@ export class PaymentService {
     return {
       totalPayments: payments.length,
       totalPaid,
-      payments: payments.map(p => p.toJSON())
+      payments: payments.map(p => p.toJSON() as PaymentResponseDTO)
     };
   }
 
@@ -340,22 +335,21 @@ export class PaymentService {
   async getPaymentsByBuyer(
     buyerId: number,
     options?: { startDate?: Date; endDate?: Date }
-  ): Promise<{ totalPayments: number; totalPaid: number; payments: any[] }> {
-    const where: any = {
+  ): Promise<{ totalPayments: number; totalPaid: number; payments: PaymentResponseDTO[] }> {
+    const where: Record<string, unknown> = {
       payer_type: 'BUYER',
       status: { [Op.not]: 'FAILED' }
     };
     if (options?.startDate && options?.endDate) {
       where.created_at = { [Op.between]: [options.startDate, options.endDate] };
     }
-    // Join with transaction to filter by buyer_id
     const payments = await Payment.findAll({
       where,
       include: [{
         model: Transaction,
         as: 'transaction',
         where: { buyer_id: buyerId },
-  attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
+        attributes: ['id', 'shop_id', 'farmer_id', 'buyer_id', 'total_amount', 'farmer_earning']
       }],
       order: [['created_at', 'DESC']]
     });
@@ -363,7 +357,7 @@ export class PaymentService {
     return {
       totalPayments: payments.length,
       totalPaid,
-      payments: payments.map(p => p.toJSON())
+      payments: payments.map(p => p.toJSON() as PaymentResponseDTO)
     };
   }
 }

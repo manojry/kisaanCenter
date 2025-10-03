@@ -92,7 +92,7 @@ export const getUsersWithShopInfo = async (
   if (filters.shop_id) where.shop_id = filters.shop_id;
   if (filters.search) {
     // Use a separate 'or' variable to avoid symbol index
-    (where as any).or = [
+  (where as Record<string, unknown>).or = [
       { username: { [Op.iLike]: `%${filters.search}%` } },
       { firstname: { [Op.iLike]: `%${filters.search}%` } },
       { email: { [Op.iLike]: `%${filters.search}%` } }

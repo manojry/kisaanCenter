@@ -21,7 +21,7 @@ export class FarmerProductAssignmentRepository extends BaseRepository<FarmerProd
     return { ...model.get() } as FarmerProductAssignmentEntity;
   }
 
-  protected toModelData(entity: FarmerProductAssignmentEntity): any {
+  protected toModelData(entity: FarmerProductAssignmentEntity): Record<string, unknown> {
     return { ...entity };
   }
 
@@ -40,14 +40,14 @@ export class FarmerProductAssignmentRepository extends BaseRepository<FarmerProd
         }
         return entity;
       });
-    } catch (err: any) {
+    } catch (err) {
       // Graceful fallback if the farmer_product_assignments table does not exist yet.
-      const msg = err?.message || '';
-      const code = err?.original?.code || err?.parent?.code;
+      const msg = (err as { message?: string })?.message || '';
+      const code = (err as { original?: { code?: string }, parent?: { code?: string } })?.original?.code || (err as { parent?: { code?: string } })?.parent?.code;
       if (msg.includes('farmer_product_assignments') || code === '42P01') {
-        if (!(global as any).__FARMER_ASSIGN_TABLE_MISSING_WARNED) {
-          (global as any).__FARMER_ASSIGN_TABLE_MISSING_WARNED = true;
-          console.warn('[farmerProductRepo] farmer_product_assignments table missing – proceeding with empty assignments fallback');
+        if (!(global as Record<string, unknown>).__FARMER_ASSIGN_TABLE_MISSING_WARNED) {
+          (global as Record<string, unknown>).__FARMER_ASSIGN_TABLE_MISSING_WARNED = true;
+          console.warn('[farmerProductRepo] farmer_product_assignments table missing  proceeding with empty assignments fallback');
         }
         return [];
       }

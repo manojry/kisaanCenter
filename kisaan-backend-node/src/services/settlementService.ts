@@ -67,9 +67,10 @@ export const getSettlements = async (filters: {
   if (filters.user_type) where.user_type = filters.user_type;
   if (filters.status) where.status = filters.status;
   if (filters.from_date || filters.to_date) {
-    where.created_at = {};
-  if (filters.from_date) (where.created_at as any)[Op.gte] = new Date(filters.from_date);
-  if (filters.to_date) (where.created_at as any)[Op.lte] = new Date(filters.to_date);
+    const dateRange: any = {};
+    if (filters.from_date) dateRange[Op.gte] = new Date(filters.from_date);
+    if (filters.to_date) dateRange[Op.lte] = new Date(filters.to_date);
+    where.created_at = dateRange;
   }
   const settlements = await Settlement.findAll({
     where,
@@ -110,7 +111,7 @@ export const getSettlementSummary = async (shop_id: string) => {
   type Summary = {
     [key: string]: SettlementSummary;
   };
-  const summary = settlements.reduce((acc: Summary, s: any) => {
+  const summary = settlements.reduce((acc: Summary, s: unknown) => {
     const settlement = s as {
       user_id: number | string;
       user_type: string;
