@@ -109,7 +109,7 @@ const PricingPage: React.FC = () => {
               <Link to="/login" className="text-gray-600 hover:text-gray-900">
                 Sign In
               </Link>
-              <Link to="/auth">
+              <Link to="/login">
                 <Button className="bg-emerald-600 hover:bg-emerald-700">
                   Get Started
                 </Button>
@@ -243,7 +243,7 @@ const PricingPage: React.FC = () => {
                   </div>
 
                   {/* CTA Button */}
-                  <Link to="/auth" className="block">
+                  <Link to="/login" className="block">
                     <Button
                       className={`w-full transition-all duration-300 ${
                         plan.is_popular

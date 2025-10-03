@@ -109,7 +109,7 @@ const Header = () => {
                     </Link>
                   </Button>
                   <Button asChild size="sm" className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-sm">
-                    <Link to="/auth">Get Started</Link>
+                    <Link to="/login">Get Started</Link>
                   </Button>
                 </div>
                 

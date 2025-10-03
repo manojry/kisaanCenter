@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import Header from "@/components/Layout/Header"
-import Footer from "@/components/Layout/Footer"
 import heroImage from "@/assets/hero-agriculture.jpg"
 import { Link } from "react-router-dom"
 import { 
@@ -41,7 +39,7 @@ const Index = () => {
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button variant="hero" size="xl" className="group" asChild>
-                  <Link to="/auth">
+                  <Link to="/login">
                     Start Your Journey
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
@@ -180,7 +178,7 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button variant="secondary" size="xl" className="bg-background text-foreground hover:bg-background/90" asChild>
-                <Link to="/auth">Start Free Trial</Link>
+                <Link to="/login">Start Free Trial</Link>
               </Button>
               <Button variant="outline" size="xl" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary">
                 Contact Sales
@@ -190,7 +188,6 @@ const Index = () => {
         </div>
       </section>
 
-      <Footer />
     </div>
   )
 }

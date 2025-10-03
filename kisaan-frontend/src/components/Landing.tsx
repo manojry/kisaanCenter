@@ -75,7 +75,7 @@ const Landing: React.FC = () => {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link to="/auth">
+                <Link to="/login">
                   Get Started
                 </Link>
               </Button>

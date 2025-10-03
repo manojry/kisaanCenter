@@ -69,13 +69,8 @@ const AppRoutes = () => {
             <Navigate to="/dashboard" replace />
           ) : <Login />
         } />
-        <Route path="/auth" element={
-          isAuthenticated ? (
-            user?.role === 'owner' ? <Navigate to="/owner" replace /> :
-            user?.role === 'superadmin' ? <Navigate to="/superadmin" replace /> :
-            <Navigate to="/dashboard" replace />
-          ) : <Auth />
-        } />
+        {/* /auth used previously for combined auth page — route to canonical /login to avoid signup-only submission */}
+        <Route path="/auth" element={<Navigate to="/login" replace />} />
         
         {/* Public pricing page */}
         <Route path="/pricing" element={<PricingPage />} />
