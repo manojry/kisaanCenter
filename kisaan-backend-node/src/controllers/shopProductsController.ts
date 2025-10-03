@@ -19,7 +19,7 @@ interface SequelizeErrorLike extends Error {
 }
 
 function hasOriginal(err: unknown): err is SequelizeErrorLike {
-  return typeof err === 'object' && err !== null && 'original' in err && typeof (err as any).original === 'object';
+  return typeof err === 'object' && err !== null && 'original' in err && typeof (err as Record<string, unknown>).original === 'object';
 }
 
 export const assignProductToShop = async (req: Request, res: Response) => {

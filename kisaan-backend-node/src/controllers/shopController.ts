@@ -60,7 +60,7 @@ export class ShopController {
         const e = error as ErrorWithContext;
         if (e.context) {
           // prefer structured diagnostic if present
-          if (typeof e.context === 'object' && e.context !== null && 'diagnostic' in (e.context as any)) {
+          if (typeof e.context === 'object' && e.context !== null && 'diagnostic' in (e.context as Record<string, unknown>)) {
             details = (e.context as { diagnostic?: unknown }).diagnostic;
           } else {
             details = e.context;

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { TransactionService } from '../services/transactionService';
-import { CreateTransactionDTO } from '../dtos';
 import { success, created as createdResp, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { buildPaginationMeta } from '../middleware/pagination';
@@ -51,8 +50,8 @@ export class TransactionController {
       const { PaymentService } = await import('../services/paymentService');
       const paymentService = new PaymentService();
 
-      // Extract transaction data (remove payments array and calculated fields)
-      const { payments, total_sale_value, shop_commission, farmer_earning, ...transactionData } = req.body;
+  // Extract transaction data (remove payments array)
+  const { payments, ...transactionData } = req.body;
       
       const serviceData = {
         shop_id: transactionData.shop_id,
@@ -72,7 +71,7 @@ export class TransactionController {
   const transaction = await this.transactionService.createTransaction(serviceData, requestingUser);
       
       // Create payments if provided
-      let createdPayments = [];
+      const createdPayments: Array<Record<string, unknown>> = [];
       if (payments && Array.isArray(payments)) {
         for (const payment of payments) {
           const paymentData = {
@@ -86,7 +85,7 @@ export class TransactionController {
             notes: payment.notes
           };
           const createdPayment = await paymentService.createPayment(paymentData, userId);
-          createdPayments.push(createdPayment);
+          createdPayments.push(createdPayment as unknown as Record<string, unknown>);
         }
       }
 

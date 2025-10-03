@@ -113,7 +113,7 @@ export class ApiRegistry {
               mismatch_samples: samples,
               duration_ms: Date.now() - started
             };
-            try { logger.info({ ...payload }, '[Diagnostics] commission-integrity'); } catch(_err){}
+            try { logger.info({ ...payload }, '[Diagnostics] commission-integrity'); } catch(_err){ void _err; }
             success(res, payload);
           } catch (e: unknown) {
             const errMsg = (typeof e === 'object' && e && 'message' in e) ? (e as { message?: string }).message : undefined;
