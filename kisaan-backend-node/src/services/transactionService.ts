@@ -1,3 +1,4 @@
+import { sequelize } from '../models/index';
 /**
  * Transaction Service
  * Business logic layer for Transaction operations
@@ -14,7 +15,7 @@ import { FarmerProductAssignmentRepository } from '../repositories/FarmerProduct
 import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRepository';
 import { UserEntity } from '../entities/UserEntity';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
-import { NumberFormatter } from '../shared/utils/formatting';
+
 import { USER_ROLES, TRANSACTION_STATUS } from '../shared/constants';
 
 export class TransactionService {
@@ -36,7 +37,11 @@ export class TransactionService {
     this.idempotencyRepo = new TransactionIdempotencyRepository();
   }
 
-  private resolveCommissionRate(dataRate: number | undefined, farmer: any, shop: any): number {
+  private resolveCommissionRate(
+    dataRate: number | undefined,
+    farmer: { custom_commission_rate?: number | null } | null,
+    shop: { commission_rate?: number | null } | null
+  ): number {
     // Commission precedence (highest to lowest):
     // 1. Explicit rate passed in payload (dataRate)
     // 2. Farmer custom override (farmer.custom_commission_rate) – user-level rate
@@ -48,7 +53,9 @@ export class TransactionService {
         farmerCustom: farmer?.custom_commission_rate,
         shopCommission: shop?.commission_rate
       });
-    } catch (_) {}
+    } catch (err) {
+      /* intentionally ignore debug errors */
+    }
     if (typeof dataRate === 'number' && !isNaN(dataRate)) return dataRate;
     if (farmer?.custom_commission_rate != null) return Number(farmer.custom_commission_rate);
     if (shop?.commission_rate != null) return Number(shop.commission_rate);
@@ -56,13 +63,25 @@ export class TransactionService {
   }
 
   private async resolveProductIdAndName(input: { product_id?: number | null; product_name?: string; farmer_id: number }) {
-    let assignments: any[] = [];
+  let assignments: import('../repositories/FarmerProductAssignmentRepository').FarmerProductAssignmentEntity[] = [];
     try {
       assignments = await this.farmerProductRepo.findByFarmer(input.farmer_id);
-    } catch (e: any) {
+  } catch (e: unknown) {
       // Extra safety (should already be handled in repository)
-      const msg = e?.message || '';
-      if (msg.includes('farmer_product_assignments') || (e?.original?.code === '42P01')) {
+      let msg = '';
+      let code = '';
+      if (typeof e === 'object' && e !== null) {
+        if ('message' in e && typeof (e as { message?: unknown }).message === 'string') {
+          msg = (e as { message?: string }).message as string;
+        }
+        if ('original' in e && typeof (e as { original?: { code?: unknown } }).original === 'object' && (e as { original?: { code?: unknown } }).original !== null) {
+          const orig = (e as { original?: { code?: unknown } }).original;
+          if (orig && typeof orig.code === 'string') {
+            code = orig.code;
+          }
+        }
+      }
+      if (msg.includes('farmer_product_assignments') || code === '42P01') {
         console.warn('[transactionService] Missing farmer_product_assignments table – using empty assignment list fallback');
         assignments = [];
       } else {
@@ -70,25 +89,25 @@ export class TransactionService {
       }
     }
   const assignedIds = new Set(assignments.map(a => Number(a.product_id)));
-    try { console.debug('[transaction:resolveProduct] assignments', { farmer: input.farmer_id, assignments, input }); } catch(_){}
+  try { console.debug('[transaction:resolveProduct] assignments', { farmer: input.farmer_id, assignments, input }); } catch (err) { /* ignore debug errors */ }
     let resolvedProductId: number | undefined;
-    let normalizedName = input.product_name?.trim();
+  const normalizedName = input.product_name?.trim();
     if (input.product_id) {
       if (assignments.length && !assignedIds.has(Number(input.product_id))) {
-        try { console.warn('[transaction:resolveProduct] Provided product_id not in assignedIds', { provided: input.product_id, assignedIds: Array.from(assignedIds) }); } catch(_){}
+  try { console.warn('[transaction:resolveProduct] Provided product_id not in assignedIds', { provided: input.product_id, assignedIds: Array.from(assignedIds) }); } catch (err) { /* ignore warn errors */ }
         throw new BusinessRuleError('Product not assigned to farmer');
       }
       resolvedProductId = Number(input.product_id);
     } else if (normalizedName) {
       const lowered = normalizedName.toLowerCase();
       if (assignments.length) {
-        const { sequelize } = require('../models/index');
+  // ...existing code...
         const ids = Array.from(assignedIds);
         if (ids.length) {
           const placeholders = ids.map(() => '?').join(',');
           const [rows] = await sequelize.query(`SELECT id, name FROM kisaan_products WHERE id IN (${placeholders})`, { replacements: ids });
           if (Array.isArray(rows)) {
-            const match = rows.find((r: any) => (r.name || '').toLowerCase() === lowered);
+            const match = (rows as Array<{ id: number; name: string }>).find((r) => (r.name || '').toLowerCase() === lowered);
             if (match) {
               resolvedProductId = match.id;
             }
@@ -131,7 +150,7 @@ export class TransactionService {
     commission_rate?: number;
     transaction_date?: Date;
     notes?: string;
-  }, requestingUser?: { role: string; id: number }, options?: { tx?: any, idempotencyKey?: string }): Promise<TransactionEntity> {
+  }, requestingUser?: { role: string; id: number }, options?: { tx?: import('sequelize').Transaction, idempotencyKey?: string }): Promise<TransactionEntity> {
     try {
       // Validate required fields
       if (!data.shop_id || !data.farmer_id || !data.buyer_id) {
@@ -153,7 +172,7 @@ export class TransactionService {
             throw new ValidationError('Ambiguous products: provide product_name or set a default');
           }
           // We will resolve canonical product name later; temporarily set placeholder to pass downstream logic
-          (data as any).product_name = '__AUTO_RESOLVE__';
+          (data as Record<string, unknown>).product_name = '__AUTO_RESOLVE__';
         } catch (e) {
           if (e instanceof ValidationError) throw e;
           // Fallback to strict requirement if repo fails
@@ -212,7 +231,9 @@ export class TransactionService {
             resolvedProductId,
           assignmentCount
         });
-      } catch (_) {}
+      } catch (err) {
+        /* intentionally ignore debug errors */
+      }
 
       // Canonical product name fetch
       // Preserve explicit user-provided product_name. We only replace when:
@@ -222,23 +243,23 @@ export class TransactionService {
       let canonicalProductName = originalProvidedName;
       try {
         if (resolvedProductId) {
-          const { sequelize } = require('../models/index');
+          // ...existing code...
           const [prodRows] = await sequelize.query('SELECT name FROM kisaan_products WHERE id = ? LIMIT 1', { replacements: [resolvedProductId] });
-          if (Array.isArray(prodRows) && prodRows[0]?.name) {
-            const catalogName = String(prodRows[0].name);
+          if (Array.isArray(prodRows) && prodRows[0] && typeof prodRows[0] === 'object' && 'name' in prodRows[0]) {
+            const catalogName = String((prodRows[0] as { name: string }).name);
             if (!originalProvidedName || originalProvidedName === '__AUTO_RESOLVE__') {
               // Safe to adopt catalog canonical name when user did not explicitly choose a name
               canonicalProductName = catalogName;
             } else {
               // Keep the user provided name but we could log divergence for future normalization
               if (originalProvidedName.toLowerCase() !== catalogName.toLowerCase()) {
-                try { console.debug('[transaction:product:name-preserve]', { provided: originalProvidedName, catalog: catalogName }); } catch(_){ }
+                try { console.debug('[transaction:product:name-preserve]', { provided: originalProvidedName, catalog: catalogName }); } catch (err) { /* ignore debug errors */ }
               }
             }
           }
         }
-      } catch (_) {
-        // Fallback silently; we can log later if needed
+      } catch (err) {
+        /* fallback silently; can log later if needed */
       }
       if (canonicalProductName === '__AUTO_RESOLVE__') {
         // Should have been replaced by product catalog lookup; if still placeholder, reject
@@ -290,9 +311,9 @@ export class TransactionService {
       });
 
       let createdTransaction: TransactionEntity | undefined;
-      const { sequelize } = require('../models/index');
+  // ...existing code...
       const externalTx = options?.tx;
-      const run = async (tx: any) => {
+  const run = async (tx: import('sequelize').Transaction) => {
         if (options?.idempotencyKey) {
           const existing = await this.idempotencyRepo.findByKey(options.idempotencyKey);
           if (!existing) {
@@ -325,7 +346,9 @@ export class TransactionService {
             status: transactionEntity.status,
             transaction_date: transactionEntity.transaction_date
           });
-        } catch (_) {}
+        } catch (err) {
+          /* intentionally ignore debug errors */
+        }
         createdTransaction = await this.transactionRepository.create(transactionEntity, { tx });
         await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, tx);
         // Ledger entries - ensure numeric conversion to prevent string concatenation
@@ -333,7 +356,7 @@ export class TransactionService {
         const buyerBalanceBefore = Number(buyer.balance || 0);
         
         await this.ledgerRepository.create({
-          transaction_id: (createdTransaction as any).id,
+          transaction_id: (createdTransaction as { id: number }).id,
           user_id: farmer.id!,
           role: 'farmer',
           delta_amount: Number(farmerEarning),
@@ -342,7 +365,7 @@ export class TransactionService {
           reason_code: 'TXN_POST'
         }, { tx });
         await this.ledgerRepository.create({
-          transaction_id: (createdTransaction as any).id,
+          transaction_id: (createdTransaction as { id: number }).id,
           user_id: buyer.id!,
           role: 'buyer',
           delta_amount: Number(totalAmount),
@@ -351,18 +374,18 @@ export class TransactionService {
           reason_code: 'TXN_POST'
         }, { tx });
         if (options?.idempotencyKey) {
-          await this.idempotencyRepo.attachTransaction(options.idempotencyKey, (createdTransaction as any).id, { tx });
+          await this.idempotencyRepo.attachTransaction(options.idempotencyKey, (createdTransaction as { id: number }).id, { tx });
         }
       };
 
       if (externalTx) {
         await run(externalTx);
       } else if (sequelize?.transaction) {
-        await sequelize.transaction(async (t: any) => {
+        await sequelize.transaction(async (t: import('sequelize').Transaction) => {
           await run(t);
         });
       } else {
-        await run(null);
+        throw new DatabaseError('No transaction context available for creating transaction');
       }
 
       if (!createdTransaction) {
@@ -371,7 +394,7 @@ export class TransactionService {
 
       try {
         console.info('[transaction:create]', {
-          id: (createdTransaction as any).id,
+          id: (createdTransaction as { id: number }).id,
           shop: data.shop_id,
           farmer: data.farmer_id,
           buyer: data.buyer_id,
@@ -380,12 +403,14 @@ export class TransactionService {
           commissionRate: transactionEntity.commission_rate,
           commissionSource: (typeof data.commission_rate === 'number'
             ? 'payload'
-            : (((farmer as any)?.custom_commission_rate != null)
+            : (((farmer as { custom_commission_rate?: number | null })?.custom_commission_rate != null)
               ? 'farmer_custom'
-              : (((shop as any)?.commission_rate != null) ? 'shop_default' : 'fallback'))),
+              : (((shop as { commission_rate?: number | null })?.commission_rate != null) ? 'shop_default' : 'fallback'))),
           idem: options?.idempotencyKey || null
         });
-      } catch (_) {}
+      } catch (err) {
+        /* intentionally ignore debug errors */
+      }
       return createdTransaction;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NotFoundError || 
@@ -394,8 +419,10 @@ export class TransactionService {
       }
       try {
         console.error('[transaction:create:raw-error]', error);
-      } catch (_) {}
-      throw new DatabaseError('Failed to create transaction', error instanceof Error ? { message: error.message, stack: (error as any).stack } : undefined);
+      } catch (err) {
+        /* intentionally ignore debug errors */
+      }
+  throw new DatabaseError('Failed to create transaction', error instanceof Error ? { message: error.message, stack: (error as Error).stack } : undefined);
     }
   }
 
@@ -571,13 +598,13 @@ export class TransactionService {
 
       // Validate status
       const validStatuses = Object.values(TRANSACTION_STATUS);
-      if (!validStatuses.includes(status as any)) {
+      if (!validStatuses.includes(status as import('../shared/constants').TransactionStatus)) {
         throw new ValidationError('Invalid transaction status');
       }
 
       const updatedEntity = new TransactionEntity({
         ...transaction,
-        status: status as any
+        status: status as import('../shared/constants').TransactionStatus
       });
 
       const updatedTransaction = await this.transactionRepository.update(id, updatedEntity);
@@ -637,7 +664,13 @@ export class TransactionService {
   /**
    * Private helper to update user balances
    */
-  private async updateUserBalances(farmer: UserEntity, buyer: UserEntity, farmerEarning: number, totalAmount: number, tx?: any): Promise<void> {
+  private async updateUserBalances(
+    farmer: UserEntity,
+    buyer: UserEntity,
+    farmerEarning: number,
+    totalAmount: number,
+    tx?: import('sequelize').Transaction
+  ): Promise<void> {
     try {
       // Ensure numeric conversion to prevent string concatenation issues
       const currentFarmerBalance = Number(farmer.balance || 0);
@@ -663,13 +696,13 @@ export class TransactionService {
     }
   }
 
-  async getShopEarnings(shopId: number, period?: { start: Date; end: Date }): Promise<any> {
+  async getShopEarnings(shopId: number, period?: { start: Date; end: Date }): Promise<Record<string, unknown>> {
     try {
       console.log('[getShopEarnings] shopId:', shopId);
       if (period) {
         console.log('[getShopEarnings] period:', period);
       }
-      const params: any = { shopId };
+  const params: Record<string, unknown> = { shopId };
       if (period) {
         params.startDate = period.start;
         params.endDate = period.end;
@@ -693,7 +726,11 @@ export class TransactionService {
     }
   }
 
-  async getFarmerEarnings(farmerId: number, shopId?: number, period?: { start: Date; end: Date }): Promise<any> {
+  async getFarmerEarnings(
+    farmerId: number,
+    shopId?: number,
+    period?: { start: Date; end: Date }
+  ): Promise<Record<string, unknown>> {
     try {
       const transactions = await this.transactionRepository.findByFarmer(farmerId);
       

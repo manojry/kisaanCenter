@@ -171,8 +171,9 @@ export const ServiceUtils = {
       const result = await serviceMethod();
       return result;
     } catch (error: unknown) {
-      if ((req as any).log && typeof (req as any).log.error === 'function') {
-        (req as any).log.error({ err: error }, 'service execution error');
+      const reqWithLog = req as Request & { log?: { error?: (obj: unknown, msg: string) => void } };
+      if (reqWithLog.log && typeof reqWithLog.log.error === 'function') {
+        reqWithLog.log.error({ err: error }, 'service execution error');
       }
       logger.error({ err: error }, 'service execution error');
       if (typeof error === 'object' && error && ('status' in error || 'statusCode' in error)) {
@@ -246,33 +247,55 @@ export class RouteFactory {
    * Create standard CRUD routes for a resource
    */
   static createCrudRoutes(resourceName: string, controllerClass: new () => unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const router = require('express').Router();
-  const controller = new controllerClass();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const router = require('express').Router();
+    const controller = new controllerClass();
+
+    // Helper to safely access dynamic properties
+    type ExpressHandler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
+    function getControllerMethod<T extends keyof any>(key: T): ExpressHandler {
+      const value = (controller as Record<T, unknown>)[key];
+      if (typeof value === 'function') {
+        return value.bind(controller) as ExpressHandler;
+      }
+      return (_req: Request, _res: Response, next: NextFunction) => {
+        next(new Error(`Controller method '${String(key)}' not implemented for resource '${resourceName}'`));
+      };
+    }
 
     // GET /resource - List all
     router.get('/', ControllerUtils.asyncHandler(
-      (controller as any).getAll?.bind(controller) || (controller as any)[`get${resourceName}s`]?.bind(controller)
+      typeof (controller as Record<string, unknown>)["getAll"] === 'function'
+        ? getControllerMethod('getAll')
+        : getControllerMethod(`get${resourceName}s` as keyof typeof controller)
     ));
 
     // GET /resource/:id - Get by ID
     router.get('/:id', ControllerUtils.asyncHandler(
-      (controller as any).getById?.bind(controller) || (controller as any)[`get${resourceName}ById`]?.bind(controller)
+      typeof (controller as Record<string, unknown>)["getById"] === 'function'
+        ? getControllerMethod('getById')
+        : getControllerMethod(`get${resourceName}ById` as keyof typeof controller)
     ));
 
     // POST /resource - Create
     router.post('/', ControllerUtils.asyncHandler(
-      (controller as any).create?.bind(controller) || (controller as any)[`create${resourceName}`]?.bind(controller)
+      typeof (controller as Record<string, unknown>)["create"] === 'function'
+        ? getControllerMethod('create')
+        : getControllerMethod(`create${resourceName}` as keyof typeof controller)
     ));
 
     // PUT /resource/:id - Update
     router.put('/:id', ControllerUtils.asyncHandler(
-      (controller as any).update?.bind(controller) || (controller as any)[`update${resourceName}`]?.bind(controller)
+      typeof (controller as Record<string, unknown>)["update"] === 'function'
+        ? getControllerMethod('update')
+        : getControllerMethod(`update${resourceName}` as keyof typeof controller)
     ));
 
     // DELETE /resource/:id - Delete
     router.delete('/:id', ControllerUtils.asyncHandler(
-      (controller as any).delete?.bind(controller) || (controller as any)[`delete${resourceName}`]?.bind(controller)
+      typeof (controller as Record<string, unknown>)["delete"] === 'function'
+        ? getControllerMethod('delete')
+        : getControllerMethod(`delete${resourceName}` as keyof typeof controller)
     ));
 
     return router;
@@ -282,22 +305,24 @@ export class RouteFactory {
    * Create analytics routes for a resource
    */
   static createAnalyticsRoutes(resourceName: string, controllerClass: new () => unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const router = require('express').Router();
-  const controller = new controllerClass();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const router = require('express').Router();
+    const controller = new controllerClass();
 
-    router.get('/analytics', ControllerUtils.asyncHandler(
-      (controller as any).getAnalytics?.bind(controller)
-    ));
+    type ExpressHandler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
+    function getControllerMethod<T extends keyof any>(key: T): ExpressHandler {
+      const value = (controller as Record<T, unknown>)[key];
+      if (typeof value === 'function') {
+        return value.bind(controller) as ExpressHandler;
+      }
+      return (_req: Request, _res: Response, next: NextFunction) => {
+        next(new Error(`Controller method '${String(key)}' not implemented for resource '${resourceName}'`));
+      };
+    }
 
-    router.get('/summary', ControllerUtils.asyncHandler(
-      (controller as any).getSummary?.bind(controller)
-    ));
-
-    router.get('/dashboard', ControllerUtils.asyncHandler(
-      (controller as any).getDashboard?.bind(controller)
-    ));
-
+    router.get('/analytics', ControllerUtils.asyncHandler(getControllerMethod('getAnalytics')));
+    router.get('/summary', ControllerUtils.asyncHandler(getControllerMethod('getSummary')));
+    router.get('/dashboard', ControllerUtils.asyncHandler(getControllerMethod('getDashboard')));
     return router;
   }
 }

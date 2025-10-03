@@ -2,7 +2,7 @@ import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
 import { Settlement } from '../models/settlement';
 import { Payment } from '../models/payment';
-import sequelize from '../config/database';
+// import sequelize from '../config/database';
 import { TRANSACTION_STATUS } from '../shared/constants';
 
 /**
@@ -40,7 +40,7 @@ export class SimplifiedTransactionService {
       payment_date?: string;
       notes?: string;
     }>;
-  }): Promise<any> {
+  }): Promise<{ transaction: Transaction; payments: Payment[]; balance_updates: { farmer: { old_balance: number; new_balance: number } } }> {
     
     // Calculate amounts
     const total_amount = data.quantity * data.unit_price;
@@ -73,7 +73,7 @@ export class SimplifiedTransactionService {
     await this.updateBalance(data.buyer_id, total_amount, 'subtract');
     
     // Create payments if provided
-    let createdPayments = [];
+  const createdPayments: Payment[] = [];
     if (data.payments && Array.isArray(data.payments)) {
       for (const payment of data.payments) {
         const paymentRecord = await Payment.create({
@@ -108,7 +108,7 @@ export class SimplifiedTransactionService {
     amount: number;
     payment_type: 'farmer_payment' | 'buyer_payment';
     notes?: string;
-  }): Promise<any> {
+  }): Promise<Payment> {
     
     // Create payment record
     const payment = await Payment.create({
@@ -143,7 +143,7 @@ export class SimplifiedTransactionService {
     expense_type: 'shop_expense' | 'user_advance';
     description: string;
     shop_id: number;
-  }): Promise<any> {
+  }): Promise<Settlement> {
     
     if (data.expense_type === 'shop_expense') {
       // Shop business expense - doesn't affect user balances
@@ -188,7 +188,13 @@ export class SimplifiedTransactionService {
   /**
    * Get user balance with clear explanation
    */
-  async getUserBalanceInfo(userId: number): Promise<any> {
+  async getUserBalanceInfo(userId: number): Promise<{
+    user_id: number;
+    username: string;
+    role: string;
+    balance: number;
+    balance_meaning: string;
+  }> {
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
     

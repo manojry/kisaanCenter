@@ -22,14 +22,14 @@ export class SettlementController {
         status: status as string
       });
       return success(res, settlements, { message: 'Settlements retrieved', meta: { count: settlements.length } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:list failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, error.message);
+      if (typeof error === 'object' && error && 'status' in error) {
+        return failureCode(res, (error as any).status, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, (error as any).message);
       }
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, error.message || 'Failed to fetch settlements');
+      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, (error as Error).message || 'Failed to fetch settlements');
     }
-  };
+  }
 
   async getSettlementSummaryController(req: Request, res: Response) {
     try {
@@ -40,14 +40,14 @@ export class SettlementController {
       const shopId = parseId(shop_id, 'shop id');
       const summary = await getSettlementSummary(String(shopId));
       return success(res, summary, { message: 'Settlement summary retrieved' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:summary failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, error.message);
+      if (typeof error === 'object' && error && 'status' in error) {
+        return failureCode(res, (error as any).status, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, (error as any).message);
       }
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, error.message || 'Failed to fetch settlement summary');
+      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, (error as Error).message || 'Failed to fetch settlement summary');
     }
-  };
+  }
 
   async settleAmountController(req: Request, res: Response) {
     try {
@@ -60,14 +60,14 @@ export class SettlementController {
       }
       const settlement = await settleAmount(settlementId, parsedAmount);
       return success(res, settlement, { message: 'Settlement amount applied' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:settle failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, error.message);
+      if (typeof error === 'object' && error && 'status' in error) {
+        return failureCode(res, (error as any).status, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, (error as any).message);
       }
-      return failureCode(res, 500, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, error.message || 'Failed to settle amount');
+      return failureCode(res, 500, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, (error as Error).message || 'Failed to settle amount');
     }
-  };
+  }
 
   async createExpenseController(req: Request, res: Response) {
     try {
@@ -98,12 +98,12 @@ export class SettlementController {
         description
       });
       return success(res, expense, { message: 'Expense created successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:expense create failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, error.message);
+      if (typeof error === 'object' && error && 'status' in error) {
+        return failureCode(res, (error as any).status, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, (error as any).message);
       }
-      return failureCode(res, 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, error.message || 'Failed to create expense');
+      return failureCode(res, 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, (error as Error).message || 'Failed to create expense');
     }
   }
 }

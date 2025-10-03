@@ -102,7 +102,7 @@ export class ExpenseValidationService {
     }
 
     // Generate bookkeeping entries
-    const entries = this.generateBookkeepingEntries(expense);
+  // const entries = this.generateBookkeepingEntries(expense); // Unused variable removed
     
     return {
       isValid: issues.length === 0,
@@ -208,7 +208,7 @@ export class ExpenseValidationService {
   /**
    * Check if system maintains balanced books
    */
-  validateBookkeepingBalance(shopId: number): Promise<{
+  validateBookkeepingBalance(_shopId: number): Promise<{
     isBalanced: boolean;
     totalDebits: number;
     totalCredits: number;

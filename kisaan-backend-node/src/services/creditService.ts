@@ -1,3 +1,4 @@
+import { sequelize } from '../models/index';
 import { UserRepository } from '../repositories/UserRepository';
 import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRepository';
 import { UserEntity } from '../entities/UserEntity';
@@ -44,7 +45,7 @@ export class CreditService {
     const ledger = await this.ledgerRepo.create({
       transaction_id: null,
       user_id: user.id!,
-  role: (user as any).role || '',
+      role: typeof user.role === 'string' ? user.role : '',
       delta_amount: signedDelta,
       balance_before: previous,
       balance_after: newBalance,
@@ -60,14 +61,13 @@ export class CreditService {
       reason_code,
       note: input.note || null,
       actor: actor ? { id: actor.id, role: actor.role } : undefined,
-      ledger_entry_id: (ledger as any)?.id
+  ledger_entry_id: (typeof ledger === 'object' && ledger && 'id' in ledger ? (ledger as { id: number }).id : undefined)
     };
   }
 
-  async listAdjustments(userId: number) {
+  async listAdjustments(userId: number): Promise<unknown[]> {
     if (!userId) throw new Error('userId required');
-    const { sequelize } = require('../models/index');
-    const [rows] = await sequelize.query(
+    const [rows]: [unknown[], unknown] = await sequelize.query(
       `SELECT * FROM kisaan_transaction_ledger 
        WHERE user_id = ? AND reason_code IN ('CREDIT_APPLIED','EXPENSE_CHARGE')
        ORDER BY id DESC`, { replacements: [userId] }

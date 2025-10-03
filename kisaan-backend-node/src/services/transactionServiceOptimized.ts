@@ -9,7 +9,7 @@ import { Shop } from '../models/shop';
 import { Payment } from '../models/payment';
 import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../config/database';
-import { TransactionDTO, TransactionFilters, TransactionContext } from '../types/transaction';
+import { TransactionDTO, TransactionFilters } from '../types/transaction';
 import { UserContext } from '../types/user';
 import { AuthorizationError, ValidationError } from '../shared/utils/errors';
 
@@ -95,29 +95,33 @@ export const getTransactionsOptimized = async (
     distinct: true
   });
 
-  const transactions = rows.map((transaction: any) => ({
-    id: transaction.id,
-    farmer_id: transaction.farmer_id,
-    buyer_id: transaction.buyer_id,
-    shop_id: transaction.shop_id,
-    product_name: transaction.product_name,
-    quantity: transaction.quantity,
-    rate: transaction.rate,
-    total_amount: transaction.total_amount,
-    commission_amount: transaction.commission_amount,
-    status: transaction.status,
-    created_at: transaction.createdAt,
-    updated_at: transaction.updatedAt,
+  const transactions = rows.map((transaction: any): TransactionDTO => ({
+    id: Number(transaction.id),
+    farmer_id: transaction.farmer_id !== undefined ? Number(transaction.farmer_id) : undefined,
+    buyer_id: transaction.buyer_id !== undefined ? Number(transaction.buyer_id) : undefined,
+    shop_id: Number(transaction.shop_id),
+    product_name: String(transaction.product_name),
+    quantity: Number(transaction.quantity),
+    rate: Number(transaction.rate),
+    total_amount: Number(transaction.total_amount),
+    commission_amount: Number(transaction.commission_amount),
+    status: transaction.status as 'pending' | 'completed' | 'cancelled',
+    created_at: new Date(transaction.createdAt),
+    updated_at: new Date(transaction.updatedAt),
     // Related data
     farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : undefined,
     buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : undefined,
     shop_name: transaction.shop?.name,
     payments: transaction.payments || [],
     // Computed fields
-    paid_amount: transaction.payments?.reduce((sum: number, payment: any) => 
-      payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0) || 0,
-    pending_amount: transaction.total_amount - (transaction.payments?.reduce((sum: number, payment: any) => 
-      payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0) || 0)
+    paid_amount: Array.isArray(transaction.payments)
+      ? transaction.payments.reduce((sum: number, payment: any) =>
+          payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0)
+      : 0,
+    pending_amount: typeof transaction.total_amount === 'number' && Array.isArray(transaction.payments)
+      ? transaction.total_amount - transaction.payments.reduce((sum: number, payment: any) =>
+          payment.status === 'completed' ? sum + parseFloat(payment.amount) : sum, 0)
+      : 0
   }));
 
   return {
@@ -189,13 +193,13 @@ export const getTransactionStatsOptimized = async (
   }) as any[];
 
   return {
-    total_transactions: parseInt(results.total_transactions),
-    total_amount: parseFloat(results.total_amount),
-    total_commission: parseFloat(results.total_commission),
-    pending_amount: parseFloat(results.pending_amount),
-    completed_transactions: parseInt(results.completed_transactions),
-    farmer_count: parseInt(results.farmer_count),
-    buyer_count: parseInt(results.buyer_count)
+    total_transactions: parseInt(String(results.total_transactions)),
+    total_amount: parseFloat(String(results.total_amount)),
+    total_commission: parseFloat(String(results.total_commission)),
+    pending_amount: parseFloat(String(results.pending_amount)),
+    completed_transactions: parseInt(String(results.completed_transactions)),
+    farmer_count: parseInt(String(results.farmer_count)),
+    buyer_count: parseInt(String(results.buyer_count))
   };
 };
 
@@ -286,28 +290,32 @@ export const getUserBalanceWithHistory = async (
     order: [['created_at', 'DESC']]
   });
 
-  const mapTransaction = (transaction: any): TransactionDTO => ({
+  const mapTransaction = (transaction: import('../models/transaction').Transaction & {
+    farmer?: { firstname: string; username: string } | null;
+    buyer?: { firstname: string; username: string } | null;
+    shop?: { name: string } | null;
+  }): TransactionDTO => ({
     id: transaction.id,
     farmer_id: transaction.farmer_id,
     buyer_id: transaction.buyer_id,
     shop_id: transaction.shop_id,
     product_name: transaction.product_name,
     quantity: transaction.quantity,
-    rate: transaction.rate,
+    rate: (transaction as any).rate ?? 0,
     total_amount: transaction.total_amount,
     commission_amount: transaction.commission_amount,
-    status: transaction.status,
-    created_at: transaction.createdAt,
-    updated_at: transaction.updatedAt,
-    farmer_name: transaction.farmer ? `${transaction.farmer.firstname} (${transaction.farmer.username})` : undefined,
-    buyer_name: transaction.buyer ? `${transaction.buyer.firstname} (${transaction.buyer.username})` : undefined,
-    shop_name: transaction.shop?.name
+    status: transaction.status as 'pending' | 'completed' | 'cancelled',
+  created_at: transaction.created_at as Date,
+  updated_at: transaction.updated_at as Date,
+    farmer_name: transaction.farmer ? `${(transaction.farmer as any).firstname} (${(transaction.farmer as any).username})` : undefined,
+    buyer_name: transaction.buyer ? `${(transaction.buyer as any).firstname} (${(transaction.buyer as any).username})` : undefined,
+    shop_name: transaction.shop ? (transaction.shop as any).name : undefined
   });
 
   return {
     current_balance: user.balance,
-    recent_transactions: recentTransactions.map(mapTransaction),
-    pending_transactions: pendingTransactions.map(mapTransaction)
+  recent_transactions: recentTransactions.map(mapTransaction),
+  pending_transactions: pendingTransactions.map(mapTransaction)
   };
 };
 
@@ -316,20 +324,20 @@ export const getUserBalanceWithHistory = async (
  * Includes balance reconciliation logic
  */
 export const createTransactionOptimized = async (
-  transactionData: any,
-  requestingUser: UserContext
+  transactionData: Record<string, unknown>,
+  requestingUser: UserContext // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<TransactionDTO> => {
   
   const transaction = await sequelize.transaction();
   
   try {
     // Create the transaction
-    const newTransaction = await Transaction.create(transactionData, { transaction });
+    const newTransaction = await Transaction.create(transactionData as import('../models/transaction').TransactionCreationAttributes, { transaction });
     
     // Update balances atomically
     if (transactionData.farmer_id) {
       await User.increment('balance', {
-        by: transactionData.total_amount - transactionData.commission_amount,
+  by: Number(transactionData.total_amount) - Number(transactionData.commission_amount),
         where: { id: transactionData.farmer_id },
         transaction
       });
@@ -337,7 +345,7 @@ export const createTransactionOptimized = async (
     
     if (transactionData.buyer_id) {
       await User.decrement('balance', {
-        by: transactionData.total_amount,
+        by: Number(transactionData.total_amount),
         where: { id: transactionData.buyer_id },
         transaction
       });

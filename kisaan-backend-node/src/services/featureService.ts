@@ -1,5 +1,4 @@
 import { Feature } from '../models/feature';
-import { Plan } from '../models/plan';
 import { PlanFeature } from '../models/feature';
 import { UserFeatureOverride } from '../models/feature';
 import { User } from '../models/user';
@@ -34,11 +33,11 @@ export class FeatureService {
     featureRows.forEach(f => { base[f.code] = !!f.default_enabled; });
     const defaultsEnabled = Object.entries(base).filter(([_, v]) => v).map(([c]) => c);
 
-    let planFeatures: Record<string, boolean> = {};
+  const planFeatures: Record<string, boolean> = {};
     if (user.shop_id) {
       // fetch plan id for that shop (join via Shop) using raw SQL to minimize model complexity
       const [rows] = await sequelize.query(`SELECT s.plan_id FROM kisaan_shops s WHERE s.id = :sid`, { replacements: { sid: user.shop_id } });
-      const planId = (rows as any[])[0]?.plan_id;
+  const planId = (rows as unknown as { plan_id?: number }[])[0]?.plan_id;
       if (planId) {
         const planFeatureRows = await PlanFeature.findAll({ where: { plan_id: planId }, raw: true });
         planFeatureRows.forEach(pf => { planFeatures[pf.feature_code] = pf.enabled; });

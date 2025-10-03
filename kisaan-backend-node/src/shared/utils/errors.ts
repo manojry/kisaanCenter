@@ -182,7 +182,7 @@ export class ErrorHandler {
     let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
     let errorCode = ERROR_CODES.INTERNAL_ERROR;
     let message = 'Internal server error';
-  let details: unknown = undefined;
+    let details: unknown = undefined;
 
     // Log the error
     this.logError(error, requestId);
