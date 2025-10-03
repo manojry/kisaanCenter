@@ -20,7 +20,7 @@ export const recordExists = async (table: string, id: number): Promise<boolean> 
       }
     );
     return Array.isArray(results) && results.length > 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error, table }, 'recordExists failed');
     return false;
   }
@@ -29,10 +29,10 @@ export const recordExists = async (table: string, id: number): Promise<boolean> 
 /**
  * Check if a record exists by field
  */
-export const recordExistsByField = async (
+export const recordExistsByField = async <T = unknown>(
   table: string, 
   field: string, 
-  value: any
+  value: T
 ): Promise<boolean> => {
   try {
     const [results] = await sequelize.query(
@@ -43,7 +43,7 @@ export const recordExistsByField = async (
       }
     );
     return Array.isArray(results) && results.length > 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error, table, field }, 'recordExistsByField failed');
     return false;
   }
@@ -55,16 +55,16 @@ export const recordExistsByField = async (
 export const getPaginatedResults = async (
   baseQuery: string,
   countQuery: string,
-  params: any,
+  params: Record<string, unknown>,
   pagination: { limit: number; offset: number }
-): Promise<{ data: any[]; total: number }> => {
+): Promise<{ data: Array<Record<string, unknown>>; total: number }> => {
   try {
     // Get total count
     const [countResult] = await sequelize.query(countQuery, {
       replacements: params,
       type: QueryTypes.SELECT
     });
-    const total = (countResult as any)?.count || 0;
+  const total = (countResult as { count?: number })?.count || 0;
 
     // Get paginated data
     const data = await sequelize.query(
@@ -74,9 +74,8 @@ export const getPaginatedResults = async (
         type: QueryTypes.SELECT
       }
     );
-
-    return { data, total };
-  } catch (error: any) {
+    return { data: data as Array<Record<string, unknown>>, total };
+  } catch (error: unknown) {
     logger.error({ err: error }, 'getPaginatedResults failed');
     throw error;
   }
@@ -94,8 +93,8 @@ export const softDelete = async (table: string, id: number): Promise<boolean> =>
         type: QueryTypes.UPDATE
       }
     );
-    return (results as any) > 0;
-  } catch (error: any) {
+    return (typeof results === 'number' ? results : 0) > 0;
+  } catch (error: unknown) {
     logger.error({ err: error, table }, 'softDelete failed');
     return false;
   }
@@ -113,8 +112,8 @@ export const hardDelete = async (table: string, id: number): Promise<boolean> =>
         type: QueryTypes.DELETE
       }
     );
-    return (result as any) > 0;
-  } catch (error: any) {
+    return (typeof result === 'number' ? result : 0) > 0;
+  } catch (error: unknown) {
     logger.error({ err: error, table }, 'hardDelete failed');
     return false;
   }
@@ -136,8 +135,8 @@ export const updateStatus = async (
         type: QueryTypes.UPDATE
       }
     );
-    return (results as any) > 0;
-  } catch (error: any) {
+    return (typeof results === 'number' ? results : 0) > 0;
+  } catch (error: unknown) {
     logger.error({ err: error, table, id, status }, 'updateStatus failed');
     return false;
   }
@@ -150,8 +149,8 @@ export const getRecordsByShop = async (
   table: string,
   shopId: number,
   additionalFilters: string = '',
-  additionalParams: any = {}
-): Promise<any[]> => {
+  additionalParams: Record<string, unknown> = {}
+): Promise<Array<Record<string, unknown>>> => {
   try {
     const whereClause = `shop_id = :shopId${additionalFilters ? ` AND ${additionalFilters}` : ''}`;
     const data = await sequelize.query(
@@ -161,8 +160,8 @@ export const getRecordsByShop = async (
         type: QueryTypes.SELECT
       }
     );
-    return data;
-  } catch (error: any) {
+    return data as Array<Record<string, unknown>>;
+  } catch (error: unknown) {
     logger.error({ err: error, table, shopId }, 'getRecordsByShop failed');
     throw error;
   }
@@ -174,8 +173,8 @@ export const getRecordsByShop = async (
 export const getActiveRecords = async (
   table: string,
   additionalFilters: string = '',
-  additionalParams: any = {}
-): Promise<any[]> => {
+  additionalParams: Record<string, unknown> = {}
+): Promise<Array<Record<string, unknown>>> => {
   try {
     const whereClause = `record_status = 'active'${additionalFilters ? ` AND ${additionalFilters}` : ''}`;
     const data = await sequelize.query(
@@ -185,8 +184,8 @@ export const getActiveRecords = async (
         type: QueryTypes.SELECT
       }
     );
-    return data;
-  } catch (error: any) {
+    return data as Array<Record<string, unknown>>;
+  } catch (error: unknown) {
     logger.error({ err: error, table }, 'getActiveRecords failed');
     throw error;
   }
@@ -200,8 +199,8 @@ export const searchRecords = async (
   searchFields: string[],
   searchTerm: string,
   additionalFilters: string = '',
-  additionalParams: any = {}
-): Promise<any[]> => {
+  additionalParams: Record<string, unknown> = {}
+): Promise<Array<Record<string, unknown>>> => {
   try {
     const searchConditions = searchFields
       .map(field => `${field} ILIKE :searchTerm`)
@@ -219,8 +218,8 @@ export const searchRecords = async (
         type: QueryTypes.SELECT
       }
     );
-    return data;
-  } catch (error: any) {
+    return data as Array<Record<string, unknown>>;
+  } catch (error: unknown) {
     logger.error({ err: error, table, searchTerm }, 'searchRecords failed');
     throw error;
   }

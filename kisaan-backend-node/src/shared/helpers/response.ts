@@ -8,7 +8,7 @@ import { HTTP_STATUS } from '../constants';
 /**
  * Success Response Interface
  */
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true;
   data: T;
   message?: string;
@@ -22,7 +22,7 @@ export interface SuccessResponse<T = any> {
 /**
  * Paginated Response Interface
  */
-export interface PaginatedResponse<T = any> extends SuccessResponse<T> {
+export interface PaginatedResponse<T = unknown> extends SuccessResponse<T> {
   pagination: {
     page: number;
     limit: number;
@@ -43,7 +43,7 @@ export class ResponseBuilder {
   static success<T>(
     data: T,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): SuccessResponse<T> {
     return {
       success: true,
@@ -63,7 +63,7 @@ export class ResponseBuilder {
     data: T,
     pagination: PaginatedResponse<T>['pagination'],
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): PaginatedResponse<T> {
     return {
       success: true,
@@ -83,7 +83,7 @@ export class ResponseBuilder {
   static created<T>(
     data: T,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): SuccessResponse<T> {
     return this.success(data, message || 'Resource created successfully', meta);
   }
@@ -94,7 +94,7 @@ export class ResponseBuilder {
   static updated<T>(
     data: T,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): SuccessResponse<T> {
     return this.success(data, message || 'Resource updated successfully', meta);
   }
@@ -104,7 +104,7 @@ export class ResponseBuilder {
    */
   static deleted(
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): SuccessResponse<null> {
     return this.success(null, message || 'Resource deleted successfully', meta);
   }
@@ -125,11 +125,11 @@ export class HttpResponseHelper {
    * Send success response
    */
   static sendSuccess<T>(
-    res: any,
+  res: { status: (code: number) => { json: (body: unknown) => void; send?: () => void } },
     data: T,
     statusCode: number = HTTP_STATUS.OK,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): void {
     const response = ResponseBuilder.success(data, message, meta);
     res.status(statusCode).json(response);
@@ -139,12 +139,12 @@ export class HttpResponseHelper {
    * Send paginated response
    */
   static sendPaginated<T>(
-    res: any,
+  res: { status: (code: number) => { json: (body: unknown) => void; send?: () => void } },
     data: T,
     pagination: PaginatedResponse<T>['pagination'],
     statusCode: number = HTTP_STATUS.OK,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): void {
     const response = ResponseBuilder.paginated(data, pagination, message, meta);
     res.status(statusCode).json(response);
@@ -154,10 +154,10 @@ export class HttpResponseHelper {
    * Send created response
    */
   static sendCreated<T>(
-    res: any,
+  res: { status: (code: number) => { json: (body: unknown) => void; send?: () => void } },
     data: T,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): void {
     const response = ResponseBuilder.created(data, message, meta);
     res.status(HTTP_STATUS.CREATED).json(response);
@@ -167,10 +167,10 @@ export class HttpResponseHelper {
    * Send updated response
    */
   static sendUpdated<T>(
-    res: any,
+  res: { status: (code: number) => { json: (body: unknown) => void; send?: () => void } },
     data: T,
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): void {
     const response = ResponseBuilder.updated(data, message, meta);
     res.status(HTTP_STATUS.OK).json(response);
@@ -180,9 +180,9 @@ export class HttpResponseHelper {
    * Send deleted response
    */
   static sendDeleted(
-    res: any,
+  res: { status: (code: number) => { json: (body: unknown) => void; send?: () => void } },
     message?: string,
-    meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ): void {
     const response = ResponseBuilder.deleted(message, meta);
     res.status(HTTP_STATUS.OK).json(response);
@@ -191,7 +191,7 @@ export class HttpResponseHelper {
   /**
    * Send no content response
    */
-  static sendNoContent(res: any): void {
+  static sendNoContent(res: { status: (code: number) => { send: () => void } }): void {
     res.status(HTTP_STATUS.NO_CONTENT).send();
   }
 
@@ -199,8 +199,8 @@ export class HttpResponseHelper {
    * Send error response
    */
   static sendError(
-    res: any,
-    error: any,
+  res: { status: (code: number) => { json: (body: unknown) => void } },
+  error: { code?: string; message?: string; details?: unknown },
     statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     requestId?: string
   ): void {

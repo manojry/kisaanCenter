@@ -204,7 +204,7 @@ export class StringFormatter {
   static sanitizeInput(str: string): string {
     return str
       .trim()
-      .replace(/[<>\"'&]/g, '') // Remove basic HTML/XSS characters
+  .replace(/[<>"'&]/g, '') // Remove basic HTML/XSS characters
       .replace(/\s+/g, ' '); // Normalize whitespace
   }
 
@@ -307,8 +307,8 @@ export class ObjectFormatter {
   /**
    * Remove null/undefined values from object
    */
-  static removeEmpty(obj: Record<string, any>): Record<string, any> {
-    const result: Record<string, any> = {};
+  static removeEmpty(obj: Record<string, unknown>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(obj)) {
       if (value !== null && value !== undefined && value !== '') {
@@ -322,14 +322,14 @@ export class ObjectFormatter {
   /**
    * Flatten nested object
    */
-  static flatten(obj: Record<string, any>, prefix: string = ''): Record<string, any> {
-    const result: Record<string, any> = {};
+  static flatten(obj: Record<string, unknown>, prefix: string = ''): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(obj)) {
       const newKey = prefix ? `${prefix}.${key}` : key;
       
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        Object.assign(result, this.flatten(value, newKey));
+        Object.assign(result, this.flatten(value as Record<string, unknown>, newKey));
       } else {
         result[newKey] = value;
       }
@@ -341,7 +341,7 @@ export class ObjectFormatter {
   /**
    * Pick specific keys from object
    */
-  static pick<T extends Record<string, any>, K extends keyof T>(
+  static pick<T extends Record<string, unknown>, K extends keyof T>(
     obj: T, 
     keys: K[]
   ): Pick<T, K> {
@@ -359,7 +359,7 @@ export class ObjectFormatter {
   /**
    * Omit specific keys from object
    */
-  static omit<T extends Record<string, any>, K extends keyof T>(
+  static omit<T extends Record<string, unknown>, K extends keyof T>(
     obj: T, 
     keys: K[]
   ): Omit<T, K> {

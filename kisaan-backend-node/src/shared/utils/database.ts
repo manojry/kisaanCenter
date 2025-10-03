@@ -3,14 +3,14 @@
  * Common database operations, query builders, and transaction helpers
  */
 
-import { QueryTypes, Transaction, Op } from 'sequelize';
+import { Transaction, Op } from 'sequelize';
 
 /**
  * Query Builder Interface
  */
 export interface QueryOptions {
-  where?: Record<string, any>;
-  include?: any[];
+  where?: Record<string, unknown>;
+  include?: unknown[];
   order?: Array<[string, 'ASC' | 'DESC']>;
   limit?: number;
   offset?: number;
@@ -48,7 +48,7 @@ export interface SortOptions {
 export interface FilterOptions {
   field: string;
   operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'in' | 'between';
-  value: any;
+  value: unknown;
 }
 
 /**
@@ -58,8 +58,8 @@ export class QueryBuilder {
   /**
    * Build where clause from filters
    */
-  static buildWhereClause(filters: FilterOptions[]): Record<string, any> {
-    const where: Record<string, any> = {};
+  static buildWhereClause(filters: FilterOptions[]): Record<string, unknown> {
+    const where: Record<string, unknown> = {};
 
     for (const filter of filters) {
       const { field, operator, value } = filter;
@@ -114,8 +114,8 @@ export class QueryBuilder {
     field: string,
     startDate?: Date,
     endDate?: Date
-  ): Record<string, any> {
-    const filter: Record<string, any> = {};
+  ): Record<string, unknown> {
+    const filter: Record<string, unknown> = {};
 
     if (startDate && endDate) {
       filter[field] = { [Op.between]: [startDate, endDate] };
@@ -131,7 +131,7 @@ export class QueryBuilder {
   /**
    * Build search filter for multiple fields
    */
-  static buildSearchFilter(fields: string[], searchTerm: string): Record<string, any> {
+  static buildSearchFilter(fields: string[], searchTerm: string): Record<string, unknown> {
     if (!searchTerm || fields.length === 0) {
       return {};
     }
@@ -171,7 +171,7 @@ export class PaginationHelper {
     total: number,
     page: number,
     limit: number
-  ): PaginationResult<any>['pagination'] {
+  ): PaginationResult<unknown>['pagination'] {
     const pages = Math.ceil(total / limit);
     
     return {
@@ -208,7 +208,7 @@ export class TransactionHelper {
    * Execute operations in transaction
    */
   static async withTransaction<T>(
-    sequelize: any,
+    sequelize: { transaction: () => Promise<Transaction> },
     operations: (transaction: Transaction) => Promise<T>
   ): Promise<T> {
     const transaction = await sequelize.transaction();
@@ -227,7 +227,7 @@ export class TransactionHelper {
    * Execute multiple operations in transaction
    */
   static async withTransactionBatch<T>(
-    sequelize: any,
+    sequelize: { transaction: () => Promise<Transaction> },
     operationBatch: Array<(transaction: Transaction) => Promise<T>>
   ): Promise<T[]> {
     const transaction = await sequelize.transaction();
@@ -351,10 +351,10 @@ export class DataConverters {
    * Convert database row to domain object
    */
   static mapDbRowToObject<T>(
-    row: Record<string, any>,
-    mapping: Record<string, string | ((value: any) => any)>
+    row: Record<string, unknown>,
+    mapping: Record<string, string | ((value: unknown) => unknown)>
   ): T {
-    const result: any = {};
+    const result: Record<string, unknown> = {};
     
     for (const [targetKey, sourceKey] of Object.entries(mapping)) {
       if (typeof sourceKey === 'string') {
@@ -371,10 +371,10 @@ export class DataConverters {
    * Convert domain object to database row
    */
   static mapObjectToDbRow(
-    obj: Record<string, any>,
-    mapping: Record<string, string | ((value: any) => any)>
-  ): Record<string, any> {
-    const result: Record<string, any> = {};
+    obj: Record<string, unknown>,
+    mapping: Record<string, string | ((value: unknown) => unknown)>
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
     
     for (const [sourceKey, targetKey] of Object.entries(mapping)) {
       if (typeof targetKey === 'string') {
@@ -417,16 +417,15 @@ export class BulkOperationsHelper {
    * Bulk insert with conflict resolution
    */
   static async bulkInsertWithConflictResolution<T>(
-    model: any,
+    model: { bulkCreate: (data: T[], opts: { updateOnDuplicate: string[]; transaction?: Transaction; returning: boolean }) => Promise<T[]> },
     data: T[],
     options: {
       conflictColumns: string[];
       updateColumns: string[];
       transaction?: Transaction;
     }
-  ): Promise<any[]> {
-    const { conflictColumns, updateColumns, transaction } = options;
-    
+  ): Promise<T[]> {
+    const { updateColumns, transaction } = options;
     return await model.bulkCreate(data, {
       updateOnDuplicate: updateColumns,
       transaction,
@@ -471,14 +470,14 @@ export class QueryPerformanceHelper {
    */
   static createCacheKey(
     operation: string,
-    params: Record<string, any>
+  params: Record<string, unknown>
   ): string {
     const sortedParams = Object.keys(params)
       .sort()
       .reduce((result, key) => {
         result[key] = params[key];
         return result;
-      }, {} as Record<string, any>);
+  }, {} as Record<string, unknown>);
     
     return `${operation}:${JSON.stringify(sortedParams)}`;
   }

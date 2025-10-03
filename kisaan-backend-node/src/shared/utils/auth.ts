@@ -58,7 +58,7 @@ export class JWTManager {
       throw new Error('JWT secret is not configured');
     }
     const options: jwt.SignOptions = {
-      expiresIn: this.config.expiresIn as any,
+  expiresIn: this.config.expiresIn as unknown as number | undefined,
       issuer: this.config.issuer,
       audience: this.config.audience
     };
@@ -73,7 +73,7 @@ export class JWTManager {
       throw new Error('JWT secret is not configured');
     }
     const refreshOptions: jwt.SignOptions = {
-      expiresIn: this.config.refreshExpiresIn as any,
+  expiresIn: this.config.refreshExpiresIn as unknown as number | undefined,
       issuer: this.config.issuer,
       audience: this.config.audience
     };
@@ -222,7 +222,7 @@ export class PasswordManager {
     if (/\d/.test(password)) score += 1;
     else feedback.push('Add numbers');
 
-    if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) score += 1;
+  if (/[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password)) score += 1;
     else feedback.push('Add special characters');
 
     // Common pattern checks
@@ -264,7 +264,7 @@ export class PermissionManager {
   }
 
   /**
-   * Check if user has any of the permissions
+  * Check if user has any of the permissions
    */
   static hasAnyPermission(userPermissions: string[], requiredPermissions: string[]): boolean {
     return requiredPermissions.some(permission => 

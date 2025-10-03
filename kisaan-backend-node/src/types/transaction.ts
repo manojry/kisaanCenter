@@ -19,7 +19,7 @@ export interface TransactionDTO {
   farmer_name?: string;
   buyer_name?: string;
   shop_name?: string;
-  payments?: any[];
+  payments?: import('../models/payment').Payment[];
   paid_amount?: number;
   pending_amount?: number;
 }

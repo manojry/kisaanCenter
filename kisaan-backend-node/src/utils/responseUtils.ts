@@ -4,12 +4,12 @@ import { Response } from 'express';
 /**
  * Standardized API response formats
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -30,7 +30,7 @@ export const sendError = (
   res: Response, 
   error: string, 
   statusCode = 500, 
-  details?: any
+  details?: unknown
 ): Response => {
   return res.status(statusCode).json({
     success: false,
@@ -42,7 +42,7 @@ export const sendError = (
 /**
  * Send validation error response
  */
-export const sendValidationError = (res: Response, details: any): Response => {
+export const sendValidationError = (res: Response, details: unknown): Response => {
   return res.status(400).json({
     success: false,
     error: 'Validation failed',
@@ -63,7 +63,7 @@ export const sendNotFound = (res: Response, resource: string): Response => {
 /**
  * Send bad request error response
  */
-export const sendBadRequest = (res: Response, message: string, details?: any): Response => {
+export const sendBadRequest = (res: Response, message: string, details?: unknown): Response => {
   return res.status(400).json({
     success: false,
     error: message,
@@ -74,8 +74,11 @@ export const sendBadRequest = (res: Response, message: string, details?: any): R
 /**
  * Async error handler wrapper for controllers
  */
-export const asyncHandler = (fn: any) => {
-  return (req: any, res: Response, next: any) => {
+import type { Request, NextFunction } from 'express';
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
@@ -91,7 +94,7 @@ export const parseId = (value: string): number | null => {
 /**
  * Validate required fields in request body
  */
-export const validateRequiredFields = (body: any, requiredFields: string[]): string[] => {
+export const validateRequiredFields = (body: Record<string, unknown>, requiredFields: string[]): string[] => {
   const missing: string[] = [];
   for (const field of requiredFields) {
     if (!body[field] && body[field] !== 0) {
@@ -110,11 +113,12 @@ export interface PaginationParams {
   offset: number;
 }
 
-export const parsePagination = (query: any): PaginationParams => {
-  const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 10));
+export const parsePagination = (query: Record<string, unknown>): PaginationParams => {
+  // Accepts query params as Record<string, unknown>
+  const getString = (val: unknown) => (typeof val === 'string' ? val : '');
+  const page = Math.max(1, parseInt(getString(query.page)) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(getString(query.limit)) || 10));
   const offset = (page - 1) * limit;
-  
   return { page, limit, offset };
 };
 

@@ -5,18 +5,16 @@
 
 import { User } from '../models/user';
 import { Shop } from '../models/shop';
-import { Transaction } from '../models/transaction';
-import { Payment } from '../models/payment';
 import { Op } from 'sequelize';
 import { UserDTO, UserFilters, UserContext } from '../types/user';
 import { AuthorizationError, ValidationError } from '../shared/utils/errors';
 
 // Cache for shop-scoped user data
 class UserCacheService {
-  private cache = new Map<string, { users: any[], timestamp: number }>();
+  private cache = new Map<string, { users: User[]; timestamp: number }>();
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-  async getUsersByShop(shopId: number, forceRefresh = false): Promise<any[]> {
+  async getUsersByShop(shopId: number, forceRefresh = false): Promise<User[]> {
     const cacheKey = `shop_${shopId}_users`;
     const cached = this.cache.get(cacheKey);
 
@@ -70,7 +68,7 @@ export const getUsersWithShopInfo = async (
   filters: UserFilters = {}
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   
-  const where: any = {};
+  const where: Record<string, unknown> = {};
   const includeShop = [];
 
   // Build efficient WHERE clause based on requesting user's role
@@ -93,7 +91,8 @@ export const getUsersWithShopInfo = async (
   if (filters.role) where.role = filters.role;
   if (filters.shop_id) where.shop_id = filters.shop_id;
   if (filters.search) {
-    where[Op.or] = [
+    // Use a separate 'or' variable to avoid symbol index
+    (where as any).or = [
       { username: { [Op.iLike]: `%${filters.search}%` } },
       { firstname: { [Op.iLike]: `%${filters.search}%` } },
       { email: { [Op.iLike]: `%${filters.search}%` } }
@@ -119,17 +118,17 @@ export const getUsersWithShopInfo = async (
     distinct: true // Important for accurate count with JOINs
   });
 
-  const users = rows.map((user: any) => ({
+  const users = rows.map((user: User & { shop?: { name?: string } }) => ({
     id: user.id,
     username: user.username,
-    firstname: user.firstname,
-    email: user.email,
-    contact: user.contact,
+    firstname: user.firstname ?? '',
+    email: user.email ?? '',
+    contact: user.contact ?? undefined,
     role: user.role,
-    shop_id: user.shop_id,
+    shop_id: user.shop_id ?? undefined,
     shop_name: user.shop?.name,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate,
+    custom_commission_rate: user.custom_commission_rate ?? undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   }));
@@ -162,17 +161,17 @@ export const getUsersByShopCached = async (
 
   const users = await userCache.getUsersByShop(shopId, forceRefresh);
   
-  return users.map((user: any) => ({
+  return users.map((user: User & { shop?: { name?: string } }) => ({
     id: user.id,
     username: user.username,
-    firstname: user.firstname,
-    email: user.email,
-    contact: user.contact,
+    firstname: user.firstname ?? '',
+    email: user.email ?? '',
+    contact: user.contact ?? undefined,
     role: user.role,
-    shop_id: user.shop_id,
+    shop_id: user.shop_id ?? undefined,
     shop_name: user.shop?.name,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate,
+    custom_commission_rate: user.custom_commission_rate ?? undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   }));
@@ -223,17 +222,17 @@ export const getUsersWithBalance = async (
     ]
   });
 
-  return users.map(user => ({
+  return users.map((user: User & { shop?: { name?: string } }) => ({
     id: user.id,
     username: user.username,
-    firstname: user.firstname || '',
-    email: user.email || '',
-    contact: user.contact || undefined,
+    firstname: user.firstname ?? '',
+    email: user.email ?? '',
+    contact: user.contact ?? undefined,
     role: user.role,
-    shop_id: user.shop_id || undefined,
-    shop_name: (user as any).shop?.name,
+    shop_id: user.shop_id ?? undefined,
+    shop_name: user.shop?.name,
     balance: user.balance,
-    custom_commission_rate: user.custom_commission_rate || undefined,
+    custom_commission_rate: user.custom_commission_rate ?? undefined,
     created_at: user.createdAt,
     updated_at: user.updatedAt
   }));
@@ -243,7 +242,7 @@ export const getUsersWithBalance = async (
  * Create user with automatic cache invalidation
  */
 export const createUserOptimized = async (
-  userData: any,
+  userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>,
   requestingUser: UserContext
 ): Promise<UserDTO> => {
   
@@ -275,7 +274,7 @@ export const createUserOptimized = async (
  */
 export const updateUserOptimized = async (
   userId: number,
-  updateData: any,
+  updateData: Partial<User>,
   requestingUser: UserContext
 ): Promise<UserDTO> => {
   

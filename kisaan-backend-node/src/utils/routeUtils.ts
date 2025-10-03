@@ -38,11 +38,10 @@ export const DateUtils = {
    * Parse date range from query parameters with defaults
    */
   parseDateRange(query: Record<string, string | undefined>): { startDate: Date; endDate: Date } {
-    let { from_date, to_date, startDate, endDate } = query;
-    
+    const { from_date, to_date, startDate, endDate } = query;
     // Support both frontend (from_date/to_date) and backend (startDate/endDate) params
-  let filterStart: string = from_date ?? startDate ?? '';
-  let filterEnd: string = to_date ?? endDate ?? '';
+    let filterStart: string = from_date ?? startDate ?? '';
+    let filterEnd: string = to_date ?? endDate ?? '';
 
     // Default to today if no dates provided
     if (!filterStart || !filterEnd) {
@@ -171,15 +170,15 @@ export const ServiceUtils = {
     try {
       const result = await serviceMethod();
       return result;
-    } catch (error: any) {
-  (req as any).log?.error({ err: error }, 'service execution error');
-  logger.error({ err: error }, 'service execution error');
-      
-      if (error.status || error.statusCode) {
-        ResponseUtils.error(res, error.message, error.status || error.statusCode);
+    } catch (error: unknown) {
+      if ((req as any).log && typeof (req as any).log.error === 'function') {
+        (req as any).log.error({ err: error }, 'service execution error');
+      }
+      logger.error({ err: error }, 'service execution error');
+      if (typeof error === 'object' && error && ('status' in error || 'statusCode' in error)) {
+        ResponseUtils.error(res, (error as { message?: string }).message || 'Error', (error as { status?: number; statusCode?: number }).status || (error as { statusCode?: number }).statusCode || 500);
         return;
       }
-      
       next(error);
     }
   },
@@ -189,8 +188,9 @@ export const ServiceUtils = {
    */
   getService<T = unknown>(serviceName: string): T {
     try {
-      const ServiceClass = require(`../services/${serviceName}Service`)[`${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)}Service`];
-      return new ServiceClass();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const ServiceClass = require(`../services/${serviceName}Service`)[`${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)}Service`];
+  return new ServiceClass();
   } catch (error: unknown) {
       logger.error({ err: error, serviceName }, 'failed to instantiate service');
       throw new Error(`Service ${serviceName} not found`);
@@ -246,32 +246,33 @@ export class RouteFactory {
    * Create standard CRUD routes for a resource
    */
   static createCrudRoutes(resourceName: string, controllerClass: new () => unknown) {
-    const router = require('express').Router();
-    const controller = new controllerClass() as any;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const router = require('express').Router();
+  const controller = new controllerClass();
 
     // GET /resource - List all
     router.get('/', ControllerUtils.asyncHandler(
-      controller.getAll?.bind(controller) || controller[`get${resourceName}s`]?.bind(controller)
+      (controller as any).getAll?.bind(controller) || (controller as any)[`get${resourceName}s`]?.bind(controller)
     ));
 
     // GET /resource/:id - Get by ID
     router.get('/:id', ControllerUtils.asyncHandler(
-      controller.getById?.bind(controller) || controller[`get${resourceName}ById`]?.bind(controller)
+      (controller as any).getById?.bind(controller) || (controller as any)[`get${resourceName}ById`]?.bind(controller)
     ));
 
-    // POST /resource - Create new
+    // POST /resource - Create
     router.post('/', ControllerUtils.asyncHandler(
-      controller.create?.bind(controller) || controller[`create${resourceName}`]?.bind(controller)
+      (controller as any).create?.bind(controller) || (controller as any)[`create${resourceName}`]?.bind(controller)
     ));
 
     // PUT /resource/:id - Update
     router.put('/:id', ControllerUtils.asyncHandler(
-      controller.update?.bind(controller) || controller[`update${resourceName}`]?.bind(controller)
+      (controller as any).update?.bind(controller) || (controller as any)[`update${resourceName}`]?.bind(controller)
     ));
 
     // DELETE /resource/:id - Delete
     router.delete('/:id', ControllerUtils.asyncHandler(
-      controller.delete?.bind(controller) || controller[`delete${resourceName}`]?.bind(controller)
+      (controller as any).delete?.bind(controller) || (controller as any)[`delete${resourceName}`]?.bind(controller)
     ));
 
     return router;
@@ -281,19 +282,20 @@ export class RouteFactory {
    * Create analytics routes for a resource
    */
   static createAnalyticsRoutes(resourceName: string, controllerClass: new () => unknown) {
-    const router = require('express').Router();
-    const controller = new controllerClass() as any;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const router = require('express').Router();
+  const controller = new controllerClass();
 
     router.get('/analytics', ControllerUtils.asyncHandler(
-      controller.getAnalytics?.bind(controller)
+      (controller as any).getAnalytics?.bind(controller)
     ));
 
     router.get('/summary', ControllerUtils.asyncHandler(
-      controller.getSummary?.bind(controller)
+      (controller as any).getSummary?.bind(controller)
     ));
 
     router.get('/dashboard', ControllerUtils.asyncHandler(
-      controller.getDashboard?.bind(controller)
+      (controller as any).getDashboard?.bind(controller)
     ));
 
     return router;

@@ -65,12 +65,12 @@ export const randomNumber = (min: number, max: number): number => {
  */
 export const deepClone = <T>(obj: T): T => {
   if (obj === null || typeof obj !== 'object') return obj;
-  if (obj instanceof Date) return new Date(obj.getTime()) as any;
-  if (obj instanceof Array) return obj.map(item => deepClone(item)) as any;
+  if (obj instanceof Date) return new Date(obj.getTime()) as T;
+  if (obj instanceof Array) return obj.map(item => deepClone(item)) as T;
   if (typeof obj === 'object') {
-    const clonedObj = {} as any;
+    const clonedObj = {} as T;
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         clonedObj[key] = deepClone(obj[key]);
       }
     }
@@ -82,7 +82,7 @@ export const deepClone = <T>(obj: T): T => {
 /**
  * Check if object is empty
  */
-export const isEmpty = (obj: any): boolean => {
+export const isEmpty = (obj: unknown): boolean => {
   if (obj === null || obj === undefined) return true;
   if (Array.isArray(obj)) return obj.length === 0;
   if (typeof obj === 'object') return Object.keys(obj).length === 0;
@@ -93,7 +93,7 @@ export const isEmpty = (obj: any): boolean => {
 /**
  * Debounce function
  */
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
@@ -108,7 +108,7 @@ export const debounce = <T extends (...args: any[]) => any>(
 /**
  * Throttle function
  */
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {
@@ -198,17 +198,19 @@ export const getEnvVar = (
   key: string,
   defaultValue?: string,
   type: 'string' | 'number' | 'boolean' = 'string'
-): any => {
+): string | number | boolean | undefined => {
   const value = process.env[key] || defaultValue;
   
   if (!value) return undefined;
   
   switch (type) {
-    case 'number':
+    case 'number': {
       const num = Number(value);
       return isNaN(num) ? defaultValue : num;
-    case 'boolean':
+    }
+    case 'boolean': {
       return value.toLowerCase() === 'true';
+    }
     default:
       return value;
   }
@@ -217,12 +219,12 @@ export const getEnvVar = (
 /**
  * Safe JSON parse
  */
-export const safeJsonParse = <T = any>(
+export const safeJsonParse = <T = unknown>(
   str: string,
   defaultValue: T | null = null
 ): T | null => {
   try {
-    return JSON.parse(str);
+    return JSON.parse(str) as T;
   } catch {
     return defaultValue;
   }
@@ -232,7 +234,7 @@ export const safeJsonParse = <T = any>(
  * Safe JSON stringify
  */
 export const safeJsonStringify = (
-  obj: any,
+  obj: unknown,
   defaultValue: string = '{}'
 ): string => {
   try {
@@ -245,7 +247,7 @@ export const safeJsonStringify = (
 /**
  * Convert to boolean safely
  */
-export const toBoolean = (value: any): boolean => {
+export const toBoolean = (value: unknown): boolean => {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
     const lower = value.toLowerCase();
@@ -258,7 +260,7 @@ export const toBoolean = (value: any): boolean => {
 /**
  * Convert to number safely
  */
-export const toNumber = (value: any, defaultValue: number = 0): number => {
+export const toNumber = (value: unknown, defaultValue: number = 0): number => {
   if (typeof value === 'number') return isNaN(value) ? defaultValue : value;
   if (typeof value === 'string') {
     const num = Number(value);
@@ -270,41 +272,41 @@ export const toNumber = (value: any, defaultValue: number = 0): number => {
 /**
  * Get nested property safely
  */
-export const getNestedProperty = (
-  obj: any,
+export const getNestedProperty = <T = unknown>(
+  obj: Record<string, unknown>,
   path: string,
-  defaultValue: any = undefined
-): any => {
+  defaultValue: T = undefined as unknown as T
+): T => {
   const keys = path.split('.');
-  let current = obj;
+  let current: unknown = obj;
   
   for (const key of keys) {
-    if (current === null || current === undefined || !(key in current)) {
+    if (typeof current !== 'object' || current === null || !(key in current)) {
       return defaultValue;
     }
-    current = current[key];
+    current = (current as Record<string, unknown>)[key];
   }
   
-  return current;
+  return current as T;
 };
 
 /**
  * Set nested property safely
  */
 export const setNestedProperty = (
-  obj: any,
+  obj: Record<string, unknown>,
   path: string,
-  value: any
+  value: unknown
 ): void => {
   const keys = path.split('.');
-  let current = obj;
+  let current: Record<string, unknown> = obj;
   
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (!(key in current) || typeof current[key] !== 'object') {
+    if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
       current[key] = {};
     }
-    current = current[key];
+    current = current[key] as Record<string, unknown>;
   }
   
   current[keys[keys.length - 1]] = value;

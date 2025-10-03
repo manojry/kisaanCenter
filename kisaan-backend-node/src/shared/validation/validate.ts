@@ -1,8 +1,8 @@
 import { ZodSchema, ZodError } from 'zod';
 
 export class ValidationFailure extends Error {
-  issues: any;
-  constructor(message: string, issues: any) {
+  issues: unknown;
+  constructor(message: string, issues: unknown) {
     super(message);
     this.name = 'ValidationFailure';
     this.issues = issues;

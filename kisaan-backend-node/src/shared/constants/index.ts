@@ -158,7 +158,7 @@ export const VALIDATION = {
   NAME_MAX_LENGTH: 100,
   
   // Phone rules
-  PHONE_PATTERN: /^\+?[\d\s\-\(\)]+$/,
+  PHONE_PATTERN: /^\+?[\d\s\-()]+$/,
   PHONE_MIN_LENGTH: 10,
   PHONE_MAX_LENGTH: 15,
   

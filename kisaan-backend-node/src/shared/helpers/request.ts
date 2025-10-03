@@ -17,7 +17,7 @@ export interface RequestValidationOptions {
  * Extracted Request Data
  */
 export interface ExtractedData {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -27,37 +27,43 @@ export class RequestExtractor {
   /**
    * Extract and validate request body
    */
+
   static extractBody(
-    req: any,
+    req: Record<string, unknown>,
     options?: RequestValidationOptions
   ): { data: ExtractedData; errors: string[] } {
-    return this.extractAndValidate(req.body || {}, options);
+    const body = (typeof req.body === 'object' && req.body !== null) ? req.body as Record<string, unknown> : {};
+    return this.extractAndValidate(body, options);
   }
 
   /**
    * Extract and validate query parameters
    */
+
   static extractQuery(
-    req: any,
+    req: Record<string, unknown>,
     options?: RequestValidationOptions
   ): { data: ExtractedData; errors: string[] } {
-    return this.extractAndValidate(req.query || {}, options);
+    const query = (typeof req.query === 'object' && req.query !== null) ? req.query as Record<string, unknown> : {};
+    return this.extractAndValidate(query, options);
   }
 
   /**
    * Extract and validate route parameters
    */
+
   static extractParams(
-    req: any,
+    req: Record<string, unknown>,
     options?: RequestValidationOptions
   ): { data: ExtractedData; errors: string[] } {
-    return this.extractAndValidate(req.params || {}, options);
+    const params = (typeof req.params === 'object' && req.params !== null) ? req.params as Record<string, unknown> : {};
+    return this.extractAndValidate(params, options);
   }
 
   /**
    * Extract pagination parameters
    */
-  static extractPagination(req: any): {
+  static extractPagination(req: { query: Record<string, unknown> }): {
     page: number;
     limit: number;
     offset: number;
@@ -68,8 +74,10 @@ export class RequestExtractor {
     let limit = 10;
 
     // Extract page
+
     if (req.query.page !== undefined) {
-      const pageNum = parseInt(req.query.page, 10);
+      const pageStr = typeof req.query.page === 'string' ? req.query.page : null;
+      const pageNum = pageStr !== null ? parseInt(pageStr, 10) : NaN;
       if (isNaN(pageNum) || pageNum < 1) {
         errors.push('Page must be a positive integer');
       } else {
@@ -78,8 +86,10 @@ export class RequestExtractor {
     }
 
     // Extract limit
+
     if (req.query.limit !== undefined) {
-      const limitNum = parseInt(req.query.limit, 10);
+      const limitStr = typeof req.query.limit === 'string' ? req.query.limit : null;
+      const limitNum = limitStr !== null ? parseInt(limitStr, 10) : NaN;
       if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
         errors.push('Limit must be between 1 and 100');
       } else {
@@ -95,7 +105,7 @@ export class RequestExtractor {
   /**
    * Extract sort parameters
    */
-  static extractSort(req: any): {
+  static extractSort(req: { query: Record<string, unknown> }): {
     sortBy: string;
     sortOrder: 'ASC' | 'DESC';
     errors: string[];
@@ -129,12 +139,12 @@ export class RequestExtractor {
   /**
    * Extract filter parameters
    */
-  static extractFilters(req: any, allowedFields: string[] = []): {
-    filters: Record<string, any>;
+  static extractFilters(req: { query: Record<string, unknown> }, allowedFields: string[] = []): {
+    filters: Record<string, unknown>;
     errors: string[];
   } {
     const errors: string[] = [];
-    const filters: Record<string, any> = {};
+  const filters: Record<string, unknown> = {};
 
     if (!req.query.filters) {
       return { filters, errors };
@@ -167,28 +177,27 @@ export class RequestExtractor {
   /**
    * Extract user info from request (assumes auth middleware has run)
    */
-  static extractUser(req: any): {
+  static extractUser(req: { user?: Record<string, unknown> }): {
     userId?: number;
     username?: string;
     role?: string;
     shopId?: number;
     permissions?: string[];
   } {
-    const user = req.user || {};
-    
+    const user = req.user && typeof req.user === 'object' ? req.user as Record<string, unknown> : {};
     return {
-      userId: user.userId,
-      username: user.username,
-      role: user.role,
-      shopId: user.shopId,
-      permissions: user.permissions || []
+      userId: typeof user.userId === 'number' ? user.userId : undefined,
+      username: typeof user.username === 'string' ? user.username : undefined,
+      role: typeof user.role === 'string' ? user.role : undefined,
+      shopId: typeof user.shopId === 'number' ? user.shopId : undefined,
+      permissions: Array.isArray(user.permissions) && user.permissions.every(p => typeof p === 'string') ? user.permissions as string[] : []
     };
   }
 
   /**
    * Extract request metadata
    */
-  static extractMetadata(req: any): {
+  static extractMetadata(req: { ip?: string; connection?: { remoteAddress?: string }; get?: (header: string) => string | undefined; method: string; originalUrl?: string; url: string; requestId?: string }): {
     ip: string;
     userAgent: string;
     method: string;
@@ -198,7 +207,7 @@ export class RequestExtractor {
   } {
     return {
       ip: req.ip || req.connection?.remoteAddress || 'unknown',
-      userAgent: req.get('User-Agent') || 'unknown',
+      userAgent: typeof req.get === 'function' ? req.get('User-Agent') || 'unknown' : 'unknown',
       method: req.method,
       url: req.originalUrl || req.url,
       timestamp: new Date(),
@@ -210,18 +219,18 @@ export class RequestExtractor {
    * Core extraction and validation logic
    */
   private static extractAndValidate(
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     options?: RequestValidationOptions
   ): { data: ExtractedData; errors: string[] } {
     const errors: string[] = [];
-    const result: ExtractedData = {};
+  const result: ExtractedData = {};
 
     if (!options) {
       return { data, errors };
     }
 
     const { required = [], optional = [], types = {}, sanitize = true } = options;
-    const allFields = [...required, ...optional];
+
 
     // Check required fields
     for (const field of required) {
@@ -268,21 +277,22 @@ export class RequestExtractor {
   /**
    * Type conversion helper
    */
-  private static convertType(value: any, expectedType: string): {
+  private static convertType(value: unknown, expectedType: string): {
     success: boolean;
-    value: any;
+    value: unknown;
   } {
     try {
       switch (expectedType) {
         case 'string':
           return { success: true, value: String(value) };
         
-        case 'number':
+        case 'number': {
           const num = Number(value);
           return { 
             success: !isNaN(num), 
             value: num 
           };
+        }
         
         case 'boolean':
           if (typeof value === 'boolean') {
@@ -349,7 +359,7 @@ export class RequestValidator {
   /**
    * Validate ID parameter
    */
-  static validateId(id: any): { isValid: boolean; id?: number; error?: string } {
+  static validateId(id: unknown): { isValid: boolean; id?: number; error?: string } {
     if (!id) {
       return { isValid: false, error: 'ID is required' };
     }
@@ -367,7 +377,7 @@ export class RequestValidator {
    * Validate required fields
    */
   static validateRequired(
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     requiredFields: string[]
   ): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];

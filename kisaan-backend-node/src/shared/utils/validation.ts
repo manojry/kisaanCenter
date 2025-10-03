@@ -21,7 +21,7 @@ export interface FieldValidationRule {
   minLength?: number;
   maxLength?: number;
   pattern?: RegExp;
-  customValidator?: (value: any) => boolean;
+  customValidator?: (value: unknown) => boolean;
   errorMessage?: string;
 }
 
@@ -34,27 +34,27 @@ export type ValidationSchema = Record<string, FieldValidationRule>;
  * Basic Type Validators
  */
 export class TypeValidators {
-  static isString(value: any): boolean {
+  static isString(value: unknown): boolean {
     return typeof value === 'string';
   }
 
-  static isNumber(value: any): boolean {
+  static isNumber(value: unknown): boolean {
     return typeof value === 'number' && !isNaN(value);
   }
 
-  static isBoolean(value: any): boolean {
+  static isBoolean(value: unknown): boolean {
     return typeof value === 'boolean';
   }
 
-  static isArray(value: any): boolean {
+  static isArray(value: unknown): boolean {
     return Array.isArray(value);
   }
 
-  static isObject(value: any): boolean {
+  static isObject(value: unknown): boolean {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
-  static isDate(value: any): boolean {
+  static isDate(value: unknown): boolean {
     return value instanceof Date && !isNaN(value.getTime());
   }
 
@@ -100,16 +100,16 @@ export class TypeValidators {
     return decimalPlaces <= precision;
   }
 
-  static isValidRole(value: string): boolean {
-    return Object.values(USER_ROLES).includes(value as any);
+  static isValidRole(value: unknown): boolean {
+    return typeof value === 'string' && (Object.values(USER_ROLES) as string[]).includes(value);
   }
 
-  static isValidStatus(value: string): boolean {
-    return Object.values(USER_STATUS).includes(value as any);
+  static isValidStatus(value: unknown): boolean {
+    return typeof value === 'string' && (Object.values(USER_STATUS) as string[]).includes(value);
   }
 
-  static isValidTransactionStatus(value: string): boolean {
-    return Object.values(TRANSACTION_STATUS).includes(value as any);
+  static isValidTransactionStatus(value: unknown): boolean {
+    return typeof value === 'string' && (Object.values(TRANSACTION_STATUS) as string[]).includes(value);
   }
 }
 
@@ -119,7 +119,7 @@ export class TypeValidators {
 export class FieldValidator {
   private errors: string[] = [];
 
-  validate(value: any, fieldName: string, rules: FieldValidationRule): ValidationResult {
+  validate(value: unknown, fieldName: string, rules: FieldValidationRule): ValidationResult {
     this.errors = [];
 
     // Required validation
@@ -149,7 +149,7 @@ export class FieldValidator {
     };
   }
 
-  private isEmpty(value: any): boolean {
+  private isEmpty(value: unknown): boolean {
     return value === null || value === undefined || value === '';
   }
 
@@ -176,7 +176,7 @@ export class FieldValidator {
 export class SchemaValidator {
   private fieldValidator = new FieldValidator();
 
-  validate(data: Record<string, any>, schema: ValidationSchema): ValidationResult {
+  validate(data: Record<string, unknown>, schema: ValidationSchema): ValidationResult {
     const allErrors: string[] = [];
 
     for (const [fieldName, rules] of Object.entries(schema)) {
@@ -265,12 +265,12 @@ export const ValidationSchemas = {
     },
     price: {
       required: true,
-      customValidator: (value: any) => TypeValidators.isPositiveNumber(value) && TypeValidators.isDecimal(value),
+  customValidator: (value: unknown) => TypeValidators.isPositiveNumber(value as number) && TypeValidators.isDecimal(value as number),
       errorMessage: 'Price must be a positive decimal number'
     },
     quantity: {
       required: true,
-      customValidator: (value: any) => TypeValidators.isPositiveNumber(value) && TypeValidators.isDecimal(value),
+  customValidator: (value: unknown) => TypeValidators.isPositiveNumber(value as number) && TypeValidators.isDecimal(value as number),
       errorMessage: 'Quantity must be a positive decimal number'
     }
   },
@@ -278,12 +278,12 @@ export const ValidationSchemas = {
   transaction: {
     quantity: {
       required: true,
-      customValidator: (value: any) => TypeValidators.isPositiveNumber(value) && TypeValidators.isDecimal(value),
+  customValidator: (value: unknown) => TypeValidators.isPositiveNumber(value as number) && TypeValidators.isDecimal(value as number),
       errorMessage: 'Quantity must be a positive decimal number'
     },
     price_per_unit: {
       required: true,
-      customValidator: (value: any) => TypeValidators.isPositiveNumber(value) && TypeValidators.isDecimal(value),
+  customValidator: (value: unknown) => TypeValidators.isPositiveNumber(value as number) && TypeValidators.isDecimal(value as number),
       errorMessage: 'Price per unit must be a positive decimal number'
     },
     status: {
@@ -318,7 +318,7 @@ export class Sanitizer {
     return Number(value.toFixed(precision));
   }
 
-  static sanitizeObject(obj: Record<string, any>, fieldsToSanitize: string[]): Record<string, any> {
+  static sanitizeObject(obj: Record<string, unknown>, fieldsToSanitize: string[]): Record<string, unknown> {
     const sanitized = { ...obj };
     
     for (const field of fieldsToSanitize) {
@@ -338,16 +338,15 @@ export const ValidationHelpers = {
   /**
    * Validate and sanitize user input
    */
-  validateAndSanitizeUser(userData: any): { isValid: boolean; errors: string[]; sanitizedData?: any } {
+  validateAndSanitizeUser(userData: Record<string, unknown>): { isValid: boolean; errors: string[]; sanitizedData?: Record<string, unknown> } {
     const validator = new SchemaValidator();
-    
-    // Sanitize first
+    // Sanitize first, only if value is string
     const sanitizedData = {
       ...userData,
-      username: userData.username ? Sanitizer.sanitizeUsername(userData.username) : undefined,
-      email: userData.email ? Sanitizer.sanitizeEmail(userData.email) : undefined,
-      firstname: userData.firstname ? Sanitizer.sanitizeString(userData.firstname) : undefined,
-      contact: userData.contact ? Sanitizer.sanitizePhone(userData.contact) : undefined
+      username: typeof userData.username === 'string' ? Sanitizer.sanitizeUsername(userData.username) : undefined,
+      email: typeof userData.email === 'string' ? Sanitizer.sanitizeEmail(userData.email) : undefined,
+      firstname: typeof userData.firstname === 'string' ? Sanitizer.sanitizeString(userData.firstname) : undefined,
+      contact: typeof userData.contact === 'string' ? Sanitizer.sanitizePhone(userData.contact) : undefined
     };
 
     // Then validate
@@ -363,7 +362,7 @@ export const ValidationHelpers = {
   /**
    * Validate pagination parameters
    */
-  validatePagination(page?: number, limit?: number): { isValid: boolean; errors: string[]; sanitizedData?: any } {
+  validatePagination(page?: number, limit?: number): { isValid: boolean; errors: string[]; sanitizedData?: { page: number; limit: number } } {
     const errors: string[] = [];
     
     const sanitizedPage = page && page > 0 ? Math.floor(page) : 1;
@@ -390,7 +389,7 @@ export const ValidationHelpers = {
   /**
    * Validate ID parameter
    */
-  validateId(id: any): { isValid: boolean; errors: string[]; sanitizedData?: number } {
+  validateId(id: unknown): { isValid: boolean; errors: string[]; sanitizedData?: number } {
     if (!id) {
       return { isValid: false, errors: ['ID is required'] };
     }
