@@ -1,3 +1,4 @@
+import { getSettlements } from '../services/settlementService';
 import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { ResponseUtils, ControllerUtils } from '../utils/routeUtils';
@@ -10,7 +11,7 @@ export abstract class BaseController {
   /**
    * Standard async handler wrapper
    */
-  public asyncHandler(fn: Function) {
+  public asyncHandler<T extends (...args: any[]) => any>(fn: T) {
     return ControllerUtils.asyncHandler(fn);
   }
 
@@ -31,28 +32,28 @@ export abstract class BaseController {
   /**
    * Send success response
    */
-  public sendSuccess(res: Response, data: any, message?: string, meta?: any): void {
+  public sendSuccess<T>(res: Response, data: T, message?: string, meta?: Record<string, unknown>): void {
     ResponseUtils.success(res, data, message, meta);
   }
 
   /**
    * Send error response
    */
-  public sendError(res: Response, message: string, statusCode: number = 400, details?: any): void {
+  public sendError(res: Response, message: string, statusCode: number = 400, details?: unknown): void {
     ResponseUtils.error(res, message, statusCode, details);
   }
 
   /**
    * Send validation error response
    */
-  public sendValidationError(res: Response, errors: any): void {
+  public sendValidationError(res: Response, errors: unknown): void {
     ResponseUtils.validationError(res, errors);
   }
 
   /**
    * Send paginated response
    */
-  public sendPaginated(res: Response, data: any[], total: number, page: number, limit: number): void {
+  public sendPaginated<T>(res: Response, data: T[], total: number, page: number, limit: number): void {
     ResponseUtils.paginated(res, data, total, page, limit);
   }
 
@@ -77,16 +78,14 @@ export class SettlementController extends BaseController {
       }
 
       // Use service layer (would be injected in real implementation)
-      const { getSettlements } = require('../services/settlementService');
       const settlements = await getSettlements({
         shop_id: shop_id as string,
         user_id: user_id as string,
         user_type: user_type as string,
         status: status as string
       });
-
       this.sendSuccess(res, settlements);
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -106,8 +105,8 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, settlement);
-    } catch (error: any) {
-      if (error.message.includes('Invalid')) {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Invalid')) {
         return this.sendError(res, error.message, 400);
       }
       next(error);
@@ -138,7 +137,7 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, settlement, 'Settlement created successfully');
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -159,7 +158,7 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, settlement, 'Settlement updated successfully');
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -170,7 +169,7 @@ export class SettlementController extends BaseController {
       
       // Service call would go here
       this.sendSuccess(res, { id }, 'Settlement deleted successfully');
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -187,7 +186,7 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, summary);
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -204,7 +203,7 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, result, 'Amount settled successfully');
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
@@ -229,7 +228,7 @@ export class SettlementController extends BaseController {
       };
 
       this.sendSuccess(res, expense, 'Expense created successfully');
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }

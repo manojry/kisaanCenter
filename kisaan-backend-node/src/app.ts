@@ -75,14 +75,14 @@ app.get('/readyz', async (req, res) => {
       totalEndpoints: apiRegistry.getAllEndpoints().length,
       latencyMs: durationMs
     });
-  } catch (err: any) {
+  } catch (err) {
     const durationMs = Date.now() - start;
     req.log?.error({ err }, 'readiness check failed');
     return res.status(503).json({
       status: 'DEGRADED',
       ts: new Date().toISOString(),
       db: 'down',
-      error: err?.message || 'unknown',
+      error: (err instanceof Error ? err.message : 'unknown'),
       latencyMs: durationMs
     });
   }
@@ -103,7 +103,7 @@ app.get('/api/test', (req, res) => {
     version: '2.0.0 - Dynamic API Registry',
     totalModules: modules.length,
     totalEndpoints: apiRegistry.getAllEndpoints().length,
-    modules: modules.map(module => ({
+    modules: modules.map((module: import('./core/apiRegistry').ApiModule) => ({
       name: module.name,
       prefix: `/api${module.prefix}`,
       description: module.description,
@@ -126,12 +126,14 @@ try {
 }
 
 // Legacy ErrorHandler (keep temporarily for specific shape) then unified errorHandler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err.alreadyHandled) return next(err);
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (typeof err === 'object' && err && 'alreadyHandled' in err) return next(err);
   const legacy = new ErrorHandler(process.env.NODE_ENV === 'development');
-  const legacyResp = legacy.handleError(err, undefined);
-  // pass through to new handler for normalized shape
-  (err as any).legacyPayload = legacyResp;
+  const errorObj = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error');
+  const legacyResp = legacy.handleError(errorObj, undefined);
+  if (typeof err === 'object' && err !== null) {
+    (err as { legacyPayload?: unknown }).legacyPayload = legacyResp;
+  }
   next(err);
 });
 app.use(errorHandler);
@@ -143,7 +145,7 @@ app.use('*', (req, res) => {
   // Generate available routes dynamically from registry
   const availableRoutes = ['GET /health', 'GET /api/test', 'GET /api/docs'];
   
-  for (const module of apiRegistry.getModules()) {
+  for (const module of apiRegistry.getModules() as import('./core/apiRegistry').ApiModule[]) {
     const baseRoute = `/api${module.prefix}`;
     availableRoutes.push(
       `GET ${baseRoute}`,
@@ -161,7 +163,7 @@ app.use('*', (req, res) => {
     timestamp: new Date().toISOString(),
     suggestion: 'Visit /api/test for a complete list of available endpoints',
     documentation: 'Visit /api/docs for OpenAPI specification',
-    availableModules: apiRegistry.getModules().map(m => `/api${m.prefix}`),
+    availableModules: apiRegistry.getModules().map((m: import('./core/apiRegistry').ApiModule) => `/api${m.prefix}`),
     totalEndpoints: apiRegistry.getAllEndpoints().length
   });
 });

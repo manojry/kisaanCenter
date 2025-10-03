@@ -29,8 +29,8 @@ export async function up(queryInterface: QueryInterface) {
   await ensureColumn('kisaan_transactions', 'metadata', 'JSONB');
 
   // Indexes (ignore errors if already exist)
-  try { await queryInterface.sequelize.query('CREATE INDEX IF NOT EXISTS idx_kisaan_transactions_product_id ON kisaan_transactions(product_id)'); } catch (_) {}
-  try { await queryInterface.sequelize.query('CREATE INDEX IF NOT EXISTS idx_kisaan_transactions_created_at ON kisaan_transactions(created_at)'); } catch (_) {}
+  await queryInterface.sequelize.query('CREATE INDEX IF NOT EXISTS idx_kisaan_transactions_product_id ON kisaan_transactions(product_id)');
+  await queryInterface.sequelize.query('CREATE INDEX IF NOT EXISTS idx_kisaan_transactions_created_at ON kisaan_transactions(created_at)');
 }
 
 export async function down() {

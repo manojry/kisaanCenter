@@ -10,9 +10,9 @@ import * as userService from '../services/userService';
 import { UserDTO } from '../dtos';
 
 // Shared utilities & helpers
-import { USER_ROLES } from '../shared/constants';
-import { StringFormatter } from '../shared/utils/formatting';
-import { AuthenticationError } from '../shared/utils/errors';
+// import { USER_ROLES } from '../shared/constants';
+// import { StringFormatter } from '../shared/utils/formatting';
+// import { AuthenticationError } from '../shared/utils/errors';
 import { validate, ValidationFailure } from '../shared/validation/validate';
 import { success, created, failureCode, standardDelete } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
@@ -33,7 +33,7 @@ export class UserController {
     try {
       req.log?.info({ actor: req.user?.id }, 'createUser attempt');
       // Distinguish between missing username (auto-generate) and explicitly empty string (validation error)
-      let reqBody = { ...req.body };
+  const reqBody = { ...req.body };
       if (reqBody.username === '') {
         // Explicit empty provided -> surface validation error with consistent code path
         failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'username' }, 'username cannot be empty');
@@ -92,7 +92,7 @@ export class UserController {
         message: 'Users retrieved successfully',
         meta: { total, page, limit }
       });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'getUsers failed');
       next(err);
     }
@@ -115,7 +115,7 @@ export class UserController {
         return;
       }
   success(res, user, { message: 'User retrieved successfully' });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'getUserById failed');
       next(err);
     }
@@ -129,7 +129,7 @@ export class UserController {
     try {
       const id = parseId(req.params.id, 'user');
       // Remove password if it's an empty string so validation doesn't fail
-      let reqBody = { ...req.body };
+  const reqBody = { ...req.body };
       if (typeof reqBody.password === 'string' && reqBody.password.trim() === '') {
         delete reqBody.password;
       }
@@ -140,7 +140,7 @@ export class UserController {
       }
       const user: UserDTO | null = await userService.updateUser(id, data, req.user);
       success(res, user, { message: 'User updated successfully' });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'updateUser failed');
       next(err);
     }
@@ -156,7 +156,7 @@ export class UserController {
       const data = validate(UserPasswordResetSchema, req.body);
       await userService.resetPassword(id, data);
   success(res, { }, { message: 'Password reset successfully' });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'resetPassword failed');
       next(err);
     }
@@ -180,7 +180,7 @@ export class UserController {
       }
       await userService.adminResetPassword(id, newPassword, req.user);
   success(res, { }, { message: 'Password reset successfully' });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'adminResetPassword failed');
       next(err);
     }
@@ -200,7 +200,7 @@ export class UserController {
     await userService.deleteUser(id, req.user);
     standardDelete(res, id, 'user');
     return;
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'deleteUser failed');
       next(err);
     }
@@ -218,7 +218,7 @@ export class UserController {
       }
       const user: UserDTO | null = await userService.getUserById(req.user.id, req.user);
   success(res, user, { message: 'Current user retrieved successfully' });
-    } catch (err: any) {
+  } catch (err) {
       req.log?.error({ err }, 'getCurrentUser failed');
       next(err);
     }

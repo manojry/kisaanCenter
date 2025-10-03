@@ -3,6 +3,7 @@ import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
 import { logger } from '../shared/logging/logger';
+import { PaymentAllocation } from '../models/paymentAllocation';
 
 export class OwnerDashboardService {
   // Returns dashboard stats for the owner (by ownerId)
@@ -26,14 +27,13 @@ export class OwnerDashboardService {
 
       // 4. Get payment allocations for commission realization calculation
       const transactionIds = transactions.map(t => t.id);
-      let allocations: any[] = [];
+      let allocations: PaymentAllocation[] = [];
       try {
-        const { PaymentAllocation } = require('../models/paymentAllocation');
         allocations = transactionIds.length
           ? await PaymentAllocation.findAll({ where: { transaction_id: transactionIds } })
           : [];
-      } catch (allocErr: any) {
-        console.warn(`${logPrefix} allocation fetch failed (continuing with zero allocations):`, allocErr?.message || allocErr);
+      } catch (allocErr) {
+        console.warn(`${logPrefix} allocation fetch failed (continuing with zero allocations):`, (allocErr as Error)?.message || allocErr);
       }
 
   // 5. Calculate stats (+ integrity instrumentation)

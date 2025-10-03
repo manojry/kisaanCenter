@@ -1,7 +1,14 @@
 ﻿// API Registry - Simple Implementation
 import type { Application, Request, Response } from 'express';
+export interface ApiModule {
+  name: string;
+  prefix: string;
+  description: string;
+  endpoints: Array<unknown>;
+}
+
 export class ApiRegistry {
-  private modules = new Map();
+  private modules = new Map<string, ApiModule>();
 
   constructor() {
     console.log('API Registry initialized');
@@ -12,6 +19,10 @@ export class ApiRegistry {
       description: 'Default module',
       endpoints: []
     });
+  }
+
+  getModules(): ApiModule[] {
+    return Array.from(this.modules.values());
   }
 
   registerRoutes(app: Application): void {
