@@ -103,7 +103,7 @@ class ReportController {
         const payments = await Payment.findAll({ where: { transaction_id: txnIds, status: 'PAID' }, raw: true }) as PaymentRow[];
         const paidMap: Record<number, number> = {};
         payments.forEach((p) => { paidMap[p.transaction_id] = (paidMap[p.transaction_id] || 0) + Number(p.amount || 0); });
-        const rows = transactions.map((t) => ({
+  const _rows = transactions.map((t) => ({
           transaction_id: t.id,
           buyer: userMap[t.buyer_id]?.username || t.buyer_id,
           farmer: userMap[t.farmer_id]?.username || t.farmer_id,
@@ -113,8 +113,8 @@ class ReportController {
           total_amount: Number(t.total_amount),
           paid_amount: Number(paidMap[t.id] || 0)
         }));
-        const total_amount = rows.reduce((sum: number, r) => sum + r.total_amount, 0);
-        const total_paid = rows.reduce((sum: number, r) => sum + r.paid_amount, 0);
+  const total_amount = _rows.reduce((sum: number, r: { total_amount: number }) => sum + (r.total_amount || 0), 0);
+  const total_paid = _rows.reduce((sum: number, r: { paid_amount: number }) => sum + (r.paid_amount || 0), 0);
 
         if (format === 'excel' || format === 'xlsx') {
           const workbook = new ExcelJS.Workbook();
@@ -129,7 +129,7 @@ class ReportController {
             { header: 'Total Amount', key: 'total_amount', width: 15 },
             { header: 'Paid Amount', key: 'paid_amount', width: 15 }
           ];
-          rows.forEach((row) => worksheet.addRow(row));
+          _rows.forEach((row) => worksheet.addRow(row));
           worksheet.addRow({});
           worksheet.addRow({ product: 'Total', total_amount, paid_amount: total_paid });
           res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -137,7 +137,7 @@ class ReportController {
           await workbook.xlsx.write(res);
           return res.end();
         }
-        return success(res, rows, { message: 'Shop report generated', meta: { count: rows.length } });
+  return success(res, _rows, { message: 'Shop report generated', meta: { count: _rows.length } });
       } else {
         return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Insufficient permissions to generate this report');
       }

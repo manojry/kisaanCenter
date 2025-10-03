@@ -118,7 +118,7 @@ export const getOwnerAssignableProducts = async (req: Request, res: Response) =>
   try {
     const shopId = parseId(req.params.shopId, 'shop id');
   const user = (req as Request & { user?: { id?: number; shop_id?: number } }).user;
-  const userId = user?.id;
+  const _userId = user?.id;
   const userShopId = user?.shop_id;
 
     // Ensure owner can only access their own shop

@@ -86,7 +86,7 @@ export class UserController {
         return;
       }
   // include_balance is no longer accepted by service; keep parsing for backward compatibility but don't pass it
-  const includeBalance = req.query.include_balance === 'true';
+  const _includeBalance = req.query.include_balance === 'true';
   const result = await userService.getAllUsers(query, req.user);
       const { users, total, page, limit } = result;
       success(res, users, {

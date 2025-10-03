@@ -1,6 +1,6 @@
 // Functions to map between ShopEntity, ShopDTO, and ORM model
 import { ShopEntity } from '../entities/ShopEntity';
-import { ShopDTO, CreateShopDTO, UpdateShopDTO } from '../dtos';
+import { ShopDTO, CreateShopDTO } from '../dtos';
 import { Shop } from '../models/shop';
 
 export function toShopDTO(entity: ShopEntity): ShopDTO {

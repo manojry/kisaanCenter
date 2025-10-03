@@ -331,7 +331,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const id = parseId(req.params.id, 'product');
-    const [results] = await sequelize.query(
+    const [_results] = await sequelize.query(
       `DELETE FROM kisaan_products WHERE id = :id RETURNING *`,
       { replacements: { id } }
     );

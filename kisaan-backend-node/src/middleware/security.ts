@@ -1,6 +1,6 @@
 import helmet from 'helmet';
 import cors, { CorsOptions } from 'cors';
-import { Application, Request, Response, RequestHandler, json, urlencoded } from 'express';
+import { Application, Request, Response, json, urlencoded } from 'express';
 import { env } from '../config/env';
 
 // Build CORS origins list
