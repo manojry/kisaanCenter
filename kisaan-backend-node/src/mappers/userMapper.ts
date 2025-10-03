@@ -2,7 +2,7 @@
 // Functions to map between UserEntity, UserDTO, and ORM model
 
 import { UserEntity } from '../entities/UserEntity';
-import { UserDTO, CreateUserDTO, UpdateUserDTO } from '../dtos';
+import { UserDTO, CreateUserDTO } from '../dtos';
 import { User } from '../models/user';
 import { UserAnalyticsService } from '../services/userAnalyticsService';
 
@@ -21,10 +21,10 @@ export async function toUserDTO(entity: UserEntity): Promise<UserDTO> {
     role: entity.role!,
     shop_id: entity.shop_id,
     firstname: entity.firstname ?? '',
-    balance: typeof (entity as any).balance === 'string' ? parseFloat((entity as any).balance) : (entity as any).balance,
+  balance: typeof (entity as { balance?: string | number }).balance === 'string' ? parseFloat((entity as { balance?: string | number }).balance as string) : (entity as { balance?: string | number }).balance,
     created_at: entity.created_at,
     updated_at: entity.updated_at,
-    custom_commission_rate: (entity as any).custom_commission_rate ?? null,
+  custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,
     // Computed fields from analytics service
     status: analytics.status,
     cumulative_value: analytics.cumulative_value,
@@ -40,10 +40,10 @@ export function toUserDTOSync(entity: UserEntity): Omit<UserDTO, 'status' | 'cum
     role: entity.role!,
     shop_id: entity.shop_id,
     firstname: entity.firstname ?? '',
-    balance: typeof (entity as any).balance === 'string' ? parseFloat((entity as any).balance) : (entity as any).balance,
+  balance: typeof (entity as { balance?: string | number }).balance === 'string' ? parseFloat((entity as { balance?: string | number }).balance as string) : (entity as { balance?: string | number }).balance,
     created_at: entity.created_at,
     updated_at: entity.updated_at,
-    custom_commission_rate: (entity as any).custom_commission_rate ?? null,
+  custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,
   };
 }
 

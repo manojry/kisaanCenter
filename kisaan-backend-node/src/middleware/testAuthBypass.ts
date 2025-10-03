@@ -7,7 +7,7 @@ import { AuthenticatedRequest } from '../middlewares/auth';
  */
 export function testAuthBypass(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
   if (process.env.NODE_ENV === 'test' && !req.headers.authorization) {
-    req.user = { id: 0, username: 'test_superadmin', role: 'superadmin' as any, shop_id: null };
+    req.user = { id: 0, username: 'test_superadmin', role: 'superadmin', shop_id: null };
   }
   next();
 }

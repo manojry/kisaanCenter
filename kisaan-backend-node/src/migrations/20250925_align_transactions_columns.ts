@@ -7,8 +7,8 @@ import { QueryInterface } from 'sequelize';
 export async function up(queryInterface: QueryInterface) {
   // Helper to add column if missing
   async function ensureColumn(table: string, column: string, definition: string) {
-    const [results]: any = await queryInterface.sequelize.query(`SELECT column_name FROM information_schema.columns WHERE table_name='${table}' AND column_name='${column}'`);
-    const exists = Array.isArray(results) && results.some((r: any) => r.column_name === column);
+    const [results]: [Array<{ column_name: string }>] = await queryInterface.sequelize.query(`SELECT column_name FROM information_schema.columns WHERE table_name='${table}' AND column_name='${column}'`);
+    const exists = Array.isArray(results) && results.some((r: { column_name: string }) => r.column_name === column);
     if (!exists) {
       console.log(`[migration] Adding ${column} to ${table}`);
       await queryInterface.sequelize.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);

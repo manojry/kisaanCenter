@@ -39,26 +39,41 @@ export const createProduct = async (req: Request, res: Response) => {
         }
       }
     );
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const product = Array.isArray(results) ? results[0] : results;
     return created(res, product, { message: 'Product created successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Provide richer diagnostics temporarily to unblock investigation
-    const baseMessage = error?.message || 'Failed to create product';
-    const diagnostics: any = {
-      sql: error?.original?.sql || error?.sql,
-      original: error?.original?.message,
-      detail: error?.original?.detail,
-      constraint: error?.original?.constraint,
-      code: error?.original?.code,
-      stack: process.env.NODE_ENV === 'production' ? undefined : error?.stack
-    };
-    // Detect uniqueness violation via postgres code OR original message
-    const isDuplicate = (diagnostics.code === '23505') || (diagnostics.original && /duplicate key/i.test(diagnostics.original));
-    if (isDuplicate) {
-      return failureCode(res, 409, ErrorCodes.PRODUCT_ALREADY_EXISTS, diagnostics, 'A product with this name and category already exists');
+    let baseMessage = 'Failed to create product';
+    let diagnostics: Record<string, unknown> = {};
+    if (typeof error === 'object' && error !== null) {
+      const errObj = error as Record<string, unknown>;
+      if ('message' in errObj && typeof errObj.message === 'string') {
+        baseMessage = errObj.message;
+      }
+      let original: unknown = undefined;
+      if ('original' in errObj && typeof errObj.original === 'object' && errObj.original !== null) {
+        original = errObj.original;
+      }
+      const isObj = (val: unknown): val is Record<string, unknown> => typeof val === 'object' && val !== null;
+      diagnostics = {
+        sql: (isObj(original) && 'sql' in original) ? (original as { sql?: string }).sql : ('sql' in errObj ? errObj.sql : undefined),
+        original: (isObj(original) && 'message' in original) ? (original as { message?: string }).message : undefined,
+        detail: (isObj(original) && 'detail' in original) ? (original as { detail?: string }).detail : undefined,
+        constraint: (isObj(original) && 'constraint' in original) ? (original as { constraint?: string }).constraint : undefined,
+        code: (isObj(original) && 'code' in original) ? (original as { code?: string }).code : undefined,
+        stack: 'stack' in errObj && typeof errObj.stack === 'string' && process.env.NODE_ENV !== 'production' ? errObj.stack : undefined
+      };
+      // Detect uniqueness violation via postgres code OR original message
+      const isDuplicate = (diagnostics.code === '23505') || (diagnostics.original && /duplicate key/i.test(String(diagnostics.original)));
+      if (isDuplicate) {
+        return failureCode(res, 409, ErrorCodes.PRODUCT_ALREADY_EXISTS, diagnostics, 'A product with this name and category already exists');
+      }
+      req.log?.error({ err: error, diagnostics }, 'product:create failed (enhanced)');
+      return failureCode(res, 500, ErrorCodes.CREATE_PRODUCT_FAILED, diagnostics, baseMessage);
     }
-    req.log?.error({ err: error, diagnostics }, 'product:create failed (enhanced)');
-    return failureCode(res, 500, ErrorCodes.CREATE_PRODUCT_FAILED, diagnostics, baseMessage);
+    req.log?.error({ err: error }, 'product:create failed (unknown error)');
+    return failureCode(res, 500, ErrorCodes.CREATE_PRODUCT_FAILED, undefined, baseMessage);
   }
 };
 
@@ -80,9 +95,10 @@ export const getProducts = async (req: Request, res: Response) => {
     const [results] = await sequelize.query(query);
     const list = Array.isArray(results) ? results : [];
     return success(res, list, { message: 'Products fetched', meta: { count: list.length, sort } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'products:list failed');
-    return failureCode(res, 500, ErrorCodes.GET_PRODUCTS_FAILED, undefined, error.message || 'Failed to fetch products');
+    const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch products';
+    return failureCode(res, 500, ErrorCodes.GET_PRODUCTS_FAILED, undefined, message);
   }
 };
 
@@ -102,9 +118,10 @@ export const getProductById = async (req: Request, res: Response) => {
     }
     const product = Array.isArray(results) ? results[0] : results;
     return success(res, product, { message: 'Product retrieved' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'product:get failed');
-    return failureCode(res, 500, ErrorCodes.GET_PRODUCT_FAILED, undefined, error.message || 'Failed to fetch product');
+    const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch product';
+    return failureCode(res, 500, ErrorCodes.GET_PRODUCT_FAILED, undefined, message);
   }
 };
 
@@ -114,8 +131,8 @@ export const updateProduct = async (req: Request, res: Response) => {
     const id = parseId(req.params.id, 'product');
 
     // Extract allowed fields only
-  const { name, category_id, description, unit, auto_resolve_name, ...ignored } = req.body || {};
-    const updateData: any = {};
+  const { name, category_id, description, unit, auto_resolve_name } = req.body || {};
+    const updateData: Record<string, unknown> = {};
   const autoResolve = !!auto_resolve_name; // optional flag to auto-generate unique name on conflict
 
     // Validate & normalize name
@@ -173,11 +190,11 @@ export const updateProduct = async (req: Request, res: Response) => {
         'SELECT id, name, category_id FROM kisaan_products WHERE id = :id',
         { replacements: { id } }
       );
-      const existing = Array.isArray(existingRows) ? (existingRows as any[])[0] : existingRows;
+      const existing = Array.isArray(existingRows) && existingRows.length > 0 ? existingRows[0] as { name: string; category_id: number } : undefined;
       if (!existing) {
         return failureCode(res, 404, ErrorCodes.PRODUCT_NOT_FOUND, undefined, 'Product not found');
       }
-      const finalName = updateData.name !== undefined ? updateData.name : existing.name;
+      const finalName = updateData.name !== undefined ? String(updateData.name) : existing.name;
       const finalCategory = updateData.category_id !== undefined ? updateData.category_id : existing.category_id;
       const nameChanged = finalName !== existing.name;
       const catChanged = Number(finalCategory) !== Number(existing.category_id);
@@ -188,17 +205,18 @@ export const updateProduct = async (req: Request, res: Response) => {
            LIMIT 1`,
           { replacements: { id, name: finalName, cat: finalCategory } }
         );
-        const dups = Array.isArray(dupsRaw) ? (dupsRaw as any[]) : [];
+        const dups = Array.isArray(dupsRaw) ? dupsRaw as { id: number }[] : [];
         if (dups.length > 0) {
           if (autoResolve && updateData.name) {
             // Attempt automatic resolution by appending incremental numeric suffix
             try {
-              const baseName = updateData.name;
+              const baseName = String(updateData.name);
               const [allNamesRaw] = await sequelize.query(
                 `SELECT name FROM kisaan_products WHERE category_id = :cat AND name LIKE :pattern`,
                 { replacements: { cat: finalCategory, pattern: baseName + '%' } }
               );
-              const existingNames = new Set((Array.isArray(allNamesRaw) ? allNamesRaw : []).map((r:any) => r.name));
+              const allNamesArr = Array.isArray(allNamesRaw) ? allNamesRaw as { name: string }[] : [];
+              const existingNames = new Set(allNamesArr.map(r => r.name));
               let candidate = baseName;
               let counter = 2;
               // If base itself taken, iterate
@@ -217,10 +235,11 @@ export const updateProduct = async (req: Request, res: Response) => {
                 );
               }
               updateData.name = candidate; // adopt unique resolved name
-              try { req.log?.info({ old: baseName, resolved: candidate }, 'product:auto-resolve-name'); } catch(_){}
-            } catch (e) {
+              try { req.log?.info({ old: baseName, resolved: candidate }, 'product:auto-resolve-name'); } catch(_) { /* ignore logging errors */ }
+            } catch (e: unknown) {
               // Fall back to standard conflict if auto resolve fails
-              let conflictDetails: any = { conflict_with: dups[0].id, auto_resolve_error: (e as any)?.message };
+              const auto_resolve_error = typeof e === 'object' && e !== null && 'message' in e ? (e as { message?: string }).message : undefined;
+              const conflictDetails = { conflict_with: dups[0].id, auto_resolve_error };
               return failureCode(
                 res,
                 409,
@@ -231,7 +250,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             }
           } else {
             // Fetch conflicting product details to enrich diagnostics
-            let conflictDetails: any = { conflict_with: dups[0].id };
+            let conflictDetails: Record<string, unknown> = { conflict_with: dups[0].id };
             try {
               const [confRows] = await sequelize.query(
                 'SELECT id, name, category_id, unit, created_at, updated_at FROM kisaan_products WHERE id = :cid LIMIT 1',
@@ -266,30 +285,45 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     const product = Array.isArray(results) ? results[0] : results;
     return success(res, product, { message: 'Product updated successfully' });
-  } catch (error: any) {
-    const diagnostics: any = {
-      code: error?.original?.code,
-      detail: error?.original?.detail,
-      constraint: error?.original?.constraint
-    };
-    // Unique violation (Postgres 23505)
-    if (diagnostics.code === '23505') {
+  } catch (error: unknown) {
+    let diagnostics: Record<string, unknown> = {};
+    let message = 'Failed to update product';
+    const isObj = (val: unknown): val is Record<string, unknown> => typeof val === 'object' && val !== null;
+    if (typeof error === 'object' && error !== null) {
+      const errObj = error as Record<string, unknown>;
+      let original: unknown = undefined;
+      if ('original' in errObj && typeof errObj.original === 'object' && errObj.original !== null) {
+        original = errObj.original;
+      }
+      diagnostics = {
+        code: (isObj(original) && 'code' in original) ? (original as { code?: string }).code : undefined,
+        detail: (isObj(original) && 'detail' in original) ? (original as { detail?: string }).detail : undefined,
+        constraint: (isObj(original) && 'constraint' in original) ? (original as { constraint?: string }).constraint : undefined
+      };
+      if ('message' in errObj && typeof errObj.message === 'string') {
+        message = errObj.message;
+      }
+      // Unique violation (Postgres 23505)
+      if (diagnostics.code === '23505') {
+        return failureCode(
+          res,
+          409,
+          ErrorCodes.PRODUCT_ALREADY_EXISTS,
+          diagnostics,
+          'A product with this name and category already exists'
+        );
+      }
+      req.log?.error({ err: error, diagnostics }, 'product:update failed');
       return failureCode(
         res,
-        409,
-        ErrorCodes.PRODUCT_ALREADY_EXISTS,
+        500,
+        ErrorCodes.UPDATE_PRODUCT_FAILED,
         diagnostics,
-        'A product with this name and category already exists'
+        message
       );
     }
-    req.log?.error({ err: error, diagnostics }, 'product:update failed');
-    return failureCode(
-      res,
-      500,
-      ErrorCodes.UPDATE_PRODUCT_FAILED,
-      diagnostics,
-      error.message || 'Failed to update product'
-    );
+    req.log?.error({ err: error }, 'product:update failed (unknown error)');
+    return failureCode(res, 500, ErrorCodes.UPDATE_PRODUCT_FAILED, undefined, message);
   }
 };
 
@@ -298,16 +332,13 @@ export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const id = parseId(req.params.id, 'product');
     const [results] = await sequelize.query(
-  `DELETE FROM kisaan_products WHERE id = :id
-       RETURNING *`,
+      `DELETE FROM kisaan_products WHERE id = :id RETURNING *`,
       { replacements: { id } }
     );
-    if (!results || (Array.isArray(results) && results.length === 0)) {
-      return failureCode(res, 404, ErrorCodes.PRODUCT_NOT_FOUND, undefined, 'Product not found');
-    }
     return standardDelete(res, id, 'product');
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'product:delete failed');
-    return failureCode(res, 500, ErrorCodes.DELETE_PRODUCT_FAILED, undefined, error.message || 'Failed to delete product');
+    const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to delete product';
+    return failureCode(res, 500, ErrorCodes.DELETE_PRODUCT_FAILED, undefined, message);
   }
 };

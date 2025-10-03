@@ -27,15 +27,15 @@ class AuthController {
     }
   }
 
-  async logoutController(_req: Request, _res: Response) {
+  async logoutController() {
     // Implementation for logout
   }
-  
-  async refreshTokenController(_req: Request, _res: Response) {
+
+  async refreshTokenController() {
     // Implementation for refresh token
   }
-  
-  async verifyController(_req: Request, _res: Response) {
+
+  async verifyController() {
     // Implementation for verify
   }
 }

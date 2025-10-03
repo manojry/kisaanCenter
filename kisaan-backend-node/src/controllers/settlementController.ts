@@ -24,10 +24,12 @@ export class SettlementController {
       return success(res, settlements, { message: 'Settlements retrieved', meta: { count: settlements.length } });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:list failed');
-      if (typeof error === 'object' && error && 'status' in error) {
-        return failureCode(res, (error as any).status, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, (error as any).message);
+      if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
+        const errObj = error as { status?: number; message?: string };
+        return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, errObj.message ?? 'Failed to fetch settlements');
       }
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, (error as Error).message || 'Failed to fetch settlements');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlements';
+      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, message);
     }
   }
 
@@ -42,10 +44,12 @@ export class SettlementController {
       return success(res, summary, { message: 'Settlement summary retrieved' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:summary failed');
-      if (typeof error === 'object' && error && 'status' in error) {
-        return failureCode(res, (error as any).status, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, (error as any).message);
+      if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
+        const errObj = error as { status?: number; message?: string };
+        return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, errObj.message ?? 'Failed to fetch settlement summary');
       }
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, (error as Error).message || 'Failed to fetch settlement summary');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlement summary';
+      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENT_SUMMARY_FAILED, undefined, message);
     }
   }
 
@@ -62,10 +66,12 @@ export class SettlementController {
       return success(res, settlement, { message: 'Settlement amount applied' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:settle failed');
-      if (typeof error === 'object' && error && 'status' in error) {
-        return failureCode(res, (error as any).status, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, (error as any).message);
+      if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
+        const errObj = error as { status?: number; message?: string };
+        return failureCode(res, errObj.status ?? 500, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, errObj.message ?? 'Failed to settle amount');
       }
-      return failureCode(res, 500, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, (error as Error).message || 'Failed to settle amount');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to settle amount';
+      return failureCode(res, 500, ErrorCodes.SETTLE_AMOUNT_FAILED, undefined, message);
     }
   }
 
@@ -100,10 +106,12 @@ export class SettlementController {
       return success(res, expense, { message: 'Expense created successfully' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'settlement:expense create failed');
-      if (typeof error === 'object' && error && 'status' in error) {
-        return failureCode(res, (error as any).status, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, (error as any).message);
+      if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
+        const errObj = error as { status?: number; message?: string };
+        return failureCode(res, errObj.status ?? 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, errObj.message ?? 'Failed to create expense');
       }
-      return failureCode(res, 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, (error as Error).message || 'Failed to create expense');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to create expense';
+      return failureCode(res, 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, message);
     }
   }
 }

@@ -29,24 +29,38 @@ export const assignProductToShop = async (req: Request, res: Response) => {
       await mapping.save();
     }
     return created(res, mapping, { message: 'Product assigned to shop' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Translate FK violations if they somehow still occur
-    const pgCode = error?.original?.code;
+    let pgCode: string | undefined = undefined;
+    let constraint: string | undefined = undefined;
+    if (typeof error === 'object' && error && 'original' in error && typeof (error as any).original === 'object') {
+      pgCode = (error as any).original?.code;
+      constraint = (error as any).original?.constraint;
+    }
     if (pgCode === '23503') {
-      const constraint = error?.original?.constraint;
       if (constraint && /product_id/i.test(constraint)) {
         return failureCode(res, 404, ErrorCodes.PRODUCT_NOT_FOUND, { constraint }, 'Product not found');
       }
       if (constraint && /shop_id/i.test(constraint)) {
-        return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND as any, { constraint }, 'Shop not found');
+        return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND, { constraint }, 'Shop not found');
       }
       return failureCode(res, 400, ErrorCodes.ASSIGN_PRODUCT_FAILED, { constraint }, 'Invalid foreign key reference');
     }
     req.log?.error({ err: error }, 'shopProducts:assign failed');
-    if (error.status) {
-      return failureCode(res, error.status, ErrorCodes.ASSIGN_PRODUCT_FAILED, undefined, error.message);
+    let message: string | undefined = undefined;
+    let status: number | undefined = undefined;
+    if (typeof error === 'object' && error) {
+      if ('message' in error) {
+        message = (error as { message?: string }).message;
+      }
+      if ('status' in error) {
+        status = (error as { status?: number }).status;
+      }
     }
-    return failureCode(res, 500, ErrorCodes.ASSIGN_PRODUCT_FAILED, undefined, error.message || 'Failed to assign product');
+    if (status) {
+      return failureCode(res, status, ErrorCodes.ASSIGN_PRODUCT_FAILED, undefined, message);
+    }
+    return failureCode(res, 500, ErrorCodes.ASSIGN_PRODUCT_FAILED, undefined, message || 'Failed to assign product');
   }
 };
 
@@ -62,12 +76,22 @@ export const removeProductFromShop = async (req: Request, res: Response) => {
     }
     await mapping.destroy();
     return success(res, { shop_id, product_id }, { message: 'Product removed from shop' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'shopProducts:remove failed');
-    if (error.status) {
-      return failureCode(res, error.status, ErrorCodes.REMOVE_PRODUCT_FAILED, undefined, error.message);
+    let message: string | undefined = undefined;
+    let status: number | undefined = undefined;
+    if (typeof error === 'object' && error) {
+      if ('message' in error) {
+        message = (error as { message?: string }).message;
+      }
+      if ('status' in error) {
+        status = (error as { status?: number }).status;
+      }
     }
-    return failureCode(res, 500, ErrorCodes.REMOVE_PRODUCT_FAILED, undefined, error.message || 'Failed to remove product');
+    if (status) {
+      return failureCode(res, status, ErrorCodes.REMOVE_PRODUCT_FAILED, undefined, message);
+    }
+    return failureCode(res, 500, ErrorCodes.REMOVE_PRODUCT_FAILED, undefined, message || 'Failed to remove product');
   }
 };
 
@@ -84,12 +108,22 @@ export const toggleProductActiveStatus = async (req: Request, res: Response) => 
     mapping.is_active = !mapping.is_active;
     await mapping.save();
     return success(res, mapping, { message: 'Product active status toggled' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'shopProducts:toggle failed');
-    if (error.status) {
-      return failureCode(res, error.status, ErrorCodes.TOGGLE_PRODUCT_STATUS_FAILED, undefined, error.message);
+    let message: string | undefined = undefined;
+    let status: number | undefined = undefined;
+    if (typeof error === 'object' && error) {
+      if ('message' in error) {
+        message = (error as { message?: string }).message;
+      }
+      if ('status' in error) {
+        status = (error as { status?: number }).status;
+      }
     }
-    return failureCode(res, 500, ErrorCodes.TOGGLE_PRODUCT_STATUS_FAILED, undefined, error.message || 'Failed to toggle status');
+    if (status) {
+      return failureCode(res, status, ErrorCodes.TOGGLE_PRODUCT_STATUS_FAILED, undefined, message);
+    }
+    return failureCode(res, 500, ErrorCodes.TOGGLE_PRODUCT_STATUS_FAILED, undefined, message || 'Failed to toggle status');
   }
 };
 
@@ -108,12 +142,22 @@ export const getShopProducts = async (req: Request, res: Response) => {
       { replacements: { shopId } }
     );
     return success(res, Array.isArray(results) ? results : [], { message: 'Shop products retrieved', meta: { count: Array.isArray(results) ? results.length : 0 } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'shopProducts:list failed');
-    if (error.status) {
-      return failureCode(res, error.status, ErrorCodes.GET_SHOP_PRODUCTS_FAILED, undefined, error.message);
+    let message: string | undefined = undefined;
+    let status: number | undefined = undefined;
+    if (typeof error === 'object' && error) {
+      if ('message' in error) {
+        message = (error as { message?: string }).message;
+      }
+      if ('status' in error) {
+        status = (error as { status?: number }).status;
+      }
     }
-    return failureCode(res, 500, ErrorCodes.GET_SHOP_PRODUCTS_FAILED, undefined, error.message || 'Failed to fetch shop products');
+    if (status) {
+      return failureCode(res, status, ErrorCodes.GET_SHOP_PRODUCTS_FAILED, undefined, message);
+    }
+    return failureCode(res, 500, ErrorCodes.GET_SHOP_PRODUCTS_FAILED, undefined, message || 'Failed to fetch shop products');
   }
 };
 
@@ -128,7 +172,10 @@ export const getAvailableProductsForShop = async (req: Request, res: Response) =
        WHERE sc.shop_id = :shopId AND sc.is_active = true`,
       { replacements: { shopId } }
     );
-    const hasCategoriesAssigned = (categoryCheck as any)[0]?.category_count > 0;
+    const hasCategoriesAssigned = Array.isArray(categoryCheck) &&
+      categoryCheck.length > 0 &&
+      typeof (categoryCheck[0] as { category_count?: number | string }).category_count !== 'undefined' &&
+      Number((categoryCheck[0] as { category_count?: number | string }).category_count) > 0;
     let query: string;
     if (hasCategoriesAssigned) {
       query = `SELECT p.*, c.name as category_name
@@ -158,11 +205,21 @@ export const getAvailableProductsForShop = async (req: Request, res: Response) =
     }
     const [results] = await sequelize.query(query, { replacements: { shopId } });
     return success(res, Array.isArray(results) ? results : [], { message: hasCategoriesAssigned ? 'Products filtered by shop categories' : 'No categories assigned to shop - showing all available products', meta: { count: Array.isArray(results) ? results.length : 0, filteredByCategories: hasCategoriesAssigned } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'shopProducts:available failed');
-    if (error.status) {
-      return failureCode(res, error.status, ErrorCodes.GET_AVAILABLE_PRODUCTS_FAILED, undefined, error.message);
+    let message: string | undefined = undefined;
+    let status: number | undefined = undefined;
+    if (typeof error === 'object' && error) {
+      if ('message' in error) {
+        message = (error as { message?: string }).message;
+      }
+      if ('status' in error) {
+        status = (error as { status?: number }).status;
+      }
     }
-    return failureCode(res, 500, ErrorCodes.GET_AVAILABLE_PRODUCTS_FAILED, undefined, error.message || 'Failed to fetch available products');
+    if (status) {
+      return failureCode(res, status, ErrorCodes.GET_AVAILABLE_PRODUCTS_FAILED, undefined, message);
+    }
+    return failureCode(res, 500, ErrorCodes.GET_AVAILABLE_PRODUCTS_FAILED, undefined, message || 'Failed to fetch available products');
   }
 };

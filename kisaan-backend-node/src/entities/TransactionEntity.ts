@@ -20,11 +20,11 @@ export class TransactionEntity {
   transaction_date?: Date;
   settlement_date?: Date | null;
   notes?: string | null;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   created_at?: Date;
   updated_at?: Date;
 
-  payments?: any[];
+  payments?: unknown[];
 
   constructor(init?: Partial<TransactionEntity>) {
     Object.assign(this, init);

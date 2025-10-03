@@ -4,11 +4,9 @@ import { logger } from '../shared/logging/logger';
 import { authenticateToken } from '../middlewares/auth';
 import { 
   DateUtils, 
-  AuthUtils, 
   ResponseUtils, 
   ServiceUtils, 
-  ControllerUtils,
-  MiddlewareUtils 
+  ControllerUtils
 } from '../utils/routeUtils';
 
 const router = Router();
@@ -30,6 +28,7 @@ router.post('/repay-fifo',
 
     const result = await ServiceUtils.executeService(
       () => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { applyRepaymentFIFO } = require('../services/settlementService');
         return applyRepaymentFIFO(parseInt(shop_id), parseInt(user_id), parseFloat(amount));
       },
@@ -57,6 +56,7 @@ router.get('/',
 
     const result = await ServiceUtils.executeService(
       () => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { getSettlements } = require('../services/settlementService');
         return getSettlements({
           shop_id: shop_id as string,

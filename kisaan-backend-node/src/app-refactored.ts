@@ -91,11 +91,19 @@ try {
 }
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response) => {
+  let message = 'Something went wrong';
+  if (process.env.NODE_ENV === 'development') {
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+      message = (err as { message?: string }).message || message;
+    } else if (typeof err === 'string') {
+      message = err;
+    }
+  }
   console.error('Error:', err);
   res.status(500).json({ 
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
+    message,
     timestamp: new Date().toISOString()
   });
 });

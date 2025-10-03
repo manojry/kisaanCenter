@@ -67,12 +67,12 @@ export class UserController {
         req.user?.id || 1,
         req.user?.role
       );
-  created(res, user, { message: 'User created successfully' });
-    } catch (err: any) {
+    created(res, user, { message: 'User created successfully' });
+    } catch (err: unknown) {
       req.log?.error({ err }, 'createUser failed');
       next(err);
     }
-  };
+  }
 
   async getUsers(
     req: AuthenticatedRequest,
@@ -96,7 +96,7 @@ export class UserController {
       req.log?.error({ err }, 'getUsers failed');
       next(err);
     }
-  };
+  }
 
   async getUserById(
     req: AuthenticatedRequest,
@@ -117,9 +117,10 @@ export class UserController {
   success(res, user, { message: 'User retrieved successfully' });
   } catch (err) {
       req.log?.error({ err }, 'getUserById failed');
+
       next(err);
     }
-  };
+  }
 
   async updateUser(
     req: AuthenticatedRequest,
@@ -144,7 +145,7 @@ export class UserController {
       req.log?.error({ err }, 'updateUser failed');
       next(err);
     }
-  };
+  }
 
   async resetPassword(
     req: AuthenticatedRequest,
@@ -160,7 +161,7 @@ export class UserController {
       req.log?.error({ err }, 'resetPassword failed');
       next(err);
     }
-  };
+  }
 
   async adminResetPassword(
     req: AuthenticatedRequest,
@@ -184,7 +185,7 @@ export class UserController {
       req.log?.error({ err }, 'adminResetPassword failed');
       next(err);
     }
-  };
+  }
 
   async deleteUser(
     req: AuthenticatedRequest,
@@ -204,7 +205,7 @@ export class UserController {
       req.log?.error({ err }, 'deleteUser failed');
       next(err);
     }
-  };
+  }
 
   async getCurrentUser(
     req: AuthenticatedRequest,

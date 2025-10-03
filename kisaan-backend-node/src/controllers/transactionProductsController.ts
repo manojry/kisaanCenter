@@ -15,7 +15,7 @@ export const getTransactionProducts = async (req: Request, res: Response) => {
     const shopId = parseId(req.params.shopId, 'shop id');
     const farmerId = req.query.farmerId ? parseId(req.query.farmerId as string, 'farmer id') : null;
 
-    let products: any[] = [];
+  let products: unknown[] = [];
     
     // Priority 1: Farmer-specific products (if farmer is specified and has assignments)
     if (farmerId) {
@@ -32,7 +32,7 @@ export const getTransactionProducts = async (req: Request, res: Response) => {
         if (Array.isArray(farmerProducts) && farmerProducts.length > 0) {
           products = farmerProducts;
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Table might not exist, continue to next priority
         req.log?.debug({ err: error }, 'farmer_product_assignments table not found, continuing...');
       }
@@ -88,20 +88,25 @@ export const getTransactionProducts = async (req: Request, res: Response) => {
       }
     }
 
+    let source: string = 'none';
+    if (products.length > 0 && typeof products[0] === 'object' && products[0] !== null && 'source' in products[0]) {
+      source = String((products[0] as { source?: unknown }).source ?? 'none');
+    }
     return success(res, products, {
-      message: `Products loaded for transaction (source: ${products[0]?.source || 'none'})`,
+      message: `Products loaded for transaction (source: ${source})`,
       meta: {
         count: products.length,
-        source: products[0]?.source || 'none',
+        source,
         shopId,
         farmerId
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'getTransactionProducts failed');
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
     return failureCode(res, 500, ErrorCodes.GET_PRODUCTS_FAILED, undefined, 
-      error.message || 'Failed to fetch transaction products');
+      message || 'Failed to fetch transaction products');
   }
 };
 
@@ -112,8 +117,9 @@ export const getTransactionProducts = async (req: Request, res: Response) => {
 export const getOwnerAssignableProducts = async (req: Request, res: Response) => {
   try {
     const shopId = parseId(req.params.shopId, 'shop id');
-    const userId = (req as any).user?.id;
-    const userShopId = (req as any).user?.shop_id;
+  const user = (req as Request & { user?: { id?: number; shop_id?: number } }).user;
+  const userId = user?.id;
+  const userShopId = user?.shop_id;
 
     // Ensure owner can only access their own shop
     if (userShopId !== shopId) {
@@ -150,9 +156,10 @@ export const getOwnerAssignableProducts = async (req: Request, res: Response) =>
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     req.log?.error({ err: error }, 'getOwnerAssignableProducts failed');
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
     return failureCode(res, 500, ErrorCodes.GET_PRODUCTS_FAILED, undefined, 
-      error.message || 'Failed to fetch assignable products');
+      message || 'Failed to fetch assignable products');
   }
 };

@@ -66,8 +66,9 @@ export class SimplifiedController {
         }
       });
       
-    } catch (error: any) {
-      failure(res, 500, 'TRANSACTION_FAILED', { error: error.message });
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      failure(res, 500, 'TRANSACTION_FAILED', { error: message });
     }
   }
   
@@ -107,8 +108,9 @@ export class SimplifiedController {
         }
       });
       
-    } catch (error: any) {
-      failure(res, 500, 'PAYMENT_FAILED', { error: error.message });
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      failure(res, 500, 'PAYMENT_FAILED', { error: message });
     }
   }
   
@@ -140,7 +142,7 @@ export class SimplifiedController {
         shop_id
       });
       
-      const response: any = { expense };
+  const response: { expense: unknown; balance_change?: { before: unknown; after: unknown; advance_amount: number } } = { expense };
       
       if (expense_type === 'user_advance') {
         const balanceAfter = await this.service.getUserBalanceInfo(user_id);
@@ -153,8 +155,9 @@ export class SimplifiedController {
       
       created(res, response);
       
-    } catch (error: any) {
-      failure(res, 500, 'EXPENSE_FAILED', { error: error.message });
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      failure(res, 500, 'EXPENSE_FAILED', { error: message });
     }
   }
   
@@ -170,8 +173,9 @@ export class SimplifiedController {
       
       success(res, balanceInfo);
       
-    } catch (error: any) {
-      failure(res, 500, 'BALANCE_FAILED', { error: error.message });
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      failure(res, 500, 'BALANCE_FAILED', { error: message });
     }
   }
 }

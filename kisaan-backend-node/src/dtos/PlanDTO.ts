@@ -11,13 +11,13 @@ export interface PlanDTO {
 export interface PlanCreateDTO {
   name: string;
   description?: string | null;
-  features: any[];
+  features: unknown[];
   is_active?: boolean;
 }
 
 export interface PlanUpdateDTO {
   name?: string;
   description?: string | null;
-  features?: any[];
+  features?: unknown[];
   is_active?: boolean;
 }

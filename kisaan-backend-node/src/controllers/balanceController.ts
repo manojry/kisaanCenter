@@ -60,8 +60,9 @@ export class BalanceController {
   } catch (error) {
     (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'addPaymentToFarmer failed');
     failureCode(res, 500, ErrorCodes.ADD_PAYMENT_FARMER_FAILED, { error: (error as Error).message }, 'Failed to add payment');
+
   }
-};
+}
 
   async addPaymentFromBuyer(req: AuthenticatedRequest, res: Response) {
   try {
@@ -98,31 +99,30 @@ export class BalanceController {
   } catch (error) {
     (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'addPaymentFromBuyer failed');
     failureCode(res, 500, ErrorCodes.ADD_PAYMENT_BUYER_FAILED, { error: (error as Error).message }, 'Failed to record payment');
+
   }
-};
+}
 
   async getUserBalance(req: AuthenticatedRequest, res: Response) {
-  try {
-    const { userId } = req.params;
-    
-    const user = await User.findByPk(userId, {
-      attributes: ['id', 'username', 'role', 'balance']
-    });
-    
-    if (!user) {
-  return failureCode(res, 404, ErrorCodes.USER_NOT_FOUND, undefined, 'User not found');
+    try {
+      const { userId } = req.params;
+      const user = await User.findByPk(userId, {
+        attributes: ['id', 'username', 'role', 'balance']
+      });
+      if (!user) {
+        return failureCode(res, 404, ErrorCodes.USER_NOT_FOUND, undefined, 'User not found');
+      }
+      success(res, {
+        user_id: user.id,
+        username: user.username,
+        role: user.role,
+        balance: user.balance || 0
+      });
+    } catch (error) {
+      (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getUserBalance failed');
+      failureCode(res, 500, ErrorCodes.GET_BALANCE_FAILED, { error: (error as Error).message }, 'Failed to get balance');
     }
-    success(res, {
-      user_id: user.id,
-      username: user.username,
-      role: user.role,
-      balance: user.balance || 0
-    });
-  } catch (error) {
-    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getUserBalance failed');
-    failureCode(res, 500, ErrorCodes.GET_BALANCE_FAILED, { error: (error as Error).message }, 'Failed to get balance');
   }
-};
 
   async getShopBalance(req: AuthenticatedRequest, res: Response) {
   try {
@@ -153,10 +153,16 @@ export class BalanceController {
       }))
     });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'getShopBalance failed');
-  failureCode(res, 500, ErrorCodes.GET_SHOP_BALANCE_FAILED, { error: (error as any).message }, 'Failed to get shop balance');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getShopBalance failed');
+    failureCode(
+      res,
+      500,
+      ErrorCodes.GET_SHOP_BALANCE_FAILED,
+      { error: (error as Error).message },
+      'Failed to get shop balance'
+    );
   }
-};
+}
 
   async updateBalance(req: AuthenticatedRequest, res: Response) {
   try {
@@ -184,21 +190,33 @@ export class BalanceController {
       description
     }, { message: 'Balance updated successfully' });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'updateBalance failed');
-  failureCode(res, 500, ErrorCodes.UPDATE_BALANCE_FAILED, { error: (error as any).message }, 'Failed to update balance');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'updateBalance failed');
+    failureCode(
+      res,
+      500,
+      ErrorCodes.UPDATE_BALANCE_FAILED,
+      { error: (error as Error).message },
+      'Failed to update balance'
+    );
   }
-};
+}
 
   async getBalanceHistory(req: AuthenticatedRequest, res: Response) {
   try {
-    const { userId } = req.params;
+      // const { userId } = req.params;
     
     // For now, return empty history as we don't have a balance history table
     // In a real implementation, you'd have a balance_transactions table
     success(res, { items: [] }, { message: 'Balance history feature not implemented yet' });
   } catch (error) {
-    (req as any).log?.error({ err: error }, 'getBalanceHistory failed');
-  failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, { error: (error as any).message }, 'Failed to get balance history');
+    (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getBalanceHistory failed');
+    failureCode(
+      res,
+      500,
+      ErrorCodes.BALANCE_HISTORY_FAILED,
+      { error: (error as Error).message },
+      'Failed to get balance history'
+    );
   }
   }
 }

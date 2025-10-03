@@ -1,13 +1,13 @@
 
 import { Request, Response } from 'express';
-import { Shop } from '../models/shop';
-import { sequelize } from '../models/index';
+// import { Shop } from '../models/shop';
+// import { sequelize } from '../models/index';
 import { ShopService } from '../services/shopService';
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { CommissionService } from '../services/commissionService';
 import { success, failureCode, created, standardDelete } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
-import { logger } from '../shared/logging/logger';
+// import { logger } from '../shared/logging/logger';
 import { parseId } from '../shared/utils/parse';
 
 // Returns all users with role 'owner' who do not have a shop assigned
@@ -23,9 +23,10 @@ export class ShopController {
     try {
       const owners = await this.shopService.getAvailableOwners();
       return success(res, owners, { message: 'Available owners retrieved', meta: { count: owners.length } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:availableOwners failed');
-  return failureCode(res, 500, ErrorCodes.GET_AVAILABLE_OWNERS_FAILED, undefined, error.message || 'Failed to fetch available owners');
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, 500, ErrorCodes.GET_AVAILABLE_OWNERS_FAILED, undefined, message || 'Failed to fetch available owners');
     }
   }
 
@@ -43,20 +44,33 @@ export class ShopController {
             type: 'percentage',
           }, req.user?.id || 0);
         }
-      } catch (commissionError: any) {
+      } catch (commissionError: unknown) {
         // Log but do not fail the primary shop creation flow
         req.log?.error({ err: commissionError, shopId: shop.id }, 'shop:create commission creation failed');
       }
 
       return created(res, shop, { message: 'Shop created successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Attach diagnostic context if DatabaseError provided it
-      const details = error?.context?.diagnostic || error?.context || undefined;
-      req.log?.error({ err: error, diagnostic: details }, 'shop:create failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.CREATE_SHOP_FAILED, details, error.message);
+      let details: unknown = undefined;
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('context' in error) {
+          details = (error as any).context?.diagnostic || (error as any).context || undefined;
+        }
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.CREATE_SHOP_FAILED, details, error.message || 'Failed to create shop');
+      req.log?.error({ err: error, diagnostic: details }, 'shop:create failed');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.CREATE_SHOP_FAILED, details, message);
+      }
+      return failureCode(res, 500, ErrorCodes.CREATE_SHOP_FAILED, details, message || 'Failed to create shop');
     }
   }
 
@@ -66,12 +80,22 @@ export class ShopController {
     try {
       const shops = await this.shopService.getAllShops(undefined, req.user);
       return success(res, shops, { message: 'Shops retrieved successfully', meta: { count: shops.length } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:list failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.GET_SHOPS_FAILED, undefined, error.message);
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.GET_SHOPS_FAILED, undefined, error.message || 'Failed to fetch shops');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.GET_SHOPS_FAILED, undefined, message);
+      }
+      return failureCode(res, 500, ErrorCodes.GET_SHOPS_FAILED, undefined, message || 'Failed to fetch shops');
     }
   }
 
@@ -85,12 +109,22 @@ export class ShopController {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }
       return success(res, shop, { message: 'Shop retrieved successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:get failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.GET_SHOP_FAILED, undefined, error.message);
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.GET_SHOP_FAILED, undefined, error.message || 'Failed to fetch shop');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.GET_SHOP_FAILED, undefined, message);
+      }
+      return failureCode(res, 500, ErrorCodes.GET_SHOP_FAILED, undefined, message || 'Failed to fetch shop');
     }
   }
 
@@ -103,12 +137,22 @@ export class ShopController {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }
       return success(res, shop, { message: 'Shop updated successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:update failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.UPDATE_SHOP_FAILED, undefined, error.message);
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.UPDATE_SHOP_FAILED, undefined, error.message || 'Failed to update shop');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.UPDATE_SHOP_FAILED, undefined, message);
+      }
+      return failureCode(res, 500, ErrorCodes.UPDATE_SHOP_FAILED, undefined, message || 'Failed to update shop');
     }
   }
 
@@ -121,12 +165,22 @@ export class ShopController {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }
   return standardDelete(res, shopId, 'shop');
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:delete failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.DELETE_SHOP_FAILED, undefined, error.message);
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.DELETE_SHOP_FAILED, undefined, error.message || 'Failed to delete shop');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.DELETE_SHOP_FAILED, undefined, message);
+      }
+      return failureCode(res, 500, ErrorCodes.DELETE_SHOP_FAILED, undefined, message || 'Failed to delete shop');
     }
   }
 
@@ -148,12 +202,22 @@ export class ShopController {
       }
 
       return success(res, shop, { message: 'Commission rate updated successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:updateCommissionRate failed');
-      if (error.status) {
-        return failureCode(res, error.status, ErrorCodes.UPDATE_SHOP_FAILED, undefined, error.message);
+      let message: string | undefined = undefined;
+      let status: number | undefined = undefined;
+      if (typeof error === 'object' && error) {
+        if ('message' in error) {
+          message = (error as { message?: string }).message;
+        }
+        if ('status' in error) {
+          status = (error as { status?: number }).status;
+        }
       }
-      return failureCode(res, 500, ErrorCodes.UPDATE_SHOP_FAILED, undefined, error.message || 'Failed to update commission rate');
+      if (status) {
+        return failureCode(res, status, ErrorCodes.UPDATE_SHOP_FAILED, undefined, message);
+      }
+      return failureCode(res, 500, ErrorCodes.UPDATE_SHOP_FAILED, undefined, message || 'Failed to update commission rate');
     }
   }
 }

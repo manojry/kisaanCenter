@@ -10,7 +10,7 @@ export class ShopEntity {
   email?: string | null;
   status?: 'active' | 'inactive';
   commission_rate?: number;
-  settings?: Record<string, any> | null;
+  settings?: Record<string, unknown> | null;
   created_at?: Date;
   updated_at?: Date;
 

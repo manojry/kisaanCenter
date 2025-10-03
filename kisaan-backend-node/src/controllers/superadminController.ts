@@ -16,16 +16,23 @@ export const getSuperadminDashboard = async (req: Request, res: Response) => {
     const activeUsers = totalUsers;
 
     // Get aggregated revenue (sum only, no individual transactions)
-    const revenueResult = await Transaction.findOne({
+    const revenueResultRaw = await Transaction.findOne({
       attributes: [
-  [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_amount')), 'totalRevenue'],
-  [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('commission_amount')), 'totalCommission']
+        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_amount')), 'totalRevenue'],
+        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('commission_amount')), 'totalCommission']
       ],
       raw: true
-    }) as any;
+    });
+    let totalRevenue = 0;
+    let totalCommission = 0;
+    if (revenueResultRaw && typeof revenueResultRaw === 'object') {
+  const tr = (revenueResultRaw as unknown as Record<string, unknown>);
+      totalRevenue = Number(tr['totalRevenue'] ?? 0);
+      totalCommission = Number(tr['totalCommission'] ?? 0);
+    }
 
     // Get shop counts by status for charts
-    const shopStats = [] as any[]; // status-based grouping removed
+  const shopStats: unknown[] = []; // status-based grouping removed
 
     // Get user counts by role for charts  
     const userStats = await User.findAll({
@@ -47,8 +54,8 @@ export const getSuperadminDashboard = async (req: Request, res: Response) => {
           totalTransactions,
           activeShops,
           activeUsers,
-          totalRevenue: parseFloat(revenueResult?.['totalRevenue'] || '0'),
-          totalCommission: parseFloat(revenueResult?.['totalCommission'] || '0')
+          totalRevenue,
+          totalCommission
         },
         charts: {
           shopStats,
@@ -57,12 +64,13 @@ export const getSuperadminDashboard = async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching superadmin dashboard:', error);
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
     res.status(500).json({
       success: false,
       error: 'Failed to fetch dashboard data',
-      message: error.message
+      message
     });
   }
 };

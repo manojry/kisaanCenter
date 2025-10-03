@@ -11,7 +11,7 @@ export class ProductEntity {
   // status field not persisted in schema; lifecycle handled via record_status if needed
   sku?: string | null;
   barcode?: string | null;
-  specifications?: Record<string, any> | null;
+  specifications?: Record<string, unknown> | null;
   created_at?: Date;
   updated_at?: Date;
 

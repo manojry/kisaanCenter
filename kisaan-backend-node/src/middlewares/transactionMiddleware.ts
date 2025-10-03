@@ -72,16 +72,15 @@ import { RequestHandler } from 'express';
 
 export const checkTransactionAccess: RequestHandler = async (req, res, next) => {
   try {
-  const user = (req as { user?: unknown }).user;
-  const transactionId = req.params.id;
-    
+    const user = (req as { user?: unknown }).user;
+    // const transactionId = req.params.id; // Removed unused variable
     if (!user) {
       return failure(res, 401, 'AUTH_REQUIRED', undefined, 'Authentication required');
     }
 
     // For now, allow access - implement proper authorization based on user role
     // TODO: Check if user has access to this transaction based on shop ownership, etc.
-    
+
     next();
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);

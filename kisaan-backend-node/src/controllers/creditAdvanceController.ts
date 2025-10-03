@@ -11,11 +11,11 @@ export class CreditAdvanceController {
       const validated = CreateCreditAdvanceSchema.parse(req.body);
       const credit = await creditAdvanceService.issueCredit(validated);
       created(res, credit);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
-      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: error.message }, 'Failed to issue credit');
+      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: (error as Error).message }, 'Failed to issue credit');
     }
   }
 
@@ -24,11 +24,11 @@ export class CreditAdvanceController {
       const validated = RepayCreditAdvanceSchema.parse(req.body);
       const credit = await creditAdvanceService.repayCredit(validated);
       success(res, credit, { message: 'Credit repaid successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
-      failureCode(res, 500, ErrorCodes.REPAY_CREDIT_FAILED, { error: error.message }, 'Failed to repay credit');
+      failureCode(res, 500, ErrorCodes.REPAY_CREDIT_FAILED, { error: (error as Error).message }, 'Failed to repay credit');
     }
   }
 
@@ -36,8 +36,8 @@ export class CreditAdvanceController {
     try {
       const credits = await creditAdvanceService.getAllCredits();
       success(res, credits, { message: 'Credits retrieved successfully', meta: { count: credits.length } });
-    } catch (error: any) {
-      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: error.message }, 'Failed to fetch credits');
+    } catch (error: unknown) {
+      failureCode(res, 500, ErrorCodes.ISSUE_CREDIT_FAILED, { error: (error as Error).message }, 'Failed to fetch credits');
     }
   }
 }

@@ -19,7 +19,7 @@ export class PlanEntity {
       this.features = data.features || [];
     }
     // Support either camel or snake case from model/DTO
-    this.is_active = (data as any).is_active !== undefined ? (data as any).is_active : (data as any).isActive;
+  this.is_active = (data as { is_active?: boolean; isActive?: boolean }).is_active !== undefined ? (data as { is_active?: boolean; isActive?: boolean }).is_active : (data as { is_active?: boolean; isActive?: boolean }).isActive;
     this.created_at = data.created_at;
     this.updated_at = data.updated_at;
   }

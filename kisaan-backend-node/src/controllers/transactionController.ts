@@ -14,7 +14,7 @@ export class TransactionController {
     try {
       const buyerId = parseId(req.params.buyerId, 'buyer');
       const { startDate, endDate } = req.query;
-      const filters: any = { buyerId };
+  const filters: Record<string, unknown> = { buyerId };
       if (startDate && endDate) {
         filters.startDate = new Date(startDate as string);
         filters.endDate = new Date(endDate as string);
@@ -22,13 +22,20 @@ export class TransactionController {
   const pagination = req.pagination;
   const transactions = await this.transactionService.getTransactionsByBuyer(buyerId, filters);
   const totalPurchases = transactions.length;
-  const totalSpent = transactions.reduce((sum, t) => sum + Number((t as any).total_amount || 0), 0);
+  const totalSpent = transactions.reduce((sum, t) => {
+    if (typeof t === 'object' && t !== null && 'total_amount' in t) {
+      return sum + Number((t as { total_amount?: unknown }).total_amount || 0);
+    }
+    return sum;
+  }, 0);
   const sliced = pagination ? transactions.slice(pagination.offset, pagination.offset + pagination.limit) : transactions;
   const meta = pagination ? { ...buildPaginationMeta(transactions.length, pagination), totalPurchases, totalSpent } : { totalPurchases, totalSpent };
   return success(res, { totalPurchases, totalSpent, transactions: sliced }, { message: 'Buyer purchases retrieved', meta });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transactions:buyerPurchases failed');
-  return failureCode(res, error.statusCode || 500, ErrorCodes.BUYER_TXN_LIST_FAILURE, undefined, error.message || 'Failed to fetch purchases by buyer');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.BUYER_TXN_LIST_FAILURE, undefined, message || 'Failed to fetch purchases by buyer');
     }
   }
   private transactionService = new TransactionService();
@@ -36,8 +43,9 @@ export class TransactionController {
   async createTransaction(req: Request, res: Response) {
     try {
       req.log?.info('transaction:create attempt');
-      const userId = (req as any).user?.id || 1;
-      const requestingUser = (req as any).user ? { id: (req as any).user.id, role: (req as any).user.role } : { id: userId, role: 'superadmin' };
+  const user = (req as Request & { user?: { id?: number; role?: string } }).user;
+  const userId = user?.id || 1;
+  const requestingUser = user ? { id: user.id, role: user.role } : { id: userId, role: 'superadmin' };
       
       // Import PaymentService for payment creation
       const { PaymentService } = await import('../services/paymentService');
@@ -61,7 +69,7 @@ export class TransactionController {
       };
 
       // Create the transaction
-      const transaction = await this.transactionService.createTransaction(serviceData, requestingUser as any);
+  const transaction = await this.transactionService.createTransaction(serviceData, requestingUser);
       
       // Create payments if provided
       let createdPayments = [];
@@ -89,9 +97,11 @@ export class TransactionController {
       };
 
       return createdResp(res, response, { message: 'Transaction created successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction:create failed');
-      return failureCode(res, error.statusCode || 500, ErrorCodes.TRANSACTION_CREATE_FAILED, undefined, error.message || 'Failed to create transaction');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.TRANSACTION_CREATE_FAILED, undefined, message || 'Failed to create transaction');
     }
   }
 
@@ -102,13 +112,15 @@ export class TransactionController {
       if (!transaction) {
   return failureCode(res, 404, ErrorCodes.NOT_FOUND, undefined, 'Transaction not found');
       }
-      if (!('payments' in (transaction as any))) {
-        (transaction as any).payments = [];
+      if (typeof transaction === 'object' && transaction !== null && !('payments' in transaction)) {
+        (transaction as Record<string, unknown>).payments = [];
       }
       return success(res, transaction, { message: 'Transaction retrieved successfully' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction:get failed');
-  return failureCode(res, error.statusCode || 500, ErrorCodes.NOT_FOUND, undefined, error.message || 'Failed to fetch transaction');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.NOT_FOUND, undefined, message || 'Failed to fetch transaction');
     }
   }
 
@@ -127,9 +139,11 @@ export class TransactionController {
   const sliced = pagination ? transactions.slice(pagination.offset, pagination.offset + pagination.limit) : transactions;
   const meta = pagination ? { ...buildPaginationMeta(transactions.length, pagination) } : { count: transactions.length };
   return success(res, sliced, { message: 'Shop transactions retrieved', meta });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transactions:byShop failed');
-  return failureCode(res, error.statusCode || 500, ErrorCodes.FARMER_TXN_LIST_FAILURE, undefined, error.message || 'Failed to fetch transactions');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.FARMER_TXN_LIST_FAILURE, undefined, message || 'Failed to fetch transactions');
     }
   }
 
@@ -143,9 +157,11 @@ export class TransactionController {
       } : undefined;
       const earnings = await this.transactionService.getShopEarnings(shopId, period);
       return success(res, earnings, { message: 'Shop earnings retrieved' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transactions:shopEarnings failed');
-  return failureCode(res, error.statusCode || 500, ErrorCodes.ANALYTICS_FAILURE, undefined, error.message || 'Failed to fetch shop earnings');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.ANALYTICS_FAILURE, undefined, message || 'Failed to fetch shop earnings');
     }
   }
 
@@ -160,9 +176,11 @@ export class TransactionController {
       const optionalShopId = parseOptionalId(shopId, 'shop');
       const earnings = await this.transactionService.getFarmerEarnings(farmerId, optionalShopId, period);
       return success(res, earnings, { message: 'Farmer earnings retrieved' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transactions:farmerEarnings failed');
-  return failureCode(res, error.statusCode || 500, ErrorCodes.ANALYTICS_FAILURE, undefined, error.message || 'Failed to fetch farmer earnings');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.ANALYTICS_FAILURE, undefined, message || 'Failed to fetch farmer earnings');
     }
   }
 }

@@ -1,45 +1,58 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../shared/logging/logger';
-import { ValidationError, AuthorizationError, NotFoundError, BusinessRuleError, DatabaseError, AppError } from '../shared/utils/errors';
-import { failure } from '../shared/http/respond';
 
-interface ErrorResponse {
-  success: false;
-  error: string;
-  message: string;
-  reqId?: string;
-  details?: any;
-}
+import { DatabaseError, AppError } from '../shared/utils/errors';
 
-export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
+
+
+
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   const statusMap: Record<string, number> = {
     ValidationError: 400,
     AuthorizationError: 403,
     NotFoundError: 404,
     BusinessRuleError: 422
   };
-  let status = statusMap[err?.name] || 500;
-  if (err instanceof DatabaseError) status = 500;
-  if (err instanceof AppError) status = err.statusCode;
-
-  const baseMessage = err?.message || 'Internal Server Error';
-  const errorName = err?.name || 'InternalError';
-
-  // Legacy payload (from earlier middleware) passthrough if present
-  const legacy = err?.legacyPayload;
+  let status = 500;
+  let baseMessage = 'Internal Server Error';
+  let errorName = 'InternalError';
+  let legacy: unknown = undefined;
+  let context: unknown = undefined;
+  let stack: unknown = undefined;
+  if (typeof err === 'object' && err !== null) {
+    if ('name' in err && typeof err.name === 'string' && err.name in statusMap) {
+      status = statusMap[err.name];
+    }
+    if (err instanceof DatabaseError) status = 500;
+    if (err instanceof AppError) status = err.statusCode;
+    if ('message' in err && typeof err.message === 'string') baseMessage = err.message;
+    if ('name' in err && typeof err.name === 'string') errorName = err.name;
+    if ('legacyPayload' in err) legacy = (err as { legacyPayload?: unknown }).legacyPayload;
+    if ('context' in err) context = (err as { context?: unknown }).context;
+    if ('stack' in err) stack = (err as { stack?: unknown }).stack;
+  }
 
   // Log
   if (status >= 500) {
-    logger.error({ err, reqId: req.id }, 'Unhandled server error');
+    const reqId = typeof req.id === 'string' ? req.id : undefined;
+    logger.error({ err, reqId }, 'Unhandled server error');
   } else {
-    req.log?.warn({ err }, 'Application error');
+    if ('log' in req && typeof req.log?.warn === 'function') {
+      req.log.warn({ err }, 'Application error');
+    }
   }
 
   // Build details object (include legacy + stack in dev)
-  const details: any = {};
+  const details: Record<string, unknown> = {};
   if (legacy) details.legacy = legacy;
-  if (err?.context) details.context = err.context;
-  if (process.env.NODE_ENV === 'development' && err?.stack) details.stack = err.stack;
+  if (context) details.context = context;
+  if (process.env.NODE_ENV === 'development' && stack) details.stack = stack;
 
-  return failure(res, status, errorName, Object.keys(details).length ? details : undefined, baseMessage);
+  return res.status(status).json({
+    success: false,
+    error: errorName,
+    message: baseMessage,
+    reqId: typeof req.id === 'string' ? req.id : undefined,
+    details: Object.keys(details).length ? details : undefined,
+  });
 }

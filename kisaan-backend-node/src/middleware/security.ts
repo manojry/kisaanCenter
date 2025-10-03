@@ -1,6 +1,6 @@
 import helmet from 'helmet';
 import cors, { CorsOptions } from 'cors';
-import { Application, Request, Response, RequestHandler } from 'express';
+import { Application, Request, Response, RequestHandler, json, urlencoded } from 'express';
 import { env } from '../config/env';
 
 // Build CORS origins list
@@ -45,32 +45,41 @@ export function applySecurity(app: Application, opts: SecurityOptions = {}) {
 
   // Compression (optional if dependency installed)
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const compression = require('compression');
-    app.use(compression());
+    // Dynamic import for optional dependency
+    import('compression').then((compressionModule) => {
+      app.use(compressionModule.default());
+    }).catch(() => {
+      app.get('/__warn/compression', (_req, res) => res.json({ warning: 'compression module not installed' }));
+    });
   } catch {
     app.get('/__warn/compression', (_req, res) => res.json({ warning: 'compression module not installed' }));
   }
 
   // Body parsers (centralized) - large enough for file uploads but not excessive
-  app.use((require('express').json({ limit: '10mb' })) as RequestHandler);
-  app.use((require('express').urlencoded({ extended: true, limit: '10mb' })) as RequestHandler);
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Rate limiting (simple in-memory). For clustering or multiple instances, replace with Redis store.
   if (enableRateLimit) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const rateLimit = require('express-rate-limit');
-      app.use('/api/', rateLimit({
-        windowMs,
-        max: requestsPerWindow,
-        standardHeaders: true,
-        legacyHeaders: false,
-        handler: (req: Request, res: Response) => {
-          (req as any).log?.warn({ ip: req.ip }, 'rate limit exceeded');
-          return res.status(429).json({ success: false, error: 'Too many requests, please try again later.' });
-        }
-      }));
+      // Dynamic import for optional dependency
+      import('express-rate-limit').then((rateLimitModule) => {
+        const rateLimit = rateLimitModule.default;
+        app.use('/api/', rateLimit({
+          windowMs,
+          max: requestsPerWindow,
+          standardHeaders: true,
+          legacyHeaders: false,
+          handler: (req: Request, res: Response) => {
+            if ('log' in req && typeof req.log?.warn === 'function') {
+              req.log.warn({ ip: req.ip }, 'rate limit exceeded');
+            }
+            return res.status(429).json({ success: false, error: 'Too many requests, please try again later.' });
+          }
+        }));
+      }).catch(() => {
+        app.get('/__warn/ratelimit', (_req, res) => res.json({ warning: 'express-rate-limit module not installed' }));
+      });
     } catch {
       app.get('/__warn/ratelimit', (_req, res) => res.json({ warning: 'express-rate-limit module not installed' }));
     }

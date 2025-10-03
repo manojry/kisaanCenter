@@ -42,9 +42,9 @@ export class BalanceReconciliationController {
       return success(res, result, { 
         message: result.isFullyAllocated ? 'Payment is fully allocated' : 'Payment allocation discrepancy found' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'payment allocation reconciliation failed');
-  return failureCode(res, 500, ErrorCodes.CREATE_PAYMENT_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.CREATE_PAYMENT_FAILED, undefined, (error as Error).message);
     }
   }
 
@@ -60,9 +60,9 @@ export class BalanceReconciliationController {
       return success(res, result, { 
         message: result.statusMatches ? 'Transaction status is correct' : 'Transaction status discrepancy found' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction payment reconciliation failed');
-  return failureCode(res, 500, ErrorCodes.TRANSACTION_UPDATE_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.TRANSACTION_UPDATE_FAILED, undefined, (error as Error).message);
     }
   }
 
@@ -78,9 +78,9 @@ export class BalanceReconciliationController {
       return success(res, result, { 
         message: result.overallHealthy ? 'Shop balances are healthy' : 'Shop balance issues found' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop balance audit failed');
-  return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, (error as Error).message);
     }
   }
 
@@ -96,9 +96,9 @@ export class BalanceReconciliationController {
       return success(res, { fixed: result }, { 
         message: 'User balance discrepancy fixed' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'balance fix failed');
-      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, (error as Error).message);
     }
   }
 
@@ -114,9 +114,9 @@ export class BalanceReconciliationController {
       return success(res, report, { 
         message: 'Balance report generated successfully' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'balance report generation failed');
-  return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, (error as Error).message);
     }
   }
 
@@ -143,9 +143,9 @@ export class BalanceReconciliationController {
       return success(res, healthMetrics, { 
         message: 'Balance reconciliation system is healthy' 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       req.log?.error({ err: error }, 'balance health check failed');
-  return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, error.message);
+      return failureCode(res, 500, ErrorCodes.BALANCE_HISTORY_FAILED, undefined, (error as Error).message);
     }
   }
 }

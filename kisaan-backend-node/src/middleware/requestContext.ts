@@ -1,13 +1,13 @@
+
 import { Request, Response, NextFunction } from 'express';
 import { createRequestLogger } from '../shared/logging/logger';
 import { v4 as uuid } from 'uuid';
 
-declare global {
-  namespace Express {
-    interface Request {
-      id?: string;
-      log?: ReturnType<typeof createRequestLogger>;
-    }
+// Module augmentation for Express Request
+declare module 'express-serve-static-core' {
+  interface Request {
+    id?: string;
+    log?: ReturnType<typeof createRequestLogger>;
   }
 }
 

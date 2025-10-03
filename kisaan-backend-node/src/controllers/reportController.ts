@@ -11,12 +11,18 @@ import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 
+function getUserRole(req: Request): string | undefined {
+  // Prefer a type-safe way to get user role from request
+  const user = (req as Request & { user?: { role?: string } }).user;
+  return user?.role;
+}
+
 class ReportController {
   async generateReport(req: Request, res: Response) {
     try {
       const queryObj = req.query as Record<string, string | undefined>;
       const { shop_id, date_from, date_to, report_type, format = 'json' } = queryObj;
-      const userRole = (req as any).user?.role;
+      const userRole = getUserRole(req);
 
       if (userRole === 'superadmin') {
         if (!report_type || !['platform', 'shops', 'users', 'transactions'].includes(report_type as string)) {
@@ -31,7 +37,8 @@ class ReportController {
           // If 'status' is not a field on User, skip this or use a safe fallback
           let activeUsers = 0;
           try {
-            const countResult = await User.count({ where: { status: 'active' } } as any);
+            // @ts-expect-error: status may not exist on User, fallback if error
+            const countResult = await User.count({ where: { status: 'active' } });
             if (typeof countResult === 'number') {
               activeUsers = countResult;
             } else if (Array.isArray(countResult) && countResult.length > 0 && typeof countResult[0].count === 'number') {
@@ -68,7 +75,7 @@ class ReportController {
             recent_transactions: recentTransactions
           }, { message: 'Platform report generated' });
         }
-      } else if (['admin','staff','owner'].includes(userRole)) {
+  } else if (typeof userRole === 'string' && ['admin','staff','owner'].includes(userRole)) {
         if (!shop_id) {
           return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         }
@@ -84,7 +91,7 @@ class ReportController {
           unit_price: number | string;
           total_amount: number | string;
         };
-  const transactions = (await Transaction.findAll({ where: txnWhere, raw: true }) as unknown) as TransactionRow[];
+        const transactions = await Transaction.findAll({ where: txnWhere, raw: true }) as TransactionRow[];
         const buyerIds = [...new Set(transactions.map((t) => t.buyer_id))];
         const farmerIds = [...new Set(transactions.map((t) => t.farmer_id))];
         type UserRow = { id: number; username: string };
@@ -135,8 +142,11 @@ class ReportController {
         return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Insufficient permissions to generate this report');
       }
     } catch (error: unknown) {
-      (req as any).log?.error({ err: error }, 'report:generate failed');
-      return failureCode(res, 500, ErrorCodes.REPORT_GENERATION_FAILED, undefined, (error as Error).message || 'Failed to generate report');
+      if ('log' in req && typeof (req as Request & { log?: { error?: (...args: unknown[]) => void } }).log?.error === 'function') {
+        (req as Request & { log?: { error?: (...args: unknown[]) => void } }).log?.error?.({ err: error }, 'report:generate failed');
+      }
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to generate report';
+      return failureCode(res, 500, ErrorCodes.REPORT_GENERATION_FAILED, undefined, message);
     }
   }
 
@@ -144,14 +154,14 @@ class ReportController {
     try {
       const queryObj = req.query as Record<string, string | undefined>;
       const { shop_id, report_type } = queryObj;
-      const userRole = (req as any).user?.role;
+  const userRole = getUserRole(req);
       if (userRole === 'superadmin') {
         if (!report_type || !['platform','shops','users','transactions'].includes(report_type as string)) {
           return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { allowed: ['platform','shops','users','transactions'] }, 'Invalid report_type');
         }
         // Placeholder for future platform-wide downloadable reports.
         return failureCode(res, 400, ErrorCodes.NOT_IMPLEMENTED, undefined, 'Platform download not implemented yet');
-      } else if (['admin','staff','owner'].includes(userRole)) {
+  } else if (typeof userRole === 'string' && ['admin','staff','owner'].includes(userRole)) {
         if (!shop_id) return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         const farmer_id = queryObj.farmer_id;
         const txnWhere: Record<string, string | number> = { shop_id };
@@ -174,7 +184,12 @@ class ReportController {
           buyer?: { username: string };
           farmer?: { username: string };
         };
-  const transactions = (await Transaction.findAll({ where: txnWhere, raw: true }) as unknown) as TransactionRow[];
+        const rawTransactions = await Transaction.findAll({ where: txnWhere, raw: true });
+        // Map to TransactionRow[] and ensure created_at is string
+  const transactions: TransactionRow[] = (Array.isArray(rawTransactions) ? rawTransactions : ([] as unknown[])).map((t: any) => ({
+          ...t,
+          created_at: typeof t.created_at === 'string' ? t.created_at : (t.created_at instanceof Date ? t.created_at.toISOString() : String(t.created_at)),
+        }));
         const buyerIds = [...new Set(transactions.map((t) => t.buyer_id))];
         const farmerIds = [...new Set(transactions.map((t) => t.farmer_id))];
         type UserRow = { id: number; username: string };
@@ -222,8 +237,11 @@ class ReportController {
         return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Insufficient permissions to download this report');
       }
     } catch (error: unknown) {
-      (req as any).log?.error({ err: error }, 'report:download failed');
-      return failureCode(res, 500, ErrorCodes.REPORT_DOWNLOAD_FAILED, undefined, (error as Error).message || 'Failed to download report');
+      if ('log' in req && typeof (req as Request & { log?: { error?: (...args: unknown[]) => void } }).log?.error === 'function') {
+        (req as Request & { log?: { error?: (...args: unknown[]) => void } }).log?.error?.({ err: error }, 'report:download failed');
+      }
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to download report';
+      return failureCode(res, 500, ErrorCodes.REPORT_DOWNLOAD_FAILED, undefined, message);
     }
   }
 }
