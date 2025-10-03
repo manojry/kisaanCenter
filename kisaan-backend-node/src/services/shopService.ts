@@ -327,14 +327,10 @@ export class ShopService {
    * Deactivate shop
    */
   async deactivateShop(id: number, requestingUser?: { role: string; id: number }): Promise<ShopEntity> {
-    try {
-      const updatedShop = await this.updateShop(id, { status: SHOP_STATUS.INACTIVE }, requestingUser);
-      if (!updatedShop) {
-        throw new DatabaseError('Failed to deactivate shop: shop not found or update failed');
-      }
-      return updatedShop;
-    } catch (error) {
-      throw error; // Re-throw as updateShop already handles error types
+    const updatedShop = await this.updateShop(id, { status: SHOP_STATUS.INACTIVE }, requestingUser);
+    if (!updatedShop) {
+      throw new DatabaseError('Failed to deactivate shop: shop not found or update failed');
     }
+    return updatedShop;
   }
 }

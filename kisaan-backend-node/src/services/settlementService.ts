@@ -67,7 +67,7 @@ export const getSettlements = async (filters: {
   if (filters.user_type) where.user_type = filters.user_type;
   if (filters.status) where.status = filters.status;
   if (filters.from_date || filters.to_date) {
-    const dateRange: any = {};
+  const dateRange: { [key: string | symbol]: unknown } = {};
     if (filters.from_date) dateRange[Op.gte] = new Date(filters.from_date);
     if (filters.to_date) dateRange[Op.lte] = new Date(filters.to_date);
     where.created_at = dateRange;
@@ -139,7 +139,7 @@ export const getSettlementSummary = async (shop_id: string) => {
   return Object.values(summary);
 };
 
-export const settleAmount = async (settlement_id: number, amount: number) => {
+export const settleAmount = async (settlement_id: number, _amount: number) => {
   const settlement = await Settlement.findByPk(settlement_id);
   if (!settlement) throw new Error('Settlement not found');
 

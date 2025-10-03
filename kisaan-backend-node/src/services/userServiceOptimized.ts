@@ -64,7 +64,7 @@ const userCache = new UserCacheService();
  * Replaces the inefficient patterns found in multiple controllers
  */
 export const getUsersWithShopInfo = async (
-  requestingUser: UserContext,
+  _requestingUser: UserContext,
   filters: UserFilters = {}
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   
@@ -72,18 +72,18 @@ export const getUsersWithShopInfo = async (
   const includeShop = [];
 
   // Build efficient WHERE clause based on requesting user's role
-  if (requestingUser.role === 'owner') {
+  if (_requestingUser.role === 'owner') {
     // Single query to get shop IDs owned by this user
     includeShop.push({
       model: Shop,
       as: 'shop',
-      where: { owner_id: requestingUser.id },
+      where: { owner_id: _requestingUser.id },
       required: true,
       attributes: ['id', 'name']
     });
-  } else if (requestingUser.role === 'farmer' || requestingUser.role === 'buyer') {
+  } else if (_requestingUser.role === 'farmer' || _requestingUser.role === 'buyer') {
     // Users can only see themselves
-    where.id = requestingUser.id;
+  where.id = _requestingUser.id;
   }
   // Superadmin sees all users (no additional where clause)
 
@@ -275,7 +275,7 @@ export const createUserOptimized = async (
 export const updateUserOptimized = async (
   userId: number,
   updateData: Partial<User>,
-  requestingUser: UserContext
+  _requestingUser: UserContext
 ): Promise<UserDTO> => {
   
   const user = await User.findByPk(userId);
@@ -284,9 +284,9 @@ export const updateUserOptimized = async (
   }
 
   // Permission check
-  if (requestingUser.role === 'owner' && user.shop_id) {
-    const shop = await Shop.findByPk(user.shop_id);
-    if (!shop || shop.owner_id !== requestingUser.id) {
+  if (_requestingUser.role === 'owner' && user.shop_id) {
+  const shop = await Shop.findByPk(user.shop_id);
+  if (!shop || shop.owner_id !== _requestingUser.id) {
       throw new AuthorizationError('Access denied');
     }
   }

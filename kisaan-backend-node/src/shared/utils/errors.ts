@@ -179,7 +179,7 @@ export class ErrorHandler {
    * Handle and format error for API response
    */
   handleError(error: Error, requestId?: string): ErrorResponse {
-    let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
     let errorCode = ERROR_CODES.INTERNAL_ERROR;
     let message = 'Internal server error';
     let details: unknown = undefined;
@@ -192,7 +192,7 @@ export class ErrorHandler {
       message = error.message;
       details = error.context;
     } else if (error.name === 'SequelizeValidationError') {
-      statusCode = HTTP_STATUS.BAD_REQUEST;
+  statusCode = HTTP_STATUS.BAD_REQUEST;
       errorCode = ERROR_CODES.VALIDATION_ERROR;
       message = 'Validation failed';
       if (typeof error === 'object' && error !== null && 'errors' in error) {
@@ -209,7 +209,7 @@ export class ErrorHandler {
       errorCode = ERROR_CODES.BUSINESS_RULE_VIOLATION;
       message = 'Foreign key constraint violation';
     } else if (error.name === 'JsonWebTokenError') {
-      statusCode = HTTP_STATUS.UNAUTHORIZED;
+  // statusCode = HTTP_STATUS.UNAUTHORIZED;
       errorCode = ERROR_CODES.TOKEN_INVALID;
       message = 'Invalid token';
     } else if (error.name === 'TokenExpiredError') {

@@ -62,7 +62,7 @@ export class UserAnalyticsService {
    * For now, returns 'active' by default
    * TODO: Implement logic based on last login, recent transactions, etc.
    */
-  static async calculateUserStatus(userId: number): Promise<'active' | 'inactive'> {
+  static async calculateUserStatus(_userId: number): Promise<'active' | 'inactive'> {
     // For now, default to active
     // Future implementation could check:
     // - Last login date
