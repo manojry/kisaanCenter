@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io',
+        target: process.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000',
         changeOrigin: true,
         secure: true,
       },
