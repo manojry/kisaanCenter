@@ -1,7 +1,6 @@
 import { ShopCategory } from '../models/shopCategory';
 import { Shop } from '../models/shop';
 import { Category } from '../models/category';
-import { Product } from '../models/product';
 import { 
   ShopCategoryCreate, 
   AssignCategoriesToShop, 
@@ -52,9 +51,9 @@ export class ShopCategoryService {
       
       // If all categories were duplicates, throw error
       if (duplicates.length === data.category_ids.length) {
-        const error = new Error('All category assignments already exist');
-        (error as any).name = 'SequelizeUniqueConstraintError';
-        throw error;
+  const error = new Error('All category assignments already exist');
+  (error as { name?: string }).name = 'SequelizeUniqueConstraintError';
+  throw error;
       }
       
       return shopCategories;
@@ -87,7 +86,7 @@ export class ShopCategoryService {
       ],
     });
     
-    return (shop as any)?.categories || [];
+  return (shop && typeof shop === 'object' && 'categories' in shop) ? (shop as { categories?: Category[] }).categories || [] : [];
   }
 
   async getCategoryShops(categoryId: number): Promise<Shop[]> {
@@ -103,7 +102,7 @@ export class ShopCategoryService {
       ],
     });
     
-    return (category as any)?.shops || [];
+  return (category && typeof category === 'object' && 'shops' in category) ? (category as { shops?: Shop[] }).shops || [] : [];
   }
 
   async isShopCategoryAssigned(shopId: number, categoryId: number): Promise<boolean> {
@@ -118,7 +117,7 @@ export class ShopCategoryService {
   }
 
   async getShopCategoryAssignments(shopId?: number, categoryId?: number): Promise<ShopCategory[]> {
-    const where: any = {};
+  const where: Record<string, unknown> = {};
     if (shopId) where.shop_id = shopId;
     if (categoryId) where.category_id = categoryId;
     

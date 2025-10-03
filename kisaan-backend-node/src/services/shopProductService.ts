@@ -20,16 +20,16 @@ export class ShopProductService {
 
   async assign(shopId: number, productId: number) {
     if (!shopId || !productId) throw new ValidationError('shopId & productId required');
-    const shop = await this.shopRepo.findById(shopId as any);
+  const shop = await this.shopRepo.findById(shopId);
     if (!shop) throw new NotFoundError('Shop not found');
-    const prod = await this.productRepo.findById(productId as any);
+  const prod = await this.productRepo.findById(productId);
     if (!prod) throw new NotFoundError('Product not found');
     return this.repo.create({ shop_id: shopId, product_id: productId, is_active: true });
   }
 
   async deactivate(shopProductId: number) {
     if (!shopProductId) throw new ValidationError('id required');
-    const existing = await this.repo.findById(shopProductId as any);
+  const existing = await this.repo.findById(shopProductId);
     if (!existing) throw new NotFoundError('Record not found');
     return this.repo.update(existing.id!, { ...existing, is_active: false });
   }

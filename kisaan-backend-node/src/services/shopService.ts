@@ -130,13 +130,13 @@ export class ShopService {
     } catch (error) {
       // Enhanced diagnostic logging before error mapping so we can surface root cause of generic DatabaseError
       // (Avoid importing logger directly here to keep service decoupled; use console for now – upgrade later to injected logger)
-      const diag: any = {};
+      const diag: Record<string, unknown> = {};
       if (error && typeof error === 'object') {
-        const errAny: any = error;
-        diag.name = errAny.name;
-        diag.message = errAny.message;
-        diag.original = errAny.original?.message || errAny.parent?.message || undefined;
-        diag.sql = errAny.original?.sql || errAny.sql || undefined;
+        const errObj = error as { [key: string]: any };
+        diag.name = errObj.name;
+        diag.message = errObj.message;
+        diag.original = errObj.original?.message || errObj.parent?.message || undefined;
+        diag.sql = errObj.original?.sql || errObj.sql || undefined;
         diag.fields = {
           name: data.name,
           owner_id: data.owner_id,
@@ -156,9 +156,9 @@ export class ShopService {
       }
       // Emit structured console log for now (will be captured by pino if stdout intercepted at process level)
       // Use a single line to simplify parsing in tests
-      try { console.error('[ShopService.createShop] diagnostic', JSON.stringify(diag)); } catch (_) { /* ignore */ }
+      console.error('[ShopService.createShop] diagnostic', JSON.stringify(diag));
       // Temporarily expose original DB error outward for debugging (flag consumed by DatabaseError)
-      if (diag) (diag as any).allowExposeOriginal = true;
+      if (diag) (diag as Record<string, unknown>).allowExposeOriginal = true;
       throw new DatabaseError('Failed to create shop', error instanceof Error ? { message: error.message, diagnostic: diag } : { diagnostic: diag });
     }
   }

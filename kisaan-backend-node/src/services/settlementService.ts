@@ -62,14 +62,14 @@ export const getSettlements = async (filters: {
   from_date?: string;
   to_date?: string;
 }) => {
-  const where: any = { shop_id: parseInt(filters.shop_id) };
+  const where: Record<string, unknown> = { shop_id: parseInt(filters.shop_id) };
   if (filters.user_id) where.user_id = filters.user_id;
   if (filters.user_type) where.user_type = filters.user_type;
   if (filters.status) where.status = filters.status;
   if (filters.from_date || filters.to_date) {
     where.created_at = {};
-    if (filters.from_date) where.created_at[Op.gte] = new Date(filters.from_date);
-    if (filters.to_date) where.created_at[Op.lte] = new Date(filters.to_date);
+  if (filters.from_date) (where.created_at as any)[Op.gte] = new Date(filters.from_date);
+  if (filters.to_date) (where.created_at as any)[Op.lte] = new Date(filters.to_date);
   }
   const settlements = await Settlement.findAll({
     where,
@@ -100,25 +100,40 @@ export const getSettlementSummary = async (shop_id: string) => {
     ]
   });
 
-  const summary = settlements.reduce((acc: any, settlement: any) => {
+  type SettlementSummary = {
+    user_id: string;
+    user_type: string;
+    username: string;
+    total_balance: number;
+    pending_count: number;
+  };
+  type Summary = {
+    [key: string]: SettlementSummary;
+  };
+  const summary = settlements.reduce((acc: Summary, s: any) => {
+    const settlement = s as {
+      user_id: number | string;
+      user_type: string;
+      user?: { username?: string };
+      balance: string | number;
+      status: string;
+    };
     const key = `${settlement.user_type}_${settlement.user_id}`;
     if (!acc[key]) {
       acc[key] = {
-        user_id: settlement.user_id,
+        user_id: String(settlement.user_id),
         user_type: settlement.user_type,
         username: settlement.user?.username || 'Unknown',
         total_balance: 0,
         pending_count: 0
       };
     }
-    
     if (settlement.status === 'pending') {
-      acc[key].total_balance += parseFloat(settlement.balance);
+      acc[key].total_balance += typeof settlement.balance === 'string' ? parseFloat(settlement.balance) : settlement.balance;
       acc[key].pending_count += 1;
     }
-    
     return acc;
-  }, {});
+  }, {} as Summary);
 
   return Object.values(summary);
 };
