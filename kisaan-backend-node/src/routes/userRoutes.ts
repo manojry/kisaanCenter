@@ -35,7 +35,8 @@ router.post('/:id/reset-password', resetPassword);
 router.post('/:id/admin-reset-password', adminResetPassword);
 
 // Set or clear custom commission rate for a farmer
-router.patch('/:id/commission', async (req: any, res) => {
+import type { Request } from 'express';
+router.patch('/:id/commission', async (req: Request, res) => {
 	try {
 		const targetId = Number(req.params.id);
 		if (!targetId) return res.status(400).json({ success: false, message: 'Invalid id' });
@@ -51,11 +52,12 @@ router.patch('/:id/commission', async (req: any, res) => {
 		const user = await repo.findById(targetId);
 		if (!user) throw new NotFoundError('User not found');
 		if (user.role !== 'farmer') throw new ValidationError('Commission override allowed only for farmers');
-		const updated = await repo.update(targetId, { ...(user as any), custom_commission_rate: custom_commission_rate == null ? null : Number(custom_commission_rate) } as any);
-		return res.json({ success: true, data: { id: updated?.id, custom_commission_rate: (updated as any)?.custom_commission_rate } });
-	} catch (error: any) {
-		const status = error.status || 400;
-		return res.status(status).json({ success: false, message: error.message || 'Failed to update commission' });
+		const updated = await repo.update(targetId, { ...user, custom_commission_rate: custom_commission_rate == null ? null : Number(custom_commission_rate) });
+		return res.json({ success: true, data: { id: updated?.id, custom_commission_rate: updated?.custom_commission_rate } });
+	} catch (error: unknown) {
+		const status = typeof error === 'object' && error && 'status' in error ? (error as { status?: number }).status ?? 400 : 400;
+		const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : 'Failed to update commission';
+		return res.status(status).json({ success: false, message });
 	}
 });
 

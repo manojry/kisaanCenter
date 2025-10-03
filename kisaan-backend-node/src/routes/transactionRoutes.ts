@@ -23,17 +23,23 @@ const paymentController = new PaymentController();
 // Transaction routes - Block superadmin access to individual transactions
 // SMART: Use service for dashboard-friendly enriched transactions
 // Apply feature gating & retention: transactions.list controls access; retention clamps date range
-router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), paginationParser, async (req: any, res, next) => {
+import type { Request } from 'express';
+router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), paginationParser, async (req: Request, res, next) => {
   try {
   const { shop_id, farmer_id, buyer_id, startDate, endDate, from_date, to_date, order_by, order_dir } = req.query;
     const TransactionService = require('../services/transactionService').TransactionService;
     const service = new TransactionService();
-    const filters: any = {};
+  const filters: Record<string, unknown> = {};
     if (shop_id) filters.shopId = Number(shop_id);
     if (farmer_id) filters.farmerId = Number(farmer_id);
     if (buyer_id) filters.buyerId = Number(buyer_id);
 
-    const range = normalizeDateRange({ start: from_date || startDate as string, end: to_date || endDate as string, defaultToToday: true });
+    const getString = (v: unknown) => (typeof v === 'string' ? v : Array.isArray(v) && typeof v[0] === 'string' ? v[0] : undefined);
+    const range = normalizeDateRange({
+      start: getString(from_date) || getString(startDate),
+      end: getString(to_date) || getString(endDate),
+      defaultToToday: true
+    });
     if (range) {
       filters.startDate = range.start;
       filters.endDate = range.end;
@@ -63,14 +69,14 @@ router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.li
 });
 
 // Only superadmin, owner, or farmer can create transactions. Explicitly block buyer role.
-router.post('/', authenticateToken, (req: any, res, next) => {
+router.post('/', authenticateToken, (req: Request, res, next) => {
   if (req.user?.role === 'buyer') {
     return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { role: req.user.role }, 'Buyers are not allowed to create transactions');
   }
   next();
 }, validateSchema(CreateTransactionSchema), transactionController.createTransaction.bind(transactionController));
 // Quick transaction endpoint (assignment aware): payload { shop_id?, farmer_id, buyer_id, quantity, unit_price, product_id?, product_name?, category_id }
-router.post('/quick', authenticateToken, async (req: any, res, next) => {
+router.post('/quick', authenticateToken, async (req: Request, res, next) => {
   if (req.user?.role === 'buyer') {
     return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { role: req.user.role }, 'Buyers are not allowed to create transactions');
   }
@@ -96,7 +102,7 @@ router.post('/quick', authenticateToken, async (req: any, res, next) => {
       unit_price: Number(unit_price)
     }, req.user ? { role: req.user.role, id: req.user.id } : undefined);
     return created(res, mapTransactionResponse(txn), { message: 'Quick transaction created' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     next(error);
   }
 });
@@ -117,7 +123,7 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
       date_to = `${yyyy}-${mm}-${dd}`;
     }
     let whereClause = '';
-    let params: any[] = [];
+  let params: unknown[] = [];
     if (date_from && date_to) {
       // Cast created_at to date for reliable filtering
       whereClause = `WHERE DATE(created_at) >= ? AND DATE(created_at) <= ?`;
@@ -198,7 +204,8 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
       status_summary
     });
   } catch (error) {
-  failureCode(res, 500, ErrorCodes.ANALYTICS_FAILURE, { stack: (error as any).stack }, 'Failed to fetch transaction analytics');
+  const stack = typeof error === 'object' && error && 'stack' in error ? (error as { stack?: string }).stack : String(error);
+  failureCode(res, 500, ErrorCodes.ANALYTICS_FAILURE, { stack }, 'Failed to fetch transaction analytics');
   }
 });
 
@@ -213,8 +220,9 @@ router.get('/farmer/:farmerId/list', authenticateToken, loadFeatures, requireFea
       { replacements: { farmerId } }
     );
     success(res, results);
-  } catch (error: any) {
-  failureCode(res, 500, ErrorCodes.FARMER_TXN_LIST_FAILURE, { error: error.message });
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failureCode(res, 500, ErrorCodes.FARMER_TXN_LIST_FAILURE, { error: message });
   }
 });
 router.get('/buyer/:buyerId/list', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), async (req, res) => {
@@ -226,8 +234,9 @@ router.get('/buyer/:buyerId/list', authenticateToken, loadFeatures, requireFeatu
       { replacements: { buyerId } }
     );
     success(res, results);
-  } catch (error: any) {
-  failureCode(res, 500, ErrorCodes.BUYER_TXN_LIST_FAILURE, { error: error.message });
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failureCode(res, 500, ErrorCodes.BUYER_TXN_LIST_FAILURE, { error: message });
   }
 });
 
@@ -240,7 +249,7 @@ router.put('/:id', async (req, res) => {
 
     // Whitelist allowed updatable columns
     const ALLOWED = ['quantity','unit_price','status','notes'];
-    const filtered: Record<string, any> = {};
+  const filtered: Record<string, unknown> = {};
     for (const key of Object.keys(patch)) {
       if (ALLOWED.includes(key)) filtered[key] = patch[key];
     }
@@ -284,8 +293,9 @@ router.put('/:id', async (req, res) => {
     );
 
     success(res, Array.isArray(results) ? results[0] : results, { message: 'Transaction updated successfully' });
-  } catch (error: any) {
-    failureCode(res, 500, ErrorCodes.TRANSACTION_UPDATE_FAILED, { error: error.message }, 'Failed to update transaction');
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failureCode(res, 500, ErrorCodes.TRANSACTION_UPDATE_FAILED, { error: message }, 'Failed to update transaction');
   }
 });
 
@@ -303,8 +313,9 @@ router.delete('/:id', async (req, res) => {
   return failureCode(res, 404, ErrorCodes.NOT_FOUND, undefined, 'Transaction not found');
     }
     success(res, { id }, { message: 'Transaction deleted successfully' });
-  } catch (error: any) {
-  failureCode(res, 500, ErrorCodes.TRANSACTION_DELETE_FAILED, { error: error.message }, 'Failed to delete transaction');
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failureCode(res, 500, ErrorCodes.TRANSACTION_DELETE_FAILED, { error: message }, 'Failed to delete transaction');
   }
 });
 

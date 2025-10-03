@@ -40,7 +40,7 @@ async function startServer() {
     });
 
     return server;
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error }, 'unable to start server');
     process.exit(1);
   }
@@ -52,7 +52,7 @@ process.on('SIGTERM', async () => {
   try {
     await sequelize.close();
     console.log('✅ Database connection closed.');
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error }, 'error closing database connection (SIGTERM)');
   }
   process.exit(0);
@@ -63,14 +63,14 @@ process.on('SIGINT', async () => {
   try {
     await sequelize.close();
     console.log('✅ Database connection closed.');
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error }, 'error closing database connection (SIGINT)');
   }
   process.exit(0);
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason: any, promise) => {
+process.on('unhandledRejection', (reason: unknown, promise) => {
   logger.error({ reason, promise }, 'unhandled promise rejection');
   process.exit(1);
 });

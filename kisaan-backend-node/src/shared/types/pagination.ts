@@ -27,5 +27,5 @@ export interface SortOptions {
 }
 
 export interface FilterOptions {
-  [key: string]: any;
+  [key: string]: unknown;
 }

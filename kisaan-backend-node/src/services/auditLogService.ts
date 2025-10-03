@@ -12,7 +12,7 @@ export class AuditLogService {
     startDate?: Date;
     endDate?: Date;
   }) {
-    const where: any = {};
+  const where: Record<string, unknown> = {};
     
     if (filters?.shopId) where.shop_id = filters.shopId;
     if (filters?.userId) where.user_id = filters.userId;
