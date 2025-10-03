@@ -74,4 +74,8 @@ shopRoutes.get('/:shopId/transaction-products',
 shopRoutes.get('/:id/categories', getShopCategories);
 
 // Add route logging middleware (at the end)
-shopRoutes.use((req, _res, next) => { (req as any).log?.info({ path: req.path }, 'shop route hit'); next(); });
+import type { Logger } from 'pino';
+shopRoutes.use((req, _res, next) => {
+  (req as typeof req & { log?: Logger }).log?.info({ path: req.path }, 'shop route hit');
+  next();
+});

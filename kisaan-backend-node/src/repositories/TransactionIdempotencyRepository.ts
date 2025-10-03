@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
-import { Model } from 'sequelize';
+import { Model, Transaction } from 'sequelize';
+import { TransactionIdempotency, TransactionIdempotencyCreationAttributes } from '../models/transactionIdempotency';
 
 export interface IdempotencyRecordEntity {
   id?: number;
@@ -12,18 +13,18 @@ export interface IdempotencyRecordEntity {
   created_at?: Date;
 }
 
-export class TransactionIdempotencyRepository extends BaseRepository<Model, IdempotencyRecordEntity> {
-  protected model: any;
+export class TransactionIdempotencyRepository extends BaseRepository<TransactionIdempotency, IdempotencyRecordEntity> {
+  protected model: typeof TransactionIdempotency;
   protected entityName = 'TransactionIdempotency';
 
   constructor() {
     super();
-    const { TransactionIdempotency } = require('../models/index');
-    this.model = TransactionIdempotency; // Expect model defined externally
+    // Importing directly from model file for correct typing
+    this.model = TransactionIdempotency;
   }
 
-  protected toDomainEntity(model: Model): IdempotencyRecordEntity {
-    const json = model.toJSON();
+  protected toDomainEntity(model: TransactionIdempotency): IdempotencyRecordEntity {
+    const json = model.toJSON() as IdempotencyRecordEntity;
     return {
       id: json.id,
       key: json.key,
@@ -36,7 +37,7 @@ export class TransactionIdempotencyRepository extends BaseRepository<Model, Idem
     };
   }
 
-  protected toModelData(entity: IdempotencyRecordEntity): any {
+  protected toModelData(entity: IdempotencyRecordEntity): Record<string, unknown> {
     return { ...entity };
   }
 
@@ -45,12 +46,29 @@ export class TransactionIdempotencyRepository extends BaseRepository<Model, Idem
     return rec ? this.toDomainEntity(rec) : null;
   }
 
-  async createRecord(data: IdempotencyRecordEntity, opts?: { tx?: any }): Promise<IdempotencyRecordEntity> {
-    const created = await this.model.create(data, opts?.tx ? { transaction: opts.tx } : undefined);
+  async createRecord(
+    data: IdempotencyRecordEntity,
+    opts?: { tx?: Transaction }
+  ): Promise<IdempotencyRecordEntity> {
+    // Map IdempotencyRecordEntity to TransactionIdempotencyCreationAttributes
+    const modelData: TransactionIdempotencyCreationAttributes = {
+      ...data
+    };
+    const createOpts = opts?.tx ? { transaction: opts.tx } : undefined;
+    const created = await this.model.create(modelData, createOpts);
     return this.toDomainEntity(created);
   }
 
-  async attachTransaction(key: string, transactionId: number, opts?: { tx?: any }): Promise<void> {
-    await this.model.update({ transaction_id: transactionId }, { where: { key }, transaction: opts?.tx });
+  async attachTransaction(
+    key: string,
+    transactionId: number,
+    opts?: { tx?: Transaction }
+  ): Promise<void> {
+    const updateOpts: { where: { key: string }; transaction?: Transaction } = { where: { key } };
+    if (opts?.tx) updateOpts.transaction = opts.tx;
+    await this.model.update(
+      { transaction_id: transactionId },
+      updateOpts
+    );
   }
 }

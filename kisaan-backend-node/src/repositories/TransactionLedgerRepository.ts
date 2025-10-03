@@ -21,7 +21,7 @@ export class TransactionLedgerRepository extends BaseRepository<TransactionLedge
     return { ...model.get() } as LedgerEntry;
   }
 
-  protected toModelData(entity: LedgerEntry): any {
+  protected toModelData(entity: LedgerEntry): Record<string, unknown> {
     return { ...entity };
   }
 }

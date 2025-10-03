@@ -21,4 +21,9 @@ planRoutes.delete('/:id', authenticateToken, requireRole(['superadmin']), planCo
 planRoutes.patch('/:id/deactivate', authenticateToken, requireRole(['superadmin']), planController.deactivatePlan.bind(planController));
 
 // Add route logging middleware
-planRoutes.use((req, _res, next) => { (req as any).log?.info({ path: req.path }, 'plan route hit'); next(); });
+import type { Logger } from 'pino';
+
+planRoutes.use((req, _res, next) => {
+	(req as typeof req & { log?: Logger }).log?.info({ path: req.path }, 'plan route hit');
+	next();
+});

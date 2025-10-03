@@ -12,14 +12,14 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly errorCode: string;
   public readonly isOperational: boolean;
-  public readonly context?: Record<string, any>;
+  public readonly context?: Record<string, unknown>;
 
   constructor(
     message: string,
     statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     errorCode: string = ERROR_CODES.INTERNAL_ERROR,
     isOperational: boolean = true,
-    context?: Record<string, any>
+  context?: Record<string, unknown>
   ) {
     super(message);
     
@@ -34,7 +34,7 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(
       message,
       HTTP_STATUS.BAD_REQUEST,
@@ -46,7 +46,7 @@ export class ValidationError extends AppError {
 }
 
 export class AuthenticationError extends AppError {
-  constructor(message: string = 'Authentication failed', context?: Record<string, any>) {
+  constructor(message: string = 'Authentication failed', context?: Record<string, unknown>) {
     super(
       message,
       HTTP_STATUS.UNAUTHORIZED,
@@ -58,7 +58,7 @@ export class AuthenticationError extends AppError {
 }
 
 export class AuthorizationError extends AppError {
-  constructor(message: string = 'Access denied', context?: Record<string, any>) {
+  constructor(message: string = 'Access denied', context?: Record<string, unknown>) {
     super(
       message,
       HTTP_STATUS.FORBIDDEN,
@@ -70,7 +70,7 @@ export class AuthorizationError extends AppError {
 }
 
 export class NotFoundError extends AppError {
-  constructor(resource: string, context?: Record<string, any>) {
+  constructor(resource: string, context?: Record<string, unknown>) {
     super(
       `${resource} not found`,
       HTTP_STATUS.NOT_FOUND,
@@ -82,7 +82,7 @@ export class NotFoundError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(
       message,
       HTTP_STATUS.CONFLICT,
@@ -94,7 +94,7 @@ export class ConflictError extends AppError {
 }
 
 export class BusinessRuleError extends AppError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(
       message,
       HTTP_STATUS.BAD_REQUEST,
@@ -106,10 +106,16 @@ export class BusinessRuleError extends AppError {
 }
 
 export class DatabaseError extends AppError {
-  constructor(message: string, context?: Record<string, any>) {
+  constructor(message: string, context?: Record<string, unknown>) {
     // Allow optional exposure of original diagnostic if explicitly provided via context flags
-    const exposeOriginal = context?.diagnostic?.original && context?.diagnostic?.allowExposeOriginal;
-    const publicMessage = exposeOriginal ? `Database operation failed: ${context?.diagnostic?.original}` : 'Database operation failed';
+    let exposeOriginal = false;
+    let originalValue = '';
+    if (context && typeof context === 'object' && 'diagnostic' in context) {
+      const diagnostic = (context as { diagnostic?: { original?: string; allowExposeOriginal?: boolean } }).diagnostic;
+      exposeOriginal = !!diagnostic?.original && !!diagnostic?.allowExposeOriginal;
+      originalValue = diagnostic?.original ?? '';
+    }
+    const publicMessage = exposeOriginal ? `Database operation failed: ${originalValue}` : 'Database operation failed';
     super(
       publicMessage,
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
@@ -121,7 +127,7 @@ export class DatabaseError extends AppError {
 }
 
 export class ExternalServiceError extends AppError {
-  constructor(service: string, message: string, context?: Record<string, any>) {
+  constructor(service: string, message: string, context?: Record<string, unknown>) {
     super(
       `External service error: ${service}`,
       HTTP_STATUS.SERVICE_UNAVAILABLE,
@@ -140,7 +146,7 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+  details?: unknown;
     timestamp: string;
     requestId?: string;
     stack?: string;
@@ -152,7 +158,7 @@ export interface ErrorResponse {
  */
 export interface ValidationErrorDetails {
   field: string;
-  value: any;
+  value: unknown;
   message: string;
   code: string;
 }
@@ -162,11 +168,11 @@ export interface ValidationErrorDetails {
  */
 export class ErrorHandler {
   private isDevelopment: boolean;
-  private logger: any;
+  private logger: { warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
 
-  constructor(isDevelopment: boolean = false, logger?: any) {
+  constructor(isDevelopment: boolean = false, logger: { warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void } = console) {
     this.isDevelopment = isDevelopment;
-    this.logger = logger || console;
+    this.logger = logger;
   }
 
   /**
@@ -176,7 +182,7 @@ export class ErrorHandler {
     let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
     let errorCode = ERROR_CODES.INTERNAL_ERROR;
     let message = 'Internal server error';
-    let details: any = undefined;
+  let details: unknown = undefined;
 
     // Log the error
     this.logError(error, requestId);
@@ -190,12 +196,16 @@ export class ErrorHandler {
       statusCode = HTTP_STATUS.BAD_REQUEST;
       errorCode = ERROR_CODES.VALIDATION_ERROR;
       message = 'Validation failed';
-      details = this.formatSequelizeValidationError(error as any);
+      if (typeof error === 'object' && error !== null && 'errors' in error) {
+        details = this.formatSequelizeValidationError(error as { errors: Array<{ path: string; value: unknown; message: string; validatorKey?: string }> });
+      }
     } else if (error.name === 'SequelizeUniqueConstraintError') {
       statusCode = HTTP_STATUS.CONFLICT;
       errorCode = ERROR_CODES.DUPLICATE_ENTRY;
       message = 'Duplicate entry';
-      details = this.formatSequelizeUniqueError(error as any);
+      if (typeof error === 'object' && error !== null && 'fields' in error && 'value' in error) {
+        details = this.formatSequelizeUniqueError(error as { fields: Record<string, unknown>; value: unknown });
+      }
     } else if (error.name === 'SequelizeForeignKeyConstraintError') {
       statusCode = HTTP_STATUS.BAD_REQUEST;
       errorCode = ERROR_CODES.BUSINESS_RULE_VIOLATION;
@@ -233,7 +243,7 @@ export class ErrorHandler {
    * Log error with context
    */
   private logError(error: Error, requestId?: string): void {
-    const logContext = {
+    const logContext: Record<string, unknown> = {
       name: error.name,
       message: error.message,
       stack: error.stack,
@@ -242,9 +252,9 @@ export class ErrorHandler {
     };
 
     if (error instanceof AppError) {
-      (logContext as any).statusCode = error.statusCode;
-      (logContext as any).errorCode = error.errorCode;
-      (logContext as any).context = error.context;
+      logContext.statusCode = error.statusCode;
+      logContext.errorCode = error.errorCode;
+      logContext.context = error.context;
     }
 
     if (error instanceof AppError && error.statusCode < 500) {
@@ -257,8 +267,8 @@ export class ErrorHandler {
   /**
    * Format Sequelize validation errors
    */
-  private formatSequelizeValidationError(error: any): ValidationErrorDetails[] {
-    return error.errors.map((err: any) => ({
+  private formatSequelizeValidationError(error: { errors: Array<{ path: string; value: unknown; message: string; validatorKey?: string }> }): ValidationErrorDetails[] {
+    return error.errors.map((err) => ({
       field: err.path,
       value: err.value,
       message: err.message,
@@ -269,7 +279,7 @@ export class ErrorHandler {
   /**
    * Format Sequelize unique constraint errors
    */
-  private formatSequelizeUniqueError(error: any): any {
+  private formatSequelizeUniqueError(error: { fields: Record<string, unknown>; value: unknown }): { fields: Record<string, unknown>; value: unknown; message: string } {
     return {
       fields: error.fields,
       value: error.value,
@@ -320,13 +330,13 @@ export function CatchErrors(
   errorHandler?: (error: Error) => void
 ) {
   return function (
-    target: any,
+    target: unknown,
     propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const method = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (...args: unknown[]) {
       try {
         return await method.apply(this, args);
       } catch (error) {
@@ -343,10 +353,15 @@ export function CatchErrors(
  * Async Error Wrapper
  */
 export function asyncHandler(
-  fn: (...args: any[]) => Promise<any>
+  fn: (...args: unknown[]) => Promise<unknown>
 ) {
-  return (...args: any[]) => {
-    return Promise.resolve(fn(...args)).catch(args[args.length - 1]);
+  return (...args: unknown[]) => {
+    const next = args[args.length - 1];
+    return Promise.resolve(fn(...args)).catch((err) => {
+      if (typeof next === 'function') {
+        next(err);
+      }
+    });
   };
 }
 
@@ -387,10 +402,12 @@ export class ErrorUtils {
   /**
    * Extract error message safely
    */
-  static extractMessage(error: any): string {
+  static extractMessage(error: unknown): string {
     if (typeof error === 'string') return error;
     if (error instanceof Error) return error.message;
-    if (error && typeof error.message === 'string') return error.message;
+    if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+      return (error as { message: string }).message;
+    }
     return 'Unknown error occurred';
   }
 
@@ -424,8 +441,8 @@ export class ErrorUtils {
   /**
    * Sanitize error for client response
    */
-  static sanitizeErrorForClient(error: Error, includeStack: boolean = false): any {
-    const sanitized: any = {
+  static sanitizeErrorForClient(error: Error, includeStack: boolean = false): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {
       name: error.name,
       message: error.message
     };
@@ -482,7 +499,7 @@ export class ErrorFactory {
   /**
    * Create conflict error
    */
-  static conflict(message: string, context?: Record<string, any>): ConflictError {
+  static conflict(message: string, context?: Record<string, unknown>): ConflictError {
     return new ConflictError(message, context);
   }
 

@@ -49,7 +49,7 @@ export const StatusSchema = z.object({
 /**
  * Generic validation helper that can be used in any controller
  */
-export const validateSchema = <T>(schema: z.ZodSchema<T>, data: any): { success: boolean; data?: T; errors?: any } => {
+export const validateSchema = <T>(schema: z.ZodSchema<T>, data: unknown): { success: boolean; data?: T; errors?: unknown } => {
   try {
     const result = schema.safeParse(data);
     if (result.success) {
@@ -65,9 +65,9 @@ export const validateSchema = <T>(schema: z.ZodSchema<T>, data: any): { success:
 /**
  * Validate array of items against a schema
  */
-export const validateArray = <T>(schema: z.ZodSchema<T>, items: any[]): { success: boolean; data?: T[]; errors?: any[] } => {
+export const validateArray = <T>(schema: z.ZodSchema<T>, items: unknown[]): { success: boolean; data?: T[]; errors?: Array<{ index: number; errors: unknown }> } => {
   const results: T[] = [];
-  const errors: any[] = [];
+  const errors: Array<{ index: number; errors: unknown }> = [];
   
   for (let i = 0; i < items.length; i++) {
     const validation = validateSchema(schema, items[i]);
@@ -99,7 +99,13 @@ export const validatePhone = (phone: string): boolean => {
 };
 
 
-export const validateQuantity = (quantity: any): boolean => {
-  const parsed = parseInt(quantity, 10);
-  return !isNaN(parsed) && parsed > 0;
+export const validateQuantity = (quantity: unknown): boolean => {
+  if (typeof quantity === 'number') {
+    return Number.isInteger(quantity) && quantity > 0;
+  }
+  if (typeof quantity === 'string') {
+    const parsed = parseInt(quantity, 10);
+    return !isNaN(parsed) && parsed > 0;
+  }
+  return false;
 };

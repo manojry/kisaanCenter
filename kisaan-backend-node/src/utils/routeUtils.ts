@@ -37,12 +37,12 @@ export const DateUtils = {
   /**
    * Parse date range from query parameters with defaults
    */
-  parseDateRange(query: any): { startDate: Date; endDate: Date } {
+  parseDateRange(query: Record<string, string | undefined>): { startDate: Date; endDate: Date } {
     let { from_date, to_date, startDate, endDate } = query;
     
     // Support both frontend (from_date/to_date) and backend (startDate/endDate) params
-    let filterStart: string = from_date || startDate;
-    let filterEnd: string = to_date || endDate;
+  let filterStart: string = from_date ?? startDate ?? '';
+  let filterEnd: string = to_date ?? endDate ?? '';
 
     // Default to today if no dates provided
     if (!filterStart || !filterEnd) {
@@ -65,8 +65,11 @@ export const AuthUtils = {
   /**
    * Get user context filters based on role
    */
-  getUserFilters(user: any, overrides: any = {}): any {
-    const filters: any = { ...overrides };
+  getUserFilters(
+    user: { role?: string; shop_id?: number; id?: number },
+    overrides: Record<string, unknown> = {}
+  ): Record<string, unknown> {
+    const filters: Record<string, unknown> = { ...overrides };
 
     // Apply role-based filtering
     if (user?.role === 'owner' && user?.shop_id && !filters.shopId) {
@@ -85,7 +88,7 @@ export const AuthUtils = {
   /**
    * Validate required context for operations
    */
-  validateContext(filters: any, requiredFields: string[]): string | null {
+  validateContext(filters: Record<string, unknown>, requiredFields: string[]): string | null {
     for (const field of requiredFields) {
       if (!filters[field]) {
         return `Missing required ${field}`;
@@ -102,7 +105,7 @@ export const ResponseUtils = {
   /**
    * Standard success response
    */
-  success(res: Response, data: any, message?: string, meta?: any): void {
+  success<T>(res: Response, data: T, message?: string, meta?: Record<string, unknown>): void {
     res.json({
       success: true,
       message,
@@ -114,7 +117,7 @@ export const ResponseUtils = {
   /**
    * Standard error response
    */
-  error(res: Response, message: string, statusCode: number = 400, details?: any): void {
+  error(res: Response, message: string, statusCode: number = 400, details?: unknown): void {
     res.status(statusCode).json({
       success: false,
       message,
@@ -126,7 +129,7 @@ export const ResponseUtils = {
   /**
    * Validation error response
    */
-  validationError(res: Response, errors: any): void {
+  validationError(res: Response, errors: unknown): void {
     res.status(400).json({
       success: false,
       message: 'Validation failed',
@@ -138,7 +141,7 @@ export const ResponseUtils = {
   /**
    * Paginated response
    */
-  paginated(res: Response, data: any[], total: number, page: number, limit: number): void {
+  paginated<T>(res: Response, data: T[], total: number, page: number, limit: number): void {
     res.json({
       success: true,
       data,
@@ -184,11 +187,11 @@ export const ServiceUtils = {
   /**
    * Dynamic service instantiation
    */
-  getService(serviceName: string): any {
+  getService<T = unknown>(serviceName: string): T {
     try {
       const ServiceClass = require(`../services/${serviceName}Service`)[`${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)}Service`];
       return new ServiceClass();
-    } catch (error: any) {
+  } catch (error: unknown) {
       logger.error({ err: error, serviceName }, 'failed to instantiate service');
       throw new Error(`Service ${serviceName} not found`);
     }
@@ -202,7 +205,9 @@ export const ControllerUtils = {
   /**
    * Standard controller method wrapper with error handling
    */
-  asyncHandler(fn: Function) {
+  asyncHandler(
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown> | void
+  ) {
     return (req: Request, res: Response, next: NextFunction) => {
       Promise.resolve(fn(req, res, next)).catch(next);
     };
@@ -240,9 +245,9 @@ export class RouteFactory {
   /**
    * Create standard CRUD routes for a resource
    */
-  static createCrudRoutes(resourceName: string, controllerClass: any) {
+  static createCrudRoutes(resourceName: string, controllerClass: new () => unknown) {
     const router = require('express').Router();
-    const controller = new controllerClass();
+    const controller = new controllerClass() as any;
 
     // GET /resource - List all
     router.get('/', ControllerUtils.asyncHandler(
@@ -275,9 +280,9 @@ export class RouteFactory {
   /**
    * Create analytics routes for a resource
    */
-  static createAnalyticsRoutes(resourceName: string, controllerClass: any) {
+  static createAnalyticsRoutes(resourceName: string, controllerClass: new () => unknown) {
     const router = require('express').Router();
-    const controller = new controllerClass();
+    const controller = new controllerClass() as any;
 
     router.get('/analytics', ControllerUtils.asyncHandler(
       controller.getAnalytics?.bind(controller)

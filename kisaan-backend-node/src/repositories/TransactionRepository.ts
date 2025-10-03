@@ -1,5 +1,6 @@
 import { BaseRepository } from './BaseRepository';
 import { Transaction } from '../models/transaction';
+import type { Payment } from '../models/payment';
 import { Op } from 'sequelize';
 import { TransactionEntity } from '../entities/TransactionEntity';
 
@@ -35,7 +36,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     orderBy?: string;
     orderDir?: 'ASC' | 'DESC';
   }): Promise<{ rows: TransactionEntity[]; count: number }> {
-    const where: any = {};
+  const where: Record<string, unknown> = {};
     if (params.shopId) where.shop_id = params.shopId;
     if (params.farmerId) where.farmer_id = params.farmerId;
     if (params.buyerId) where.buyer_id = params.buyerId;
@@ -95,10 +96,9 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     });
     
     // Convert to entities with all related data already loaded
-    const rowsWithPayments = rows.map((m: Transaction) => {
+    const rowsWithPayments = rows.map((m: Transaction & { payments?: Payment[] }) => {
       const entity = this.toDomainEntity(m);
-      // Payments are already loaded via JOIN
-      entity.payments = (m as any).payments?.map((p: any) => ({
+      entity.payments = m.payments?.map((p: Payment) => ({
         id: p.id,
         amount: Number(p.amount),
         method: p.method,
@@ -121,21 +121,21 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
       shop_id: model.shop_id,
       farmer_id: model.farmer_id,
       buyer_id: model.buyer_id,
-      product_id: (model as any).product_id,
+      product_id: model.product_id ?? undefined,
       category_id: model.category_id,
       product_name: model.product_name,
       quantity: Number(model.quantity),
       unit_price: Number(model.unit_price),
       farmer_earning: Number(model.farmer_earning),
-        total_amount: Number(model.total_amount),
-        commission_amount: Number(model.commission_amount),
-      commission_rate: (model as any).commission_rate !== undefined ? Number((model as any).commission_rate) : undefined,
-      commission_type: (model as any).commission_type,
-      status: (model as any).status,
-      transaction_date: (model as any).transaction_date,
-      settlement_date: (model as any).settlement_date,
-      notes: (model as any).notes,
-      metadata: (model as any).metadata,
+      total_amount: Number(model.total_amount),
+      commission_amount: Number(model.commission_amount),
+      commission_rate: model.commission_rate !== undefined && model.commission_rate !== null ? Number(model.commission_rate) : undefined,
+      commission_type: model.commission_type ?? undefined,
+  status: (model.status as TransactionEntity['status']) ?? undefined,
+      transaction_date: model.transaction_date ?? undefined,
+      settlement_date: model.settlement_date ?? undefined,
+      notes: model.notes ?? undefined,
+      metadata: model.metadata ?? undefined,
       created_at: model.created_at,
       updated_at: model.updated_at
     });
@@ -144,7 +144,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
   /**
    * Convert domain entity to database model data
    */
-  protected toModelData(entity: Partial<TransactionEntity>): any {
+  protected toModelData(entity: Partial<TransactionEntity>): Record<string, unknown> {
     return {
       shop_id: entity.shop_id,
       farmer_id: entity.farmer_id,
@@ -154,9 +154,9 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
       product_name: entity.product_name,
       quantity: entity.quantity,
       unit_price: entity.unit_price,
-  total_amount: entity.total_amount,
+      total_amount: entity.total_amount,
       commission_rate: entity.commission_rate,
-  commission_amount: entity.commission_amount,
+      commission_amount: entity.commission_amount,
       farmer_earning: entity.farmer_earning,
       status: entity.status,
       transaction_date: entity.transaction_date,

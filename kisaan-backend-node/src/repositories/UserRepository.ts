@@ -18,28 +18,28 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
       username: model.username,
       password: model.password,
       email: model.email,
-      role: model.role as any,
+  role: model.role,
       shop_id: model.shop_id,
       balance: model.balance,
       created_at: model.createdAt,
       updated_at: model.updatedAt,
       created_by: model.created_by,
-      custom_commission_rate: (model as any).custom_commission_rate ?? null
+  custom_commission_rate: model.custom_commission_rate ?? null
     });
   }
 
   /**
    * Convert domain entity to database model data
    */
-  protected toModelData(entity: Partial<UserEntity>): any {
+  protected toModelData(entity: Partial<UserEntity>): Record<string, unknown> {
     return {
       username: entity.username,
       email: entity.email,
       role: entity.role,
       shop_id: entity.shop_id,
       balance: entity.balance,
-      created_by: entity.created_by
-      ,custom_commission_rate: (entity as any).custom_commission_rate
+      created_by: entity.created_by,
+      custom_commission_rate: entity.custom_commission_rate
     };
   }
 
@@ -80,7 +80,7 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
    * Check if username exists
    */
   async usernameExists(username: string, excludeId?: number): Promise<boolean> {
-    const where: any = { username };
+  const where: Record<string, unknown> = { username };
     if (excludeId) {
       where.id = { [require('sequelize').Op.ne]: excludeId };
     }

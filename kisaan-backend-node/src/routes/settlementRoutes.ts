@@ -26,8 +26,9 @@ router.post('/repay-fifo', authenticateToken, async (req, res) => {
     const { applyRepaymentFIFO } = require('../services/settlementService');
     const result = await applyRepaymentFIFO(parseInt(shop_id), parseInt(user_id), parseFloat(amount));
     success(res, result);
-  } catch (error: any) {
-    failure(res, 500, 'FIFO_REPAY_FAILED', { error: error.message });
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failure(res, 500, 'FIFO_REPAY_FAILED', { error: message });
   }
 });
 
@@ -52,8 +53,9 @@ router.get('/', authenticateToken, async (req, res) => {
       to_date: expandedToDate
     });
     success(res, settlements);
-  } catch (error: any) {
-    failure(res, 500, 'GET_SETTLEMENTS_FAILED', { error: error.message });
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : String(error);
+    failure(res, 500, 'GET_SETTLEMENTS_FAILED', { error: message });
   }
 });
 

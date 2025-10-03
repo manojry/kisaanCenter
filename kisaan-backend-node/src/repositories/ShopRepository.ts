@@ -13,17 +13,24 @@ export class ShopRepository extends BaseRepository<Shop, ShopEntity> {
    * Convert database model to domain entity
    */
   protected toDomainEntity(model: Shop): ShopEntity {
+    // If Shop type does not have these fields, extend the type or use type assertion
+    const shopWithExtras = model as Shop & {
+      location?: string | null;
+      email?: string | null;
+      commission_rate?: number | string | null;
+      settings?: unknown;
+    };
     return new ShopEntity({
       id: model.id,
       name: model.name,
       owner_id: model.owner_id,
       plan_id: model.plan_id,
-      location: (model as any).location ?? null,
+      location: shopWithExtras.location ?? undefined,
       address: model.address,
       contact: model.contact,
-      email: (model as any).email ?? null,
-      commission_rate: (model as any).commission_rate ? Number((model as any).commission_rate) : 0,
-      settings: (model as any).settings ?? null,
+      email: shopWithExtras.email ?? undefined,
+      commission_rate: shopWithExtras.commission_rate ? Number(shopWithExtras.commission_rate) : 0,
+      settings: shopWithExtras.settings ?? undefined,
       status: model.status,
     });
   }
@@ -31,7 +38,7 @@ export class ShopRepository extends BaseRepository<Shop, ShopEntity> {
   /**
    * Convert domain entity to database model data
    */
-  protected toModelData(entity: Partial<ShopEntity>): any {
+  protected toModelData(entity: Partial<ShopEntity>): Record<string, unknown> {
     return {
       name: entity.name,
       owner_id: entity.owner_id,

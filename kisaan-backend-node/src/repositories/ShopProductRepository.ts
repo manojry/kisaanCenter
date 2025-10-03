@@ -18,7 +18,7 @@ export class ShopProductRepository extends BaseRepository<ShopProducts, ShopProd
     return { ...model.get() } as ShopProductEntity;
   }
 
-  protected toModelData(entity: ShopProductEntity): any {
+  protected toModelData(entity: ShopProductEntity): Record<string, unknown> {
     return { ...entity };
   }
 
