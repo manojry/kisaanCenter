@@ -34,22 +34,22 @@ class ApiClient {
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
 
-  constructor(config: typeof API_CONFIG) {
+  constructor(apiConfig: typeof API_CONFIG) {
     // Sanitize baseURL to avoid malformed placeholders injected at runtime
-    let base = config.baseURL || '';
+    let base = apiConfig.baseURL || '';
     try {
-      // If base contains angle-bracket placeholders or is obviously invalid, fallback to relative path
-      if (typeof base === 'string' && (base.includes('<') || base.includes('>') || /^\s*$/.test(base))) {
-        console.warn('[apiClient] Invalid API base URL detected, falling back to relative URLs:', base);
-        base = '';
+            // If base contains angle-bracket placeholders or is obviously invalid, fallback to configured or known backend URL
+            if (typeof base === 'string' && (base.includes('<') || base.includes('>') || /^\s*$/.test(base))) {
+              console.warn('[apiClient] Invalid API base URL detected, falling back to configured backend URL or default public backend:', base);
+              base = config?.apiBaseUrl || 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
       }
     } catch (e) {
       // On any unexpected error, fallback to safe relative URLs
-      console.warn('[apiClient] Error validating API base URL, falling back to relative URLs', e);
-      base = '';
+            console.warn('[apiClient] Error validating API base URL, falling back to known backend URL', e);
+            base = config?.apiBaseUrl || 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
     }
-    this.baseURL = base;
-    this.timeout = config.timeout;
+  this.baseURL = base;
+  this.timeout = apiConfig.timeout;
     
     // Add default request interceptor for auth
     this.addRequestInterceptor(this.addAuthHeader.bind(this));
