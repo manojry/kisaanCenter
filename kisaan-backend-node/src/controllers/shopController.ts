@@ -52,18 +52,25 @@ export class ShopController {
       return created(res, shop, { message: 'Shop created successfully' });
     } catch (error: unknown) {
       // Attach diagnostic context if DatabaseError provided it
+      type ErrorWithContext = { context?: { diagnostic?: unknown } | unknown; message?: string; status?: number };
       let details: unknown = undefined;
       let message: string | undefined = undefined;
       let status: number | undefined = undefined;
-      if (typeof error === 'object' && error) {
-        if ('context' in error) {
-          details = (error as any).context?.diagnostic || (error as any).context || undefined;
+      if (typeof error === 'object' && error !== null) {
+        const e = error as ErrorWithContext;
+        if (e.context) {
+          // prefer structured diagnostic if present
+          if (typeof e.context === 'object' && e.context !== null && 'diagnostic' in (e.context as any)) {
+            details = (e.context as { diagnostic?: unknown }).diagnostic;
+          } else {
+            details = e.context;
+          }
         }
-        if ('message' in error) {
-          message = (error as { message?: string }).message;
+        if ('message' in e) {
+          message = e.message;
         }
-        if ('status' in error) {
-          status = (error as { status?: number }).status;
+        if ('status' in e) {
+          status = e.status;
         }
       }
       req.log?.error({ err: error, diagnostic: details }, 'shop:create failed');

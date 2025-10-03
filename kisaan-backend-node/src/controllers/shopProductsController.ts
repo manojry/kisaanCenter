@@ -6,6 +6,22 @@ import { success, failureCode, created } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { parseId } from '../shared/utils/parse';
 // Assign a product to a shop
+interface SequelizeOriginalError {
+  code?: string;
+  constraint?: string;
+  [key: string]: unknown;
+}
+
+interface SequelizeErrorLike extends Error {
+  original?: SequelizeOriginalError;
+  status?: number;
+  [key: string]: unknown;
+}
+
+function hasOriginal(err: unknown): err is SequelizeErrorLike {
+  return typeof err === 'object' && err !== null && 'original' in err && typeof (err as any).original === 'object';
+}
+
 export const assignProductToShop = async (req: Request, res: Response) => {
   try {
     // Authorization is handled by requireShopAccess middleware
@@ -33,9 +49,9 @@ export const assignProductToShop = async (req: Request, res: Response) => {
     // Translate FK violations if they somehow still occur
     let pgCode: string | undefined = undefined;
     let constraint: string | undefined = undefined;
-    if (typeof error === 'object' && error && 'original' in error && typeof (error as any).original === 'object') {
-      pgCode = (error as any).original?.code;
-      constraint = (error as any).original?.constraint;
+    if (hasOriginal(error)) {
+      pgCode = error.original?.code;
+      constraint = error.original?.constraint;
     }
     if (pgCode === '23503') {
       if (constraint && /product_id/i.test(constraint)) {

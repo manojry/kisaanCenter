@@ -184,12 +184,34 @@ class ReportController {
           buyer?: { username: string };
           farmer?: { username: string };
         };
-        const rawTransactions = await Transaction.findAll({ where: txnWhere, raw: true });
-        // Map to TransactionRow[] and ensure created_at is string
-  const transactions: TransactionRow[] = (Array.isArray(rawTransactions) ? rawTransactions : ([] as unknown[])).map((t: any) => ({
-          ...t,
-          created_at: typeof t.created_at === 'string' ? t.created_at : (t.created_at instanceof Date ? t.created_at.toISOString() : String(t.created_at)),
-        }));
+        const rawTransactions = await Transaction.findAll({ where: txnWhere, raw: true }) as unknown[];
+        // Map unknown raw rows to TransactionRow[] and ensure created_at is string
+        const normalizeTransaction = (t: unknown): TransactionRow => {
+          const obj = (t as Record<string, unknown>) || {};
+          const createdRaw = obj.created_at;
+          const created_at = typeof createdRaw === 'string'
+            ? createdRaw
+            : (createdRaw instanceof Date ? createdRaw.toISOString() : String(createdRaw ?? ''));
+          return {
+            id: Number(obj.id || 0),
+            buyer_id: Number(obj.buyer_id || 0),
+            farmer_id: Number(obj.farmer_id || 0),
+            product_name: String(obj.product_name || ''),
+            quantity: obj.quantity ?? 0,
+            unit_price: obj.unit_price ?? 0,
+            total_amount: obj.total_amount ?? 0,
+            commission_amount: obj.commission_amount,
+            farmer_earning: obj.farmer_earning,
+            buyer_paid: obj.buyer_paid,
+            farmer_paid: obj.farmer_paid,
+            deficit: obj.deficit,
+            farmer_due: obj.farmer_due,
+            created_at,
+            buyer: obj.buyer as { username: string } | undefined,
+            farmer: obj.farmer as { username: string } | undefined,
+          } as TransactionRow;
+        };
+        const transactions: TransactionRow[] = rawTransactions.map(normalizeTransaction);
         const buyerIds = [...new Set(transactions.map((t) => t.buyer_id))];
         const farmerIds = [...new Set(transactions.map((t) => t.farmer_id))];
         type UserRow = { id: number; username: string };
