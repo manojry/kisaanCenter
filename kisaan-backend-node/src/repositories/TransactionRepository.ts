@@ -55,11 +55,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     if (startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())) {
       where.transaction_date = { [Op.between]: [startDate, endDate] };
     }
-    console.log('[TransactionRepository] Parsed date range:', {
-      startDate: params.startDate,
-      endDate: params.endDate
-    });
-    console.log('[TransactionRepository] Query filter:', JSON.stringify(where));
+    // ...existing code...
     const limit = params.limit ?? 50;
     const offset = params.offset ?? 0;
     const allowedOrder = new Set(['transaction_date','created_at','total_amount','farmer_earning']);

@@ -212,15 +212,7 @@ export class TransactionService {
         throw new BusinessRuleError('Farmer and buyer cannot be the same user');
       }
 
-      // Authorization check - Debug info
-      console.log('[DEBUG] Authorization check:', {
-        requestingUserRole: requestingUser?.role,
-        requestingUserId: requestingUser?.id,
-        shopOwnerId: shop.owner_id,
-        shopId: shop.id,
-        farmerShopId: farmer.shop_id,
-        farmerId: farmer.id
-      });
+      // Authorization check
       
       // Fix type comparison issues by converting to numbers
       if (requestingUser?.role === USER_ROLES.OWNER && Number(shop.owner_id) !== Number(requestingUser.id)) {
