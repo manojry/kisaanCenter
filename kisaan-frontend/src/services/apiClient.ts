@@ -109,7 +109,29 @@ class ApiClient {
         if (response.status === 401) {
           toastService.authError(config?.errorMessage || 'Authentication required');
         } else if (response.status === 403) {
-          toastService.permissionError(config?.errorMessage || 'Access denied');
+          // Check for token expiration in error message/code
+          const expiredOrInvalid =
+            (typeof data === 'object' &&
+              (
+                data?.message?.toLowerCase().includes('token expired') ||
+                data?.message?.toLowerCase().includes('jwt expired') ||
+                data?.error?.toLowerCase().includes('token expired') ||
+                data?.error?.toLowerCase().includes('jwt expired') ||
+                data?.message?.toLowerCase().includes('invalid token') ||
+                data?.error?.toLowerCase().includes('invalid token')
+              )
+            );
+          if (expiredOrInvalid) {
+            // Clear session and redirect to login
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('token');
+            toastService.authError('Session expired or invalid token, please log in again.');
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 1500);
+          } else {
+            toastService.permissionError(config?.errorMessage || 'Access denied');
+          }
         } else if (response.status >= 500) {
           toastService.networkError(config?.errorMessage || 'Server error occurred');
         } else {

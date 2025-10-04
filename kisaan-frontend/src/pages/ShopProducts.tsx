@@ -46,12 +46,10 @@ const ShopProducts: React.FC = () => {
   const { user } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  // Cache products by category id
-  const productsCache = useRef<{ [categoryId: number]: Product[] }>({});
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
-  const [selectedShop, setSelectedShop] = useState<number>(0);
-  const [selectedCategory, setSelectedCategory] = useState<number>(0);
+  const [selectedShop, setSelectedShop] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
@@ -77,23 +75,16 @@ const ShopProducts: React.FC = () => {
     }
   }, [selectedShop]);
 
-  // Only fetch products for a category once per session, use cache if available
+  // Fetch available products for the selected shop
   useEffect(() => {
-    if (selectedCategory) {
-      if (productsCache.current[selectedCategory]) {
-        setProducts(productsCache.current[selectedCategory]);
-      } else {
-        fetchProducts().then((fetched) => {
-          if (fetched) {
-            productsCache.current[selectedCategory] = fetched;
-            setProducts(fetched);
-          }
-        });
-      }
+    if (selectedShop) {
+      shopProductsApi.getAvailableProducts(Number(selectedShop)).then((products) => {
+        setAvailableProducts(products || []);
+      });
     } else {
-      setProducts([]);
+      setAvailableProducts([]);
     }
-  }, [selectedCategory]);
+  }, [selectedShop]);
 
   const fetchShops = async () => {
     try {
@@ -113,21 +104,12 @@ const ShopProducts: React.FC = () => {
     }
   };
 
-  // fetchProducts returns the products array for caching
-  const fetchProducts = async (): Promise<Product[] | undefined> => {
-    try {
-      const productsData = await shopProductsApi.getProducts(selectedCategory);
-      return productsData;
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    }
-    return undefined;
-  };
+
 
   const fetchShopProducts = async () => {
     setIsLoading(true);
     try {
-      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop);
+      const shopProductsData = await shopProductsApi.getShopProducts(Number(selectedShop));
       setShopProducts(shopProductsData);
     } catch (error) {
       console.error('Error fetching shop products:', error);
@@ -139,15 +121,15 @@ const ShopProducts: React.FC = () => {
   const handleAssignProducts = async () => {
     if (!selectedShop || selectedProducts.length === 0) return;
     try {
+      const shopIdNum = Number(selectedShop);
       const promises = selectedProducts.map(productId =>
-        shopProductsApi.assignProduct(selectedShop, productId)
+        shopProductsApi.assignProduct(shopIdNum, productId)
       );
       await Promise.all(promises);
       fetchShopProducts();
       setShowAssignForm(false);
       setSelectedProducts([]);
-      setSelectedCategory(0);
-      setProducts([]);
+      setSelectedCategory("");
     } catch (error) {
       console.error('Error assigning products:', error);
     }
@@ -156,7 +138,7 @@ const ShopProducts: React.FC = () => {
   const handleRemoveProduct = async (productId: number) => {
     if (!confirm('Are you sure you want to remove this product from the shop?')) return;
     try {
-      await shopProductsApi.removeProduct(selectedShop, productId);
+      await shopProductsApi.removeProduct(Number(selectedShop), productId);
       fetchShopProducts();
     } catch (error) {
       console.error('Error removing product:', error);
@@ -165,7 +147,7 @@ const ShopProducts: React.FC = () => {
 
   const handleToggleProductStatus = async (productId: number, isActive: boolean) => {
     try {
-      await shopProductsApi.toggleProductStatus(selectedShop, productId, isActive);
+      await shopProductsApi.toggleProductStatus(Number(selectedShop), productId, isActive);
       fetchShopProducts();
     } catch (error) {
       console.error('Error toggling product status:', error);
@@ -193,7 +175,14 @@ const ShopProducts: React.FC = () => {
           </p>
           {user?.role === 'superadmin' && (
             <p className="text-sm text-blue-600 mt-1">
-              💡 To create new products, go to <strong>Products Management</strong> page
+              💡 To create new products, go to{' '}
+              <a
+                href="/superadmin/products"
+                className="underline text-blue-700 hover:text-blue-900 font-semibold"
+              >
+                Products Management
+              </a>{' '}
+              page
             </p>
           )}
         </div>
@@ -207,7 +196,7 @@ const ShopProducts: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Select value={selectedShop ? selectedShop.toString() : ""} onValueChange={(value) => setSelectedShop(parseInt(value))}>
+          <Select value={selectedShop} onValueChange={setSelectedShop}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder={user?.role === 'superadmin' ? "Select a shop to manage products" : "Select your shop"} />
             </SelectTrigger>
@@ -225,7 +214,7 @@ const ShopProducts: React.FC = () => {
         </CardContent>
       </Card>
 
-      {selectedShop > 0 && (
+  {selectedShop && (
         <>
           {/* Actions */}
           <div className="flex justify-between items-center">
@@ -259,7 +248,7 @@ const ShopProducts: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Select Category</Label>
-                      <Select value={selectedCategory ? selectedCategory.toString() : ""} onValueChange={(value) => setSelectedCategory(parseInt(value))}>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
@@ -273,38 +262,50 @@ const ShopProducts: React.FC = () => {
                       </Select>
                     </div>
 
-                    {products.length > 0 && (
-                      <div>
-                        <Label>Select Products</Label>
-                        <div className="max-h-60 overflow-y-auto border rounded-md p-4 space-y-2">
-                          {products
-                            .filter(product => !shopProducts.some(sp => sp.product_id === product.id))
-                            .map(product => (
-                              <div key={product.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`product-${product.id}`}
-                                  checked={selectedProducts.includes(product.id)}
-                                  onCheckedChange={(checked: boolean) => {
-                                    if (checked) {
-                                      setSelectedProducts(prev => [...prev, product.id]);
-                                    } else {
-                                      setSelectedProducts(prev => prev.filter(id => id !== product.id));
-                                    }
-                                  }}
-                                />
-                                <Label htmlFor={`product-${product.id}`} className="flex-1">
-                                  {product.name}
-                                </Label>
+                    {selectedCategory ? (
+                      (() => {
+                        const filteredProducts = availableProducts.filter(
+                          (product) => String(product.category_id) === selectedCategory
+                        );
+                        if (filteredProducts.length > 0) {
+                          return (
+                            <div>
+                              <Label>Select Products</Label>
+                              <div className="max-h-60 overflow-y-auto border rounded-md p-4 space-y-2">
+                                {filteredProducts.map((product) => (
+                                  <div key={product.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`product-${product.id}`}
+                                      checked={selectedProducts.includes(product.id)}
+                                      onCheckedChange={(checked: boolean) => {
+                                        if (checked) {
+                                          setSelectedProducts((prev) => [...prev, product.id]);
+                                        } else {
+                                          setSelectedProducts((prev) => prev.filter((id) => id !== product.id));
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`product-${product.id}`} className="flex-1">
+                                      {product.name}
+                                    </Label>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="text-gray-500 text-sm py-4">No assignable products in this category.</div>
+                          );
+                        }
+                      })()
+                    ) : null}
 
                     <div className="flex gap-2">
                       <Button 
                         onClick={handleAssignProducts} 
                         disabled={selectedProducts.length === 0}
+
                         className="flex-1"
                       >
                         Assign Selected Products

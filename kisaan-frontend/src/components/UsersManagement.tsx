@@ -73,6 +73,16 @@ export default function UsersManagement({ shopId, onRefresh }: UsersManagementPr
               </CardDescription>
             </div>
             <div className="flex gap-2 items-center xs:ml-auto">
+              {/* Responsive Refresh Button */}
+              <Button onClick={refreshUsers} size="sm" variant="outline" className="px-2 py-1 text-xs xs:text-sm" style={{ minWidth: 0 }}>
+                <span className="hidden xs:inline-flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 xs:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
+                  Refresh
+                </span>
+                <span className="inline-flex xs:hidden items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
+                </span>
+              </Button>
               <Button onClick={() => setShowAddUser(true)} size="sm" className="px-2 py-1 text-xs xs:text-sm bg-green-600 hover:bg-green-700" style={{ minWidth: 0 }}>
                 <Plus className="h-4 w-4 mr-1 xs:mr-2" />
                 <span className="hidden xs:inline">Add User</span>

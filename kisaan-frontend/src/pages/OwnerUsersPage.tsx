@@ -121,9 +121,14 @@ const OwnerUsersPage: React.FC = () => {
             className="px-2 py-1 text-xs sm:text-sm"
             style={{ minWidth: 0 }}
           >
-            <RefreshCw className={`w-4 h-4 mr-1 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden xs:inline">Refresh</span>
-            <span className="inline xs:hidden">↻</span>
+            {/* Desktop: icon + text; Mobile: icon only */}
+            <span className="hidden xs:inline-flex items-center">
+              <RefreshCw className={`w-4 h-4 mr-1 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </span>
+            <span className="inline-flex xs:hidden items-center">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </span>
           </Button>
           <Button onClick={() => setShowCreateForm(true)} className="px-2 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700" size="sm" style={{ minWidth: 0 }}>
             <Plus className="w-4 h-4 mr-1 sm:mr-2" />

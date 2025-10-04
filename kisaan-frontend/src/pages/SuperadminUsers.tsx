@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Eye, Edit, Trash2, RefreshCw, Key, Phone, Mail, Building, Wallet } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, RefreshCw, Key, Phone, AtSign, Wallet, Building } from 'lucide-react';
 import { usersApi } from '../services/api';
 import type { User } from '../types/api';
 import { UserForm } from '../components/owner/UserForm';
@@ -13,8 +14,15 @@ import { useAuth } from '../context/AuthContext';
 import { useIsMobile, useIsSmallMobile } from '../hooks/useMediaQuery';
 
 const SuperadminUsers: React.FC = () => {
+  const [expandedOwners, setExpandedOwners] = useState<{ [shopId: string]: boolean }>({});
+  const toggleOwner = (shopId: number | string | undefined) => {
+    const key = shopId !== undefined ? String(shopId) : 'unknown';
+    setExpandedOwners(prev => ({ ...prev, [key]: !prev[key] }));
+  };
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [owners, setOwners] = useState<User[]>([]);
+  const [usersByOwner, setUsersByOwner] = useState<{ [shopId: string]: User[] }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -29,6 +37,7 @@ const SuperadminUsers: React.FC = () => {
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
 
+
   useEffect(() => {
     fetchUsers();
   }, [filters]);
@@ -39,11 +48,9 @@ const SuperadminUsers: React.FC = () => {
       const params: any = { limit: 100 };
       if (filters.role) params.role = filters.role;
       if (filters.status) params.status = filters.status;
-      
       const response = await usersApi.getAll(params);
       if (response.data) {
         let filteredUsers = response.data;
-        
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           filteredUsers = filteredUsers.filter(u => 
@@ -52,8 +59,17 @@ const SuperadminUsers: React.FC = () => {
             (u.email && u.email.toLowerCase().includes(searchLower))
           );
         }
-        
         setUsers(filteredUsers);
+        // Group by owner
+        const owners = filteredUsers.filter(u => u.role === 'owner' && u.shop_id);
+        setOwners(owners);
+        // Group users by owner (shop_id as string key)
+  const byOwner: { [shopId: string]: User[] } = {};
+        owners.forEach(owner => {
+          const key = owner.shop_id !== undefined ? String(owner.shop_id) : 'unknown';
+          byOwner[key] = filteredUsers.filter(u => u.shop_id === owner.shop_id && u.role !== 'owner');
+        });
+        setUsersByOwner(byOwner);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -203,11 +219,12 @@ const SuperadminUsers: React.FC = () => {
   }
 
   return (
+
     <div className={`${isMobile ? 'p-4' : 'p-6'} space-y-4 sm:space-y-6`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+          <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-2xl' : 'text-3xl'}`}> 
             Users Management
           </h1>
           <p className="text-gray-600 text-sm sm:text-base">Manage all platform users</p>
@@ -220,8 +237,14 @@ const SuperadminUsers: React.FC = () => {
             disabled={isLoading}
             className="flex-1 sm:flex-none"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            {!isSmallMobile && "Refresh"}
+            {/* Desktop: icon + text; Mobile: icon only */}
+            <span className="hidden sm:inline-flex items-center">
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </span>
+            <span className="inline-flex sm:hidden items-center">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </span>
           </Button>
           <Button 
             onClick={() => setShowCreateForm(true)}
@@ -234,9 +257,99 @@ const SuperadminUsers: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Card Layout - Hidden on md and larger screens */}
+      <div className="block md:hidden space-y-4">
+        {users.map((user) => (
+          <Card key={user.id} className="overflow-hidden border-l-4 border-l-blue-500 shadow-sm bg-white w-full max-w-full">
+            <CardContent className="p-4 w-full max-w-full">
+              {/* Header with user info and status */}
+              <div className="flex items-start justify-between mb-4 w-full max-w-full">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-xl truncate text-gray-900 w-full max-w-full">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</h3>
+                  <p className="text-xs text-gray-500 font-mono mt-1 truncate w-full max-w-full">ID #{user.id}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 ml-3 flex-shrink-0">
+                  <Badge className={`${getRoleColor(user.role)} text-xs px-2 py-0.5 rounded`}>{user.role}</Badge>
+                  <Badge className={`${getStatusColor(user.status)} text-xs px-2 py-0.5 rounded`}>{user.status}</Badge>
+                </div>
+              </div>
+              <div className="border-t border-gray-100 my-2"></div>
+              {/* Contact info with icons */}
+              <div className="space-y-2 mb-4 w-full max-w-full">
+                {user.contact && (
+                  <div className="flex items-center gap-2 text-base w-full max-w-full">
+                    <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium break-all w-full max-w-full">{user.contact}</span>
+                  </div>
+                )}
+                {user.email && (
+                  <div className="flex items-center gap-2 text-base w-full max-w-full">
+                    <AtSign className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium break-all truncate w-full max-w-[140px]">{user.email}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-base w-full max-w-full">
+                  <Wallet className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="font-medium">{formatCurrency(user.balance)}</span>
+                </div>
+                {user.shop_id && (
+                  <div className="flex items-center gap-2 text-base w-full max-w-full">
+                    <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium">Shop #{user.shop_id}</span>
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-gray-100 my-2"></div>
+              {/* Action buttons - stacked for mobile */}
+              <div className="grid grid-cols-2 gap-2 pt-2 w-full max-w-full">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full text-xs py-2"
+                  title="View Details"
+                >
+                  <Eye className="w-4 h-4" />
+                  {!isSmallMobile && <span className="ml-1">View</span>}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setEditingUser(user)}
+                  className="w-full text-xs py-2"
+                  title="Edit User"
+                >
+                  <Edit className="w-4 h-4" />
+                  {!isSmallMobile && <span className="ml-1">Edit</span>}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowPasswordReset(user)}
+                  className="w-full text-xs py-2 text-blue-600 hover:text-blue-700"
+                  title="Reset Password"
+                >
+                  <Key className="w-4 h-4" />
+                  {!isSmallMobile && <span className="ml-1">Reset</span>}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => handleDeleteUser(user.id)}
+                  className="w-full text-xs py-2 text-red-600 hover:text-red-700"
+                  title="Delete User"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {!isSmallMobile && <span className="ml-1">Delete</span>}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {/* Filters */}
-      <Card>
-        <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}>
+      <Card className="hidden md:block">
+        <CardContent className={`${isMobile ? 'p-3' : 'p-4'}`}> 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -287,8 +400,8 @@ const SuperadminUsers: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Users Table */}
-      <Card>
+  {/* Users Tree Table */}
+  <Card className="hidden md:block">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Users ({users.length})</span>
@@ -296,178 +409,119 @@ const SuperadminUsers: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {users.length === 0 ? (
+          {owners.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No users found</p>
+              <p className="text-gray-500 text-lg">No owners found</p>
             </div>
           ) : (
-            <>
-              {/* Mobile Card Layout - Hidden on md and larger screens */}
-              <div className="block md:hidden space-y-3">
-                {users.map((user) => (
-                  <Card key={user.id} className="overflow-hidden border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      {/* Header with user info and status */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg truncate">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</h3>
-                          <p className="text-sm text-gray-500">ID #{user.id}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 ml-3">
-                          <Badge className={`${getRoleColor(user.role)} text-xs`}>
-                            {user.role}
-                          </Badge>
-                          <Badge className={`${getStatusColor(user.status)} text-xs`}>
-                            {user.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      {/* Contact info with icons */}
-                      <div className="space-y-2 mb-4">
-                        {user.contact && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="font-medium">{user.contact}</span>
-                          </div>
-                        )}
-                        {user.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="font-medium truncate">{user.email}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-sm">
-                          <Wallet className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <span className="font-medium">{formatCurrency(user.balance)}</span>
-                        </div>
-                        {user.shop_id && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Building className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <span className="font-medium">Shop #{user.shop_id}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Action buttons - larger for mobile */}
-                      <div className="flex gap-2 pt-3 border-t border-gray-100">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="flex-1 text-xs"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                          {!isSmallMobile && <span className="ml-1">View</span>}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setEditingUser(user)}
-                          className="flex-1 text-xs"
-                          title="Edit User"
-                        >
-                          <Edit className="w-4 h-4" />
-                          {!isSmallMobile && <span className="ml-1">Edit</span>}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setShowPasswordReset(user)}
-                          className="flex-1 text-xs text-blue-600 hover:text-blue-700"
-                          title="Reset Password"
-                        >
-                          <Key className="w-4 h-4" />
-                          {!isSmallMobile && <span className="ml-1">Reset</span>}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="flex-1 text-xs text-red-600 hover:text-red-700"
-                          title="Delete User"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          {!isSmallMobile && <span className="ml-1">Delete</span>}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Desktop Table Layout - Hidden on smaller screens */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Shop ID</TableHead>
-                      <TableHead>Balance</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>#{user.id}</TableCell>
-                        <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Shop ID</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {owners.map((owner) => {
+                  const shopKey = owner.shop_id !== undefined ? String(owner.shop_id) : 'unknown';
+                  const users = usersByOwner[shopKey] || [];
+                  return (
+                    <React.Fragment key={owner.id}>
+                      <TableRow className="bg-orange-50 group">
                         <TableCell>
-                          <Badge className={getRoleColor(user.role)}>
-                            {user.role}
-                          </Badge>
+                          <div className="flex items-center gap-3">
+                            {users.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleOwner(shopKey)}
+                                className="rounded-full bg-white border border-orange-300 shadow-sm p-1.5 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all"
+                                aria-label={expandedOwners[shopKey] ? 'Collapse users' : 'Expand users'}
+                                tabIndex={0}
+                              >
+                                {expandedOwners[shopKey] ? (
+                                  <ChevronDown className="w-6 h-6 text-orange-500" />
+                                ) : (
+                                  <ChevronRight className="w-6 h-6 text-orange-500" />
+                                )}
+                              </button>
+                            ) : null}
+                            <span className="font-mono text-base">#{owner.id}</span>
+                          </div>
                         </TableCell>
-                        <TableCell>{user.contact || '-'}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
-                        <TableCell>{user.shop_id ? `#${user.shop_id}` : '-'}</TableCell>
-                        <TableCell>{formatCurrency(user.balance)}</TableCell>
+                        <TableCell className="font-bold">{owner.firstname && owner.firstname.trim() ? owner.firstname : owner.username}</TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(user.status)}>
-                            {user.status}
-                          </Badge>
+                          <Badge className={getRoleColor(owner.role)}>{owner.role}</Badge>
+                        </TableCell>
+                        <TableCell>{owner.contact || '-'}</TableCell>
+                        <TableCell>{owner.email || '-'}</TableCell>
+                        <TableCell>{owner.shop_id ? `#${owner.shop_id}` : '-'}</TableCell>
+                        <TableCell>{formatCurrency(owner.balance)}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(owner.status)}>{owner.status}</Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); }}>
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setEditingUser(user)}
-                            >
+                            <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setEditingUser(owner); }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setShowPasswordReset(user)}
-                              className="text-blue-600 hover:text-blue-700"
-                              title="Reset Password"
-                            >
+                            <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setShowPasswordReset(owner); }} className="text-blue-600 hover:text-blue-700" title="Reset Password">
                               <Key className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
+                            <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); handleDeleteUser(owner.id); }} className="text-red-600 hover:text-red-700">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+                      {/* Render users under this owner if expanded */}
+                      {expandedOwners[shopKey] && users.length > 0 &&
+                        users.map((user: typeof owners[number]) => (
+                          <TableRow key={user.id} className="bg-white border-l-4 border-l-orange-300">
+                            <TableCell>#{user.id}</TableCell>
+                            <TableCell className="pl-8">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
+                            <TableCell>
+                              <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                            </TableCell>
+                            <TableCell>{user.contact || '-'}</TableCell>
+                            <TableCell>{user.email || '-'}</TableCell>
+                            <TableCell>{user.shop_id ? `#${user.shop_id}` : '-'}</TableCell>
+                            <TableCell>{formatCurrency(user.balance)}</TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingUser(user)}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setShowPasswordReset(user)} className="text-blue-600 hover:text-blue-700" title="Reset Password">
+                                  <Key className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-700">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

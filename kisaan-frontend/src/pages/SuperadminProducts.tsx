@@ -26,7 +26,7 @@ interface Product {
 interface Category {
   id: number;
   name: string;
-  status: 'active' | 'inactive';
+  status?: 'active' | 'inactive';
 }
 
 const SuperadminProducts: React.FC = () => {
@@ -142,7 +142,7 @@ const SuperadminProducts: React.FC = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Product Name xx</Label>
+                  <Label htmlFor="name">Product Name</Label>
                   <Input
                     id="name"
                     value={formData.name}
