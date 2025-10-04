@@ -33,22 +33,32 @@ class ApiClient {
   private timeout: number;
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
+  private usedFallbackBase: boolean = false;
 
   constructor(apiConfig: typeof API_CONFIG) {
     // Sanitize baseURL to avoid malformed placeholders injected at runtime
     let base = apiConfig.baseURL || '';
+    const DEFAULT_BASE = 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
     try {
-            // If base contains angle-bracket placeholders or is obviously invalid, fallback to configured or known backend URL
-            if (typeof base === 'string' && (base.includes('<') || base.includes('>') || /^\s*$/.test(base))) {
-              console.warn('[apiClient] Invalid API base URL detected, falling back to configured backend URL or default public backend:', base);
-              base = config?.apiBaseUrl || 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
+      // If base is missing, empty, or contains angle-bracket placeholders, use a safe fallback.
+      // Also avoid silently re-using a placeholder value from config.apiBaseUrl — ensure it's validated.
+      const isInvalid = typeof base !== 'string' || /^\s*$/.test(base) || base.includes('<') || base.includes('>');
+      if (isInvalid) {
+        console.warn('[apiClient] Invalid or placeholder API base URL detected, selecting fallback:', base);
+        // Prefer a validated config.apiBaseUrl if it is well-formed, otherwise use the DEFAULT_BASE
+        const candidate = (typeof config?.apiBaseUrl === 'string' && !/^\s*$/.test(config.apiBaseUrl) && !config.apiBaseUrl.includes('<') && !config.apiBaseUrl.includes('>'))
+          ? config.apiBaseUrl
+          : DEFAULT_BASE;
+        base = candidate;
       }
     } catch (e) {
-      // On any unexpected error, fallback to safe relative URLs
-            console.warn('[apiClient] Error validating API base URL, falling back to known backend URL', e);
-            base = config?.apiBaseUrl || 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
+      // On any unexpected error, fallback to the DEFAULT_BASE
+      console.warn('[apiClient] Error validating API base URL, falling back to default backend URL', e);
+      base = DEFAULT_BASE;
     }
   this.baseURL = base;
+  // Mark whether we had to use a fallback value so the UI can detect misconfiguration
+  this.usedFallbackBase = base === DEFAULT_BASE || (typeof config?.apiBaseUrl === 'string' && (config.apiBaseUrl.includes('<') || config.apiBaseUrl.includes('>')) && base === DEFAULT_BASE);
   this.timeout = apiConfig.timeout;
     
     // Add default request interceptor for auth
@@ -234,6 +244,9 @@ export const apiClient = new ApiClient(API_CONFIG);
 
 // Expose sanitized base URL for services that need to build full URLs
 export const getSanitizedApiBase = (): string => apiClient['baseURL'] || '';
+
+// Allow runtime detection of whether a fallback base was used (useful to show admin message)
+export const isUsingFallbackApiBase = (): boolean => !!apiClient['usedFallbackBase'];
 
 // Export types for use in services
 export type { RequestConfig, RequestInterceptor, ResponseInterceptor };
