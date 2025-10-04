@@ -1,4 +1,6 @@
 import { BaseRepository } from './BaseRepository';
+// Import models index to ensure all models and associations are initialized
+import '../models';
 import { User } from '../models/user';
 import { ModelStatic } from 'sequelize';
 import { UserEntity } from '../entities/UserEntity';
@@ -7,8 +9,13 @@ import { UserEntity } from '../entities/UserEntity';
  * User Repository Implementation
  */
 export class UserRepository extends BaseRepository<User, UserEntity> {
-  protected model: ModelStatic<User> = User;
+  protected model: ModelStatic<User>;
   protected entityName = 'User';
+
+  constructor() {
+    super();
+    this.model = User;
+  }
 
   /**
    * Convert database model to domain entity

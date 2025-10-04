@@ -1,3 +1,5 @@
+// Force execution of transaction model for registration side effects
+import './models/transaction';
 import express from 'express';
 import { ErrorHandler } from './shared/utils/errors';
 import dotenv from 'dotenv';

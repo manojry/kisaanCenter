@@ -51,7 +51,7 @@ PaymentAllocation.init(
   },
   {
     sequelize,
-    tableName: 'payment_allocations',
+  tableName: 'kisaan_payment_allocations',
     timestamps: true,
     underscored: true,
   }

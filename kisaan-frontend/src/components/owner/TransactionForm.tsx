@@ -84,6 +84,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     }
   }, []);
 
+  // Auto-select category if only one is available
+  useEffect(() => {
+    if (categories.length === 1 && formData.category_id !== categories[0].id) {
+      setFormData(prev => ({ ...prev, category_id: categories[0].id }));
+    }
+  }, [categories, formData.category_id]);
+
   useEffect(() => {
     calculateAmounts();
   }, [formData.quantity, formData.unit_price, commissionRate]);

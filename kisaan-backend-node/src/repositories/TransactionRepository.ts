@@ -1,4 +1,6 @@
 import { BaseRepository } from './BaseRepository';
+// Import models index to ensure all models and associations are initialized
+import '../models';
 import { Transaction } from '../models/transaction';
 import { ModelStatic } from 'sequelize';
 import type { Payment } from '../models/payment';
@@ -9,6 +11,14 @@ import { TransactionEntity } from '../entities/TransactionEntity';
  * Transaction Repository Implementation
  */
 export class TransactionRepository extends BaseRepository<Transaction, TransactionEntity> {
+  protected model: ModelStatic<Transaction>;
+  protected entityName = 'Transaction';
+
+  constructor() {
+    super();
+    this.model = Transaction;
+  }
+
   /**
    * Find transactions by date range
    */
@@ -23,8 +33,6 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     });
     return models.map((model) => this.toDomainEntity(model));
   }
-  protected model: ModelStatic<Transaction> = Transaction;
-  protected entityName = 'Transaction';
 
   async findByFilters(params: {
     shopId?: number;

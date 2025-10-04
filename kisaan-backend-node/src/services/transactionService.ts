@@ -212,9 +212,24 @@ export class TransactionService {
         throw new BusinessRuleError('Farmer and buyer cannot be the same user');
       }
 
-      // Authorization check
-      if (requestingUser?.role === USER_ROLES.OWNER && shop.owner_id !== requestingUser.id) {
+      // Authorization check - Debug info
+      console.log('[DEBUG] Authorization check:', {
+        requestingUserRole: requestingUser?.role,
+        requestingUserId: requestingUser?.id,
+        shopOwnerId: shop.owner_id,
+        shopId: shop.id,
+        farmerShopId: farmer.shop_id,
+        farmerId: farmer.id
+      });
+      
+      // Fix type comparison issues by converting to numbers
+      if (requestingUser?.role === USER_ROLES.OWNER && Number(shop.owner_id) !== Number(requestingUser.id)) {
         throw new AuthorizationError('Cannot create transaction for another owner\'s shop');
+      }
+      
+      // Allow farmers to create transactions only for the shop they belong to
+      if (requestingUser?.role === USER_ROLES.FARMER && Number(farmer.shop_id) !== Number(shop.id)) {
+        throw new AuthorizationError('Cannot create transaction for a shop you do not belong to');
       }
       // Product resolution leveraging existing assignments
       const { productId: resolvedProductId } = await this.resolveProductIdAndName({

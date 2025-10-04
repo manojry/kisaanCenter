@@ -23,12 +23,8 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
     const data = this.toModelData(entity);
     const createOpts: { transaction?: Transaction } = {};
     if (options?.tx) createOpts.transaction = options.tx as Transaction;
-    // The sequelize ModelStatic create signature is model-specific and its
-    // generics make a clean typing here noisy. We perform a narrow cast to
-    // a safer unknown-typed function via unknown to call it while keeping the rest of
-    // the repository strongly typed.
-    const createFn = this.model.create as unknown as (values: unknown, options?: unknown) => Promise<TModel>;
-    const result = await createFn(data as unknown, createOpts as unknown);
+    
+    const result = await this.model.create(data as any, createOpts);
     return this.toDomainEntity(result);
   }
 
@@ -36,10 +32,8 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
     const data = this.toModelData(entity);
     const updateOpts: { where: { id: number }; returning: boolean; transaction?: Transaction } = { where: { id }, returning: true };
     if (options?.tx) updateOpts.transaction = options.tx as Transaction;
-  // Similar narrow cast for update: call through an unknown-typed function to
-  // avoid fighting Sequelize's complex generics at every repository.
-  const updateFn = this.model.update as unknown as (values: unknown, options?: unknown) => Promise<[number, TModel[]]>;
-  const [count, rows] = await updateFn(data as unknown, updateOpts as unknown);
+    
+    const [count, rows] = await (this.model.update as any)(data, updateOpts);
     if (count > 0 && rows[0]) {
       return this.toDomainEntity(rows[0]);
     }
@@ -47,8 +41,7 @@ export abstract class BaseRepository<TModel extends Model, TEntity> {
   }
 
   async delete(id: number): Promise<boolean> {
-  const destroyFn = this.model.destroy as unknown as (options?: unknown) => Promise<number>;
-  const count = await destroyFn({ where: { id } } as unknown);
+    const count = await (this.model.destroy as any)({ where: { id } });
     return count > 0;
   }
 }

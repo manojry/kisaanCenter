@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Loader2, UserPlus } from 'lucide-react';
-import { usersApi } from '../../services/api';
+import { usersApi, shopsApi } from '../../services/api';
+import axios from 'axios';
 import type { UserCreate, User } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { toastService } from '../../services/toastService';
@@ -23,19 +24,56 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
   const { user: currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<UserCreate>({
-    role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
-    shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
-    contact: editUser?.contact || '',
-    cumulative_value: editUser?.cumulative_value || 0,
-    firstname: editUser?.firstname || '',
-    password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
-    status: editUser?.status || 'active',
-    email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
-    username: editUser?.username || '',
-    balance: editUser?.balance || 0,
-    commission_rate: editUser?.commission_rate || undefined
-  });
+    const [formData, setFormData] = useState<UserCreate & { status?: 'active' | 'inactive' }>({
+      role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
+      shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
+      contact: editUser?.contact || '',
+      firstname: editUser?.firstname || '',
+      password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
+      email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
+      username: editUser?.username || '',
+      balance: editUser?.balance || 0,
+      custom_commission_rate: editUser?.custom_commission_rate || undefined,
+      status: editUser?.status || 'active',
+    });
+
+  // Set commission rate logic for new user creation
+  useEffect(() => {
+    // Only run for new user creation, not editing
+    if (!editUser && formData.shop_id && (formData.custom_commission_rate === undefined || formData.custom_commission_rate === null)) {
+      let isMounted = true;
+      const fetchCommission = async () => {
+        if (!formData.shop_id) return;
+        if (formData.role === 'farmer') {
+          // Try to fetch commission from commissions table
+          try {
+            const res = await axios.get(`/api/commissions?shop_id=${formData.shop_id}`);
+            if (isMounted && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+              const commission = res.data.data[0];
+              if (commission && commission.rate) {
+                setFormData(prev => ({ ...prev, custom_commission_rate: Number(commission.rate) }));
+                return;
+              }
+            }
+          } catch (err) {
+            // ignore error, fallback to shop
+          }
+        }
+        // Fallback to shop commission_rate
+        try {
+          if (!formData.shop_id) return;
+          const resp = await shopsApi.getById(formData.shop_id);
+          if (isMounted && resp && resp.data && typeof resp.data.commission_rate === 'number') {
+            setFormData(prev => ({ ...prev, custom_commission_rate: resp.data.commission_rate }));
+          }
+        } catch (err) {
+          // ignore error
+        }
+      };
+      fetchCommission();
+      return () => { isMounted = false; };
+    }
+  }, [editUser, formData.role, formData.shop_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     // Validate contact (if provided)
@@ -77,28 +115,28 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         const updateData: UserCreate = {
           ...formData,
           role: formData.role,
-          status: editUser.status,
           password: formData.password,
           email: formData.email
         };
         response = await usersApi.update(editUser.id, updateData);
       } else {
         // Create new user
-        let createData: UserCreate = {
+        let createData: UserCreate & { status?: 'active' | 'inactive' } = {
           ...formData,
           // Handle defaults based on current user role
           password: currentUser?.role === 'superadmin' ? formData.password : 'kisaan@123',
           email: currentUser?.role === 'superadmin' ? formData.email : 'contact@kisaancenter.com',
-          status: formData.status || 'active',
           balance: formData.balance || 0,
           shop_id: formData.role === 'owner' ? formData.shop_id : (currentUser?.shop_id || undefined)
         };
-        
+        // Only include status if superadmin
+        if (currentUser?.role !== 'superadmin') {
+          delete createData.status;
+        }
         // Remove empty username to let backend auto-generate
         if (!createData.username || createData.username.trim() === '') {
           delete createData.username;
         }
-        
         response = await usersApi.create(createData);
       }
       if (response.success && response.data) {
@@ -314,18 +352,18 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
           {/* Commission Rate - For farmers and buyers */}
           {(formData.role === 'farmer' || formData.role === 'buyer') && (
             <div className="space-y-2">
-              <Label htmlFor="commission_rate">Commission Rate (%)</Label>
+              <Label htmlFor="custom_commission_rate">Commission Rate (%)</Label>
               <Input
-                id="commission_rate"
+                id="custom_commission_rate"
                 type="number"
                 step="0.1"
                 min="0"
                 max="100"
-                value={formData.commission_rate || ''}
+                value={formData.custom_commission_rate || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setFormData(prev => ({ 
                     ...prev, 
-                    commission_rate: e.target.value ? Number(e.target.value) : undefined 
+                    custom_commission_rate: e.target.value ? Number(e.target.value) : undefined 
                   }));
                 }}
                 placeholder="e.g., 10"
@@ -336,6 +374,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             </div>
           )}
 
+          {/* Status - Only for superadmin */}
           {/* Status - Only for superadmin */}
           {currentUser?.role === 'superadmin' && (
             <div className="space-y-2">

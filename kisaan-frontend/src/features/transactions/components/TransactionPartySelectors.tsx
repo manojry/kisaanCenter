@@ -26,7 +26,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
       <div className="mb-2">
-  <Label>Farmer * <Badge userType="FARMER" className="ml-1 align-middle" /></Label>
+        <Label>Farmer * <Badge userType="FARMER" className="ml-1 align-middle" /></Label>
         <Select
           options={farmers.map(f => ({ value: f.id, label: `${f.firstname || f.username} (${f.id})` }))}
           value={values.farmer_id ? { value: values.farmer_id, label: `${farmers.find(f => f.id === values.farmer_id)?.firstname || farmers.find(f => f.id === values.farmer_id)?.username} (${values.farmer_id})` } : null}
@@ -38,7 +38,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         {errors.farmer_id && <p className="text-sm text-red-500">{errors.farmer_id}</p>}
       </div>
       <div className="mb-2">
-  <Label>Buyer * <Badge userType="BUYER" className="ml-1 align-middle" /></Label>
+        <Label>Buyer * <Badge userType="BUYER" className="ml-1 align-middle" /></Label>
         <Select
           options={buyers.map(b => ({ value: b.id, label: `${b.firstname || b.username} (${b.id})` }))}
           value={values.buyer_id ? { value: values.buyer_id, label: `${buyers.find(b => b.id === values.buyer_id)?.firstname || buyers.find(b => b.id === values.buyer_id)?.username} (${values.buyer_id})` } : null}
@@ -50,7 +50,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         {errors.buyer_id && <p className="text-sm text-red-500">{errors.buyer_id}</p>}
       </div>
       <div className="space-y-2">
-        <Label>Category *</Label>
+        <Label>Category * <span className="text-xs text-gray-500">(Shop category)</span></Label>
         <select
           value={values.category_id}
           onChange={e => onChange({ category_id: parseInt(e.target.value) })}
