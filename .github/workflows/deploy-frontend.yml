@@ -2,7 +2,7 @@ name: Deploy Frontend to GitHub Pages
 
 on:
   workflow_dispatch:
-  push:
+  push: 
     branches: [ main ]
     paths:
       - 'kisaan-frontend/**'
@@ -141,5 +141,5 @@ jobs:
         echo "=============================="
         echo "✅ Site URL: $SITE_URL"
         echo "✅ Custom Domain: https://kisaancenter.com"
-        echo "✅ Backend API: $BACKEND"
-        echo "✅ Commit SHA: $COMMIT"
+        echo "✅ Backend API: ${{ secrets.VITE_API_BASE_URL }}"
+        echo "✅ Commit SHA: ${{ github.sha }}"
