@@ -1,6 +1,29 @@
 // Environment configuration
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  
+  // Check for invalid/placeholder values
+  if (!envUrl || 
+      envUrl.includes('<') || 
+      envUrl.includes('>') || 
+      envUrl === 'null' || 
+      envUrl === 'undefined' ||
+      /^\s*$/.test(envUrl)) {
+    
+    // In production, use the known Azure backend URL
+    if (import.meta.env.PROD) {
+      return 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
+    }
+    
+    // In development, use localhost
+    return 'http://localhost:8000/api';
+  }
+  
+  return envUrl;
+};
+
 export const config = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  apiBaseUrl: getApiBaseUrl(),
   environment: import.meta.env.VITE_ENVIRONMENT || 'production',
   isDevelopment: import.meta.env.DEV,
   isProduction: import.meta.env.PROD,
