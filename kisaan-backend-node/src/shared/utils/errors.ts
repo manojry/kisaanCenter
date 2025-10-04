@@ -179,7 +179,7 @@ export class ErrorHandler {
    * Handle and format error for API response
    */
   handleError(error: Error, requestId?: string): ErrorResponse {
-  let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  let _statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
     let errorCode = ERROR_CODES.INTERNAL_ERROR;
     let message = 'Internal server error';
     let details: unknown = undefined;
@@ -187,12 +187,12 @@ export class ErrorHandler {
       this.logError(error, requestId);
 
     if (error instanceof AppError) {
-      statusCode = error.statusCode;
+      _statusCode = error.statusCode;
       errorCode = error.errorCode;
       message = error.message;
       details = error.context;
     } else if (error.name === 'SequelizeValidationError') {
-  statusCode = HTTP_STATUS.BAD_REQUEST;
+  _statusCode = HTTP_STATUS.BAD_REQUEST;
       errorCode = ERROR_CODES.VALIDATION_ERROR;
       message = 'Validation failed';
       if (typeof error === 'object' && error !== null && 'errors' in error) {
@@ -205,7 +205,7 @@ export class ErrorHandler {
         details = this.formatSequelizeUniqueError(error as { fields: Record<string, unknown>; value: unknown });
       }
     } else if (error.name === 'SequelizeForeignKeyConstraintError') {
-      statusCode = HTTP_STATUS.BAD_REQUEST;
+      _statusCode = HTTP_STATUS.BAD_REQUEST;
       errorCode = ERROR_CODES.BUSINESS_RULE_VIOLATION;
       message = 'Foreign key constraint violation';
     } else if (error.name === 'JsonWebTokenError') {
@@ -213,7 +213,7 @@ export class ErrorHandler {
       errorCode = ERROR_CODES.TOKEN_INVALID;
       message = 'Invalid token';
     } else if (error.name === 'TokenExpiredError') {
-      statusCode = HTTP_STATUS.UNAUTHORIZED;
+      _statusCode = HTTP_STATUS.UNAUTHORIZED;
       errorCode = ERROR_CODES.TOKEN_EXPIRED;
       message = 'Token expired';
     }

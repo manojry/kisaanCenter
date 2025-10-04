@@ -1,5 +1,4 @@
 import { UserRepository } from '../repositories/UserRepository';
-import { UserEntity } from '../entities/UserEntity';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { LoginInput } from '../schemas/auth';

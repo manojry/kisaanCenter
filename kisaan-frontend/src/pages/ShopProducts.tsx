@@ -37,6 +37,7 @@ interface ShopProduct {
   shop_id: number;
   product_id: number;
   product_name: string;
+  category?: { id?: number; name?: string };
   category_name: string;
   is_active: boolean;
 }
@@ -126,12 +127,7 @@ const ShopProducts: React.FC = () => {
   const fetchShopProducts = async () => {
     setIsLoading(true);
     try {
-      const categoriesWithDates = (categories as import("../types/api").Category[]).map(cat => ({
-        ...cat,
-        created_at: cat.created_at || '',
-        updated_at: cat.updated_at || ''
-      }));
-      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop, categoriesWithDates);
+      const shopProductsData = await shopProductsApi.getShopProducts(selectedShop);
       setShopProducts(shopProductsData);
     } catch (error) {
       console.error('Error fetching shop products:', error);

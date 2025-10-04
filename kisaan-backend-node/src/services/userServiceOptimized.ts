@@ -243,7 +243,7 @@ export const getUsersWithBalance = async (
  */
 export const createUserOptimized = async (
   userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>,
-  requestingUser: UserContext
+  _requestingUser: UserContext
 ): Promise<UserDTO> => {
   
   // Validation and user creation logic (existing logic)

@@ -43,8 +43,11 @@ export class TransactionController {
     try {
       req.log?.info('transaction:create attempt');
   const user = (req as Request & { user?: { id?: number; role?: string } }).user;
-  const userId = user?.id || 1;
-  const requestingUser = user ? { id: user.id, role: user.role } : { id: userId, role: 'superadmin' };
+  const userId = user?.id ?? 1;
+  // Ensure requestingUser always has concrete types (no undefined fields)
+  const requestingUser = user
+    ? { id: Number(user.id ?? userId), role: String(user.role ?? 'superadmin') }
+    : { id: userId, role: 'superadmin' };
       
       // Import PaymentService for payment creation
       const { PaymentService } = await import('../services/paymentService');

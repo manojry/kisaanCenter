@@ -36,10 +36,13 @@ router.post('/:id/admin-reset-password', adminResetPassword);
 
 // Set or clear custom commission rate for a farmer
 import type { Request } from 'express';
-router.patch('/:id/commission', async (req: Request, res) => {
+// Ensure Request type is widened to include optional `user` at runtime checks
+type ReqWithUser = Request & { user?: { id?: number; role?: string } };
+router.patch('/:id/commission', async (req: ReqWithUser, res) => {
 	try {
 		const targetId = Number(req.params.id);
 		if (!targetId) return res.status(400).json({ success: false, message: 'Invalid id' });
+		// runtime-safe user check (req.user may be undefined during some test setups)
 		if (!req.user || req.user.role !== 'superadmin') {
 			throw new AuthorizationError('Only superadmin can modify commission overrides');
 		}

@@ -197,6 +197,16 @@ class ApiClient {
     });
   }
 
+  async patch<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+    return this.request<T>({
+      showSuccessToast: true,
+      ...config,
+      url,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
   async delete<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
       showSuccessToast: true, // Default to show success toast for mutations

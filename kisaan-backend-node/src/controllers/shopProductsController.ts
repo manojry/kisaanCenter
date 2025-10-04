@@ -149,7 +149,7 @@ export const getShopProducts = async (req: Request, res: Response) => {
     const shopIdParam = req.params.id;
     const shopId = parseId(shopIdParam, 'shop id');
     const [results] = await sequelize.query(
-  `SELECT p.*, c.name as category_name 
+  `SELECT p.*, sp.is_active as is_active, c.name as category_name, json_build_object('id', c.id, 'name', c.name) as category
    FROM kisaan_products p
    INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
    LEFT JOIN kisaan_categories c ON p.category_id = c.id

@@ -64,7 +64,7 @@ export const shopProductsApi = {
     const products = resp.data || resp.products || [];
     return products.filter((p: any) => p.record_status === 'active');
   },
-  getShopProducts: async (shopId: number, categories: Category[]) => {
+  getShopProducts: async (shopId: number) => {
     const resp = await apiClient.get(SHOP_ENDPOINTS.PRODUCTS(shopId)) as any;
     const list = resp.products || resp.data || [];
     return list.map((p: any) => ({
@@ -72,8 +72,12 @@ export const shopProductsApi = {
       shop_id: shopId,
       product_id: p.id,
       product_name: p.name,
-      category_name: p.category_name || '',
-      is_active: p.record_status === 'active'
+      // Use structured category object when returned by backend, fall back to legacy category_name
+      category: p.category || (p.category_id ? { id: p.category_id, name: p.category_name || '' } : undefined),
+      category_name: (p.category && p.category.name) || p.category_name || '',
+      // Prefer mapping-level is_active when available (shop_products mapping),
+      // otherwise fall back to the product's record_status.
+      is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active')
     }));
   },
   getAvailableProducts: async (shopId: number) => {
@@ -93,7 +97,7 @@ export const shopProductsApi = {
   removeProduct: (shopId: number, productId: number) =>
     apiClient.delete(SHOP_ENDPOINTS.PRODUCT_ASSIGN(shopId, productId)),
     toggleProductStatus: (shopId: number, productId: number, isActive: boolean) =>
-      apiClient.put(SHOP_ENDPOINTS.PRODUCT_ASSIGN(shopId, productId), { is_active: !isActive })
+      apiClient.patch(SHOP_ENDPOINTS.PRODUCT_ASSIGN(shopId, productId), { is_active: !isActive })
 };
 // Balance Snapshots API
 export const balanceSnapshotsApi = {

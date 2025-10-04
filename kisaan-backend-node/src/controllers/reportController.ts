@@ -223,7 +223,7 @@ class ReportController {
         const payments = await Payment.findAll({ where: { transaction_id: txnIds, status: 'PAID' }, raw: true }) as PaymentRow[];
         const paidMap: Record<number, number> = {};
         payments.forEach((p) => { paidMap[p.transaction_id] = (paidMap[p.transaction_id] || 0) + Number(p.amount || 0); });
-        const rows = transactions.map((t) => ({
+        const _rows = transactions.map((t) => ({
           transaction_id: t.id,
           buyer: t.buyer?.username || userMap[t.buyer_id]?.username || t.buyer_id,
           farmer: t.farmer?.username || userMap[t.farmer_id]?.username || t.farmer_id,

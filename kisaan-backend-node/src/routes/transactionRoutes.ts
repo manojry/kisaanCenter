@@ -24,7 +24,8 @@ const paymentController = new PaymentController();
 // SMART: Use service for dashboard-friendly enriched transactions
 // Apply feature gating & retention: transactions.list controls access; retention clamps date range
 import type { Request } from 'express';
-router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), paginationParser, async (req: Request, res, next) => {
+type ReqWithUser = Request & { user?: { id?: number; role?: string; shop_id?: number | null } };
+router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), paginationParser, async (req: ReqWithUser, res, next) => {
   try {
   const { shop_id, farmer_id, buyer_id, startDate, endDate, from_date, to_date, order_by, order_dir } = req.query;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -70,14 +71,14 @@ router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.li
 });
 
 // Only superadmin, owner, or farmer can create transactions. Explicitly block buyer role.
-router.post('/', authenticateToken, (req: Request, res, next) => {
+router.post('/', authenticateToken, (req: ReqWithUser, res, next) => {
   if (req.user?.role === 'buyer') {
     return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { role: req.user.role }, 'Buyers are not allowed to create transactions');
   }
   next();
 }, validateSchema(CreateTransactionSchema), transactionController.createTransaction.bind(transactionController));
 // Quick transaction endpoint (assignment aware): payload { shop_id?, farmer_id, buyer_id, quantity, unit_price, product_id?, product_name?, category_id }
-router.post('/quick', authenticateToken, async (req: Request, res, next) => {
+router.post('/quick', authenticateToken, async (req: ReqWithUser, res, next) => {
   if (req.user?.role === 'buyer') {
     return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { role: req.user.role }, 'Buyers are not allowed to create transactions');
   }
@@ -110,7 +111,7 @@ router.post('/quick', authenticateToken, async (req: Request, res, next) => {
 });
 
 // Analytics requires transactions.analytics feature; also enforce retention window on date_from/date_to
-router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transactions.analytics'), enforceRetention('date_from','date_to'), async (req, res) => {
+router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transactions.analytics'), enforceRetention('date_from','date_to'), async (req: ReqWithUser, res) => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { sequelize } = require('../models/index');
@@ -214,7 +215,7 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
 
 // Specific routes must come before parameterized routes
 router.get('/shop/:shopId/list', transactionController.getTransactionsByShop.bind(transactionController));
-router.get('/farmer/:farmerId/list', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), async (req, res) => {
+router.get('/farmer/:farmerId/list', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), async (req: ReqWithUser, res) => {
   try {
     const { farmerId } = req.params;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -229,7 +230,7 @@ router.get('/farmer/:farmerId/list', authenticateToken, loadFeatures, requireFea
     failureCode(res, 500, ErrorCodes.FARMER_TXN_LIST_FAILURE, { error: message });
   }
 });
-router.get('/buyer/:buyerId/list', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), async (req, res) => {
+router.get('/buyer/:buyerId/list', authenticateToken, loadFeatures, requireFeature('transactions.list'), enforceRetention('from_date','to_date'), async (req: ReqWithUser, res) => {
   try {
     const { buyerId } = req.params;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
