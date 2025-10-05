@@ -1,3 +1,5 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
+import type { BalanceSnapshot } from '../types/api';
 import React, { useState, useEffect } from 'react';
 import { paymentsApi, balanceSnapshotsApi } from '../services/api';
 import { useUsers } from '../context/UsersContext';
@@ -34,16 +36,6 @@ const PaymentManagement: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  type BalanceSnapshot = {
-    id: number;
-    user_id: number;
-    balance: number;
-    created_at: string;
-    createdAt?: string;
-    previous_balance?: number | string;
-    amount_change?: number | string;
-    new_balance?: number | string;
-  };
   const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]); // TODO: Replace 'any' with actual snapshot type if available
   const [payments, setPayments] = useState<import('../types/api').Payment[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -101,7 +93,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment to ${selectedUser.firstname && selectedUser.firstname.trim() ? selectedUser.firstname : selectedUser.username}`,
+          notes: `Payment to ${getUserDisplayName(selectedUser)}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };
@@ -112,7 +104,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment from ${selectedUser.firstname && selectedUser.firstname.trim() ? selectedUser.firstname : selectedUser.username}`,
+          notes: `Payment from ${getUserDisplayName(selectedUser)}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };
@@ -171,7 +163,7 @@ const PaymentManagement: React.FC = () => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
-                  {(user.firstname ? user.firstname : user.username)} ({user.role}) - ₹{user.balance.toLocaleString()}
+                  {getUserDisplayName(user)} ({user.role}) - ₹{user.balance.toLocaleString()}
                 </SelectItem>
               ))}
             </SelectContent>

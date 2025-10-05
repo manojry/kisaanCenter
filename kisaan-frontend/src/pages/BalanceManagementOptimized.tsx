@@ -1,3 +1,5 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
+
 import React, { useState, useEffect } from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useShopUsers } from '../hooks/useShopData';
 import { balanceSnapshotsApi } from '../services/api';
 
-interface User {
-  id: string;
-  username: string;
-  role: 'farmer' | 'buyer';
-  balance: number;
-  contact?: string;
-  firstname?: string;
-}
+import type { User } from '../types/api';
 
 interface BalanceManagementProps {
   shopId: number;
@@ -49,14 +44,9 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   } = useShopUsers(shopId);
 
   // Filter users to only farmers and buyers with proper typing
-  // Convert backend User (id: number) to local User (id: string)
   const users = React.useMemo(() => {
-    return (allUsers as import('../types/api').User[])
-      .filter((u) => ['farmer', 'buyer'].includes(u.role))
-      .map((u) => ({
-        ...u,
-        id: String(u.id),
-      })) as User[];
+    return (allUsers as User[])
+      .filter((u) => ['farmer', 'buyer'].includes(u.role));
   }, [allUsers]);
 
   // Fetch balance snapshots for selected user
@@ -119,7 +109,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {
-              const user = users.find(u => String(u.id) === String(val));
+              const user = users.find(u => String(u.id) === val);
               setSelectedUser(user || null);
             }}
             disabled={usersLoading}
@@ -131,7 +121,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
                   <div className="flex items-center gap-2">
-                    <span>{user.firstname || user.username}</span>
+                    <span>{getUserDisplayName(user)}</span>
                     <Badge className={getRoleBadgeClass(user.role)}>
                       {user.role}
                     </Badge>
@@ -185,7 +175,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                       className={selectedUser?.id === user.id ? 'bg-blue-50' : ''}
                     >
                       <TableCell className="font-medium">
-                        {user.firstname || user.username}
+                        {getUserDisplayName(user)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getRoleBadgeClass(user.role)}>
@@ -230,7 +220,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
         <Card>
           <CardHeader>
             <CardTitle>
-              Balance History - {selectedUser.firstname || selectedUser.username}
+              Balance History - {getUserDisplayName(selectedUser)}
             </CardTitle>
           </CardHeader>
           <CardContent>

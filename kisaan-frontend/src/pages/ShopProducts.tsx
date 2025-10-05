@@ -1,3 +1,6 @@
+import type { ShopProduct } from '../types/api';
+// Extend shared ShopProduct type for local needs
+type LocalShopProduct = ShopProduct & { category_name: string; is_active: boolean };
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { shopProductsApi } from '../services/api';
@@ -20,34 +23,15 @@ interface Product {
   record_status: 'active' | 'inactive';
 }
 
-interface Category {
-  id: number;
-  name: string;
-  status: 'active' | 'inactive';
-}
+import type { Category, Shop } from '../types/api';
 
-interface Shop {
-  id: number;
-  name: string;
-  owner_id: number;
-}
-
-interface ShopProduct {
-  id: number;
-  shop_id: number;
-  product_id: number;
-  product_name: string;
-  category?: { id?: number; name?: string };
-  category_name: string;
-  is_active: boolean;
-}
 
 const ShopProducts: React.FC = () => {
   const { user } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
+  const [shopProducts, setShopProducts] = useState<LocalShopProduct[]>([]);
   const [selectedShop, setSelectedShop] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);

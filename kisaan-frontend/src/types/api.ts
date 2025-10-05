@@ -1,3 +1,31 @@
+// Category type for DRY usage across frontend
+export interface Category {
+  id: number;
+  name: string;
+  status?: 'active' | 'inactive';
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+// ...existing code...
+// ShopProduct type for DRY usage across frontend
+export type ShopProduct = {
+  id: number;
+  shop_id: number;
+  product_id: number;
+  product_name: string;
+  category?: { id?: number; name?: string };
+};
+// Balance Snapshot type for DRY usage across frontend
+export type BalanceSnapshot = {
+  id: number;
+  user_id: number;
+  previous_balance: number;
+  new_balance: number;
+  amount_change: number | string;
+  created_at: string;
+  createdAt?: string;
+};
 // Bulk Payment Types
 export interface BulkPaymentItem {
   transaction_id: number;
@@ -45,13 +73,7 @@ export interface UserCreate {
   // Note: status and cumulative_value removed - not in database schema
 }
 
-export interface Category {
-  id: number;
-  name: string;
-  description?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// ...existing code...
 
 export interface Product {
   id: number;
@@ -59,7 +81,7 @@ export interface Product {
   category_id: number;
   record_status: 'active' | 'inactive';
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Shop {
@@ -72,7 +94,7 @@ export interface Shop {
   status: 'active' | 'inactive';
   commission_rate?: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Transaction {
@@ -96,7 +118,7 @@ export interface Transaction {
   notes?: string;              // Added to match backend
   metadata?: Record<string, unknown> | null; // Added to match backend
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   payments: Payment[];
   // Enriched fields from backend
   deficit?: number;
@@ -144,7 +166,7 @@ export interface Payment {
   method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
   notes?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Settlement {
@@ -157,7 +179,7 @@ export interface Settlement {
   settlement_date?: string;
   notes?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 // API Response Types

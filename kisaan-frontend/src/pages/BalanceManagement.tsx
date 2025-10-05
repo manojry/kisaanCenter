@@ -1,3 +1,4 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, TrendingDown } from 'lucide-react';
-import type { User } from '../types/api';
+import type { User, BalanceSnapshot as SharedBalanceSnapshot } from '../types/api';
 
 interface BalanceManagementProps {
   shopId: number;
@@ -20,13 +21,11 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  interface BalanceSnapshot {
-    id: number | string;
-    previous_balance: number;
-    new_balance: number;
-    amount_change: number | string;
+  // Extend shared BalanceSnapshot type to allow for string id and index signature if needed
+  type BalanceSnapshot = Omit<SharedBalanceSnapshot, 'id'> & {
+    id: string;
     [key: string]: string | number | undefined;
-  }
+  };
   const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
@@ -44,7 +43,6 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
     }
   };
 
-
   // Fetch users only once on mount, and only if authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -61,7 +59,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
     }
     setSnapshotsLoading(true);
     balanceSnapshotsApi.getByUserId(selectedUser.id)
-      .then((data) => setSnapshots(data.map(s => ({ ...s, id: String(s.id) }))))
+  .then((data) => setSnapshots(data.map(s => ({ ...s, id: String(s.id) }))))
       .catch(() => setSnapshots([]))
       .finally(() => setSnapshotsLoading(false));
   }, [selectedUser]);
@@ -90,7 +88,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
-                  {(user.firstname ? user.firstname : user.username)} ({user.role}) - ₹{user.balance.toLocaleString()}
+                  {getUserDisplayName(user)} ({user.role}) - ₹{user.balance.toLocaleString()}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -218,7 +216,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
-                    {user.firstname ? user.firstname : user.username}
+                    {getUserDisplayName(user)}
                     <Badge variant="outline" className={`ml-2 ${getRoleBadgeClass(user.role)}`}>
                       {user.role}
                     </Badge>

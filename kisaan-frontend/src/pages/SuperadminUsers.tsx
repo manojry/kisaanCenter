@@ -1,3 +1,4 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -258,7 +259,7 @@ const SuperadminUsers: React.FC = () => {
               {/* Header with user info and status */}
               <div className="flex items-start justify-between mb-4 w-full max-w-full">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-xl truncate text-gray-900 w-full max-w-full">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</h3>
+                  <h3 className="font-bold text-xl truncate text-gray-900 w-full max-w-full">{getUserDisplayName(user)}</h3>
                   <p className="text-xs text-gray-500 font-mono mt-1 truncate w-full max-w-full">ID #{user.id}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 ml-3 flex-shrink-0">
@@ -481,7 +482,7 @@ const SuperadminUsers: React.FC = () => {
                         users.map((user: typeof owners[number]) => (
                           <TableRow key={user.id} className="bg-white border-l-4 border-l-orange-300">
                             <TableCell>#{user.id}</TableCell>
-                            <TableCell className="pl-8">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
+                            <TableCell className="pl-8">{getUserDisplayName(user)}</TableCell>
                             <TableCell>
                               <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
                             </TableCell>

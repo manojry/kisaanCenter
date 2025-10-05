@@ -1,3 +1,4 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
 import React, { useState } from 'react';
 import { useFarmerProductAssignment } from '../services/hooks/useFarmerProductAssignment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,9 +78,6 @@ const OwnerUsersPage: React.FC = () => {
       }
     }
   };
-
-
-
 
   if (showCreateForm) {
     return (
@@ -223,7 +221,7 @@ const OwnerUsersPage: React.FC = () => {
                             <span className={user.status === 'active' ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500' : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'} title={user.status}></span>
                           </span>
                         </TableCell>
-                        <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
+                        <TableCell className="font-medium">{getUserDisplayName(user)}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
                             {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
@@ -276,7 +274,7 @@ const OwnerUsersPage: React.FC = () => {
                   <div key={user.id} className="rounded-lg border p-2 bg-white shadow-sm w-full max-w-full mx-auto">
                     <div className="flex justify-between items-center mb-1 gap-1">
                       <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <span className="font-semibold text-sm break-words truncate max-w-[60%]">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
+                        <span className="font-semibold text-sm break-words truncate max-w-[60%]">{getUserDisplayName(user)}</span>
                         <Badge variant="outline" className={getRoleBadgeClass(user.role)}>
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </Badge>
@@ -332,7 +330,7 @@ const OwnerUsersPage: React.FC = () => {
       {assignProductsUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-2">Assign Products to {assignProductsUser.firstname || assignProductsUser.username}</h2>
+            <h2 className="text-lg font-bold mb-2">Assign Products to {getUserDisplayName(assignProductsUser)}</h2>
             <div className="mb-4">
               <div className="text-sm mb-2">Select products to assign:</div>
               <div className="max-h-48 overflow-y-auto border rounded p-2">

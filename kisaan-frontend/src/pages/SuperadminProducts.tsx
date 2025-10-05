@@ -10,24 +10,7 @@ import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
-interface Product {
-  id: number;
-  name: string;
-  category_id: number;
-  category_name?: string;
-  description?: string | null;
-  price?: string | null;
-  unit?: string | null;
-  record_status: 'active' | 'inactive';
-  created_at: string;
-  updated_at?: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  status?: 'active' | 'inactive';
-}
+import type { Product, Category } from '../types/api';
 
 const SuperadminProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);

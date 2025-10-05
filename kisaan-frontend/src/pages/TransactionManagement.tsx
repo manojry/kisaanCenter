@@ -10,12 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { transactionsApi } from '../services/api';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
-// Helper to get user name by id
-type User = { id: string | number; firstname?: string; username?: string };
-const getUserName = (users: User[], id: string | number): string => {
-  const user = users.find((u: User) => String(u.id) === String(id));
-  return user?.firstname?.trim() ? user.firstname! : user?.username ?? '';
-};
+import type { User } from '../types/api';
+import { getUserDisplayNameById } from '../utils/userDisplayName';
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { TransactionForm } from '../components/owner/TransactionForm';
@@ -36,8 +32,8 @@ const TransactionManagement: React.FC = () => {
   // PDF Export using utility
   const handleExportPDF = () => {
     const enriched = filteredTransactions.map(txn => {
-      const buyer = getUserName(users, txn.buyer_id);
-      const farmer = getUserName(users, txn.farmer_id);
+  const buyer = getUserDisplayNameById(users, txn.buyer_id);
+  const farmer = getUserDisplayNameById(users, txn.farmer_id);
       return {
         id: txn.id,
         transaction_id: txn.id,
@@ -468,13 +464,13 @@ const TransactionManagement: React.FC = () => {
                                 <div className="grid grid-cols-3 gap-4 text-xs">
                                   <div className="col-span-1">
                                     <div>
-                                      <span className="font-medium">Buyer:</span> {getUserName(users, transaction.buyer_id)} {(() => {
+                                      <span className="font-medium">Buyer:</span> {getUserDisplayNameById(users, transaction.buyer_id)} {(() => {
                                         const buyerUser = users.find(u => String(u.id) === String(transaction.buyer_id));
                                         return buyerUser ? <Badge userType="BUYER" /> : null;
                                       })()}
                                     </div>
                                     <div>
-                                      <span className="font-medium">Seller:</span> {getUserName(users, transaction.farmer_id)} {(() => {
+                                      <span className="font-medium">Seller:</span> {getUserDisplayNameById(users, transaction.farmer_id)} {(() => {
                                         const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
                                         return farmerUser ? <Badge userType="FARMER" /> : null;
                                       })()}
@@ -520,8 +516,8 @@ const TransactionManagement: React.FC = () => {
                                             if (type === 'BUYER' || type === 'FARMER' || type === 'SHOP') return <Badge userType={type} />;
                                             // fallback: show user name for unknown type
                                             // Try to resolve user id from payment context
-                                            if (type === String(transaction.buyer_id)) return getUserName(users, transaction.buyer_id);
-                                            if (type === String(transaction.farmer_id)) return getUserName(users, transaction.farmer_id);
+                                            if (type === String(transaction.buyer_id)) return getUserDisplayNameById(users, transaction.buyer_id);
+                                            if (type === String(transaction.farmer_id)) return getUserDisplayNameById(users, transaction.farmer_id);
                                             return type;
                                           };
                                     const payer = renderParty(String(p.payer_type));

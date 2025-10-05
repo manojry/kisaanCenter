@@ -1,3 +1,4 @@
+import { getUserDisplayName } from '../utils/userDisplayName';
 import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,7 +35,7 @@ export default function Dashboard() {
       <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Dashboard</h1>
       <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-6 rounded-lg shadow-md">
         <h1 className="text-3xl font-bold mb-2">
-        Welcome, {user.firstname && user.firstname.trim() ? user.firstname : user.username} ({user.role})
+  Welcome, {getUserDisplayName(user)} ({user.role})
         </h1>
         <div className="text-sm opacity-90 mt-4">
           Dashboard for {user.role} role is under development.
