@@ -18,8 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { formatCurrency } from '@/utils/format';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
-import { usersApi } from '../services/api';
+import { Plus, Search, Edit, RefreshCw } from 'lucide-react';
+
 import type { User } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { UserForm } from '../components/owner/UserForm';
@@ -119,17 +119,7 @@ const OwnerUsersPageInner: React.FC = () => {
     setEditingUser(null);
   };
 
-  const handleDeleteUser = async (userId: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      try {
-        await usersApi.delete(userId);
-        refreshUsers();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Failed to delete user');
-      }
-    }
-  };
+
 
   if (showCreateForm) {
     return (
@@ -289,16 +279,7 @@ const OwnerUsersPageInner: React.FC = () => {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            {user.id !== currentUser?.id && (
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                            {/* No delete button: user cannot be deleted, only status can be changed */}
                             {/* Assign Products button for farmers only */}
                             {user.role === 'farmer' && (
                               <Button
@@ -386,16 +367,7 @@ const OwnerUsersPageInner: React.FC = () => {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        {user.id !== currentUser?.id && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-700 px-2 py-1 text-xs"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                        {/* No delete button: user cannot be deleted, only status can be changed */}
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 mb-1 break-words">ID: #{user.id} <span className={user.status === 'active' ? 'inline-block w-2 h-2 rounded-full bg-green-500 ml-1' : 'inline-block w-2 h-2 rounded-full bg-red-500 ml-1'} title={user.status}></span></div>
