@@ -51,7 +51,6 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
     if (users.length === 0) {
       fetchUsers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, isAuthenticated]);
 
   // Fetch balance snapshots for selected user

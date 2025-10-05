@@ -13,7 +13,7 @@ export function useFormState<T extends Record<string, unknown>>(initial: T) {
 
   const handleChange = useCallback(<K extends keyof T>(key: K) => (value: unknown) => {
     let next: unknown;
-    if (value && typeof value === 'object' && 'target' in value && value.target && typeof (value.target as any).value !== 'undefined') {
+    if (value && typeof value === 'object' && 'target' in value && value.target && typeof (value.target as { value: unknown }).value !== 'undefined') {
       next = (value as { target: { value: unknown } }).target.value;
     } else {
       next = value;

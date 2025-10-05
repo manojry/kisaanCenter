@@ -217,7 +217,7 @@ export function useDashboard(role: string, userId?: string) {
                   role === 'EMPLOYEE' ? '/employee/dashboard' :
                   '/dashboard';
   
-  return useApiQuery<any>(
+  return useApiQuery<unknown>(
     [...QUERY_KEYS.DASHBOARD, role, userId],
     endpoint
   );

@@ -1,5 +1,5 @@
 import { Badge } from './ui/badge';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useUsers } from '../context/UsersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -10,11 +10,11 @@ import AddUserDialog from './AddUserDialog';
 
 
 interface UsersManagementProps {
-  shopId?: number;
   onRefresh?: () => void;
 }
+// Removed unused shopId prop
 
-export default function UsersManagement({ shopId, onRefresh }: UsersManagementProps) {
+export default function UsersManagement({ onRefresh }: UsersManagementProps) {
   // shopId is currently unused, but kept for future filtering if needed.
   const { users, isLoading, refreshUsers } = useUsers();
   const [showAddUser, setShowAddUser] = useState(false);

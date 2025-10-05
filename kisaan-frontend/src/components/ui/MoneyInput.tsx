@@ -171,7 +171,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({
 };
 
 // Helpers
-function normalizeInitial(v: any): string {
+function normalizeInitial(v: unknown): string {
   if (v == null || v === '') return '';
   if (typeof v === 'number') return String(v.toFixed(2));
   if (typeof v === 'string') return v;

@@ -270,7 +270,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                         <TableCell>
                           {new Date(snapshot.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{String((snapshot as any).description) || 'Balance update'}</TableCell>
+                        <TableCell>{String((snapshot as { description?: string }).description) || 'Balance update'}</TableCell>
                         <TableCell className="text-right font-mono">
                           ₹{parseFloat(String(snapshot.previous_balance || 0)).toFixed(2)}
                         </TableCell>

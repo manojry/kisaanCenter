@@ -94,8 +94,12 @@ export const useSharedCategories = (options: UseSharedCategoriesOptions = {}): U
         ? await categoriesApi.getActive()
         : await categoriesApi.getAll();
       categoriesCache.setData(response.data || []);
-    } catch (error: any) {
-      categoriesCache.setError(error.message || 'Failed to fetch categories');
+    } catch (error) {
+      let message = 'Failed to fetch categories';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message || message;
+      }
+      categoriesCache.setError(message);
     } finally {
       categoriesCache.setLoading(false);
     }

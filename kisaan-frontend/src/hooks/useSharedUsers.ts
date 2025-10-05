@@ -96,14 +96,18 @@ export const useSharedUsers = (options: UseSharedUsersOptions = {}): UseSharedUs
     try {
       usersCache.setLoading(true);
       
-      const params: any = {};
+  const params: Record<string, unknown> = {};
       if (shop_id) params.shop_id = shop_id;
       if (roles?.length) params.role = roles.join(',');
       
       const response = await usersApi.getAll(params);
       usersCache.setData(response.data || []);
-    } catch (error: any) {
-      usersCache.setError(error.message || 'Failed to fetch users');
+    } catch (error) {
+      let message = 'Failed to fetch users';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message || message;
+      }
+      usersCache.setError(message);
     } finally {
       usersCache.setLoading(false);
     }

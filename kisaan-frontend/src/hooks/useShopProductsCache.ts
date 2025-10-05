@@ -1,12 +1,12 @@
-import { useRef } from 'react';
+
 
 // Global cache for shop products by shopId (per session)
-const shopProductsCache: { [shopId: number]: any[] } = {};
+const shopProductsCache: { [shopId: number]: Record<string, unknown>[] } = {};
 
 export function useShopProductsCache() {
   // Returns a getter/setter for the cache
   const getShopProducts = (shopId: number) => shopProductsCache[shopId];
-  const setShopProducts = (shopId: number, products: any[]) => {
+  const setShopProducts = (shopId: number, products: Record<string, unknown>[]) => {
     shopProductsCache[shopId] = products;
   };
   const invalidateShopProducts = (shopId: number) => {

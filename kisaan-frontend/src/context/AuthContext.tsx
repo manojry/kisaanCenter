@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '../types/api';
 import { authApi } from '../services/api';
-import config from '../config';
+
 import { useTransactionStore } from '../store/transactionStore';
 import { toastService } from '../services/toastService';
 
@@ -53,7 +53,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.setItem('auth_user', JSON.stringify(response.data.user));
           // Store shop info in Zustand store for global access
           if (response.data.user.shop_id) {
-            transactionStore.setShop({ id: response.data.user.shop_id } as any);
+            // Set a minimal Shop object; fill with more fields if required by your Shop type
+            transactionStore.setShop({
+              id: response.data.user.shop_id,
+              name: '',
+              owner_id: response.data.user.id,
+              address: '',
+              contact: '',
+              commission_rate: 0,
+              status: 'active',
+              created_at: '',
+              updated_at: ''
+            });
           } else {
             transactionStore.setShop(null);
           }
@@ -69,14 +80,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           toastService.authError(errorMsg);
           setIsAuthenticated(false);
         }
-      } catch (err: any) {
-        const errorMsg = err.message || 'Login failed';
+      } catch (err) {
+        let errorMsg = 'Login failed';
+        if (err && typeof err === 'object' && 'message' in err) {
+          errorMsg = (err as { message?: string }).message || errorMsg;
+        }
         setError(errorMsg);
         toastService.authError(errorMsg);
         setIsAuthenticated(false);
       }
-    } catch (err: any) {
-      const errorMsg = err.message || 'Login failed';
+    } catch (err) {
+      let errorMsg = 'Login failed';
+      if (err && typeof err === 'object' && 'message' in err) {
+        errorMsg = (err as { message?: string }).message || errorMsg;
+      }
       setError(errorMsg);
       toastService.authError(errorMsg);
       setIsAuthenticated(false);
