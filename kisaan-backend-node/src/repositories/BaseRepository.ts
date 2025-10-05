@@ -31,9 +31,8 @@ export abstract class BaseRepository<TModel extends Model<{ id: number }, any>, 
 
   async update(id: number, entity: TEntity, options?: { tx?: unknown }): Promise<TEntity | null> {
     const data = this.toModelData(entity) as TModel["_creationAttributes"];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateOpts = {
-      where: { id } as any, // Type assertion to satisfy Sequelize generics
+      where: { id } as unknown as import('sequelize').WhereOptions<import('sequelize').Attributes<TModel>>, // Type assertion to satisfy Sequelize generics
       returning: true as const,
       transaction: options?.tx as Transaction | undefined,
     };
@@ -45,8 +44,9 @@ export abstract class BaseRepository<TModel extends Model<{ id: number }, any>, 
   }
 
   async delete(id: number): Promise<boolean> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const count = await this.model.destroy({ where: { id } as any }); // Type assertion to satisfy Sequelize generics
+  const count = await this.model.destroy({
+    where: { id } as unknown as import('sequelize').WhereOptions<import('sequelize').Attributes<TModel>>,
+  }); // Type assertion to satisfy Sequelize generics
   return count > 0;
   }
 }
