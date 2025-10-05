@@ -130,11 +130,11 @@ export default function Expenses() {
           recoverableData = recoverableRes as Settlement[];
         }
 
-        let shopExpData: any[] = [];
+        let shopExpData: Settlement[] = [];
         if (shopExpRes && typeof shopExpRes === 'object' && 'data' in shopExpRes) {
-          shopExpData = shopExpRes.data as any[];
+          shopExpData = shopExpRes.data as Settlement[];
         } else if (Array.isArray(shopExpRes)) {
-          shopExpData = shopExpRes;
+          shopExpData = shopExpRes as Settlement[];
         }
 
         setSummary(summaryData);
@@ -142,14 +142,14 @@ export default function Expenses() {
         setRecoverableExpenses(recoverableData);
         setShopExpenses(shopExpData);
         // Calculate net earnings: commission - shop expenses
-        const totalCommission = Array.isArray(summaryData) ? summaryData.reduce((sum: number, item: any) => sum + (item.total_commission || 0), 0) : 0;
-        const totalShopExpenses = Array.isArray(shopExpData) ? shopExpData.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0) : 0;
+  const totalCommission = Array.isArray(summaryData) ? summaryData.reduce((sum: number, item: Settlement & { total_commission?: number }) => sum + (item.total_commission || 0), 0) : 0;
+  const totalShopExpenses = Array.isArray(shopExpData) ? shopExpData.reduce((sum: number, exp: Settlement) => sum + (exp.amount || 0), 0) : 0;
         setNetEarnings((totalCommission || 0) - (totalShopExpenses || 0));
       }
-    } catch (error: any) {
+  } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to fetch settlement data',
+        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed to fetch settlement data',
         variant: 'destructive',
       });
       console.error('Failed to fetch settlement data:', error);
@@ -168,10 +168,10 @@ export default function Expenses() {
       setFifoAmount('');
       setFifoUserId('');
       fetchData();
-    } catch (error: any) {
+  } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.message || 'Failed FIFO repayment',
+        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed FIFO repayment',
         variant: 'destructive',
       });
       console.error('Failed FIFO repayment:', error);
@@ -188,10 +188,10 @@ export default function Expenses() {
       setSettleAmount('');
       setSelectedSettlement(null);
       fetchData();
-    } catch (error: any) {
+  } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.message || 'Settlement failed',
+        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Settlement failed',
         variant: 'destructive',
       });
       console.error('Settlement failed:', error);
@@ -214,10 +214,10 @@ export default function Expenses() {
       setExpenseUserId('');
       setExpenseReason('');
       fetchData();
-    } catch (error: any) {
+  } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to add expense',
+        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed to add expense',
         variant: 'destructive',
       });
       console.error('Failed to add expense:', error);
@@ -277,18 +277,18 @@ export default function Expenses() {
                 </CardContent>
               </Card>
             ) : (
-              summary.map((item: any) => {
+              summary.map((item) => {
                 // Find recoverable expenses for this user
-                const userExpenses = recoverableExpenses.filter((exp: any) => exp.user_id === item.user_id);
-                const totalRecoverable = userExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+                const userExpenses = recoverableExpenses.filter((exp) => exp.user_id === item.user_id);
+                const totalRecoverable = userExpenses.reduce((sum: number, exp) => sum + (exp.amount || 0), 0);
                 return (
-                  <Card key={`${item.user_type}_${item.user_id}`}> 
+                  <Card key={`${(item as any).user_type}_${item.user_id}`}> 
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold">{item.username}</h3>
+                          <h3 className="font-semibold">{(item as any).username}</h3>
                           <p className="text-sm text-muted-foreground capitalize">
-                            {item.user_type} • {item.pending_count} pending
+                            {(item as any).user_type} • {(item as any).pending_count} pending
                           </p>
                           {totalRecoverable > 0 && (
                             <p className="text-xs text-orange-600 font-semibold">Outstanding recoverable expenses: {formatCurrency(totalRecoverable)}</p>
@@ -296,10 +296,10 @@ export default function Expenses() {
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-bold">
-                            {formatCurrency(item.total_balance)}
+                            {formatCurrency((item as any).total_balance)}
                           </div>
-                          <Badge variant={item.total_balance > 0 ? "destructive" : "default"}>
-                            {item.total_balance > 0 ? "Owes Shop" : "Shop Owes"}
+                          <Badge variant={(item as any).total_balance > 0 ? "destructive" : "default"}>
+                            {(item as any).total_balance > 0 ? "Owes Shop" : "Shop Owes"}
                           </Badge>
                         </div>
                       </div>
@@ -315,7 +315,7 @@ export default function Expenses() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-2">
-                  <div><strong>Total Shop Expenses:</strong> {formatCurrency(shopExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0))}</div>
+                  <div><strong>Total Shop Expenses:</strong> {formatCurrency(shopExpenses.reduce((sum: number, exp: Settlement) => sum + (exp.amount || 0), 0))}</div>
                   <div><strong>Net Earnings (Commission - Expenses):</strong> {formatCurrency(netEarnings)}</div>
                 </div>
               </CardContent>
@@ -343,7 +343,7 @@ export default function Expenses() {
                 <Button size="sm" onClick={handleFifoRepay} aria-label="Repay FIFO" disabled={!fifoUserId || !fifoAmount || isLoading}>Repay</Button>
               </CardContent>
             </Card>
-            {settlements.map((settlement: any) => (
+            {settlements.map((settlement) => (
               <Card key={settlement.id}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -362,14 +362,14 @@ export default function Expenses() {
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
                       <span>Amount: {formatCurrency(settlement.amount)}</span>
-                      {settlement.settled_amount > 0 && (
+                      {(settlement as any).settled_amount > 0 && (
                         <span className="ml-2 text-green-600">
-                          (Settled: {formatCurrency(settlement.settled_amount)})
+                          (Settled: {formatCurrency((settlement as any).settled_amount)})
                         </span>
                       )}
                     </div>
                     
-                    {settlement.status === 'pending' && settlement.balance > 0 && (
+                    {settlement.status === 'pending' && (settlement.balance ?? 0) > 0 && (
                       <Button
                         size="sm"
                         onClick={() => setSelectedSettlement(settlement)}
@@ -419,8 +419,8 @@ export default function Expenses() {
                   ) : (
                     <>
                       <option value="">Select user</option>
-                      {users.map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.username || u.name || u.id}</option>
+                      {users.map((u: User) => (
+                        <option key={u.id} value={u.id}>{u.username || (u as any).name || u.id}</option>
                       ))}
                     </>
                   )}
@@ -468,7 +468,7 @@ export default function Expenses() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recoverableExpenses.map((exp: any) => (
+                    {recoverableExpenses.map((exp) => (
                       <TableRow key={exp.id}>
                         <TableCell>{exp.user?.username || exp.user_id}</TableCell>
                         <TableCell>{formatCurrency(exp.amount)}</TableCell>

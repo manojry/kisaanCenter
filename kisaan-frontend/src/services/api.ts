@@ -89,8 +89,8 @@ export const shopProductsApi = {
       shop_id: shopId,
       product_id: p.product_id ?? p.id,
       product_name: p.product_name ?? p.name,
-      category: p.category || (p.category_id ? { id: p.category_id, name: (p as any).category_name || '' } : undefined),
-      category_name: (p.category && p.category.name) || (p as any).category_name || '',
+      category: p.category || (p.category_id ? { id: p.category_id, name: typeof p.category_name === 'string' ? p.category_name : '' } : undefined),
+      category_name: (p.category && p.category.name) || (typeof p.category_name === 'string' ? p.category_name : ''),
       is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active')
     }));
   },
@@ -140,7 +140,7 @@ export const analyticsApi = {
       date_from: dateRange?.from,
       date_to: dateRange?.to
     });
-    const raw = await apiClient.get<ApiResponse<any>>(`${TRANSACTION_ENDPOINTS.ANALYTICS}${qs}`);
+  const raw = await apiClient.get<ApiResponse<Record<string, unknown>>>(`${TRANSACTION_ENDPOINTS.ANALYTICS}${qs}`);
     return raw?.data || raw || null;
   }
 };
@@ -256,21 +256,37 @@ export const usersApi = {
 // Categories API
 export const categoriesApi = {
   getAll: async (): Promise<ApiResponse<Category[]>> => {
-    const response = await apiClient.get(CATEGORY_ENDPOINTS.BASE) as any;
+    const response = await apiClient.get(CATEGORY_ENDPOINTS.BASE) as ApiResponse<Category[]> | { categories?: Category[] } | Category[];
+    let data: Category[] = [];
+    if (Array.isArray(response)) {
+      data = response;
+    } else if ('categories' in response && Array.isArray(response.categories)) {
+      data = response.categories;
+    } else if ('data' in response && Array.isArray(response.data)) {
+      data = response.data;
+    }
     return {
       success: true,
       message: 'Categories fetched',
-      data: response.data || response.categories || response || []
+      data
     };
   },
   
   getActive: async (): Promise<ApiResponse<Category[]>> => {
     // Note: /categories/active endpoint removed, using same as getAll
-    const response = await apiClient.get(CATEGORY_ENDPOINTS.BASE) as any;
+    const response = await apiClient.get(CATEGORY_ENDPOINTS.BASE) as ApiResponse<Category[]> | { categories?: Category[] } | Category[];
+    let data: Category[] = [];
+    if (Array.isArray(response)) {
+      data = response;
+    } else if ('categories' in response && Array.isArray(response.categories)) {
+      data = response.categories;
+    } else if ('data' in response && Array.isArray(response.data)) {
+      data = response.data;
+    }
     return {
       success: true,
       message: 'Active categories fetched',
-      data: response.data || response.categories || response || []
+      data
     };
   },
   
@@ -299,7 +315,7 @@ export const productsApi = {
     limit?: number;
   }): Promise<PaginatedResponse<Product>> => {
     const qs = buildQueryString(params);
-    const raw = await apiClient.get(`${PRODUCT_ENDPOINTS.BASE}${qs}`) as any;
+  const raw = await apiClient.get(`${PRODUCT_ENDPOINTS.BASE}${qs}`) as ApiResponse<Product[]> | { products?: Product[] } | Product[];
     return normalizeListResponse<Product>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
   },
   
@@ -447,7 +463,7 @@ export const paymentsApi = {
     apiClient.get(PAYMENT_ENDPOINTS.BY_ID(id)),
   
   create: (payment: {
-    transaction_id: number;
+    transaction_id?: number;
     payer_type: 'BUYER' | 'SHOP';
     payee_type: 'SHOP' | 'FARMER';
     amount: number;
@@ -579,8 +595,8 @@ export const simplifiedApi = {
       notes?: string;
     }>;
   }): Promise<ApiResponse<{
-    transaction: any;
-    payments?: any[];
+  transaction: Record<string, unknown>;
+  payments?: Record<string, unknown>[];
     balance_updates: {
       farmer: { old_balance: number; new_balance: number };
     };
@@ -593,7 +609,7 @@ export const simplifiedApi = {
     amount: number;
     payment_type: 'farmer_payment' | 'buyer_payment';
     notes?: string;
-  }): Promise<ApiResponse<any>> =>
+  }): Promise<ApiResponse<Record<string, unknown>>> =>
     apiClient.post(SIMPLIFIED_ENDPOINTS.PAYMENT, data),
 
   // Record expense or advance
@@ -603,21 +619,21 @@ export const simplifiedApi = {
     expense_type: 'shop_expense' | 'user_advance';
     description: string;
     shop_id: number;
-  }): Promise<ApiResponse<any>> =>
+  }): Promise<ApiResponse<Record<string, unknown>>> =>
     apiClient.post(SIMPLIFIED_ENDPOINTS.EXPENSE, data)
 };
 
 // Farmer Product API - for farmer-specific product assignments
 export const farmerProductApi = {
   // Get farmer's assigned products with prices
-  getFarmerProducts: async (farmerId: number): Promise<ApiResponse<any[]>> => {
+  getFarmerProducts: async (farmerId: number): Promise<ApiResponse<Product[]>> => {
     try {
       const raw = await apiClient.get<ApiResponse<Product[]>>(FARMER_PRODUCT_ENDPOINTS.FARMER_PRODUCTS(farmerId));
       let data: Product[] = [];
       if (Array.isArray(raw)) {
         data = raw as Product[];
-      } else if (Array.isArray(raw.data)) {
-        data = raw.data;
+      } else if (raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)) {
+        data = (raw as { data: Product[] }).data;
       }
       return {
         success: true,
@@ -635,13 +651,13 @@ export const farmerProductApi = {
   },
 
   // Assign product to farmer
-  assignProduct: (farmerId: number, productId: number, makeDefault?: boolean): Promise<ApiResponse<any>> =>
+  assignProduct: (farmerId: number, productId: number, makeDefault?: boolean): Promise<ApiResponse<Product>> =>
     apiClient.post<ApiResponse<Product>>(FARMER_PRODUCT_ENDPOINTS.ASSIGN_PRODUCT(farmerId), { 
       product_id: productId, 
       make_default: makeDefault 
     }),
 
   // Set product as default for farmer
-  setDefault: (farmerId: number, productId: number): Promise<ApiResponse<any>> =>
+  setDefault: (farmerId: number, productId: number): Promise<ApiResponse<Product>> =>
   apiClient.put<ApiResponse<Product>>(FARMER_PRODUCT_ENDPOINTS.SET_DEFAULT(farmerId, productId))
 };

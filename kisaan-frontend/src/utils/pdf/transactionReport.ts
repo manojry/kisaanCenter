@@ -62,7 +62,7 @@ export function exportTransactionsPDF(transactions: TransactionLike[], options: 
   }
   // Summary totals
   const totals = transactions.reduce((acc, t) => {
-    const toNum = (v: any) => { const n = typeof v === 'string' ? parseFloat(v) : v; return isNaN(n) ? 0 : n; };
+    const toNum = (v: number | string | undefined) => { const n = typeof v === 'string' ? parseFloat(v) : v ?? 0; return isNaN(Number(n)) ? 0 : Number(n); };
     acc.total += toNum(t.total_sale_value);
     acc.buyerPaid += toNum(t.buyer_paid);
     acc.buyerPending += toNum(t.deficit);
@@ -84,7 +84,7 @@ export function exportTransactionsPDF(transactions: TransactionLike[], options: 
   doc.setDrawColor(180); doc.line(10, y, 285, y); y += 6;
 
   const pageHeight = doc.internal.pageSize.getHeight();
-  const contentWidth = 275; // landscape width minus margins
+  // const contentWidth = 275; // landscape width minus margins (unused)
   const leftX = 14;
 
   const ensureSpace = (linesNeeded: number) => {

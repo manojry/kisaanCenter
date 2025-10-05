@@ -20,13 +20,13 @@ const OwnerSettings: React.FC = () => {
     const fetchCommission = async () => {
       if (!user?.shop_id) return;
       try {
-        const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as any;
+        const res = await apiClient.get<{ data: { id: number; rate: string }[] | { id: number; rate: string } }>(`/commissions?shop_id=${user.shop_id}`);
         if (Array.isArray(res.data) && res.data.length > 0) {
           setCommission(res.data[0].rate);
-        } else if (res.data && res.data.rate) {
-          setCommission(res.data.rate);
+        } else if (res.data && (res.data as { rate?: string }).rate) {
+          setCommission((res.data as { rate: string }).rate);
         }
-      } catch (err) {
+      } catch {
         setCommission('');
       }
     };
@@ -56,8 +56,12 @@ const OwnerSettings: React.FC = () => {
       });
       setPasswordMessage('Password updated successfully. Please log in again.');
       setTimeout(() => logout(), 2000);
-    } catch (err: any) {
-      setPasswordMessage(err?.response?.data?.message || 'Failed to update password.');
+    } catch (err) {
+      if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
+        setPasswordMessage((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update password.');
+      } else {
+        setPasswordMessage('Failed to update password.');
+      }
     } finally {
       setLoading(false);
     }
@@ -77,14 +81,14 @@ const OwnerSettings: React.FC = () => {
     setLoading(true);
     try {
       // Fetch all commissions for shop
-      const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as any;
-      let commissionId = null;
+      const res = await apiClient.get<{ data: { id: number; rate: string }[] | { id: number; rate: string } }>(`/commissions?shop_id=${user.shop_id}`);
+      let commissionId: number | null = null;
       if (Array.isArray(res.data) && res.data.length > 0) {
         // Pick the latest commission (highest id)
-  const latest = res.data.sort((a: any, b: any) => Number(b.id) - Number(a.id))[0];
+        const latest = res.data.sort((a, b) => Number(b.id) - Number(a.id))[0];
         commissionId = latest.id;
-      } else if (res.data && res.data.id) {
-        commissionId = res.data.id;
+      } else if (res.data && (res.data as { id?: number }).id) {
+        commissionId = (res.data as { id: number }).id;
       }
       if (!commissionId) {
         setCommissionMessage('No commission record found to update.');
@@ -96,8 +100,12 @@ const OwnerSettings: React.FC = () => {
         type: 'percentage'
       });
       setCommissionMessage('Commission rate updated successfully.');
-    } catch (err: any) {
-      setCommissionMessage(err?.response?.data?.message || 'Failed to update commission.');
+    } catch (err) {
+      if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
+        setCommissionMessage((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update commission.');
+      } else {
+        setCommissionMessage('Failed to update commission.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 // This file has been renamed to Expenses.tsx. Please use Expenses.tsx instead.
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/UsersContext';
 import { useToast } from '../hooks/use-toast';
@@ -34,20 +34,31 @@ import { formatCurrency } from '../lib/formatters';
     const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
   const setStoreShop = useTransactionStore(state => state.setShop);
-    const [expenses, setExpenses] = useState<any[]>([]);
+    const [expenses, setExpenses] = useState<{
+      id: number;
+      shop_id: number;
+      user_id: number;
+      amount: number;
+      reason?: string;
+      description?: string;
+      created_at: string;
+      updated_at: string;
+      user?: import('../types/api').User;
+      date?: string;
+    }[]>([]);
     const [totalExpenses, setTotalExpenses] = useState<number>(0);
     const [expenseReason, setExpenseReason] = useState('');
     const [expenseUserId, setExpenseUserId] = useState('');
     const [expenseAmount, setExpenseAmount] = useState('');
     const [expenseDescription, setExpenseDescription] = useState('');
-    const [settlements, setSettlements] = useState<any[]>([]);
+  const [settlements, setSettlements] = useState<import('../types/api').Settlement[]>([]);
     const [settleAmount, setSettleAmount] = useState('');
-    const [selectedSettlement, setSelectedSettlement] = useState<any>(null);
+  const [selectedSettlement, setSelectedSettlement] = useState<import('../types/api').Settlement | null>(null);
     const [filterFromDate, setFilterFromDate] = useState('');
     const [filterToDate, setFilterToDate] = useState('');
     const [fifoAmount, setFifoAmount] = useState('');
     const [fifoUserId, setFifoUserId] = useState('');
-    const [recoverableExpenses, setRecoverableExpenses] = useState<any[]>([]);
+  const [recoverableExpenses, setRecoverableExpenses] = useState<import('../types/api').Settlement[]>([]);
     // Removed unused shopExpenses state
     const [netEarnings, setNetEarnings] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -384,13 +395,13 @@ import { formatCurrency } from '../lib/formatters';
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {expenses.map((exp: any) => (
+                      {expenses.map((exp) => (
                         <TableRow key={exp.id}>
-                          <TableCell>{exp.user?.username || exp.user_id}</TableCell>
+                          <TableCell>{(exp as any).user?.username || exp.user_id}</TableCell>
                           <TableCell>{formatCurrency(exp.amount)}</TableCell>
                           <TableCell>{exp.reason}</TableCell>
-                          <TableCell>{exp.description}</TableCell>
-                          <TableCell>{exp.date ? new Date(exp.date).toLocaleDateString() : '-'}</TableCell>
+                          <TableCell>{(exp as any).description}</TableCell>
+                          <TableCell>{(exp as any).date ? new Date((exp as any).date).toLocaleDateString() : '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -419,14 +430,14 @@ import { formatCurrency } from '../lib/formatters';
                   <Button size="sm" onClick={handleFifoRepay} aria-label="Repay FIFO" disabled={!fifoUserId || !fifoAmount || isLoading}>Repay</Button>
                 </CardContent>
               </Card>
-              {settlements.map((settlement: any) => (
+              {settlements.map((settlement) => (
                 <Card key={settlement.id}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold">{settlement.user?.username || 'Unknown'}</h3>
+                        <h3 className="font-semibold">{(settlement as any).user?.username || 'Unknown'}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {settlement.description}
+                          {(settlement as any).description}
                         </p>
                       </div>
                       <Badge variant={settlement.status === 'settled' ? 'default' : 'secondary'}>
@@ -436,13 +447,13 @@ import { formatCurrency } from '../lib/formatters';
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
                         <span>Amount: {formatCurrency(settlement.amount)}</span>
-                        {settlement.settled_amount > 0 && (
+                        {(settlement as any).settled_amount > 0 && (
                           <span className="ml-2 text-green-600">
-                            (Settled: {formatCurrency(settlement.settled_amount)})
+                            (Settled: {formatCurrency((settlement as any).settled_amount)})
                           </span>
                         )}
                       </div>
-                      {settlement.status === 'pending' && settlement.balance > 0 && (
+                      {(settlement.status === 'pending' && (settlement as any).balance > 0) && (
                         <Button
                           size="sm"
                           onClick={() => setSelectedSettlement(settlement)}
@@ -465,10 +476,10 @@ import { formatCurrency } from '../lib/formatters';
                   <CardContent className="space-y-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {selectedSettlement.user?.username} - {selectedSettlement.description}
+                        {(selectedSettlement as any).user?.username} - {(selectedSettlement as any).description}
                       </p>
                       <p className="font-semibold">
-                        Outstanding: {formatCurrency(selectedSettlement.balance)}
+                        Outstanding: {formatCurrency((selectedSettlement as any).balance)}
                       </p>
                     </div>
                     <div>
@@ -513,11 +524,11 @@ import { formatCurrency } from '../lib/formatters';
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recoverableExpenses.map((exp: any) => (
+                    {recoverableExpenses.map((exp) => (
                       <TableRow key={exp.id}>
-                        <TableCell>{exp.user?.username || exp.user_id}</TableCell>
+                        <TableCell>{(exp as any).user?.username || exp.user_id}</TableCell>
                         <TableCell>{formatCurrency(exp.amount)}</TableCell>
-                        <TableCell>{exp.description || exp.reason}</TableCell>
+                        <TableCell>{(exp as any).description || exp.reason}</TableCell>
                         <TableCell>{exp.status}</TableCell>
                         <TableCell>
                           {exp.status === 'pending' && (

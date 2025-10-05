@@ -17,7 +17,7 @@ const API_CONFIG = {
 type RequestInterceptor = (config: RequestConfig) => RequestConfig | Promise<RequestConfig>;
 
 // Response interceptor type
-type ResponseInterceptor = (response: any, config?: RequestConfig) => any | Promise<any>;
+type ResponseInterceptor<T = unknown> = (response: Response, config?: RequestConfig) => T | Promise<T>;
 
 interface RequestConfig extends RequestInit {
   url: string;
@@ -91,36 +91,46 @@ class ApiClient {
   }
 
   // Default response handler with toast integration
-  private async handleResponse<T>(response: Response, config?: RequestConfig): Promise<T> {
+  private async handleResponse<T = unknown>(response: Response, config?: RequestConfig): Promise<T> {
     const contentType = response.headers.get('content-type');
-    let data;
-    
+    let data: unknown;
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
       data = await response.text();
     }
-    
+
     if (!response.ok) {
-      const errorMessage = data?.message || data?.error || `HTTP ${response.status}`;
-      
+      let errorMessage: string;
+      if (typeof data === 'object' && data !== null) {
+        const maybeData = data as { message?: string; error?: string };
+        errorMessage = maybeData.message || maybeData.error || `HTTP ${response.status}`;
+      } else {
+        errorMessage = `HTTP ${response.status}`;
+      }
+
       // Show error toast if enabled (default: true for errors)
       if (config?.showErrorToast !== false) {
         if (response.status === 401) {
           toastService.authError(config?.errorMessage || 'Authentication required');
         } else if (response.status === 403) {
           // Check for token expiration in error message/code
-          const expiredOrInvalid =
-            (typeof data === 'object' &&
-              (
-                data?.message?.toLowerCase().includes('token expired') ||
-                data?.message?.toLowerCase().includes('jwt expired') ||
-                data?.error?.toLowerCase().includes('token expired') ||
-                data?.error?.toLowerCase().includes('jwt expired') ||
-                data?.message?.toLowerCase().includes('invalid token') ||
-                data?.error?.toLowerCase().includes('invalid token')
-              )
+          let expiredOrInvalid = false;
+          if (typeof data === 'object' && data !== null) {
+            const maybeData = data as { message?: string; error?: string };
+            expiredOrInvalid = !!(
+              (maybeData.message && (
+                maybeData.message.toLowerCase().includes('token expired') ||
+                maybeData.message.toLowerCase().includes('jwt expired') ||
+                maybeData.message.toLowerCase().includes('invalid token')
+              )) ||
+              (maybeData.error && (
+                maybeData.error.toLowerCase().includes('token expired') ||
+                maybeData.error.toLowerCase().includes('jwt expired') ||
+                maybeData.error.toLowerCase().includes('invalid token')
+              ))
             );
+          }
           if (expiredOrInvalid) {
             // Clear session and redirect to login
             localStorage.removeItem('auth_token');
@@ -138,21 +148,20 @@ class ApiClient {
           toastService.apiError(errorMessage, config?.errorMessage);
         }
       }
-      
       throw new Error(errorMessage);
     }
-    
+
     // Show success toast if enabled and it's a successful mutation
     if (config?.showSuccessToast && (config?.method === 'POST' || config?.method === 'PUT' || config?.method === 'DELETE')) {
       toastService.apiSuccess(data, config?.successMessage);
     }
-    
-    return data;
+
+    return data as T;
   }
 
   // Core request method
-  private async request<T>(config: RequestConfig): Promise<T> {
-    let finalConfig = { ...config };
+  private async request<T = unknown>(config: RequestConfig): Promise<T> {
+  let finalConfig: RequestConfig = { ...config };
     
     // Apply request interceptors
     for (const interceptor of this.requestInterceptors) {
@@ -178,11 +187,10 @@ class ApiClient {
       clearTimeout(timeoutId);
 
       // Apply response interceptors
-      let result: any = response;
+      let result: unknown = response;
       for (const interceptor of this.responseInterceptors) {
-        result = await interceptor(result, finalConfig);
+        result = await interceptor(result as Response, finalConfig);
       }
-
       return result as T;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -199,33 +207,33 @@ class ApiClient {
     });
   }
 
-  async post<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+  async post<T>(url: string, data?: object | unknown[] | undefined, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
       showSuccessToast: true, // Default to show success toast for mutations
       ...config,
       url,
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data ? JSON.stringify(data as Record<string, unknown> | unknown[]) : undefined,
     });
   }
 
-  async put<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+  async put<T>(url: string, data?: object | unknown[] | undefined, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
       showSuccessToast: true, // Default to show success toast for mutations
       ...config,
       url,
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data ? JSON.stringify(data as Record<string, unknown> | unknown[]) : undefined,
     });
   }
 
-  async patch<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
+  async patch<T>(url: string, data?: object | unknown[] | undefined, config?: Partial<RequestConfig>): Promise<T> {
     return this.request<T>({
       showSuccessToast: true,
       ...config,
       url,
       method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
+      body: data ? JSON.stringify(data as Record<string, unknown> | unknown[]) : undefined,
     });
   }
 
@@ -245,12 +253,12 @@ class ApiClient {
     return this.get<T>(url, { ...config, showErrorToast: false });
   }
 
-  async postSilent<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.post<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
+  async postSilent<T>(url: string, data?: object | unknown[] | undefined, config?: Partial<RequestConfig>): Promise<T> {
+  return this.post<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
   }
 
-  async putSilent<T>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.put<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
+  async putSilent<T>(url: string, data?: object | unknown[] | undefined, config?: Partial<RequestConfig>): Promise<T> {
+  return this.put<T>(url, data, { ...config, showSuccessToast: false, showErrorToast: false });
   }
 
   async deleteSilent<T>(url: string, config?: Partial<RequestConfig>): Promise<T> {
@@ -258,12 +266,12 @@ class ApiClient {
   }
 
   // Methods with custom messages
-  async postWithMessage<T>(url: string, data?: any, successMessage?: string, errorMessage?: string): Promise<T> {
-    return this.post<T>(url, data, { successMessage, errorMessage });
+  async postWithMessage<T>(url: string, data?: object | unknown[] | undefined, successMessage?: string, errorMessage?: string): Promise<T> {
+  return this.post<T>(url, data, { successMessage, errorMessage });
   }
 
-  async putWithMessage<T>(url: string, data?: any, successMessage?: string, errorMessage?: string): Promise<T> {
-    return this.put<T>(url, data, { successMessage, errorMessage });
+  async putWithMessage<T>(url: string, data?: object | unknown[] | undefined, successMessage?: string, errorMessage?: string): Promise<T> {
+  return this.put<T>(url, data, { successMessage, errorMessage });
   }
 
   async deleteWithMessage<T>(url: string, successMessage?: string, errorMessage?: string): Promise<T> {

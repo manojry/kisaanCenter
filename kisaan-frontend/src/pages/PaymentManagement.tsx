@@ -26,16 +26,16 @@ const PaymentManagement: React.FC = () => {
   if (!isAuthenticated || !hasRole('owner')) {
     return <div className="p-8 text-center text-red-600 font-bold">Unauthorized: Only owners can access this page.</div>;
   }
-  const { users: allUsers, isLoading: usersLoading, fetchUsers } = useUsers();
-  const users = allUsers.filter((u: any) => ['farmer', 'buyer'].includes(u.role));
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const { users: allUsers, fetchUsers } = useUsers();
+  const users = allUsers.filter((u) => ['farmer', 'buyer'].includes(u.role));
+  const [selectedUser, setSelectedUser] = useState<import('../types/api').User | null>(null);
   // ...existing code...
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [snapshots, setSnapshots] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [snapshots, setSnapshots] = useState<any[]>([]); // TODO: Replace 'any' with actual snapshot type if available
+  const [payments, setPayments] = useState<import('../types/api').Payment[]>([]);
   const [showHint, setShowHint] = useState(false);
 
   // Removed local fetchUsers; using users from context
@@ -54,8 +54,8 @@ const PaymentManagement: React.FC = () => {
       // Fetch all payments for the shop
   const res = await paymentsApi.getAll({});
       // Filter payments where selectedUser is either payer or payee (counterparty)
-      const userPayments = (res.data || []).filter((p: any) =>
-        Number(p.counterparty_id) === Number(selectedUser.id)
+      const userPayments = (res.data || []).filter((p: import('../types/api').Payment & { counterparty_id?: number }) =>
+        Number((p as any).counterparty_id) === Number(selectedUser.id)
       );
       setPayments(userPayments);
     };
@@ -73,7 +73,17 @@ const PaymentManagement: React.FC = () => {
     if (!selectedUser || !paymentAmount || !shopId) return;
     setLoading(true);
     try {
-      let payload: any;
+      type PaymentPayload = {
+        payer_type: 'SHOP' | 'BUYER';
+        payee_type: 'SHOP' | 'FARMER';
+        amount: number;
+        method: string;
+        status: 'PAID';
+        notes: string;
+        counterparty_id: number;
+        shop_id: number;
+      };
+      let payload: PaymentPayload;
       if (selectedUser.role === 'farmer') {
         payload = {
           payer_type: "SHOP",
@@ -114,7 +124,7 @@ const PaymentManagement: React.FC = () => {
           setPayments(payRes.data || []);
           // Refetch selectedUser to get updated balance
           await fetchUsers();
-          const updatedUser = allUsers.find((u: any) => u.id === selectedUser.id);
+          const updatedUser = allUsers.find((u) => u.id === selectedUser.id);
           if (updatedUser) setSelectedUser(updatedUser);
         }
       } else if (res && res.message) {

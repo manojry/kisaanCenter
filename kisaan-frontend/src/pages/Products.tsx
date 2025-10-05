@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { Shop } from '../types/api';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
+// import { apiClient } from '../services/apiClient';
 import { fetchOwnerShop } from '../utils/shopUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
 import { 
@@ -18,7 +19,7 @@ import AddProductDialog from '../components/AddProductDialog';
 export default function Products() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [shop, setShop] = useState<any>(null);
+  const [shop, setShop] = useState<Shop | null>(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   useEffect(() => {
@@ -32,10 +33,11 @@ export default function Products() {
     try {
       const userShop = await fetchOwnerShop(user.id);
       setShop(userShop);
-    } catch (err: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load shop data';
       toast({
         title: "Error",
-        description: err.message || 'Failed to load shop data',
+        description: message,
         variant: "destructive"
       });
     } finally {

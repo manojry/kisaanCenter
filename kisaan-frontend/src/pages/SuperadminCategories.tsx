@@ -15,6 +15,7 @@ interface Category {
   description?: string | null;
   createdAt: string;
   updatedAt: string;
+  status: 'active' | 'inactive';
 }
 
 const SuperadminCategories: React.FC = () => {
@@ -22,8 +23,8 @@ const SuperadminCategories: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<{ name: string; description: string }>({ name: '', description: '' });
-  const [filters, setFilters] = useState({ search: '' });
+  const [formData, setFormData] = useState<{ name: string; description: string; status: 'active' | 'inactive' }>({ name: '', description: '', status: 'active' });
+  const [filters, setFilters] = useState<{ search: string; status: string }>({ search: '', status: '' });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; category: Category | null }>({ open: false, category: null });
 
   useEffect(() => {
@@ -34,13 +35,15 @@ const SuperadminCategories: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await categoriesApi.getAll();
-      let arr = response.data ?? [];
+      const arr = response.data ?? [];
       // Normalize API data to match expected type
-      let normalized = arr.map((cat: any) => ({
+      let normalized = arr.map((cat) => ({
         ...cat,
-        created_at: cat.created_at ?? cat.createdAt,
-        updated_at: cat.updated_at ?? cat.updatedAt
-      }));
+        created_at: (cat as any).created_at ?? cat.createdAt,
+        updated_at: (cat as any).updated_at ?? cat.updatedAt,
+        status: (cat as any).status ?? 'active',
+        description: (cat as any).description ?? '',
+      })) as Category[];
       if (filters.search) {
         normalized = normalized.filter((c) =>
           c.name?.toLowerCase().includes(filters.search.toLowerCase())
@@ -69,7 +72,7 @@ const SuperadminCategories: React.FC = () => {
       fetchCategories();
       setShowCreateForm(false);
       setEditingCategory(null);
-      setFormData({ name: '', status: 'active' });
+      setFormData({ name: '', description: '', status: 'active' });
     } catch (error) {
       console.error('Error saving category:', error);
     }
@@ -85,9 +88,9 @@ const SuperadminCategories: React.FC = () => {
   };
 
   const handleEdit = (category: Category) => {
-    setEditingCategory(category);
-    setFormData({ name: category.name, status: category.status });
-    setShowCreateForm(true);
+  setEditingCategory(category);
+  setFormData({ name: category.name, description: category.description ?? '', status: category.status });
+  setShowCreateForm(true);
   };
 
   return (
@@ -104,7 +107,7 @@ const SuperadminCategories: React.FC = () => {
           </Button>
           <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditingCategory(null); setFormData({ name: '', status: 'active' }); }}>
+              <Button onClick={() => { setEditingCategory(null); setFormData({ name: '', description: '', status: 'active' }); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Category
               </Button>

@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
 import { DashboardStats } from '../components/owner/DashboardStats';
 import { QuickActions } from '../components/owner/QuickActions';
@@ -9,7 +8,7 @@ import { usePrefetchOnFocus } from '@/hooks/usePrefetchOnFocus';
 
 const OwnerDashboardNew: React.FC = () => {
 
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const { stats, isLoading, error, refreshData } = useOwnerDashboard();
 
   // Auto refresh when returning to the tab / window.
@@ -62,7 +61,7 @@ const OwnerDashboardNew: React.FC = () => {
 
       {/* Dashboard Stats - Ensure mobile-friendly layout in child */}
       <Section title={undefined} description={undefined} padded>
-        <DashboardStats stats={stats as any} isLoading={isLoading} />
+        <DashboardStats stats={stats} isLoading={isLoading} />
       </Section>
 
       {/* Quick Actions - Add spacing for mobile */}

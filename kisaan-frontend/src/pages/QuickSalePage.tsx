@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import type { TransactionCreate, Product as BackendProduct } from '../types/api';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -11,16 +12,16 @@ import { useShopProductsCache } from '../hooks/useShopProductsCache';
 import { shopProductsApi } from '../services/api';
 import { TransactionPartySelectors, TransactionQuantityPricing, TransactionSummary, TransactionPayments } from '@/features/transactions/components';
 import { calculateTransactionAmounts } from '@/features/transactions/utils/transactionCalculations';
-import type { TransactionCreate } from '../types/api';
 import { Loader2, Calculator } from 'lucide-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
-interface Product { 
-  id: number; 
-  name: string; 
-  category_id?: number;
+// Local product type for QuickSalePage
+type QuickSaleProduct = BackendProduct & {
+  product_id?: number | string;
+  product_name?: string;
   farmer_price?: number;
-}
+  price?: number;
+};
 
 // Extend TransactionCreate for local form usage
 interface TransactionFormData extends TransactionCreate {
@@ -51,7 +52,7 @@ function QuickSalePageInner() {
     quantity: 0,
     unit_price: 0
   });
-    const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<QuickSaleProduct[]>([]);
   
   // Calculations
   const [calculations, setCalculations] = useState({
@@ -80,7 +81,6 @@ function QuickSalePageInner() {
         setHasTimedOut(true);
       }
     }, 10000); // 10 second timeout
-    
     if (!usersLoading && !categoriesLoading) {
       clearTimeout(timer);
       setHasTimedOut(false);
@@ -90,6 +90,7 @@ function QuickSalePageInner() {
   }, [usersLoading, categoriesLoading]);
   
   const isLoading = (usersLoading || categoriesLoading) && !hasTimedOut;
+  // (QuickSaleProduct type already defined at top of file)
   const error = usersError || categoriesError || (hasTimedOut ? 'Data loading timed out. Please refresh the page.' : null);
   
   // Load shop products when categories are ready
@@ -101,15 +102,15 @@ function QuickSalePageInner() {
       let shopProducts = getShopProducts(user.shop_id);
       if (!shopProducts) {
         try {
-          shopProducts = await shopProductsApi.getShopProducts(user.shop_id, categories);
+          shopProducts = await shopProductsApi.getShopProducts(user.shop_id);
           setShopProducts(user.shop_id, shopProducts);
-        } catch (err) {
+        } catch {
           shopProducts = [];
         }
       }
-      setProducts((shopProducts || []).map(p => ({
+      setProducts((shopProducts || []).map((p: QuickSaleProduct) => ({
         ...p,
-        name: p.name || p.product_name
+        name: p.name || p.product_name || ''
       })));
     };
     loadShopProducts();
@@ -121,9 +122,9 @@ function QuickSalePageInner() {
       if (!formData.farmer_id || !user?.shop_id) {
         // No farmer selected, show all shop products
         const shopProducts = getShopProducts(user?.shop_id || 0) || [];
-        setProducts((shopProducts || []).map(p => ({
+        setProducts((shopProducts || []).map((p: QuickSaleProduct) => ({
           ...p,
-          name: p.name || p.product_name
+          name: p.name || p.product_name || ''
         })));
         return;
       }
@@ -134,15 +135,15 @@ function QuickSalePageInner() {
         // Get all shop products
         const shopProducts = getShopProducts(user.shop_id) || [];
         // Combine: farmer products first, then remaining shop products
-        const farmerProductIds = new Set(farmerProducts.map((p: any) => p.id));
-        const remainingShopProducts = shopProducts.filter(p => !farmerProductIds.has(p.id));
+        const farmerProductIds = new Set(farmerProducts.map((p: { id: number }) => p.id));
+        const remainingShopProducts = shopProducts.filter((p: QuickSaleProduct) => !farmerProductIds.has(p.id));
         const combinedProducts = [...farmerProducts, ...remainingShopProducts];
-        setProducts((combinedProducts || []).map(p => {
+        setProducts((combinedProducts || []).map((p: QuickSaleProduct) => {
           // Ensure product_id is a number for matching
           const pid = typeof p.product_id === 'string' ? Number(p.product_id) : p.product_id;
           const sid = typeof p.id === 'string' ? Number(p.id) : p.id;
           const shopProducts = getShopProducts(user?.shop_id || 0) || [];
-          const matched = shopProducts.find(sp => sp.id === pid || sp.id === sid);
+          const matched = shopProducts.find((sp: QuickSaleProduct) => sp.id === pid || sp.id === sid);
           return {
             ...p,
             name: matched?.name || matched?.product_name || ''
@@ -150,27 +151,27 @@ function QuickSalePageInner() {
         }));
         // Auto-select first farmer product if available
         if (farmerProducts.length > 0 && !formData.product_name) {
-          const firstProduct = farmerProducts[0];
+          const firstProduct = farmerProducts[0] as QuickSaleProduct;
           // Ensure product_id is a number for matching
           const pid = typeof firstProduct.product_id === 'string' ? Number(firstProduct.product_id) : firstProduct.product_id;
           const sid = typeof firstProduct.id === 'string' ? Number(firstProduct.id) : firstProduct.id;
           const shopProducts = getShopProducts(user.shop_id) || [];
-          const matched = shopProducts.find(p => p.id === pid || p.id === sid);
+          const matched = shopProducts.find((p: QuickSaleProduct) => p.id === pid || p.id === sid);
           const resolvedName = matched?.name || matched?.product_name || '';
           setFormData(prev => ({
             ...prev,
             product_id: sid,
             product_name: resolvedName,
-            unit_price: firstProduct.farmer_price || firstProduct.price || 0,
-            category_id: firstProduct.category_id || prev.category_id
+            unit_price: (firstProduct.farmer_price ?? firstProduct.price ?? 0),
+            category_id: firstProduct.category_id ?? prev.category_id
           }));
         }
-      } catch (err) {
+      } catch {
         // Fallback to shop products
         const shopProducts = getShopProducts(user.shop_id) || [];
-        setProducts((shopProducts || []).map(p => ({
+        setProducts((shopProducts || []).map((p: QuickSaleProduct) => ({
           ...p,
-          name: p.name || p.product_name
+          name: p.name || p.product_name || ''
         })));
       }
     };
@@ -198,14 +199,11 @@ function QuickSalePageInner() {
   const fetchCommissionRate = async () => {
     if (!user?.shop_id) return;
     
-    try {
-      // This would be an API call to get shop commission rate
-      // For now, using default
-      const rate = 0.1; // 10%
-      setCommissionRate(rate);
-      commissionRateCache.current[user.shop_id] = rate;
-    } catch (err) {
-    }
+    // This would be an API call to get shop commission rate
+    // For now, using default
+    const rate = 0.1; // 10%
+    setCommissionRate(rate);
+    commissionRateCache.current[user.shop_id] = rate;
   };
   
   useEffect(() => {
@@ -280,10 +278,18 @@ function QuickSalePageInner() {
         // Navigate to dashboard after successful sale
         navigate('/owner');
       }
-    } catch (error: any) {
+    } catch (error) {
+      let message = 'Failed to create sale';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
+          message = (error.response.data as { message?: string }).message || message;
+        } else if ('message' in error && typeof error.message === 'string') {
+          message = error.message;
+        }
+      }
       toast({
         title: '❌ Sale Failed',
-        description: error.response?.data?.message || error.message || 'Failed to create sale',
+        description: message,
         variant: 'destructive'
       });
     } finally {
@@ -328,21 +334,21 @@ function QuickSalePageInner() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            <TransactionPartySelectors
-              farmers={farmers}
-              buyers={buyers}
-              categories={categories}
-              products={products}
-              values={{
-                farmer_id: formData.farmer_id,
-                buyer_id: formData.buyer_id,
-                category_id: formData.category_id,
-                product_id: formData.product_id,
-                product_name: formData.product_name
-              }}
-              errors={validationErrors}
-              onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
-            />
+             <TransactionPartySelectors
+               farmers={farmers}
+               buyers={buyers}
+               categories={categories}
+               products={products as unknown as BackendProduct[]}
+               values={{
+                 farmer_id: formData.farmer_id,
+                 buyer_id: formData.buyer_id,
+                 category_id: formData.category_id,
+                 product_id: formData.product_id,
+                 product_name: formData.product_name
+               }}
+               errors={validationErrors}
+               onChange={patch => setFormData(prev => ({ ...prev, ...patch }))}
+             />
             
             <TransactionQuantityPricing
               quantity={formData.quantity}

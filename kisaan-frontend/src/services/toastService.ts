@@ -81,10 +81,21 @@ class ToastService {
   apiError(error: unknown, customMessage?: string) {
     let message = customMessage;
     if (!message) {
-      if (typeof error === 'object' && error && 'response' in error && (error as any).response?.data?.message) {
-        message = (error as any).response.data.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = (error as { message?: string }).message;
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response === 'object' &&
+        (error as { response?: { data?: { message?: string } } }).response?.data?.message
+      ) {
+        message = (error as { response: { data: { message: string } } }).response.data.message;
+      } else if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as { message?: string }).message === 'string'
+      ) {
+        message = (error as { message: string }).message;
       } else if (typeof error === 'string') {
         message = error;
       } else {
