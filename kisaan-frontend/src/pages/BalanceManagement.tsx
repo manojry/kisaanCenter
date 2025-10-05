@@ -1,23 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTransactionStore } from '../store/transactionStore';
 import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
- // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, TrendingDown } from 'lucide-react';
-
-interface User {
-  id: string;
-  username: string;
-  role: 'farmer' | 'buyer';
-    balance: number;
-    contact?: string;
-    firstname?: string;
-}
+import type { User } from '../types/api';
 
 interface BalanceManagementProps {
   shopId: number;
@@ -28,16 +20,23 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [snapshots, setSnapshots] = useState<any[]>([]);
+  interface BalanceSnapshot {
+    id: string;
+    previous_balance: number;
+    new_balance: number;
+    amount_change: number;
+    [key: string]: string | number | undefined;
+  }
+  const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   const fetchUsers = async () => {
     try {
       const response = await usersApi.getAll({ shop_id: shopId });
-      const userList = Array.isArray(response.data) ? response.data : [];
-      const filteredUsers = userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) }));
-      setUsers(filteredUsers);
-      transactionStore.setUsers(String(shopId), filteredUsers);
+  const userList = Array.isArray(response.data) ? response.data as User[] : [];
+  const filteredUsers = userList.filter((u) => u.role === 'farmer' || u.role === 'buyer');
+  setUsers(filteredUsers);
+  transactionStore.setUsers(String(shopId), filteredUsers);
     } catch (error) {
       setUsers([]);
       transactionStore.setUsers(String(shopId), []);
@@ -67,8 +66,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       .then(data => {
         if (data && Array.isArray(data.data)) {
           // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
-          const filtered = data.data.filter((s: any) =>
-            parseFloat(s.amount_change) !== 0 || s.previous_balance !== s.new_balance
+          const filtered = data.data.filter((s: BalanceSnapshot) =>
+            parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
           );
           setSnapshots(filtered);
         } else {
@@ -93,7 +92,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
           <Select
             value={selectedUser ? String(selectedUser.id) : ''}
             onValueChange={val => {
-              const user = users.find(u => String(u.id) === String(val));
+              const user = users.find(u => String(u.id) === val);
               setSelectedUser(user || null);
             }}
           >
@@ -156,8 +155,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                       const d = new Date(s.snapshot_date);
                       snapshotDateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
                     }
-                    function safeNumber(val: any) {
-                      const n = typeof val === 'number' ? val : parseFloat(val);
+                    function safeNumber(val: number | string) {
+                      const n = typeof val === 'number' ? val : parseFloat(val as string);
                       return isNaN(n) ? 0 : n;
                     }
                     const prev = safeNumber(s.previous_balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});

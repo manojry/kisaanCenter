@@ -41,11 +41,11 @@ const SuperadminSettings: React.FC = () => {
     alert(`${section} settings saved successfully!`);
   };
 
-  const updateSetting = (section: string, key: string, value: any) => {
+  const updateSetting = <T extends keyof typeof settings, K extends keyof typeof settings[T]>(section: T, key: K, value: typeof settings[T][K]) => {
     setSettings(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof typeof prev],
+        ...prev[section],
         [key]: value
       }
     }));

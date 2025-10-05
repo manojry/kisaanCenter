@@ -84,8 +84,12 @@ import { formatCurrency } from '../lib/formatters';
         if (!users || users.length === 0) {
           (async () => {
             // You should use a users API here, but keeping logic as is
-            const usersRes: any = await expenseApi.getExpenses(storeShop.id); // Replace with getUsers API if available
-            users = usersRes?.data || [];
+            const usersRes: unknown = await expenseApi.getExpenses(storeShop.id); // Replace with getUsers API if available
+            if (usersRes && typeof usersRes === 'object' && 'data' in usersRes && Array.isArray((usersRes as { data?: unknown[] }).data)) {
+              users = (usersRes as { data?: import('../types/api').User[] }).data || [];
+            } else {
+              users = [];
+            }
             transactionStore.setUsers(shopIdStr, users);
           })();
         }

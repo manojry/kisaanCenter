@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, RefreshCw, Building2, Users, Settings } from 'lucide-react';
+import { RefreshCw, Building2, Users, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSuperadminDashboard } from '../hooks/useSuperadminDashboard';

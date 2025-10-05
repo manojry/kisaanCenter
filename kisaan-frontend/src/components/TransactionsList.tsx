@@ -12,6 +12,14 @@ import { formatCurrency, formatNumber, formatQuantity, formatDate } from '../lib
 import { useToast } from '@/hooks/use-toast';
 import { useSharedUsers } from '../hooks/useSharedUsers';
 
+interface Payment {
+  id: number;
+  amount: number;
+  method: string;
+  date: string;
+  [key: string]: unknown;
+}
+
 interface Transaction {
   id: number;
   farmer_id: number;
@@ -28,7 +36,7 @@ interface Transaction {
   transaction_date: string;
   created_at: string;
   updated_at: string;
-  payments: any[];
+  payments: Payment[];
 }
 
 interface TransactionsListProps {
@@ -77,13 +85,19 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
       let url = `/transactions?shop_id=${shopId}&include_analytics=true`;
       if (filters.date_from) url += `&startDate=${encodeURIComponent(filters.date_from)}`;
       if (filters.date_to) url += `&endDate=${encodeURIComponent(filters.date_to)}`;
-      const response = await apiClient.get(url) as any;
-      const transactionsData = response?.data || response || [];
+      const response = await apiClient.get<{ data?: Transaction[] } | Transaction[]>(url);
+      const transactionsData = Array.isArray(response)
+        ? response
+        : (response?.data ?? []);
       setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      let message = 'Failed to load transactions';
+      if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+        message = (err as { message: string }).message;
+      }
       toast({
         title: 'Error',
-        description: err.message || 'Failed to load transactions',
+        description: message,
         variant: 'destructive',
       });
     } finally {

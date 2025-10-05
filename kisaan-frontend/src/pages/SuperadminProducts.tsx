@@ -56,7 +56,7 @@ const SuperadminProducts: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await productsApi.getAll();
-      let productsArr = response.data ?? [];
+  const productsArr = response.data ?? [];
       let filteredProducts = productsArr;
       if (filters.search) {
         filteredProducts = filteredProducts.filter((p: Product) => 
@@ -168,7 +168,7 @@ const SuperadminProducts: React.FC = () => {
                 </div>
                 <div>
                   <Label htmlFor="record_status">Status</Label>
-                  <Select value={formData.record_status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, record_status: value }))}>
+                  <Select value={formData.record_status} onValueChange={(value: 'active' | 'inactive') => setFormData(prev => ({ ...prev, record_status: value }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

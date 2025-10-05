@@ -62,8 +62,8 @@ const CreditAdvanceManagement: React.FC = () => {
     setError('');
     try {
       const res = await creditAdvanceApi.getAll();
-      setCredits(res);
-    } catch (err) {
+      setCredits(Array.isArray(res) ? (res as CreditAdvance[]) : []);
+    } catch {
       setError('Failed to fetch credits');
     } finally {
       setLoading(false);

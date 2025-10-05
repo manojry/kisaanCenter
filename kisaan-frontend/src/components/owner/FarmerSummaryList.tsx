@@ -3,9 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { formatCurrency } from '../../lib/formatters';
 
+interface FarmerSummary {
+  id: number;
+  username: string;
+  total_sales?: number;
+  total_paid?: number;
+  outstanding?: number;
+}
+
 interface FarmerSummaryListProps {
-  farmers: any[];
-  onSelect: (farmer: any) => void;
+  farmers: FarmerSummary[];
+  onSelect: (farmer: FarmerSummary) => void;
 }
 
 export const FarmerSummaryList: React.FC<FarmerSummaryListProps> = ({ farmers, onSelect }) => {

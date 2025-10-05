@@ -12,8 +12,8 @@ interface ReportData {
   totalCommission: number;
   activeShops: number;
   activeUsers: number;
-  shopStats: any[];
-  userStats: any[];
+  shopStats: { [key: string]: unknown }[];
+  userStats: { [key: string]: unknown }[];
 }
 
 const SuperadminReports: React.FC = () => {
@@ -39,18 +39,25 @@ const SuperadminReports: React.FC = () => {
     setIsLoading(true);
     try {
   const res = await reportsApi.getSuperadminDashboard();
-      const metrics = res.data?.metrics || {};
-      setReportData({
-        totalShops: metrics.totalShops || 0,
-        activeShops: metrics.activeShops || 0,
-        totalUsers: metrics.totalUsers || 0,
-        activeUsers: metrics.activeUsers || 0,
-        totalTransactions: metrics.totalTransactions || 0,
-        totalRevenue: metrics.totalRevenue || 0,
-        totalCommission: metrics.totalCommission || 0,
-        shopStats: res.data?.charts?.shopStats || [],
-        userStats: res.data?.charts?.userStats || []
-      });
+    const metrics = res.data && typeof res.data === 'object' && 'metrics' in res.data && typeof res.data.metrics === 'object' ? res.data.metrics as Record<string, unknown> : {};
+    const charts = res.data && typeof res.data === 'object' && 'charts' in res.data && typeof res.data.charts === 'object' ? res.data.charts as Record<string, unknown> : {};
+    function getNumber(val: unknown): number {
+      return typeof val === 'number' ? val : 0;
+    }
+    function getArray(val: unknown): { [key: string]: unknown }[] {
+      return Array.isArray(val) ? val as { [key: string]: unknown }[] : [];
+    }
+    setReportData({
+      totalShops: getNumber(metrics.totalShops),
+      activeShops: getNumber(metrics.activeShops),
+      totalUsers: getNumber(metrics.totalUsers),
+      activeUsers: getNumber(metrics.activeUsers),
+      totalTransactions: getNumber(metrics.totalTransactions),
+      totalRevenue: getNumber(metrics.totalRevenue),
+      totalCommission: getNumber(metrics.totalCommission),
+      shopStats: getArray(charts.shopStats),
+      userStats: getArray(charts.userStats)
+    });
     } catch (err) {
       console.error('Error fetching report data:', err);
       setReportData({
