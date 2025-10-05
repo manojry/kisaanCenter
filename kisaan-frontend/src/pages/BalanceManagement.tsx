@@ -17,12 +17,12 @@ interface BalanceManagementProps {
 }
 
 const BalanceManagement: React.FC<BalanceManagementProps> = () => {
-  const { users } = useUsers();
+  const { allUsers, users } = useUsers();
   // Pagination state for User Amounts Owed table
   const [page, setPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(users.length / pageSize);
-  const pagedUsers = users.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(allUsers.length / pageSize);
+  const pagedUsers = allUsers.slice((page - 1) * pageSize, page * pageSize);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   // Extend shared BalanceSnapshot type to allow for string id and index signature if needed
   type BalanceSnapshot = Omit<SharedBalanceSnapshot, 'id'> & {
@@ -159,8 +159,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
               <Wallet className="h-8 w-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Payables (to Farmers)</p>
-                <p className="text-2xl font-bold text-red-600 break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]" style={{overflowWrap: 'anywhere'}} title={users.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}>
-                  ₹{users.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}
+                <p className="text-2xl font-bold text-red-600 break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]" style={{overflowWrap: 'anywhere'}} title={allUsers.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}>
+                  ₹{allUsers.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500">(Amount shop owes to farmers)</p>
               </div>
@@ -169,7 +169,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
         </Card>
       </div>
   {/* Users Table - All balances shown as amount owed */}
-  <div className="mb-2 text-sm text-gray-500">Debug: users.length = {users.length}</div>
+  <div className="mb-2 text-sm text-gray-500">Debug: allUsers.length = {allUsers.length}</div>
       <Card>
         <CardHeader>
           <CardTitle>User Amounts Owed</CardTitle>
