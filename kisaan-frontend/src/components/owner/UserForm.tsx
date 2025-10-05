@@ -55,7 +55,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
                 return;
               }
             }
-          } catch (err) {
+          } catch {
             // ignore error, fallback to shop
           }
         }
@@ -69,7 +69,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
               setFormData(prev => ({ ...prev, custom_commission_rate: commissionRate }));
             }
           }
-        } catch (err) {
+        } catch {
           // ignore error
         }
       };
@@ -124,7 +124,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         response = await usersApi.update(editUser.id, updateData);
       } else {
         // Create new user
-        let createData: UserCreate & { status?: 'active' | 'inactive' } = {
+  const createData: UserCreate & { status?: 'active' | 'inactive' } = {
           ...formData,
           // Handle defaults based on current user role
           password: currentUser?.role === 'superadmin' ? formData.password : 'kisaan@123',

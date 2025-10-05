@@ -12,7 +12,7 @@ import type { User, Transaction } from '@/types/api';
 // Query Keys for consistent caching
 export const SHOP_QUERY_KEYS = {
   users: (shopId: string) => ['shop', shopId, 'users'] as const,
-  transactions: (shopId: string, filters?: any) => 
+  transactions: (shopId: string, filters?: Record<string, unknown>) => 
     ['shop', shopId, 'transactions', filters] as const,
   payments: (shopId: string) => ['shop', shopId, 'payments'] as const,
   balance: (shopId: string) => ['shop', shopId, 'balance'] as const,
@@ -64,7 +64,7 @@ export function useShopUsersByRole(role: 'farmer' | 'buyer' | 'employee', shopId
 /**
  * Centralized Shop Transactions Hook with automatic user enrichment
  */
-export function useShopTransactions(shopId?: string | number, filters?: any) {
+export function useShopTransactions(shopId?: string | number, filters?: Record<string, unknown>) {
   const { user } = useAuth();
   const actualShopId = shopId || user?.shop_id;
   
@@ -75,7 +75,7 @@ export function useShopTransactions(shopId?: string | number, filters?: any) {
     queryKey: SHOP_QUERY_KEYS.transactions(String(actualShopId), filters),
     queryFn: async () => {
       const params = {
-        shop_id: actualShopId,
+        shop_id: actualShopId ? Number(actualShopId) : undefined,
         ...filters,
       };
       const response = await transactionsApi.getAll(params);

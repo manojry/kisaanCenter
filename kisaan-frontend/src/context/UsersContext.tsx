@@ -36,7 +36,7 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const response = await usersApi.getAll({});
       if (response.data) setUsers(response.data);
-    } catch (e) {
+    } catch {
       // handle error - user will see toast notification from apiClient
       setUsers([]);
     } finally {

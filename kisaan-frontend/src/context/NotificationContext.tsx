@@ -143,10 +143,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     try {
       setIsLoading(true);
-      const response = await apiClient.get('/audit-logs') as any;
+  const response = await apiClient.get('/audit-logs') as unknown;
       
-      if (response?.success && Array.isArray(response.data)) {
-        const notificationData = response.data
+      if (
+        response &&
+        typeof response === 'object' &&
+        'success' in response &&
+        (response as { success?: boolean }).success &&
+        'data' in response &&
+        Array.isArray((response as { data?: unknown[] }).data)
+      ) {
+        const notificationData = ((response as { data: unknown[] }).data as AuditLog[])
           .map(auditLogToNotification)
           .filter((notification: Notification | null): notification is Notification => notification !== null)
           .filter((notification: Notification) => {
