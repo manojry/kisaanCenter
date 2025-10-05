@@ -80,7 +80,7 @@ jobs:
 
     - name: 📥 Install dependencies
       working-directory: kisaan-frontend
-      run: npm ci
+      run: npm install --legacy-peer-deps
 
     - name: 🔍 TypeScript type checking
       working-directory: kisaan-frontend
