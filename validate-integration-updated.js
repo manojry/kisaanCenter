@@ -1,10 +1,10 @@
 // Updated integration validation script with correct balance endpoint
 const API_BASE = 'https://kisaancenter-backend.whiteisland-e1233153.northeurope.azurecontainerapps.io/api';
 
-console.log('🔍 Updated Frontend-Backend Integration Validation');
-console.log('==========================================');
-console.log('\nAPI Base URL:', API_BASE);
-console.log('\n');
+// ...removed log...
+// ...removed log...
+// ...removed log...
+// ...removed log...
 
 const endpoints = [
   { name: 'Health Check', method: 'GET', url: `${API_BASE}/../health`, expectAuth: false },
@@ -22,8 +22,8 @@ const endpoints = [
 
 async function testEndpoint(endpoint) {
   try {
-    console.log(`📋 ${endpoint.name}`);
-    console.log(`Testing ${endpoint.method} ${endpoint.url}`);
+  // ...removed log...
+  // ...removed log...
     
     const response = await fetch(endpoint.url, {
       method: endpoint.method,
@@ -37,24 +37,24 @@ async function testEndpoint(endpoint) {
     
     if (endpoint.expectStatus) {
       if (endpoint.expectStatus.includes(status)) {
-        console.log(`  ✅ Status: ${status} ${statusText}`);
+  // ...removed log...
         return true;
       } else {
-        console.log(`  ❌ Status: ${status} ${statusText}`);
+  // ...removed log...
         return false;
       }
     } else {
       if (status >= 200 && status < 300) {
-        console.log(`  ✅ Status: ${status} ${statusText}`);
+  // ...removed log...
         return true;
       } else {
-        console.log(`  ❌ Status: ${status} ${statusText}`);
+  // ...removed log...
         return false;
       }
     }
     
   } catch (error) {
-    console.log(`  ❌ Error: ${error.message}`);
+  // ...removed log...
     return false;
   }
 }
@@ -72,33 +72,33 @@ async function runValidation() {
       failed++;
       failedTests.push(endpoint.name);
     }
-    console.log('');
+  // ...removed log...
   }
   
-  console.log('📊 Summary');
-  console.log('===========');
-  console.log(`✅ Successful: ${successful}/${endpoints.length}`);
-  console.log(`❌ Failed: ${failed}/${endpoints.length}`);
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
   
   if (failedTests.length > 0) {
-    console.log('\n❌ Failed Tests:');
-    failedTests.forEach(test => console.log(`  • ${test}`));
+  // ...removed log...
+  // ...removed log...
   }
   
-  console.log('\n🎯 Integration Status');
-  console.log('=====================');
+  // ...removed log...
+  // ...removed log...
   if (failed <= 1) {
-    console.log('✅ Integration is working well!');
-    console.log('   • Frontend can reach backend');
-    console.log('   • API endpoints are responding');
-    console.log('   • Expected authentication behavior confirmed');
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
     
     if (failed === 1) {
-      console.log('\n🔧 Minor Issues to Fix:');
-      failedTests.forEach(test => console.log(`   • ${test}`));
+  // ...removed log...
+  // ...removed log...
     }
   } else {
-    console.log('⚠️  Multiple issues found, needs attention');
+  // ...removed log...
   }
   
   process.exit(failed > 1 ? 1 : 0);

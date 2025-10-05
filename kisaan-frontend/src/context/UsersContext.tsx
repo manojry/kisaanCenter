@@ -45,7 +45,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
         let done = false;
         while (!done) {
           const response = await usersApi.getAll({ page, limit });
-          console.log(`[UsersContext] usersApi.getAll page ${page} response:`, response);
+          // ...removed log...
           if (response.data && response.data.length > 0) {
             allFetchedUsers = allFetchedUsers.concat(response.data);
           }
@@ -61,11 +61,11 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
         setTotal(total);
         setAllUsersFetched(allFetchedUsers.length >= total);
         setTimeout(() => {
-          console.log('[UsersContext] allUsers after set:', allFetchedUsers);
+          // ...removed log...
         }, 0);
       }
     } catch (err) {
-      console.error('[UsersContext] Error fetching users:', err);
+  // ...removed log...
       setAllUsers([]);
       setTotal(0);
     } finally {

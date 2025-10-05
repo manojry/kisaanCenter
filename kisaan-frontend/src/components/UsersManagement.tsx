@@ -233,6 +233,16 @@ export default function UsersManagement() {
                 {idx < filteredUsers.length - 1 && <div className="border-t mt-3 pt-3" />}
               </div>
             ))}
+            {/* Mobile Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center gap-2 w-full justify-center">
+                  <button onClick={() => handlePageChange(page - 1)} disabled={page === 1} className="px-3 py-2 border rounded disabled:opacity-50">Prev</button>
+                  <span className="text-sm">Page {page} of {totalPages}</span>
+                  <button onClick={() => handlePageChange(page + 1)} disabled={page === totalPages} className="px-3 py-2 border rounded disabled:opacity-50">Next</button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

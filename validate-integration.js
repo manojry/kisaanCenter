@@ -11,7 +11,7 @@ const config = {
 
 async function validateEndpoint(endpoint, method = 'GET', expectedStatus = 200) {
   const url = `${config.apiBaseUrl}${endpoint}`;
-  console.log(`Testing ${method} ${url}`);
+  // ...removed log...
   
   try {
     const response = await fetch(url, {
@@ -22,7 +22,7 @@ async function validateEndpoint(endpoint, method = 'GET', expectedStatus = 200) 
     });
     
     const statusIcon = response.status === expectedStatus ? '✅' : '❌';
-    console.log(`  ${statusIcon} Status: ${response.status} ${response.statusText}`);
+  // ...removed log...
     
     if (response.status === expectedStatus || (response.status >= 200 && response.status < 300)) {
       return { success: true, status: response.status };
@@ -30,16 +30,16 @@ async function validateEndpoint(endpoint, method = 'GET', expectedStatus = 200) 
       return { success: false, status: response.status, error: response.statusText };
     }
   } catch (error) {
-    console.log(`  ❌ Error: ${error.message}`);
+  // ...removed log...
     return { success: false, error: error.message };
   }
 }
 
 async function validateIntegration() {
-  console.log('🔍 Frontend-Backend Integration Validation');
-  console.log('==========================================\n');
+  // ...removed log...
+  // ...removed log...
   
-  console.log(`API Base URL: ${config.apiBaseUrl}\n`);
+  // ...removed log...
   
   const tests = [
     // Health check endpoints
@@ -64,7 +64,7 @@ async function validateIntegration() {
   const results = [];
   
   for (const test of tests) {
-    console.log(`\n📋 ${test.name}`);
+  // ...removed log...
     const result = await validateEndpoint(test.endpoint, test.method, test.expectedStatus);
     results.push({ ...test, ...result });
     
@@ -72,34 +72,34 @@ async function validateIntegration() {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   
-  console.log('\n📊 Summary');
-  console.log('===========');
+  // ...removed log...
+  // ...removed log...
   
   const successful = results.filter(r => r.success);
   const failed = results.filter(r => !r.success);
   
-  console.log(`✅ Successful: ${successful.length}/${results.length}`);
-  console.log(`❌ Failed: ${failed.length}/${results.length}`);
+  // ...removed log...
+  // ...removed log...
   
   if (failed.length > 0) {
-    console.log('\n❌ Failed Tests:');
+  // ...removed log...
     failed.forEach(test => {
-      console.log(`  • ${test.name}: ${test.error || `Status ${test.status}`}`);
+  // ...removed log...
     });
   }
   
-  console.log('\n🎯 Integration Status');
-  console.log('=====================');
+  // ...removed log...
+  // ...removed log...
   
   if (successful.length >= results.length * 0.8) {
-    console.log('✅ Integration is working well!');
-    console.log('   • Frontend can reach backend');
-    console.log('   • API endpoints are responding');
-    console.log('   • Expected authentication behavior confirmed');
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
   } else {
-    console.log('⚠️  Integration needs attention');
-    console.log('   • Some endpoints are not responding as expected');
-    console.log('   • Check network connectivity and backend status');
+  // ...removed log...
+  // ...removed log...
+  // ...removed log...
   }
   
   return {
@@ -117,7 +117,7 @@ if (require.main === module) {
       process.exit(summary.failed === 0 ? 0 : 1);
     })
     .catch(error => {
-      console.error('💥 Validation failed:', error);
+  // ...removed log...
       process.exit(1);
     });
 }

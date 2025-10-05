@@ -27,7 +27,7 @@ const examplePayload = {
   ]
 };
 
-console.log("=== STEP-BY-STEP TRANSACTION FLOW ANALYSIS ===\n");
+// ...removed log...
 
 console.log("1. FRONTEND PAYLOAD:");
 console.log(JSON.stringify(examplePayload, null, 2));

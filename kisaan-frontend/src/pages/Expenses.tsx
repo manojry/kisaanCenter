@@ -120,7 +120,6 @@ export default function Expenses() {
     // Only fetch data when storeShop is set (and not null)
     // Only fetch data for the active tab
     const fetchData = useCallback(async () => {
-      console.log('fetchData called', { activeTab, filterFromDate, filterToDate, refreshFlag, storeShopId: storeShop?.id });
       if (!user?.id || !storeShop?.id) return;
       setIsLoading(true);
       try {
@@ -149,14 +148,13 @@ export default function Expenses() {
           description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Failed to fetch expenses/settlements',
           variant: 'destructive'
         });
-        console.error('Failed to fetch expenses/settlements:', error);
+  // ...removed log...
       } finally {
         setIsLoading(false);
       }
     }, [user?.id, storeShop?.id, filterFromDate, filterToDate, activeTab, toast]);
 
     useEffect(() => {
-      console.log('useEffect for fetchData', { activeTab, filterFromDate, filterToDate, refreshFlag, storeShopId: storeShop?.id });
       if (!storeShop?.id) return;
       // Only fetch for the active tab and its relevant filters
       if (activeTab === 'expenses' || activeTab === 'settlements' || activeTab === 'summary') {
@@ -189,7 +187,7 @@ export default function Expenses() {
           description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Failed FIFO repayment',
           variant: 'destructive'
         });
-        console.error('Failed FIFO repayment:', error);
+  // ...removed log...
       }
     };
 
@@ -210,26 +208,19 @@ export default function Expenses() {
           description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Settlement failed',
           variant: 'destructive'
         });
-        console.error('Settlement failed:', error);
+  // ...removed log...
       }
     };
 
     // Add Expense
     const handleAddExpense = async () => {
-      console.log('Add Expense Clicked', {
-        shopId: storeShop?.id,
-        ...expenseForm
-      });
       if (!storeShop?.id || !expenseForm.amount || !expenseForm.description || !expenseForm.userId) {
-        console.warn('Missing required fields for expense', {
-          shopId: storeShop?.id,
-          ...expenseForm
-        });
+        // Required fields missing
         return;
       }
       setIsLoading(true);
       try {
-        const res = await settlementsApi.create({
+        await settlementsApi.create({
           shop_id: storeShop.id,
           settlementUser_id: Number(expenseForm.userId),
           owner_id: user?.id ?? undefined,
@@ -237,7 +228,6 @@ export default function Expenses() {
           reason: 'adjustment',
           notes: expenseForm.description
         });
-        console.log('Expense API response:', res);
         setExpenseForm({ reason: '', userId: '', amount: '', description: '' });
         setRefreshFlag(f => !f);
         toast({
@@ -252,7 +242,7 @@ export default function Expenses() {
           description: errMsg,
           variant: 'destructive'
         });
-        console.error('Failed to add expense:', error);
+  // ...removed log...
       } finally {
         setIsLoading(false);
       }

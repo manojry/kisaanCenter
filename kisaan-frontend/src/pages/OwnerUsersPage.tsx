@@ -93,10 +93,26 @@ const OwnerUsersPageInner: React.FC = () => {
   });
 
 
-  // If all users are fetched, paginate locally from allUsers
+  // If all users are fetched, filter and paginate locally from allUsers
   let filteredUsers = users;
   if (allUsersFetched) {
-    filteredUsers = allUsers.slice((page - 1) * pageSize, page * pageSize);
+    let localFiltered = allUsers;
+    if (filters.role) {
+      localFiltered = localFiltered.filter(u => u.role === filters.role);
+    }
+    if (filters.status) {
+      localFiltered = localFiltered.filter(u => u.status === filters.status);
+    }
+    if (filters.search) {
+      const q = filters.search.trim().toLowerCase();
+      localFiltered = localFiltered.filter(u =>
+        (u.firstname && u.firstname.toLowerCase().includes(q)) ||
+        (u.username && u.username.toLowerCase().includes(q)) ||
+        (u.contact && u.contact.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+      );
+    }
+    filteredUsers = localFiltered.slice((page - 1) * pageSize, page * pageSize);
   }
 
 
@@ -352,6 +368,25 @@ const OwnerUsersPageInner: React.FC = () => {
                   </div>
                 )}
               </div>
+              {/* Mobile Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2 w-full justify-center">
+                    <button onClick={() => setPage(page - 1)} disabled={page === 1} className="px-3 py-2 border rounded disabled:opacity-50">Prev</button>
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        className={`px-3 py-2 border rounded ${page === i + 1 ? 'bg-blue-600 text-white font-bold border-blue-600' : 'bg-white text-gray-800'} ${page === i + 1 ? '' : 'hover:bg-gray-100'} transition-colors`}
+                        style={{ minWidth: 36 }}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button onClick={() => setPage(page + 1)} disabled={page === totalPages} className="px-3 py-2 border rounded disabled:opacity-50">Next</button>
+                  </div>
+                </div>
+              )}
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
                 {filteredUsers.map((user) => (
