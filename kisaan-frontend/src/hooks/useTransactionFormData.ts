@@ -49,12 +49,17 @@ export function useTransactionFormData(): UseTransactionFormDataResult {
     console.log('fetchAll called');
     try {
       console.log('Starting fetch...');
-      const [farmersRes, buyersRes, productsRes, categoriesRes] = await Promise.all([
-        apiClient.get('/users?role=farmer') as any,
-        apiClient.get('/users?role=buyer') as any,
-        apiClient.get('/products') as any,
-        apiClient.get('/categories') as any,
+      const [farmersResRaw, buyersResRaw, productsResRaw, categoriesResRaw] = await Promise.all([
+        apiClient.get('/users?role=farmer') as unknown,
+        apiClient.get('/users?role=buyer') as unknown,
+        apiClient.get('/products') as unknown,
+        apiClient.get('/categories') as unknown,
       ]);
+      // Type guards for API responses
+      const farmersRes = (typeof farmersResRaw === 'object' && farmersResRaw && 'data' in farmersResRaw) ? (farmersResRaw as { data?: Entity[] }) : { data: [] };
+      const buyersRes = (typeof buyersResRaw === 'object' && buyersResRaw && 'data' in buyersResRaw) ? (buyersResRaw as { data?: Entity[] }) : { data: [] };
+      const productsRes = (typeof productsResRaw === 'object' && productsResRaw && 'data' in productsResRaw) ? (productsResRaw as { data?: Entity[] }) : { data: [] };
+      const categoriesRes = (typeof categoriesResRaw === 'object' && categoriesResRaw && 'data' in categoriesResRaw) ? (categoriesResRaw as { data?: Entity[] }) : { data: [] };
       console.log('Fetch completed');
       if (!didTimeout) {
         // Log raw API responses for debugging
@@ -63,15 +68,19 @@ export function useTransactionFormData(): UseTransactionFormDataResult {
         console.log('RAW productsRes:', productsRes);
         console.log('RAW categoriesRes:', categoriesRes);
 
-        setFarmers(Array.isArray(farmersRes?.data) ? farmersRes.data : Array.isArray(farmersRes) ? farmersRes : []);
-        setBuyers(Array.isArray(buyersRes?.data) ? buyersRes.data : Array.isArray(buyersRes) ? buyersRes : []);
-        setProducts(Array.isArray(productsRes?.data) ? productsRes.data : Array.isArray(productsRes) ? productsRes : []);
-        setCategories(Array.isArray(categoriesRes?.data) ? categoriesRes.data : Array.isArray(categoriesRes) ? categoriesRes : []);
+  setFarmers(Array.isArray(farmersRes?.data) ? farmersRes.data : []);
+  setBuyers(Array.isArray(buyersRes?.data) ? buyersRes.data : []);
+  setProducts(Array.isArray(productsRes?.data) ? productsRes.data : []);
+  setCategories(Array.isArray(categoriesRes?.data) ? categoriesRes.data : []);
       }
-    } catch (e: any) {
+    } catch (e) {
       console.log('Error in fetchAll:', e);
+      let message = 'Failed to load form data';
+      if (e && typeof e === 'object' && 'message' in e) {
+        message = (e as { message?: string }).message || message;
+      }
       if (!didTimeout) {
-        setError(e?.message || 'Failed to load form data');
+        setError(message);
       }
     } finally {
       if (!didTimeout) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Shop, User } from '../types/api';
+import type { Shop } from '../types/api';
 import { superadminDashboardApi } from '../services/api';
 
 interface SuperadminStats {
@@ -30,7 +30,7 @@ export const useSuperadminDashboard = () => {
       setError(null);
 
       // Use the dedicated superadmin dashboard endpoint
-      const dashboardData = await superadminDashboardApi.getDashboard();
+      const dashboardDataRaw = await superadminDashboardApi.getDashboard();
       // Fetch recent shops separately
       try {
         const recentShopsData = await superadminDashboardApi.getRecentShops();
@@ -40,20 +40,44 @@ export const useSuperadminDashboard = () => {
         setRecentShops([]);
       }
 
-      // Map backend response to frontend format
-      const calculatedStats: SuperadminStats = {
-        total_shops: dashboardData.data.metrics.totalShops,
-        total_users: dashboardData.data.metrics.totalUsers,
-        total_owners: dashboardData.data.charts.userStats.find((u: any) => u.role === 'owner')?.count || 0,
-        total_revenue: dashboardData.data.metrics.totalRevenue,
-        active_shops: dashboardData.data.metrics.activeShops,
-        pending_settlements: dashboardData.data.metrics.totalCommission
+      // Type guard for dashboardData
+      let calculatedStats: SuperadminStats = {
+        total_shops: 0,
+        total_owners: 0,
+        total_users: 0,
+        total_revenue: 0,
+        active_shops: 0,
+        pending_settlements: 0
       };
-
+      if (
+        dashboardDataRaw && typeof dashboardDataRaw === 'object' && 'data' in dashboardDataRaw &&
+        dashboardDataRaw.data && typeof dashboardDataRaw.data === 'object' &&
+        'metrics' in dashboardDataRaw.data &&
+        dashboardDataRaw.data.metrics && typeof dashboardDataRaw.data.metrics === 'object' &&
+        'charts' in dashboardDataRaw.data &&
+        dashboardDataRaw.data.charts && typeof dashboardDataRaw.data.charts === 'object' &&
+        'userStats' in dashboardDataRaw.data.charts &&
+        Array.isArray(dashboardDataRaw.data.charts.userStats)
+      ) {
+        const metrics = dashboardDataRaw.data.metrics as Record<string, any>;
+        const userStatsArr = dashboardDataRaw.data.charts.userStats as Array<{ role: string; count: number }>;
+        calculatedStats = {
+          total_shops: metrics.totalShops ?? 0,
+          total_users: metrics.totalUsers ?? 0,
+          total_owners: userStatsArr.find((u) => u.role === 'owner')?.count || 0,
+          total_revenue: metrics.totalRevenue ?? 0,
+          active_shops: metrics.activeShops ?? 0,
+          pending_settlements: metrics.totalCommission ?? 0
+        };
+      }
       setStats(calculatedStats);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Dashboard data fetch error:', err);
-      setError(err.message || 'Failed to load dashboard data');
+      let message = 'Failed to load dashboard data';
+      if (err && typeof err === 'object' && 'message' in err) {
+        message = (err as { message?: string }).message || message;
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }

@@ -43,9 +43,13 @@ export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
       const ownersList = await shopsApi.getAvailableOwners();
       setOwners(ownersList);
       console.log('Loaded owners:', ownersList); // Debug log
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading owners:', error);
-      setOwnersError(error.message || 'Failed to load owners');
+      let message = 'Failed to load owners';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message || message;
+      }
+      setOwnersError(message);
     } finally {
       setIsLoadingOwners(false);
     }
@@ -56,7 +60,7 @@ export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
     try {
       const response = await categoriesApi.getAll();
       setCategories(response.data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading categories:', error);
     } finally {
       setIsLoadingCategories(false);
@@ -82,9 +86,13 @@ export const ShopForm: React.FC<ShopFormProps> = ({ onSuccess, onCancel }) => {
       if (response.success && response.data) {
         onSuccess?.(response.data);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating shop:', error);
-      alert(error.message || 'Failed to create shop');
+      let message = 'Failed to create shop';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message || message;
+      }
+      alert(message);
     } finally {
       setIsLoading(false);
     }

@@ -31,7 +31,7 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
           value={buyerPaymentMethod}
-          onChange={e => onChange({ buyerPaymentMethod: e.target.value as any })}
+          onChange={e => onChange({ buyerPaymentMethod: e.target.value as 'CASH' | 'BANK' | 'UPI' | 'OTHER' })}
         >
           <option value="CASH">Cash</option>
           <option value="UPI">UPI</option>
@@ -53,7 +53,7 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
           value={farmerPaymentMethod}
-          onChange={e => onChange({ farmerPaymentMethod: e.target.value as any })}
+          onChange={e => onChange({ farmerPaymentMethod: e.target.value as 'CASH' | 'BANK' | 'UPI' | 'OTHER' })}
         >
           <option value="CASH">Cash</option>
           <option value="UPI">UPI</option>

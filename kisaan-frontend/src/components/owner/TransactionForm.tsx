@@ -26,8 +26,9 @@ interface Product {
   category_id: number;
 }
 
+import type { Transaction } from '../../types/api';
 interface TransactionFormProps {
-  onSuccess?: (transaction: any) => void;
+  onSuccess?: (transaction: Transaction) => void;
   onCancel?: () => void;
 }
 
@@ -133,7 +134,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
         } else {
           console.log('[TransactionForm] Fetching products from API for shop_id', user.shop_id);
           const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
-          const productsResponse = productsResponseRaw as any;
+          // productsResponseRaw is expected to be an AxiosResponse<{ data: Product[] }>
+          // If not, fallback to unknown and type guard
+          let productsResponse: { data?: Product[] };
+          if (typeof productsResponseRaw === 'object' && productsResponseRaw !== null && 'data' in productsResponseRaw) {
+            productsResponse = productsResponseRaw as { data?: Product[] };
+          } else {
+            productsResponse = { data: [] };
+          }
           const prods = productsResponse.data || [];
           console.log('[TransactionForm] Products fetched from API:', prods);
           setShopProducts(user.shop_id, prods);
@@ -156,16 +164,22 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   };
 
   // Fetch commission rate for the current shop
+  type CommissionResponse = { data: { rate: string }[] } | { data: { rate: string } };
   const fetchCommissionRate = async () => {
     if (!user?.shop_id) return;
     try {
-      const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as any;
-      // API returns array or single object
+      const res = await apiClient.get(`/commissions?shop_id=${user.shop_id}`) as unknown;
       let rate = 0.1;
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        rate = parseFloat(res.data[0].rate) / 100;
-      } else if (res.data && res.data.rate) {
-        rate = parseFloat(res.data.rate) / 100;
+      if (
+        typeof res === 'object' && res !== null && 'data' in res &&
+        Array.isArray((res as CommissionResponse).data) && ((res as { data: { rate: string }[] }).data.length > 0)
+      ) {
+        rate = parseFloat(((res as { data: { rate: string }[] }).data[0].rate)) / 100;
+      } else if (
+        typeof res === 'object' && res !== null && 'data' in res &&
+        (res as { data: { rate: string } }).data && (res as { data: { rate: string } }).data.rate
+      ) {
+        rate = parseFloat(((res as { data: { rate: string } }).data.rate)) / 100;
       }
       commissionRateCache.current[user.shop_id] = rate;
       setCommissionRate(rate);
@@ -247,12 +261,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       });
 
       const response = await transactionsApi.create(payload);
-      onSuccess?.(response.data);
-    } catch (error: any) {
+      if (response && response.data) {
+        onSuccess?.(response.data as Transaction);
+      }
+    } catch (error) {
       console.error('Error creating transaction:', error);
+      let message = 'Failed to create transaction';
+      if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message || message;
+      }
       toast({
         title: "Error",
-        description: error.message || 'Failed to create transaction',
+        description: message,
         variant: "destructive",
       });
     } finally {

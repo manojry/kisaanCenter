@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -25,9 +25,18 @@ interface BalanceManagementProps {
 }
 
 const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
-  const { isAuthenticated } = useAuth();
+  // const { isAuthenticated } = useAuth(); // Unused
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [snapshots, setSnapshots] = useState<any[]>([]);
+  interface BalanceSnapshot {
+    id: number;
+    user_id: number;
+    previous_balance: number;
+    new_balance: number;
+    amount_change: string | number;
+    created_at: string;
+    [key: string]: unknown;
+  }
+  const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   // NEW: Use centralized user data hook instead of manual fetching
@@ -39,12 +48,13 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   } = useShopUsers(shopId);
 
   // Filter users to only farmers and buyers with proper typing
+  // Convert backend User (id: number) to local User (id: string)
   const users = React.useMemo(() => {
-    return allUsers
-      .filter((u: any) => ['farmer', 'buyer'].includes(u.role))
-      .map((u: any) => ({ 
-        ...u, 
-        id: String(u.id) 
+    return (allUsers as import('../types/api').User[])
+      .filter((u) => ['farmer', 'buyer'].includes(u.role))
+      .map((u) => ({
+        ...u,
+        id: String(u.id),
       })) as User[];
   }, [allUsers]);
 
@@ -60,8 +70,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       .then(data => {
         if (data && Array.isArray(data.data)) {
           // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
-          const filtered = data.data.filter((s: any) =>
-            parseFloat(s.amount_change) !== 0 || s.previous_balance !== s.new_balance
+          const filtered = data.data.filter((s: BalanceSnapshot) =>
+            parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
           );
           setSnapshots(filtered);
         } else {
@@ -260,24 +270,24 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                         <TableCell>
                           {new Date(snapshot.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{snapshot.description || 'Balance update'}</TableCell>
+                        <TableCell>{String((snapshot as any).description) || 'Balance update'}</TableCell>
                         <TableCell className="text-right font-mono">
-                          ₹{parseFloat(snapshot.previous_balance || 0).toFixed(2)}
+                          ₹{parseFloat(String(snapshot.previous_balance || 0)).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           <span className={
-                            parseFloat(snapshot.amount_change) > 0 
+                            parseFloat(String(snapshot.amount_change)) > 0
                               ? 'text-green-600' 
-                              : parseFloat(snapshot.amount_change) < 0 
+                              : parseFloat(String(snapshot.amount_change)) < 0
                                 ? 'text-red-600' 
                                 : 'text-gray-600'
                           }>
-                            {parseFloat(snapshot.amount_change) > 0 ? '+' : ''}
-                            ₹{parseFloat(snapshot.amount_change || 0).toFixed(2)}
+                            {parseFloat(String(snapshot.amount_change)) > 0 ? '+' : ''}
+                            ₹{parseFloat(String(snapshot.amount_change || 0)).toFixed(2)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          ₹{parseFloat(snapshot.new_balance || 0).toFixed(2)}
+                          ₹{parseFloat(String(snapshot.new_balance || 0)).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}

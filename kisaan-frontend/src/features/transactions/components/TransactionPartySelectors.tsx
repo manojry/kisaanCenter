@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import Select from 'react-select';
+import type { SingleValue } from 'react-select';
 import { Label } from '@/components/ui/label';
 import type { User, Category } from '@/types/api';
 
@@ -30,7 +31,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         <Select
           options={farmers.map(f => ({ value: f.id, label: `${f.firstname || f.username} (${f.id})` }))}
           value={values.farmer_id ? { value: values.farmer_id, label: `${farmers.find(f => f.id === values.farmer_id)?.firstname || farmers.find(f => f.id === values.farmer_id)?.username} (${values.farmer_id})` } : null}
-          onChange={(opt: any) => onChange({ farmer_id: opt ? opt.value : 0 })}
+          onChange={(opt: SingleValue<{ value: number; label: string }>) => onChange({ farmer_id: opt ? opt.value : 0 })}
           isClearable
           placeholder="Search and select farmer"
           classNamePrefix="react-select"
@@ -42,7 +43,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         <Select
           options={buyers.map(b => ({ value: b.id, label: `${b.firstname || b.username} (${b.id})` }))}
           value={values.buyer_id ? { value: values.buyer_id, label: `${buyers.find(b => b.id === values.buyer_id)?.firstname || buyers.find(b => b.id === values.buyer_id)?.username} (${values.buyer_id})` } : null}
-          onChange={(opt: any) => onChange({ buyer_id: opt ? opt.value : 0 })}
+          onChange={(opt: SingleValue<{ value: number; label: string }>) => onChange({ buyer_id: opt ? opt.value : 0 })}
           isClearable
           placeholder="Search and select buyer"
           classNamePrefix="react-select"
@@ -66,7 +67,7 @@ export const TransactionPartySelectors: React.FC<Props> = ({ farmers, buyers, ca
         <Select
           options={products.map(p => ({ value: p.id, label: `${p.name} (${p.id})` }))}
           value={values.product_id ? { value: values.product_id, label: `${values.product_name} (${values.product_id})` } : null}
-          onChange={(opt: any) => opt ? onChange({ product_id: opt.value, product_name: opt.label.split(' (')[0] }) : onChange({ product_id: undefined, product_name: '' })}
+          onChange={(opt: SingleValue<{ value: number; label: string }>) => opt ? onChange({ product_id: opt.value, product_name: opt.label.split(' (')[0] }) : onChange({ product_id: undefined, product_name: '' })}
           isClearable
           placeholder="Search and select product"
           classNamePrefix="react-select"
