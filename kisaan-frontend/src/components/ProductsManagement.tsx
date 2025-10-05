@@ -28,10 +28,9 @@ interface Category {
 
 interface ProductsManagementProps {
   shopId?: number;
-  onRefresh?: () => Promise<void>;
 }
 
-export default function ProductsManagement({ shopId, onRefresh }: ProductsManagementProps) {
+export default function ProductsManagement({ shopId }: ProductsManagementProps) {
   const [products, setProducts] = useState<Product[]>([]);
   // Use global shop products cache
   const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();

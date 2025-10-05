@@ -1,19 +1,17 @@
-import React from 'react';
+// import React from 'react';
 import { Badge } from '../components/ui/badge';
 import { formatCurrency } from '../utils/format';
 import { formatDisplayDate } from '../utils/dateUtils';
-import type { Transaction, User } from '../types/api';
+import type { Transaction } from '../types/api';
 
 interface TransactionCardListProps {
   paginatedTransactions: Transaction[];
-  users: User[];
   getTransactionStatus: (transaction: Transaction) => string;
   getTransactionStatusColor: (status: string) => string;
 }
 
 export const TransactionCardList: React.FC<TransactionCardListProps> = ({
   paginatedTransactions,
-  users,
   getTransactionStatus,
   getTransactionStatusColor,
 }) => (
