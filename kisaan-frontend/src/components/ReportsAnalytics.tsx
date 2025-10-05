@@ -54,11 +54,24 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
     setIsLoading(true);
     try {
       const analyticsData = await analyticsApi.getShopAnalytics(shopId, dateRange);
-      setAnalytics(analyticsData);
-    } catch (err: any) {
+      // If API response is wrapped, extract .data, else use as is
+      let analyticsObj: Analytics | null = null;
+      if (analyticsData && typeof analyticsData === 'object') {
+        if ('data' in analyticsData && typeof analyticsData.data === 'object') {
+          analyticsObj = analyticsData.data as Analytics;
+        } else {
+          analyticsObj = analyticsData as unknown as Analytics;
+        }
+      }
+      setAnalytics(analyticsObj);
+    } catch (err: unknown) {
+      let message = 'Failed to load analytics';
+      if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+        message = (err as { message: string }).message;
+      }
       toast({
         title: 'Error',
-        description: err.message || 'Failed to load analytics',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -73,15 +86,6 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
 
 
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      paid: 'text-green-600',
-      partial: 'text-yellow-600',
-      credit: 'text-red-600',
-      farmer_due: 'text-orange-600'
-    };
-    return colors[status] || 'text-gray-600';
-  };
 
   // Prepare daily chart data
   const daily = analytics?.daily || [];

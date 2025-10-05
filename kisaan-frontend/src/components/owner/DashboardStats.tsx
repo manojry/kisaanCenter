@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, Users, Calendar } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { ResponsiveGrid } from '@/components/ui/ResponsiveGrid';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
@@ -19,7 +20,7 @@ interface DashboardStatsProps {
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, isLoading }) => {
   const { metrics } = useDashboardMetrics(stats);
-  const iconMap: Record<string, any> = {
+  const iconMap: Record<string, LucideIcon> = {
     'today-sales': Calendar,
     'to-collect': AlertCircle,
     'to-pay': Users

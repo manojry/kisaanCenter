@@ -59,15 +59,15 @@ export const useSuperadminDashboard = () => {
         'userStats' in dashboardDataRaw.data.charts &&
         Array.isArray(dashboardDataRaw.data.charts.userStats)
       ) {
-        const metrics = dashboardDataRaw.data.metrics as Record<string, any>;
+        const metrics = dashboardDataRaw.data.metrics as Record<string, unknown>;
         const userStatsArr = dashboardDataRaw.data.charts.userStats as Array<{ role: string; count: number }>;
         calculatedStats = {
-          total_shops: metrics.totalShops ?? 0,
-          total_users: metrics.totalUsers ?? 0,
+          total_shops: Number(metrics.totalShops) || 0,
+          total_users: Number(metrics.totalUsers) || 0,
           total_owners: userStatsArr.find((u) => u.role === 'owner')?.count || 0,
-          total_revenue: metrics.totalRevenue ?? 0,
-          active_shops: metrics.activeShops ?? 0,
-          pending_settlements: metrics.totalCommission ?? 0
+          total_revenue: Number(metrics.totalRevenue) || 0,
+          active_shops: Number(metrics.activeShops) || 0,
+          pending_settlements: Number(metrics.totalCommission) || 0
         };
       }
       setStats(calculatedStats);

@@ -26,7 +26,8 @@ export const useOwnerDashboard = () => {
     total_users: 0,
     commission_realized: 0
   });
-  const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
+  // If you have a type for transactions, use it. Otherwise, use unknown[] for now.
+  const [pendingTransactions, setPendingTransactions] = useState<unknown[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +46,12 @@ export const useOwnerDashboard = () => {
   }
       // Optionally, fetch pending transactions if needed (legacy logic)
       setPendingTransactions([]); // Or fetch if you want to show pending transactions
-    } catch (err: any) {
-      setError(err.message || 'Failed to load dashboard data');
+    } catch (err) {
+      let message = 'Failed to load dashboard data';
+      if (err && typeof err === 'object' && 'message' in err) {
+        message = (err as { message?: string }).message || message;
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }

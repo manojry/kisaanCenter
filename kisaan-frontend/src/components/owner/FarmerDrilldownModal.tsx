@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { Transaction, Payment } from '@/types/api';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ interface FarmerDrilldownModalProps {
 }
 
 export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farmerId, open, onClose }) => {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
   }, [farmerId, open]);
 
   // Calculate running balance using standardized field names
-  const totalDue = transactions.reduce((sum, t) => sum + ((t.total_amount || t.total || 0) - (t.farmer_paid || 0)), 0);
+  const totalDue = transactions.reduce((sum, t) => sum + ((t.total_amount || 0) - (t.farmer_paid || 0)), 0);
   const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const outstanding = totalDue - totalPaid;
 
@@ -64,8 +65,8 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
                   <TableRow key={t.id}>
                     <TableCell>{formatDate(t.transaction_date)}</TableCell>
                     <TableCell>{t.product_name}</TableCell>
-                    <TableCell>{formatCurrency(t.total_amount || t.total)}</TableCell>
-                    <TableCell>{formatCurrency(t.farmer_paid)}</TableCell>
+                    <TableCell>{formatCurrency(t.total_amount || 0)}</TableCell>
+                    <TableCell>{formatCurrency(t.farmer_paid || 0)}</TableCell>
                     <TableCell>{t.status}</TableCell>
                   </TableRow>
                 ))}
@@ -83,7 +84,7 @@ export const FarmerDrilldownModal: React.FC<FarmerDrilldownModalProps> = ({ farm
               <TableBody>
                 {payments.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell>{formatDate(p.payment_date)}</TableCell>
+                    <TableCell>{formatDate(p.payment_date || '')}</TableCell>
                     <TableCell>{formatCurrency(p.amount)}</TableCell>
                     <TableCell>{p.method}</TableCell>
                   </TableRow>

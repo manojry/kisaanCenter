@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Calendar, Filter, RefreshCw, FileText, Download, Package } from 'lucide-react';
-import { reportService } from '../services/reportService';
-import { formatCurrency, formatNumber, formatQuantity, formatDate } from '../lib/formatters';
+import { Filter, RefreshCw, Download, Package } from 'lucide-react';
+import { formatCurrency, formatQuantity, formatDate } from '../lib/formatters';
 import { useToast } from '@/hooks/use-toast';
 import { useSharedUsers } from '../hooks/useSharedUsers';
 

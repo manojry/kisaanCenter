@@ -63,8 +63,11 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         try {
           if (!formData.shop_id) return;
           const resp = await shopsApi.getById(formData.shop_id);
-          if (isMounted && resp && resp.data && typeof resp.data.commission_rate === 'number') {
-            setFormData(prev => ({ ...prev, custom_commission_rate: resp.data.commission_rate }));
+          if (isMounted && resp) {
+            const commissionRate = resp.data?.commission_rate;
+            if (typeof commissionRate === 'number') {
+              setFormData(prev => ({ ...prev, custom_commission_rate: commissionRate }));
+            }
           }
         } catch (err) {
           // ignore error
@@ -167,9 +170,16 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         setFormError('User operation completed but response was unexpected. Please refresh the page.');
         toastService.warning('User operation may have completed but response was unexpected. Please refresh the page.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving user:', error);
-      const errorMessage = error?.response?.data?.message || error.message || 'Failed to save user. Please check your input.';
+      let errorMessage = 'Failed to save user. Please check your input.';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
+          errorMessage = (error.response.data as { message?: string }).message || errorMessage;
+        } else if ('message' in error) {
+          errorMessage = (error as { message?: string }).message || errorMessage;
+        }
+      }
       setFormError(errorMessage);
       toastService.error(errorMessage, {
         title: editUser ? 'Update Failed' : 'Creation Failed'
@@ -218,7 +228,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             <Label htmlFor="role">Role *</Label>
             <Select 
               value={formData.role} 
-              onValueChange={(value: any) => setFormData(prev => ({ ...prev, role: value }))}
+              onValueChange={(value: 'superadmin' | 'owner' | 'farmer' | 'buyer') => setFormData(prev => ({ ...prev, role: value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
