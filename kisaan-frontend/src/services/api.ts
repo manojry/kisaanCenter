@@ -81,30 +81,9 @@ export const shopProductsApi = {
     return products.filter((p) => p.record_status === 'active');
   },
   getShopProducts: async (shopId: number) => {
-    // The backend may return extra fields for shop products, so we use a mapped type
-    type ShopProductMapped = Product & {
-      shop_id: number;
-      product_id: number;
-      product_name: string;
-      category?: { id: number; name: string };
-      category_name?: string;
-      is_active?: boolean;
-      // legacy fields
-      category_id?: number;
-      record_status?: string;
-    };
-    const resp = await apiClient.get<ApiResponse<ShopProductMapped[]>>(SHOP_ENDPOINTS.PRODUCTS(shopId));
-    const list: ShopProductMapped[] = resp.data || [];
-    return list.map((p) => ({
-      id: p.id,
-      shop_id: shopId,
-      product_id: p.product_id ?? p.id,
-      product_name: p.product_name ?? p.name,
-      category: p.category || (p.category_id ? { id: p.category_id, name: typeof p.category_name === 'string' ? p.category_name : '' } : undefined),
-      category_name: (p.category && p.category.name) || (typeof p.category_name === 'string' ? p.category_name : ''),
-      is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active'),
-  created_at: p.created_at ?? null
-    }));
+    // Always return backend data array as-is, preserving all fields (unit, description, etc)
+    const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.PRODUCTS(shopId));
+    return resp.data || [];
   },
   getAvailableProducts: async (shopId: number) => {
   const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.AVAILABLE_PRODUCTS(shopId));

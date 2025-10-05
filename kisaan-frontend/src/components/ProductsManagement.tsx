@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
 import { useSharedShopProducts } from '../hooks/useShopProductsCache';
 import { apiClient } from '../services/apiClient';
+import { shopProductsApi } from '../services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -15,10 +16,15 @@ import type { Product as BaseProduct } from '../types/api';
 
 // Extend Product type locally to match backend fields
 type Product = BaseProduct & {
+  product_name?: string;
   category_name?: string;
   unit?: string | null;
   description?: string | null;
   price?: number | null;
+  category?: {
+    id: number;
+    name: string;
+  };
 };
 
 
@@ -29,17 +35,27 @@ interface ProductsManagementProps {
 
 export default function ProductsManagement({ shopId }: ProductsManagementProps) {
   // Use global shop products cache only
-  const { products: rawProducts, isLoading: productsLoading, refresh: refreshProducts } = useSharedShopProducts(shopId ?? 0);
-  // Fix: If rawProducts is an object with a data field, use that; else use as is
-  const products = Array.isArray(rawProducts)
-    ? (rawProducts as Product[])
-    : (rawProducts && Array.isArray((rawProducts as unknown as { data?: unknown[] }).data))
-      ? ((rawProducts as unknown as { data?: Product[] }).data as Product[])
-      : [];
-  // Debug: log products to inspect created_at
-  console.log('DEBUG products for table:', products.map(p => ({ id: p.id, name: p.name, created_at: p.created_at })));
-  // Debug: log products to inspect created_at
-  console.log('DEBUG products for table:', products.map(p => ({ id: p.id, name: p.name, created_at: p.created_at })));
+  const shopProductsResult = useSharedShopProducts(shopId ?? 0);
+  // ...removed debug log...
+  let products: Product[] = [];
+  // Support both array and object-with-data for products
+  if (Array.isArray(shopProductsResult.products)) {
+    products = shopProductsResult.products as Product[];
+  } else if (
+    shopProductsResult.products &&
+    typeof shopProductsResult.products === 'object' &&
+    'data' in shopProductsResult.products &&
+    Array.isArray((shopProductsResult.products as { data?: unknown }).data)
+  ) {
+    products = ((shopProductsResult.products as { data: Product[] }).data);
+  } else {
+    products = [];
+  }
+  // No filtering: pass all fields as-is
+  const productsLoading = shopProductsResult.isLoading;
+  const refreshProducts = shopProductsResult.refresh;
+  // Debug: log products to inspect created_at and full product objects
+  // ...removed debug logs...
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   // Cache for available products by shopId
   // Global cache for available products by shopId (per session)
@@ -48,7 +64,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   // const [showAddProduct, setShowAddProduct] = useState(false);
   const { toast } = useToast();
 
-  console.log('📝 ProductsManagement received shopId:', shopId);
+  // ...removed debug log...
 
   if (!shopId) {
     return (
@@ -85,7 +101,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   const fetchAvailableProducts = async (shopId: number) => {
     try {
       const response = await apiClient.get(`/shops/${shopId}/available-products`) as { products?: Product[]; data?: Product[]; message?: string };
-      console.log('📦 Available products response:', response);
+  // ...removed debug log...
       const available = (response && (response.products || response.data)) || [];
       const message = response && response.message;
       availableProductsCache[shopId] = Array.isArray(available) ? available : [];
@@ -96,18 +112,14 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
             typeof item.category_id === 'number' &&
             typeof item.created_at === 'string') as Product[])
         : []);
-      console.log('✅ Available products loaded:', available.length);
+  // ...removed debug log...
       if (message) {
-        console.log('ℹ️ Backend message:', message);
+  // ...removed debug log...
       }
-    } catch (err) {
-      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to fetch available products';
-      console.error('❌ Failed to fetch available products:', error);
+    } catch {
       // Fallback to all products if shop-specific endpoint fails
       try {
-        console.log('🔄 Trying fallback to all products...');
         const fallbackResponse = await apiClient.get('/products') as { data?: Product[]; products?: Product[] };
-        console.log('📦 Fallback products response:', fallbackResponse);
         const allProds = (fallbackResponse && (fallbackResponse.data || fallbackResponse.products)) || [];
         // Filter out already assigned products
         const assignedIds = products.map(p => p.id);
@@ -122,10 +134,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
               typeof item.category_id === 'number' &&
               typeof item.created_at === 'string') as Product[])
           : []);
-        console.log('✅ Fallback products loaded:', filtered.length);
-      } catch (fallbackErr) {
-        const error2 = fallbackErr && typeof fallbackErr === 'object' && 'message' in fallbackErr ? (fallbackErr as { message?: string }).message : 'Failed to fetch fallback products';
-        console.error('❌ Failed to fetch fallback products:', error2);
+      } catch {
         setAllProducts([]);
       }
     }
@@ -140,16 +149,16 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   const handleAssignProduct = async (productId: number) => {
     if (!shopId) return;
     try {
-      console.log('🔄 Assigning product', productId, 'to shop', shopId);
-      const response = await apiClient.post(`/shops/${shopId}/products/${productId}`);
-      console.log('✅ Product assigned successfully:', response);
+  // ...removed debug log...
+  await apiClient.post(`/shops/${shopId}/products/${productId}`);
+  // ...removed debug log...
       await Promise.all([
         refreshProducts(),
         fetchAvailableProducts(shopId)
       ]);
     } catch (err) {
       const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to assign product';
-      console.error('❌ Failed to assign product:', err);
+      // ...removed debug log...
       toast({
         title: 'Error',
         description: error,
@@ -159,12 +168,27 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   };
 
   // Remove a product from this shop
-  // productId is required for future removal logic; currently unused
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRemoveProduct = async (productId: number) => {
     if (!shopId) return;
-    // Removal logic here (currently disabled in UI)
-    // ...existing code...
+    try {
+      await shopProductsApi.removeProduct(shopId, productId);
+      await Promise.all([
+        refreshProducts(),
+        fetchAvailableProducts(shopId)
+      ]);
+      toast({
+        title: 'Product Removed',
+        description: 'Product has been removed from your shop.',
+        variant: 'default',
+      });
+    } catch (err) {
+      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to remove product';
+      toast({
+        title: 'Error',
+        description: error,
+        variant: 'destructive',
+      });
+    }
   };
 
   // Removed unused formatCurrency
@@ -184,8 +208,27 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
 
 
 
+  // Extra debug: log products array right before rendering
+  // ...removed debug log...
+
+  // UI warning if first product is missing unit/description
+  let missingFieldsWarning = null;
+  if (products.length > 0) {
+    const first = products[0];
+    if (!('unit' in first) || first.unit === undefined) {
+      missingFieldsWarning = 'Warning: First product is missing unit field!';
+    } else if (!('description' in first) || first.description === undefined) {
+      missingFieldsWarning = 'Warning: First product is missing description field!';
+    }
+  }
+
   return (
     <>
+      {missingFieldsWarning && (
+        <div style={{ background: '#fffbe6', color: '#ad6800', padding: '8px', borderRadius: '4px', marginBottom: '12px', border: '1px solid #ffe58f' }}>
+          {missingFieldsWarning}
+        </div>
+      )}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
@@ -236,29 +279,35 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id} className="hover:bg-green-50">
-                        <TableCell className="font-medium">{product.name || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{product.category_name || '-'}</Badge>
-                        </TableCell>
-                        {/* Price column removed */}
-                        <TableCell>{product.unit || '-'}</TableCell>
-                        <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
-                        <TableCell>{formatDate(product.created_at)}</TableCell>
-                        <TableCell>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Remove"
-                            onClick={() => handleRemoveProduct(product.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {products.map((product) => {
+                      // Debug: log created_at before formatting
+                      // ...removed debug log...
+                      return (
+                        <TableRow key={product.id} className="hover:bg-green-50">
+                          <TableCell className="font-medium">{product.product_name || product.name || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{(product.category?.name) || product.category_name || '-'}</Badge>
+                          </TableCell>
+                          {/* Price column removed */}
+                          <TableCell>{typeof product.unit === 'string' && product.unit.trim() !== '' ? product.unit : '-'}</TableCell>
+                          <TableCell className="max-w-xs truncate">{product.description ? product.description : '-'}</TableCell>
+                          <TableCell>
+                            {product.created_at ? formatDate(product.created_at) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Remove"
+                              onClick={() => handleRemoveProduct(product.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -267,15 +316,15 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                 {products.map((product) => (
                   <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-base break-words break-all w-2/3">{product.name || 'N/A'}</span>
-                      <Badge variant="outline" className="w-fit">{product.category_name || '-'}</Badge>
+                      <span className="font-semibold text-base break-words break-all w-2/3">{product.product_name || product.name || '-'}</span>
+                      <Badge variant="outline" className="w-fit">{(product.category?.name) || product.category_name || '-'}</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
                       {/* Price field removed */}
-                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
-                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {formatDate(product.created_at)}</div>
+                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit ? product.unit : '-'}</div>
+                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {product.created_at ? formatDate(product.created_at) : '-'}</div>
                     </div>
-                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description || '-'}</div>
+                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description ? product.description : '-'}</div>
                     <div className="flex justify-end">
                       <Button 
                         size="icon" 
@@ -340,31 +389,36 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                       {/* <TableHead>Price</TableHead> */}
                       <TableHead>Unit</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Assigned Date</TableHead>
                       <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allProducts.map((product) => (
-                      <TableRow key={product.id} className="hover:bg-blue-50">
-                        <TableCell className="font-medium">{product.name || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{product.category_name || '-'}</Badge>
-                        </TableCell>
-                        {/* Price column removed */}
-                        <TableCell>{product.unit ?? '-'}</TableCell>
-                        <TableCell className="max-w-xs truncate">{product.description ?? '-'}</TableCell>
-                        <TableCell>
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleAssignProduct(product.id)}
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Assign to Shop
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {allProducts.map((product) => {
+                      // ...removed debug log...
+                      return (
+                        <TableRow key={product.id} className="hover:bg-blue-50">
+                          <TableCell className="font-medium">{product.product_name || product.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{product.category?.name || product.category_name || '-'}</Badge>
+                          </TableCell>
+                          {/* Price column removed */}
+                          <TableCell>{product.unit ?? '-'}</TableCell>
+                          <TableCell className="max-w-xs truncate">{product.description ?? '-'}</TableCell>
+                          <TableCell>{product.created_at ? formatDate(product.created_at) : '-'}</TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleAssignProduct(product.id)}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Assign to Shop
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -373,12 +427,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                 {allProducts.map((product) => (
                   <div key={product.id} className="rounded-lg border p-3 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-base break-words break-all w-2/3">{product.name || 'N/A'}</span>
-                      <Badge variant="secondary" className="w-fit">{product.category_name || '-'}</Badge>
+                      <span className="font-semibold text-base break-words break-all w-2/3">{product.product_name || product.name || 'N/A'}</span>
+                      <Badge variant="secondary" className="w-fit">{product.category?.name || product.category_name || '-'}</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
                       {/* Price field removed */}
                       <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit ?? '-'}</div>
+                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {product.created_at ? formatDate(product.created_at) : '-'}</div>
                     </div>
                     <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description ?? '-'}</div>
                     <div className="flex gap-2">

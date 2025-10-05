@@ -64,28 +64,9 @@ export function useSharedShopProducts(shopId: number) {
     entry.error = null;
     entry.subscribers.forEach(cb => cb());
     try {
-      const rawProducts = await shopProductsApi.getShopProducts(shopId);
-      // Map to ensure all required Product fields exist
-          const products = (rawProducts || []).map((p: unknown) => {
-            const prod = p as {
-              id: number;
-              shop_id: number;
-              product_id: number;
-              product_name?: string;
-              category?: { id?: number; name?: string };
-            };
-            return {
-              id: prod.id,
-              shop_id: prod.shop_id,
-              product_id: prod.product_id,
-              product_name: typeof prod.product_name === 'string' ? prod.product_name : '',
-              category: prod.category && typeof prod.category === 'object' ? {
-                id: typeof prod.category.id === 'number' ? prod.category.id : undefined,
-                name: typeof prod.category.name === 'string' ? prod.category.name : undefined,
-              } : undefined,
-            };
-          });
-          entry.data = products as ShopProduct[];
+      // Always use backend data array as-is, preserving all fields
+      const products = await shopProductsApi.getShopProducts(shopId);
+      entry.data = Array.isArray(products) ? products : [];
       entry.timestamp = Date.now();
       entry.error = null;
     } catch (error) {
