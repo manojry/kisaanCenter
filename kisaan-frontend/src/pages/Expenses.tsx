@@ -9,7 +9,8 @@ import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/UsersContext';
 import { useToast } from '../hooks/use-toast';
 import { useAuth } from '../context/AuthContext';
-import { expenseApi, settlementsApi, shopsApi } from '../services/api';
+import { expenseApi, settlementsApi } from '../services/api';
+import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Button } from '../components/ui/button';
@@ -102,9 +103,8 @@ import { formatCurrency } from '../lib/formatters';
       if (!user?.id) return;
       setIsLoading(true);
       try {
-        // Shop fetch using shopsApi abstraction
-        const shopRes = await shopsApi.getAll({ owner_id: user.id });
-        const firstShop = Array.isArray(shopRes?.data) ? shopRes.data[0] : null;
+        // Prefer direct fetch by shop_id if available
+        const firstShop = await fetchOwnerShop(user.id, user.shop_id);
         setStoreShop(firstShop);
         if (firstShop?.id) {
           // Expenses (fetch as settlements with reason 'adjustment')

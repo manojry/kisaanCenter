@@ -17,8 +17,27 @@ export const findShopByOwnerId = (shops: Shop[], ownerId: string | number): Shop
 /**
  * Fetch shop data for a specific owner
  */
-export const fetchOwnerShop = async (ownerId: string | number): Promise<Shop | null> => {
+/**
+ * Fetch shop for a given owner. If the user has shop_id, fetch directly by id. Otherwise, fallback to /shops?owner_id=ID or filter from all shops.
+ */
+export const fetchOwnerShop = async (ownerId: string | number, shopId?: string | number): Promise<Shop | null> => {
   try {
+    if (shopId) {
+      // If shopId is known, fetch directly
+      const response = await apiClient.get<{ data?: Shop }>(`/shops/${shopId}`);
+      return response?.data ?? null;
+    }
+    // Try /shops?owner_id=ID (if backend supports it)
+    try {
+      const response = await apiClient.get<{ shops?: Shop[]; data?: Shop[] }>(`/shops?owner_id=${ownerId}`);
+      const shops: Shop[] = Array.isArray(response?.shops)
+        ? response.shops
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+      if (shops.length > 0) return shops[0];
+    } catch {}
+    // Fallback: fetch all and filter
     const response = await apiClient.get<{ data?: Shop[]; shops?: Shop[] }>('/shops');
     const allShops: Shop[] = Array.isArray(response?.data)
       ? response.data

@@ -83,7 +83,7 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.category_id) {
+    if (!formData.name || !formData.category_id) {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields',
@@ -91,17 +91,17 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
       });
       return;
     }
-
     setIsLoading(true);
-
     try {
-      const productData = {
+      const productData: any = {
         name: formData.name,
         description: formData.description || null,
         category_id: parseInt(formData.category_id),
-        price: parseFloat(formData.price),
         unit: formData.unit || null
       };
+      if (formData.price && !isNaN(Number(formData.price))) {
+        productData.price = parseFloat(formData.price);
+      }
 
       // Create the product first
       const productResponse = await apiClient.post('/products', productData);
@@ -180,7 +180,7 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
           </FormField>
 
           <div className="grid grid-cols-2 gap-4">
-            <FormField id="price" label="Price" required>
+            <FormField id="price" label="Price">
               <MoneyInput
                 id="price"
                 value={formData.price}
@@ -188,7 +188,6 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
                 onValueChange={(num) => setField('price', num.toFixed(2))}
                 minValue={0}
                 placeholder="0.00"
-                required
               />
             </FormField>
             <FormField id="unit" label="Unit">

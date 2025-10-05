@@ -28,10 +28,9 @@ export default function Products() {
 
   const fetchShopData = async () => {
     if (!user?.id) return;
-    
-  // setIsLoading(true); // removed unused isLoading
     try {
-      const userShop = await fetchOwnerShop(user.id);
+      // Prefer direct fetch by shop_id if available
+      const userShop = await fetchOwnerShop(user.id, user.shop_id);
       setShop(userShop);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load shop data';
@@ -40,8 +39,6 @@ export default function Products() {
         description: message,
         variant: "destructive"
       });
-    } finally {
-      // setIsLoading(false); // removed unused isLoading
     }
   };
 
@@ -93,7 +90,7 @@ export default function Products() {
 
       {/* Products Management Component */}
       {shop?.id ? (
-        <ProductsManagement shopId={shop.id} onRefresh={fetchShopData} />
+        <ProductsManagement shopId={shop.id} />
       ) : (
         <Card>
           <CardContent className="p-6">

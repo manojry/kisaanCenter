@@ -15,6 +15,7 @@ import { useUsers } from '../context/UsersContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '../components/ui/button';
@@ -89,8 +90,8 @@ export default function Expenses() {
     if (!user?.id) return;
     setIsLoading(true);
     try {
-      const shopRes = await apiClient.get<{ shops: Shop[] }>(`/shops?owner_id=${user.id}`);
-      const firstShop = shopRes?.shops?.[0] ?? null;
+      // Prefer direct fetch by shop_id if available
+      const firstShop = await fetchOwnerShop(user.id, user.shop_id);
       setShop(firstShop);
       if (firstShop?.id) {
         // Build filter params

@@ -18,7 +18,7 @@ const PaymentManagement: React.FC = () => {
   useEffect(() => {
     const fetchShop = async () => {
       if (user && user.role === 'owner') {
-        const shop = await fetchOwnerShop(user.id);
+        const shop = await fetchOwnerShop(user.id, user.shop_id);
         setShopId(shop?.id || null);
       }
     };
