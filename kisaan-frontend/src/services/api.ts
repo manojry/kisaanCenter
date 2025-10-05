@@ -116,8 +116,8 @@ export const shopProductsApi = {
 // Balance Snapshots API
 export const balanceSnapshotsApi = {
   getByUserId: async (userId: number | string) => {
-  const resp = await apiClient.get<ApiResponse<any[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
-  return resp.data || [];
+    const resp = await apiClient.get<ApiResponse<{ id: number; user_id: number; balance: number; created_at: string; }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
+    return resp.data || [];
   }
 };
 // Superadmin Dashboard API
@@ -405,8 +405,8 @@ export const transactionsApi = {
     limit?: number;
   }): Promise<PaginatedResponse<Transaction>> => {
     const qs = buildQueryString(params);
-    const raw = await apiClient.get(`${TRANSACTION_ENDPOINTS.BASE}${qs}`) as any;
-    return normalizeListResponse<Transaction>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  const raw = await apiClient.get<ApiResponse<Transaction[]>>(`${TRANSACTION_ENDPOINTS.BASE}${qs}`);
+  return normalizeListResponse<Transaction>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
   },
   
   getById: (id: number): Promise<ApiResponse<Transaction>> =>
@@ -455,8 +455,8 @@ export const paymentsApi = {
   }): Promise<PaginatedResponse<Payment>> =>
     (async () => {
       const qs = buildQueryString(params);
-      const raw = await apiClient.get(`${PAYMENT_ENDPOINTS.BASE}${qs}`) as any;
-      return normalizeListResponse<Payment>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  const raw = await apiClient.get<ApiResponse<Payment[]>>(`${PAYMENT_ENDPOINTS.BASE}${qs}`);
+  return normalizeListResponse<Payment>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
     })(),
   
   getById: (id: number): Promise<ApiResponse<Payment>> =>
@@ -487,8 +487,8 @@ export const paymentsApi = {
     apiClient.get(PAYMENT_ENDPOINTS.OUTSTANDING),
   
   getFarmerPayments: async (farmerId: number): Promise<PaginatedResponse<Payment>> => {
-  const raw = await apiClient.get<ApiResponse<Payment[]>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
-  return normalizeListResponse<Payment>(raw, { keys: ['data'] });
+    const raw = await apiClient.get<ApiResponse<Payment[]>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
+    return normalizeListResponse<Payment>(raw, { keys: ['data'] });
   },
   
   getBuyerPayments: (buyerId: number): Promise<PaginatedResponse<Payment>> =>
@@ -499,15 +499,15 @@ export const paymentsApi = {
 export const expenseApi = {
   addExpense: (payload: { shop_id: number; user_id: number; amount: number; reason?: string; description?: string; }): Promise<ApiResponse> =>
     apiClient.post(EXPENSE_ENDPOINTS.BASE, payload),
-  getExpenses: (shop_id: number): Promise<ApiResponse<any[]>> =>
-  apiClient.get<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>>(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`)
+  getExpenses: (shop_id: number): Promise<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>> =>
+    apiClient.get<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>>(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`)
 };
 
 // Dashboard API - using available endpoints
 export const dashboardApi = {
   getBusinessSummary: async (): Promise<ApiResponse<BusinessSummary>> => {
     // Use transactions analytics to build summary
-  const transactionsRes = await apiClient.get<ApiResponse<any>>(TRANSACTION_ENDPOINTS.ANALYTICS);
+  const transactionsRes = await apiClient.get<ApiResponse<TransactionSummary>>(TRANSACTION_ENDPOINTS.ANALYTICS);
   const usersRes = await apiClient.get<ApiResponse<User[]>>(USER_ENDPOINTS.BASE);
   const shopsRes = await apiClient.get<ApiResponse<Shop[]>>(SHOP_ENDPOINTS.BASE);
     return {
@@ -515,10 +515,10 @@ export const dashboardApi = {
       message: 'Business summary',
       data: {
         totalUsers: usersRes.data?.length || 0,
-        totalTransactions: (transactionsRes.data && (transactionsRes.data as any).total_transactions) ? (transactionsRes.data as any).total_transactions : 0,
+  totalTransactions: transactionsRes.data?.total_transactions || 0,
         totalPayments: 0,
         totalSettlements: 0,
-        totalRevenue: (transactionsRes.data && (transactionsRes.data as any).total_value) ? (transactionsRes.data as any).total_value : 0,
+  totalRevenue: transactionsRes.data?.total_value || 0,
         activeShops: shopsRes.data?.filter((s: Shop) => s.status === 'active').length || 0,
         pendingPayments: 0
       }

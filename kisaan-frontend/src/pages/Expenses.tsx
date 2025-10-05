@@ -94,7 +94,6 @@ import { formatCurrency } from '../lib/formatters';
 
     useEffect(() => {
       fetchData();
-      // eslint-disable-next-line
     }, [user]);
 
     const fetchData = async () => {
@@ -102,34 +101,31 @@ import { formatCurrency } from '../lib/formatters';
       setIsLoading(true);
       try {
         // Shop fetch
-        const shopRes: any = await fetch(`/api/shops?owner_id=${user.id}`).then(res => res.json());
+        const shopRes = await fetch(`/api/shops?owner_id=${user.id}`).then(res => res.json()) as { shops?: import('../types/api').Shop[] };
         const firstShop = shopRes?.shops?.[0] ?? null;
         setStoreShop(firstShop);
         if (firstShop?.id) {
           // Expenses (fetch as settlements with reason 'adjustment')
-          const expensesRes: any = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'adjustment' });
+          const expensesRes = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'adjustment' });
           const expensesData = expensesRes?.data || [];
           setExpenses(expensesData);
-          setTotalExpenses(expensesData.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0));
+          setTotalExpenses(expensesData.reduce((sum: number, exp: { amount?: number }) => sum + (exp.amount || 0), 0));
           // Settlements
-          const params: any = { shop_id: firstShop.id };
+          const params: Record<string, unknown> = { shop_id: firstShop.id };
           if (filterFromDate) params.from_date = filterFromDate;
           if (filterToDate) params.to_date = filterToDate;
-          const settlementsRes: any = await settlementsApi.getAll(params);
+          const settlementsRes = await settlementsApi.getAll(params);
           setSettlements(settlementsRes?.data || []);
           // Recoverable expenses (pending)
-          const recoverableRes: any = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'expense', status: 'pending' });
+          const recoverableRes = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'expense', status: 'pending' });
           setRecoverableExpenses(recoverableRes?.data || []);
-          // Shop expenses
-            // Removed unused shopExpRes variable (was: await settlementsApi.getAll({ shop_id: firstShop.id, settlementUser_id: firstShop.id, reason: 'expense' }))
-    // Removed setShopExpenses, no longer needed
           // Net earnings (commission - expenses)
-          setNetEarnings(expensesData.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0));
+          setNetEarnings(expensesData.reduce((sum: number, exp: { amount?: number }) => sum + (exp.amount || 0), 0));
         }
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: 'Error',
-          description: error && error.message ? error.message : 'Failed to fetch expenses/settlements',
+          description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Failed to fetch expenses/settlements',
           variant: 'destructive'
         });
         console.error('Failed to fetch expenses/settlements:', error);
@@ -140,7 +136,7 @@ import { formatCurrency } from '../lib/formatters';
 
     // FIFO Repayment
     const handleFifoRepay = async () => {
-  if (!storeShop?.id || !fifoUserId || !fifoAmount) return;
+      if (!storeShop?.id || !fifoUserId || !fifoAmount) return;
       try {
         await settlementsApi.create({
           shop_id: storeShop.id,
@@ -151,10 +147,10 @@ import { formatCurrency } from '../lib/formatters';
         setFifoAmount('');
         setFifoUserId('');
         fetchData();
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: 'Error',
-          description: error && error.message ? error.message : 'Failed FIFO repayment',
+          description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Failed FIFO repayment',
           variant: 'destructive'
         });
         console.error('Failed FIFO repayment:', error);
@@ -172,10 +168,10 @@ import { formatCurrency } from '../lib/formatters';
         setSettleAmount('');
         setSelectedSettlement(null);
         fetchData();
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: 'Error',
-          description: error && error.message ? error.message : 'Settlement failed',
+          description: error && typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string' ? (error as { message: string }).message : 'Settlement failed',
           variant: 'destructive'
         });
         console.error('Settlement failed:', error);
@@ -221,10 +217,11 @@ import { formatCurrency } from '../lib/formatters';
           description: 'Expense has been successfully recorded.',
           variant: 'success'
         });
-      } catch (error: any) {
+      } catch (error) {
+        const errMsg = error && typeof error === 'object' && 'message' in error ? (error as { message?: string }).message : 'Failed to add expense';
         toast({
           title: 'Error',
-          description: error && error.message ? error.message : 'Failed to add expense',
+          description: errMsg,
           variant: 'destructive'
         });
         console.error('Failed to add expense:', error);
@@ -341,7 +338,7 @@ import { formatCurrency } from '../lib/formatters';
                     ) : (
                       <>
                         <option value="">Select user</option>
-                        {users.map((u: any) => (
+                        {users.map((u) => (
                           <option key={u.id} value={u.id}>
                             {u.firstname ? u.firstname : (u.username ? u.username : u.id)}
                           </option>
@@ -397,11 +394,11 @@ import { formatCurrency } from '../lib/formatters';
                     <TableBody>
                       {expenses.map((exp) => (
                         <TableRow key={exp.id}>
-                          <TableCell>{(exp as any).user?.username || exp.user_id}</TableCell>
+                          <TableCell>{(exp && typeof exp === 'object' && exp !== null && 'user' in exp && exp.user && typeof exp.user === 'object' && exp.user !== null && 'username' in exp.user) ? String(exp.user.username) : String(exp.user_id)}</TableCell>
                           <TableCell>{formatCurrency(exp.amount)}</TableCell>
                           <TableCell>{exp.reason}</TableCell>
-                          <TableCell>{(exp as any).description}</TableCell>
-                          <TableCell>{(exp as any).date ? new Date((exp as any).date).toLocaleDateString() : '-'}</TableCell>
+                          <TableCell>{typeof exp === 'object' && 'description' in exp ? (exp as { description?: string }).description : ''}</TableCell>
+                          <TableCell>{typeof exp === 'object' && 'date' in exp && exp.date ? new Date((exp as { date?: string }).date!).toLocaleDateString() : '-'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -435,9 +432,9 @@ import { formatCurrency } from '../lib/formatters';
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold">{(settlement as any).user?.username || 'Unknown'}</h3>
+                        <h3 className="font-semibold">{(settlement && typeof settlement === 'object' && settlement !== null && 'user' in settlement && settlement.user && typeof settlement.user === 'object' && settlement.user !== null && 'username' in settlement.user) ? String(settlement.user.username) : 'Unknown'}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {(settlement as any).description}
+                          {typeof settlement === 'object' && 'description' in settlement ? (settlement as { description?: string }).description : ''}
                         </p>
                       </div>
                       <Badge variant={settlement.status === 'settled' ? 'default' : 'secondary'}>
@@ -447,13 +444,13 @@ import { formatCurrency } from '../lib/formatters';
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
                         <span>Amount: {formatCurrency(settlement.amount)}</span>
-                        {(settlement as any).settled_amount > 0 && (
+                        {typeof settlement === 'object' && 'settled_amount' in settlement && (settlement as { settled_amount?: number }).settled_amount! > 0 && (
                           <span className="ml-2 text-green-600">
-                            (Settled: {formatCurrency((settlement as any).settled_amount)})
+                            (Settled: {formatCurrency((settlement as { settled_amount?: number }).settled_amount ?? 0)})
                           </span>
                         )}
                       </div>
-                      {(settlement.status === 'pending' && (settlement as any).balance > 0) && (
+                      {(settlement.status === 'pending' && typeof settlement === 'object' && 'balance' in settlement && (settlement as { balance?: number }).balance! > 0) && (
                         <Button
                           size="sm"
                           onClick={() => setSelectedSettlement(settlement)}
@@ -476,10 +473,10 @@ import { formatCurrency } from '../lib/formatters';
                   <CardContent className="space-y-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">
-                        {(selectedSettlement as any).user?.username} - {(selectedSettlement as any).description}
+                        {typeof selectedSettlement === 'object' && selectedSettlement && 'user' in selectedSettlement && selectedSettlement.user && typeof selectedSettlement.user === 'object' && 'username' in selectedSettlement.user ? String(selectedSettlement.user.username) : ''} - {typeof selectedSettlement === 'object' && selectedSettlement && 'description' in selectedSettlement ? (selectedSettlement as { description?: string }).description : ''}
                       </p>
                       <p className="font-semibold">
-                        Outstanding: {formatCurrency((selectedSettlement as any).balance)}
+                        Outstanding: {formatCurrency(typeof selectedSettlement === 'object' && selectedSettlement && 'balance' in selectedSettlement ? (selectedSettlement as { balance?: number }).balance ?? 0 : 0)}
                       </p>
                     </div>
                     <div>
@@ -526,9 +523,9 @@ import { formatCurrency } from '../lib/formatters';
                   <TableBody>
                     {recoverableExpenses.map((exp) => (
                       <TableRow key={exp.id}>
-                        <TableCell>{(exp as any).user?.username || exp.user_id}</TableCell>
+                        <TableCell>{(exp && typeof exp === 'object' && exp !== null && 'user' in exp && exp.user && typeof exp.user === 'object' && exp.user !== null && 'username' in exp.user) ? String(exp.user.username) : String(exp.user_id)}</TableCell>
                         <TableCell>{formatCurrency(exp.amount)}</TableCell>
-                        <TableCell>{(exp as any).description || exp.reason}</TableCell>
+                        <TableCell>{typeof exp === 'object' && 'description' in exp ? (exp as { description?: string }).description : exp.reason}</TableCell>
                         <TableCell>{exp.status}</TableCell>
                         <TableCell>
                           {exp.status === 'pending' && (

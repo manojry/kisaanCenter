@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Eye, Edit, RefreshCw, MapPin, Phone, User, Building } from 'lucide-react';
+import { Plus, Search, Eye, Edit, RefreshCw, MapPin, Phone, User } from 'lucide-react';
 import { shopsApi } from '../services/api';
 import type { Shop } from '../types/api';
 import { ShopForm } from '../components/superadmin/ShopForm';
-import { useIsMobile, useIsSmallMobile } from '../hooks/useMediaQuery';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 const SuperadminShops: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
@@ -22,7 +22,7 @@ const SuperadminShops: React.FC = () => {
 
   // Responsive hooks
   const isMobile = useIsMobile();
-  const isSmallMobile = useIsSmallMobile();
+  // const isSmallMobile = useIsSmallMobile();
 
   useEffect(() => {
     fetchShops();
@@ -31,8 +31,8 @@ const SuperadminShops: React.FC = () => {
   const fetchShops = async () => {
     setIsLoading(true);
     try {
-      const params: any = { limit: 100 };
-      if (filters.status) params.status = filters.status;
+  const params: Partial<Pick<Shop, 'status'>> & { limit: number } = { limit: 100 };
+  if (filters.status === 'active' || filters.status === 'inactive') params.status = filters.status;
       
       const response = await shopsApi.getAll(params);
       if (response.data) {

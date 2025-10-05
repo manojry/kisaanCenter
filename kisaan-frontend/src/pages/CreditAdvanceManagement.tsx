@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { User } from '../types/api';
 import { useTransactionStore } from '../store/transactionStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,16 +11,16 @@ import { creditAdvanceApi } from '../services/creditAdvanceApi';
 const CreditAdvanceManagement: React.FC = () => {
   const transactionStore = useTransactionStore();
   const [shopId, setShopId] = useState<string>('');
-  const [users, setUsers] = useState<any[]>(shopId ? transactionStore.getUsers(String(shopId)) : []);
+  const [users, setUsers] = useState<User[]>(shopId ? transactionStore.getUsers(String(shopId)) : []);
   const fetchUsersZustand = async () => {
     if (!shopId) return;
     try {
   const response = await import('../services/api').then(m => m.usersApi.getAll({ shop_id: Number(shopId), limit: 100 }));
-      const userList = Array.isArray(response.data) ? response.data : [];
-      const filteredUsers = userList.filter((u: any) => ['farmer', 'buyer'].includes(u.role)).map((u: any) => ({ ...u, id: String(u.id) }));
-      setUsers(filteredUsers);
-      transactionStore.setUsers(String(shopId), filteredUsers);
-    } catch (error) {
+  const userList: User[] = Array.isArray(response.data) ? response.data : [];
+  const filteredUsers = userList.filter((u) => ['farmer', 'buyer'].includes(u.role));
+  setUsers(filteredUsers);
+  transactionStore.setUsers(String(shopId), filteredUsers);
+    } catch {
       setUsers([]);
       transactionStore.setUsers(String(shopId), []);
     }
@@ -30,7 +31,16 @@ const CreditAdvanceManagement: React.FC = () => {
     }
   }, [shopId]);
   const [selectedUser, setSelectedUser] = useState<string>('');
-  const [credits, setCredits] = useState<any[]>([]);
+  type CreditAdvance = {
+    id: number | string;
+    amount: number;
+    repaid_amount: number;
+    status: string;
+    issued_date?: string;
+    due_date?: string;
+    user_id?: string | number;
+  };
+  const [credits, setCredits] = useState<CreditAdvance[]>([]);
   // Filter credits by selected user
   const filteredCredits = selectedUser ? credits.filter(c => String(c.user_id) === selectedUser) : credits;
   const [loading, setLoading] = useState(false);
@@ -76,15 +86,15 @@ const CreditAdvanceManagement: React.FC = () => {
         issued_date: issuedDate,
         due_date: dueDate,
       };
-      const res: any = await creditAdvanceApi.issue(payload);
-      if (res && (res.success || res.data)) {
+      const res = await creditAdvanceApi.issue(payload);
+      if (res && (res as { success?: boolean; data?: unknown }).success || (res as { data?: unknown }).data) {
         setSuccess('Credit issued successfully');
         fetchCredits();
-  setUserId(''); setShopId(''); setAmount(''); setIssuedDate(''); setDueDate('');
+        setUserId(''); setShopId(''); setAmount(''); setIssuedDate(''); setDueDate('');
       } else {
-        setError(res?.error || res?.message || 'Failed to issue credit');
+        setError((res as { error?: string; message?: string })?.error || (res as { message?: string })?.message || 'Failed to issue credit');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to issue credit');
     } finally {
       setLoading(false);
@@ -100,15 +110,15 @@ const CreditAdvanceManagement: React.FC = () => {
         credit_id: parseInt(repayCreditId),
         amount: parseFloat(repayAmount),
       };
-      const res: any = await creditAdvanceApi.repay(payload);
-      if (res && (res.success || res.data)) {
+      const res = await creditAdvanceApi.repay(payload);
+      if (res && (res as { success?: boolean; data?: unknown }).success || (res as { data?: unknown }).data) {
         setSuccess('Repayment successful');
         fetchCredits();
         setRepayCreditId(''); setRepayAmount('');
       } else {
-        setError(res?.error || res?.message || 'Failed to repay credit');
+        setError((res as { error?: string; message?: string })?.error || (res as { message?: string })?.message || 'Failed to repay credit');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to repay credit');
     } finally {
       setLoading(false);
@@ -129,7 +139,7 @@ const CreditAdvanceManagement: React.FC = () => {
             </SelectTrigger>
             <SelectContent>
               {users.map(user => (
-                <SelectItem key={user.id} value={user.id}>
+                <SelectItem key={user.id} value={String(user.id)}>
                   {(user.firstname ? user.firstname : user.username)} ({user.role})
                 </SelectItem>
               ))}
@@ -166,7 +176,7 @@ const CreditAdvanceManagement: React.FC = () => {
               </SelectTrigger>
               <SelectContent>
                 {filteredCredits.filter(c => c.status === 'active').map(c => (
-                  <SelectItem key={c.id} value={String(c.id)}>
+                  <SelectItem key={String(c.id)} value={String(c.id)}>
                     {`Credit #${c.id} - ₹${c.amount}`}
                   </SelectItem>
                 ))}
@@ -198,8 +208,8 @@ const CreditAdvanceManagement: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {filteredCredits.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell>{c.id}</TableCell>
+                  <TableRow key={String(c.id)}>
+                    <TableCell>{String(c.id)}</TableCell>
                     <TableCell>₹{c.amount}</TableCell>
                     <TableCell>₹{c.repaid_amount}</TableCell>
                     <TableCell>{c.status}</TableCell>

@@ -25,10 +25,7 @@ interface AddProductDialogProps {
   shopId?: number;
 }
 
-interface Category {
-  id: number;
-  name: string;
-}
+
 
 export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId }: AddProductDialogProps) {
   const { values: formData, handleChange, setField, reset } = useFormState({

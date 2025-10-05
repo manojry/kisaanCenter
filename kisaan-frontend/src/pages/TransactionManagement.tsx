@@ -162,7 +162,7 @@ const TransactionManagement: React.FC = () => {
     if (missingDates.length > 0) {
       for (const date of missingDates) {
         try {
-          const params: any = {
+          const params: { shop_id: number; limit: number; from_date: string; to_date: string } = {
             shop_id: user.shop_id,
             limit: 50,
             from_date: formatDate(date),
@@ -255,7 +255,7 @@ const TransactionManagement: React.FC = () => {
 
   useEffect(() => {
     const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
+    paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
       newState[transaction.id + '-' + idx] = false;
     });
     setOpenRows(newState);

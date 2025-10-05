@@ -57,7 +57,7 @@ const OwnerSettings: React.FC = () => {
       setPasswordMessage('Password updated successfully. Please log in again.');
       setTimeout(() => logout(), 2000);
     } catch (err) {
-      if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
+      if (err && typeof err === 'object' && 'response' in err && (err as { response?: { data?: { message?: string } } }).response?.data?.message) {
         setPasswordMessage((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update password.');
       } else {
         setPasswordMessage('Failed to update password.');
@@ -101,7 +101,7 @@ const OwnerSettings: React.FC = () => {
       });
       setCommissionMessage('Commission rate updated successfully.');
     } catch (err) {
-      if (err && typeof err === 'object' && 'response' in err && (err as any).response?.data?.message) {
+      if (err && typeof err === 'object' && 'response' in err && (err as { response?: { data?: { message?: string } } }).response?.data?.message) {
         setCommissionMessage((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to update commission.');
       } else {
         setCommissionMessage('Failed to update commission.');

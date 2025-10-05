@@ -76,10 +76,14 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
       reset();
       onSuccess();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err) {
+      let message = 'Failed to create user';
+      if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+        message = (err as { message: string }).message;
+      }
       toast({
         title: 'Error',
-        description: err.message || 'Failed to create user',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -87,8 +91,8 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setField(field as any, value);
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    setField(field, value);
   };
 
   return (

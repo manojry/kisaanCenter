@@ -39,10 +39,10 @@ const SuperadminCategories: React.FC = () => {
       // Normalize API data to match expected type
       let normalized = arr.map((cat) => ({
         ...cat,
-        created_at: (cat as any).created_at ?? cat.createdAt,
-        updated_at: (cat as any).updated_at ?? cat.updatedAt,
-        status: (cat as any).status ?? 'active',
-        description: (cat as any).description ?? '',
+        created_at: (cat as { created_at?: string; createdAt?: string }).created_at ?? (cat as { createdAt?: string }).createdAt,
+        updated_at: (cat as { updated_at?: string; updatedAt?: string }).updated_at ?? (cat as { updatedAt?: string }).updatedAt,
+        status: (cat as { status?: string }).status ?? 'active',
+        description: (cat as { description?: string }).description ?? '',
       })) as Category[];
       if (filters.search) {
         normalized = normalized.filter((c) =>

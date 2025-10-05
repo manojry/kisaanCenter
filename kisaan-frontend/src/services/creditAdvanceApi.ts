@@ -2,8 +2,8 @@ import { apiClient } from './apiClient';
 
 export const creditAdvanceApi = {
   getAll: async () => {
-    const res: any = await apiClient.get('/credits');
-    if (res && res.data) return res.data;
+    const res = await apiClient.get<{ data?: unknown[] } | unknown[]>('/credits');
+    if (res && typeof res === 'object' && 'data' in res && Array.isArray((res as { data?: unknown[] }).data)) return (res as { data?: unknown[] }).data;
     if (Array.isArray(res)) return res;
     return [];
   },

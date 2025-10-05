@@ -28,10 +28,37 @@ interface PDFReportGeneratorProps {
 
 export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGeneratorProps) {
   // Use users from Zustand store if available
-  const zustandUsers: UserType[] = useTransactionStore((state: any) => state.usersByShop?.[shopId] || []);
+  const zustandUsers: UserType[] = useTransactionStore((state) =>
+    (state.usersByShop?.[shopId] || []).map((u) => ({
+      id: String(u.id),
+      username: u.username,
+      role: u.role
+    }))
+  );
   const allUsers: ReadonlyArray<UserType> = zustandUsers.length ? zustandUsers : users;
 
-  const [reportRows, setReportRows] = useState<any[]>([]);
+  type ReportRow = {
+    id: string | number;
+    transaction_id: string | number;
+    created_at: string;
+    product_name?: string;
+    buyer_name?: string;
+    farmer_name?: string;
+    total_sale_value?: number;
+    buyer_paid?: number;
+    deficit?: number;
+    farmer_paid?: number;
+    farmer_due?: number;
+    payments?: Array<{
+      payer: string;
+      payee: string;
+      amount: number;
+      method: string;
+      payment_date: string;
+    }>;
+    [key: string]: unknown;
+  };
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
   const [reportType, setReportType] = useState<'farmer' | 'user' | 'shop'>('shop');
   const [selectedUser, setSelectedUser] = useState('');
   // Set default dates to today
@@ -53,25 +80,30 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       user: 'User Transactions Report'
     };
     const title = titleMap[reportType] || 'Report';
-    const mapped = reportRows.map((row: any, idx: number) => ({
-      id: row.transaction_id || row.id || idx + 1,
-      transaction_id: row.transaction_id || row.id || idx + 1,
-      created_at: row.date || row.created_at,
-      product_name: row.product,
-      buyer_name: row.buyer,
-      farmer_name: row.farmer,
-      total_sale_value: row.total_amount,
-      buyer_paid: row.paid_amount,
-      deficit: row.buyer_pending || row.deficit,
-      farmer_paid: row.farmer_paid,
-      farmer_due: row.farmer_due,
-      payments: (row.payments || []).map((p: any) => ({
-        payer: p.payer || p.payer_type || '',
-        payee: p.payee || p.payee_type || '',
-        amount: p.amount,
-        method: p.method,
-        payment_date: p.payment_date
-      }))
+    const mapped = reportRows.map((row, idx) => ({
+      id: (row as { transaction_id?: string | number; id?: string | number }).transaction_id || (row as { id?: string | number }).id || idx + 1,
+      transaction_id: (row as { transaction_id?: string | number; id?: string | number }).transaction_id || (row as { id?: string | number }).id || idx + 1,
+      created_at: (row as { date?: string; created_at?: string }).date || (row as { created_at?: string }).created_at,
+      product_name: (row as { product?: string }).product,
+      buyer_name: (row as { buyer?: string }).buyer,
+      farmer_name: (row as { farmer?: string }).farmer,
+      total_sale_value: (row as { total_amount?: number }).total_amount,
+      buyer_paid: (row as { paid_amount?: number }).paid_amount,
+      deficit: (row as { buyer_pending?: number; deficit?: number }).buyer_pending || (row as { deficit?: number }).deficit,
+      farmer_paid: (row as { farmer_paid?: number }).farmer_paid,
+      farmer_due: (row as { farmer_due?: number }).farmer_due,
+      payments: Array.isArray((row as { payments?: unknown[] }).payments)
+        ? (row as { payments: unknown[] }).payments.map((p) => {
+            const pay = p as { payer?: string; payer_type?: string; payee?: string; payee_type?: string; amount: number; method: string; payment_date: string };
+            return {
+              payer: pay.payer || pay.payer_type || '',
+              payee: pay.payee || pay.payee_type || '',
+              amount: pay.amount,
+              method: pay.method,
+              payment_date: pay.payment_date
+            };
+          })
+        : []
     }));
     exportTransactionsPDF(mapped, {
       title,
@@ -98,12 +130,16 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         });
       } else {
         const rows = await reportService.generateReport(filters);
-        setReportRows(Array.isArray(rows) ? rows : []);
+        setReportRows(Array.isArray(rows) ? (rows as ReportRow[]) : []);
       }
-    } catch (err: any) {
+    } catch (err) {
+      let message = 'Failed to generate report';
+      if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+        message = (err as { message: string }).message;
+      }
       toast({
         title: 'Error',
-        description: err.message || 'Failed to generate report',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -128,7 +164,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         {/* Report Type Selection */}
         <div className="flex flex-col gap-2">
           <Label htmlFor="reportType" className="text-xs">Report Type</Label>
-          <Select value={reportType} onValueChange={(value: any) => {
+          <Select value={reportType} onValueChange={(value: 'farmer' | 'user' | 'shop') => {
             setReportType(value);
             setSelectedUser('');
           }}>

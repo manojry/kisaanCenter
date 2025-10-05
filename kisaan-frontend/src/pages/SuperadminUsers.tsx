@@ -45,7 +45,9 @@ const SuperadminUsers: React.FC = () => {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const params: any = { limit: 100 };
+  const params: { limit: number; role?: string; status?: string } = { limit: 100 };
+  if (filters.role) params.role = filters.role;
+  if (filters.status) params.status = filters.status;
       if (filters.role) params.role = filters.role;
       if (filters.status) params.status = filters.status;
       const response = await usersApi.getAll(params);

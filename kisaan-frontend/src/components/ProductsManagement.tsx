@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Plus, AlertCircle, Package, Trash2 } from 'lucide-react';
-import AddProductDialog from './AddProductDialog';
+// import AddProductDialog from './AddProductDialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface Product {
@@ -30,10 +30,9 @@ interface Category {
 
 interface ProductsManagementProps {
   shopId?: number;
-  onRefresh?: () => void;
 }
 
-export default function ProductsManagement({ shopId, onRefresh }: ProductsManagementProps) {
+export default function ProductsManagement({ shopId }: ProductsManagementProps) {
   const [products, setProducts] = useState<Product[]>([]);
   // Use global shop products cache
   const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
@@ -46,7 +45,7 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   // Global cache for shop categories by shopId (per session)
   const shopCategoriesCache: { [shopId: number]: Category[] } = {};
   const [isLoading, setIsLoading] = useState(true);
-  const [showAddProduct, setShowAddProduct] = useState(false);
+  // const [showAddProduct, setShowAddProduct] = useState(false);
   const { toast } = useToast();
 
   console.log('📝 ProductsManagement received shopId:', shopId);
@@ -98,18 +97,18 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
     setIsLoading(true);
     try {
       console.log('🔍 Fetching shop products for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/products`) as any;
+      const response = await apiClient.get(`/shops/${shopId}/products`) as { products?: Product[]; data?: Product[] };
       console.log('📦 Shop products response:', response);
       const productsData = (response && (response.products || response.data)) || [];
       setShopProducts(shopId, Array.isArray(productsData) ? productsData : []);
       setProducts(getShopProducts(shopId));
       console.log('✅ Shop products loaded:', productsData.length);
     } catch (err) {
-      const error = err as any;
-      console.error('❌ Error fetching shop products:', error);
+      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to load shop products';
+      console.error('❌ Error fetching shop products:', err);
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to load shop products',
+        description: error,
         variant: 'destructive',
       });
     } finally {
@@ -121,7 +120,7 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   const fetchAvailableProducts = async (shopId: number) => {
     try {
       console.log('🔍 Fetching available products for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/available-products`) as any;
+  const response = await apiClient.get(`/shops/${shopId}/available-products`) as { products?: Product[]; data?: Product[]; message?: string };
       console.log('📦 Available products response:', response);
       const available = (response && (response.products || response.data)) || [];
       const message = response && response.message;
@@ -132,12 +131,12 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
         console.log('ℹ️ Backend message:', message);
       }
     } catch (err) {
-      const error = err as any;
+      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to fetch available products';
       console.error('❌ Failed to fetch available products:', error);
       // Fallback to all products if shop-specific endpoint fails
       try {
         console.log('🔄 Trying fallback to all products...');
-        const fallbackResponse = await apiClient.get('/products') as any;
+        const fallbackResponse = await apiClient.get('/products') as { data?: Product[]; products?: Product[] };
         console.log('📦 Fallback products response:', fallbackResponse);
         const allProds = (fallbackResponse && (fallbackResponse.data || fallbackResponse.products)) || [];
         // Filter out already assigned products
@@ -145,11 +144,11 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
         const filtered = Array.isArray(allProds) ? allProds.filter((p: Product) => 
           !assignedIds.includes(p.id) && p.record_status === 'active'
         ) : [];
-  availableProductsCache[shopId] = filtered;
-  setAllProducts(filtered);
+        availableProductsCache[shopId] = filtered;
+        setAllProducts(filtered);
         console.log('✅ Fallback products loaded:', filtered.length);
       } catch (fallbackErr) {
-        const error2 = fallbackErr as any;
+        const error2 = fallbackErr && typeof fallbackErr === 'object' && 'message' in fallbackErr ? (fallbackErr as { message?: string }).message : 'Failed to fetch fallback products';
         console.error('❌ Failed to fetch fallback products:', error2);
         setAllProducts([]);
       }
@@ -160,7 +159,7 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   const fetchShopCategories = async (shopId: number) => {
     try {
       console.log('🔍 Fetching shop categories for shopId:', shopId);
-  const response = await apiClient.get(`/shops/${shopId}/categories`) as any;
+  const response = await apiClient.get(`/shops/${shopId}/categories`) as { categories?: Category[]; data?: Category[] };
   console.log('📂 Shop categories response:', response);
   const categories = (response && (response.categories || response.data)) || [];
   const cats = Array.isArray(categories) ? categories : [];
@@ -168,21 +167,12 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
   setShopCategories(cats);
   console.log('✅ Shop categories loaded:', cats.length);
     } catch (err) {
-      const error = err as any;
-      console.error('❌ Failed to fetch shop categories:', error);
+      console.error('❌ Failed to fetch shop categories:', err);
       setShopCategories([]);
     }
   };
 
-  const handleProductAdded = () => {
-    if (shopId) {
-      // Invalidate cache for this shop
-      invalidateShopProducts(shopId);
-      fetchShopProducts(shopId);
-      fetchAvailableProducts(shopId);
-    }
-    if (onRefresh) onRefresh();
-  };
+  // Removed unused handleProductAdded
 
   // Assign a product to this shop
   const handleAssignProduct = async (productId: number) => {
@@ -197,11 +187,12 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
         fetchShopProducts(shopId),
         fetchAvailableProducts(shopId)
       ]);
-    } catch (err: any) {
+    } catch (err) {
+      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to assign product';
       console.error('❌ Failed to assign product:', err);
       toast({
         title: 'Error',
-        description: err.message || 'Failed to assign product',
+        description: error,
         variant: 'destructive',
       });
     }
@@ -218,11 +209,12 @@ export default function ProductsManagement({ shopId, onRefresh }: ProductsManage
         fetchShopProducts(shopId),
         fetchAvailableProducts(shopId)
       ]);
-    } catch (err: any) {
+    } catch (err) {
+      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to remove product';
       console.error('Failed to remove product:', err);
       toast({
         title: 'Error',
-        description: err.message || 'Failed to remove product',
+        description: error,
         variant: 'destructive',
       });
     }

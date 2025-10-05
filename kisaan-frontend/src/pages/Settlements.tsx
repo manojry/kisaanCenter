@@ -149,7 +149,7 @@ export default function Expenses() {
   } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed to fetch settlement data',
+  description: (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: string }).message === 'string') ? (error as { message?: string }).message! : 'Failed to fetch settlement data',
         variant: 'destructive',
       });
       console.error('Failed to fetch settlement data:', error);
@@ -171,7 +171,7 @@ export default function Expenses() {
   } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed FIFO repayment',
+  description: (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: string }).message === 'string') ? (error as { message?: string }).message! : 'Failed FIFO repayment',
         variant: 'destructive',
       });
       console.error('Failed FIFO repayment:', error);
@@ -191,7 +191,7 @@ export default function Expenses() {
   } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Settlement failed',
+  description: (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: string }).message === 'string') ? (error as { message?: string }).message! : 'Settlement failed',
         variant: 'destructive',
       });
       console.error('Settlement failed:', error);
@@ -217,7 +217,7 @@ export default function Expenses() {
   } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: (typeof error === 'object' && error && 'message' in error && typeof (error as any).message === 'string') ? (error as any).message : 'Failed to add expense',
+  description: (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: string }).message === 'string') ? (error as { message?: string }).message! : 'Failed to add expense',
         variant: 'destructive',
       });
       console.error('Failed to add expense:', error);
@@ -282,13 +282,13 @@ export default function Expenses() {
                 const userExpenses = recoverableExpenses.filter((exp) => exp.user_id === item.user_id);
                 const totalRecoverable = userExpenses.reduce((sum: number, exp) => sum + (exp.amount || 0), 0);
                 return (
-                  <Card key={`${(item as any).user_type}_${item.user_id}`}> 
+                  <Card key={`${typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''}_${item.user_id}`}> 
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold">{(item as any).username}</h3>
+                          <h3 className="font-semibold">{typeof item === 'object' && 'username' in item ? (item as { username: string }).username : ''}</h3>
                           <p className="text-sm text-muted-foreground capitalize">
-                            {(item as any).user_type} • {(item as any).pending_count} pending
+                            {typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''} • {typeof item === 'object' && 'pending_count' in item ? (item as { pending_count: number }).pending_count : ''} pending
                           </p>
                           {totalRecoverable > 0 && (
                             <p className="text-xs text-orange-600 font-semibold">Outstanding recoverable expenses: {formatCurrency(totalRecoverable)}</p>
@@ -296,10 +296,10 @@ export default function Expenses() {
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-bold">
-                            {formatCurrency((item as any).total_balance)}
+                            {formatCurrency(typeof item === 'object' && 'total_balance' in item ? (item as { total_balance: number }).total_balance : 0)}
                           </div>
-                          <Badge variant={(item as any).total_balance > 0 ? "destructive" : "default"}>
-                            {(item as any).total_balance > 0 ? "Owes Shop" : "Shop Owes"}
+                          <Badge variant={typeof item === 'object' && 'total_balance' in item && (item as { total_balance: number }).total_balance > 0 ? "destructive" : "default"}>
+                            {typeof item === 'object' && 'total_balance' in item && (item as { total_balance: number }).total_balance > 0 ? "Owes Shop" : "Shop Owes"}
                           </Badge>
                         </div>
                       </div>
@@ -362,9 +362,9 @@ export default function Expenses() {
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
                       <span>Amount: {formatCurrency(settlement.amount)}</span>
-                      {(settlement as any).settled_amount > 0 && (
+                      {typeof settlement === 'object' && 'settled_amount' in settlement && (settlement as { settled_amount?: number }).settled_amount! > 0 && (
                         <span className="ml-2 text-green-600">
-                          (Settled: {formatCurrency((settlement as any).settled_amount)})
+                          (Settled: {formatCurrency((settlement as { settled_amount?: number }).settled_amount ?? 0)})
                         </span>
                       )}
                     </div>
@@ -420,7 +420,7 @@ export default function Expenses() {
                     <>
                       <option value="">Select user</option>
                       {users.map((u: User) => (
-                        <option key={u.id} value={u.id}>{u.username || (u as any).name || u.id}</option>
+                        <option key={u.id} value={u.id}>{u.username || (typeof u === 'object' && 'name' in u ? (u as { name: string }).name : '') || u.id}</option>
                       ))}
                     </>
                   )}

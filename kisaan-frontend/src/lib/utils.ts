@@ -4,7 +4,7 @@ export function classNames(...classes: Array<string | undefined | null | false>)
   return classes.filter(Boolean).join(' ');
 }
 
-export function isEmpty(value: any): boolean {
+export function isEmpty(value: unknown): boolean {
   if (value == null) return true;
   if (Array.isArray(value) || typeof value === 'string') return value.length === 0;
   if (typeof value === 'object') return Object.keys(value).length === 0;

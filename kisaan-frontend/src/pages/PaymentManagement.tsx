@@ -34,7 +34,17 @@ const PaymentManagement: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [snapshots, setSnapshots] = useState<any[]>([]); // TODO: Replace 'any' with actual snapshot type if available
+  type BalanceSnapshot = {
+    id: number;
+    user_id: number;
+    balance: number;
+    created_at: string;
+    createdAt?: string;
+    previous_balance?: number | string;
+    amount_change?: number | string;
+    new_balance?: number | string;
+  };
+  const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]); // TODO: Replace 'any' with actual snapshot type if available
   const [payments, setPayments] = useState<import('../types/api').Payment[]>([]);
   const [showHint, setShowHint] = useState(false);
 
@@ -55,7 +65,7 @@ const PaymentManagement: React.FC = () => {
   const res = await paymentsApi.getAll({});
       // Filter payments where selectedUser is either payer or payee (counterparty)
       const userPayments = (res.data || []).filter((p: import('../types/api').Payment & { counterparty_id?: number }) =>
-        Number((p as any).counterparty_id) === Number(selectedUser.id)
+        Number((p as { counterparty_id?: number }).counterparty_id) === Number(selectedUser.id)
       );
       setPayments(userPayments);
     };
@@ -130,8 +140,9 @@ const PaymentManagement: React.FC = () => {
       } else if (res && res.message) {
         setMessage(`Error: ${res.message}`);
       }
-    } catch (error: any) {
-      setMessage(error?.response?.data?.message || 'Error processing payment.');
+    } catch (error) {
+      const msg = error && typeof error === 'object' && 'response' in error && (error as { response?: { data?: { message?: string } } }).response?.data?.message;
+      setMessage(typeof msg === 'string' ? msg : 'Error processing payment.');
     } finally {
       setLoading(false);
     }
@@ -231,7 +242,7 @@ const PaymentManagement: React.FC = () => {
                             const d = new Date(dateVal);
                             dateStr = isNaN(d.getTime()) ? '' : d.toLocaleDateString();
                           }
-                          const bal = typeof s.new_balance === 'number' ? s.new_balance : parseFloat(s.new_balance);
+                          const bal = typeof s.new_balance === 'number' ? s.new_balance : parseFloat(s.new_balance ?? '0');
                           const balanceStr = isNaN(bal) ? '0.00' : bal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                           return (
                             <TableRow key={s.id}>

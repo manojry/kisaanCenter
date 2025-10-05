@@ -29,7 +29,7 @@ const PricingPage: React.FC = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await apiClient.get('/plans') as any;
+        const response = await apiClient.get('/plans') as { success: boolean; data: Plan[] };
         if (response?.success && Array.isArray(response.data)) {
           setPlans(response.data.filter((plan: Plan) => plan.is_active));
         }

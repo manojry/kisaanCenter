@@ -56,10 +56,14 @@ export default function Auth() {
         title: 'Success',
         description: 'Welcome to KisaanCenter!',
       });
-    } catch (error: any) {
+    } catch (error) {
+      let message = 'Please check your credentials and try again';
+      if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: 'Login Failed',
-        description: error.message || 'Please check your credentials and try again',
+        description: message,
         variant: 'destructive',
       });
     }

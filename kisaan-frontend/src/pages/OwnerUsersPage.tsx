@@ -339,7 +339,7 @@ const OwnerUsersPage: React.FC = () => {
                 {shopProducts.length === 0 ? (
                   <div className="text-gray-500">No products available</div>
                 ) : (
-                  shopProducts.map((prod: any) => (
+                  shopProducts.map((prod: { id: number; product_name?: string; name?: string }) => (
                     <label key={prod.id} className="flex items-center gap-2 mb-1">
                       <input
                         type="checkbox"
