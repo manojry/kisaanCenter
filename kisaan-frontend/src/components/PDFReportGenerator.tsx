@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTransactionStore } from '../store/transactionStore';
 import { formatDate, getToday } from '../utils/dateUtils';
 import { Button } from './ui/button';
@@ -35,7 +35,11 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       role: u.role
     }))
   );
-  const allUsers: ReadonlyArray<UserType> = zustandUsers.length ? zustandUsers : users;
+  const allUsers: ReadonlyArray<UserType> = useMemo(() => (zustandUsers.length ? zustandUsers : users), [zustandUsers, users]);
+
+  // Memoize filtered lists to avoid new array/object on every render
+  const farmers = useMemo(() => allUsers.filter(u => u.role === 'farmer'), [allUsers]);
+  const buyers = useMemo(() => allUsers.filter(u => u.role === 'buyer'), [allUsers]);
 
   type ReportRow = {
     id: string | number;
@@ -69,8 +73,6 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
 
   // Remove auto-preview on mount to prevent unwanted downloads or previews
 
-  const farmers = allUsers.filter(u => u.role === 'farmer');
-  const buyers = allUsers.filter(u => u.role === 'buyer');
 
   const handleExportPDF = () => {
     if (!reportRows.length) return;

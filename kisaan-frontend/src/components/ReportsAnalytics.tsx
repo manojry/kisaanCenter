@@ -7,6 +7,32 @@ import {
 } from '../utils/dateUtils';
 import { useState, useEffect } from 'react';
 import { analyticsApi } from '../services/api';
+
+// Utility: Generate last N days as array of 'YYYY-MM-DD' strings (ending today)
+function getLastNDates(n: number): string[] {
+  const dates: string[] = [];
+  const today = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(formatDate(d));
+  }
+  return dates;
+}
+
+// Always return 30 days of sales/commission, filling zeros for missing days
+function getSalesCommissionTimeSeries(daily: DailyAnalytics[] | undefined): DailyAnalytics[] {
+  const dates = getLastNDates(30);
+  const map: Record<string, { total_sales: number; total_commission: number }> = {};
+  (daily || []).forEach(d => {
+    map[d.date] = { total_sales: d.total_sales, total_commission: d.total_commission };
+  });
+  return dates.map(date => ({
+    date,
+    total_sales: map[date]?.total_sales || 0,
+    total_commission: map[date]?.total_commission || 0
+  }));
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { BarChart3, AlertCircle, Calendar } from 'lucide-react';
@@ -87,9 +113,9 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
 
 
 
-  // Prepare daily chart data
-  const daily = analytics?.daily || [];
-  const hasDaily = daily.length > 0;
+  // Prepare daily chart data (always 30 days)
+  const daily = getSalesCommissionTimeSeries(analytics?.daily);
+  const hasDaily = daily.length > 0 && daily.some(d => d.total_sales > 0 || d.total_commission > 0);
 
   if (isLoading) {
     return (
@@ -300,7 +326,15 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
             <Card>
               <CardHeader>
                 <CardTitle>Status Distribution</CardTitle>
-                <CardDescription>Pie chart of transaction status</CardDescription>
+                <CardDescription>
+                  Pie chart of transaction status<br />
+                  <span className="text-xs text-muted-foreground">
+                    Showing data for:
+                    {dateRange.from && dateRange.to
+                      ? ` ${dateRange.from} to ${dateRange.to}`
+                      : ' all available dates'}
+                  </span>
+                </CardDescription>
               </CardHeader>
               <CardContent style={{ minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {Object.values(analytics.status_summary || {}).reduce((a, b) => a + b, 0) === 0 ? (
@@ -347,7 +381,15 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
             <Card>
               <CardHeader>
                 <CardTitle>Transaction Status Summary</CardTitle>
-                <CardDescription>Key financial status breakdown</CardDescription>
+                <CardDescription>
+                  Key financial status breakdown<br />
+                  <span className="text-xs text-muted-foreground">
+                    Showing data for:
+                    {dateRange.from && dateRange.to
+                      ? ` ${dateRange.from} to ${dateRange.to}`
+                      : ' all available dates'}
+                  </span>
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

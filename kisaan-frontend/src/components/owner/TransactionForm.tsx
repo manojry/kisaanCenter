@@ -1,13 +1,12 @@
 import { formatCurrency } from '@/utils/format';
 import React, { useState, useEffect, useRef } from 'react';
 import { useTransactionStore } from '@/store/transactionStore';
-import { useCategoriesCache } from '../../hooks/useCategoriesCache';
 import { useShopProductsCache } from '../../hooks/useShopProductsCache';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // Imports for UI primitives removed after modular refactor (Label, Input, Select) handled inside subcomponents
 import { Loader2, Calculator } from 'lucide-react';
-import { usersApi, categoriesApi, transactionsApi } from '../../services/api';
+import { usersApi, transactionsApi } from '../../services/api';
 import { buildTransactionPayload } from '../../utils/buildTransactionPayload';
 import { TransactionPartySelectors, TransactionQuantityPricing, TransactionSummary, TransactionPayments } from '@/features/transactions/components';
 import { calculateTransactionAmounts } from '@/features/transactions/utils/transactionCalculations';
@@ -35,6 +34,11 @@ interface TransactionFormProps {
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onCancel }) => {
   // State for product dropdown visibility
   const { user } = useAuth();
+  // Debug: Log user and shopId on mount
+  useEffect(() => {
+    console.log('[TransactionForm] user:', user);
+    console.log('[TransactionForm] shopId:', user?.shop_id);
+  }, [user]);
   // Search states for dropdowns
   // Get users from zustand store
   const { getUsers, setUsers } = useTransactionStore();
@@ -104,7 +108,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   }, [calculations.total_sale_value, calculations.farmer_earning, calculations.shop_commission]);
 
   const fetchData = async () => {
-    setIsLoading(true);
+  console.trace('[TransactionForm] fetchData called');
+  setIsLoading(true);
     try {
       let users = getUsers(user?.shop_id?.toString() || '');
       if (!users || users.length === 0) {
@@ -115,37 +120,53 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
       setFarmers(users.filter(u => u.role === 'farmer'));
       setBuyers(users.filter(u => u.role === 'buyer'));
 
-      // Categories: use global cache
-      const { getCategories, setCategoriesCache } = useCategoriesCache();
-      let cats = getCategories();
-      if (!cats) {
-        const categoriesResponse = await categoriesApi.getAll();
-        cats = categoriesResponse.data || [];
-        setCategoriesCache(cats);
+      // Fetch shop-specific categories
+      let cats: Category[] = [];
+      if (user?.shop_id) {
+        try {
+          const response = await apiClient.get<{ data?: Category[] }>(`/shops/${user.shop_id}/categories`);
+          cats = (response && response.data) || [];
+        } catch (err) {
+          console.error('[TransactionForm] Error fetching shop categories:', err);
+          cats = [];
+        }
       }
       setCategories(cats);
 
       // Only fetch products if shop_id is valid
       if (user?.shop_id) {
         const cached = getShopProducts(user.shop_id);
-        if (cached) {
+        if (cached && cached.length > 0) {
           console.log('[TransactionForm] Using cached products for shop_id', user.shop_id, cached);
           setProducts(cached);
         } else {
           console.log('[TransactionForm] Fetching products from API for shop_id', user.shop_id);
-          const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
-          // productsResponseRaw is expected to be an AxiosResponse<{ data: Product[] }>
-          // If not, fallback to unknown and type guard
-          let productsResponse: { data?: Product[] };
-          if (typeof productsResponseRaw === 'object' && productsResponseRaw !== null && 'data' in productsResponseRaw) {
-            productsResponse = productsResponseRaw as { data?: Product[] };
-          } else {
-            productsResponse = { data: [] };
+          try {
+            const productsResponseRaw = await apiClient.get(`/shops/${user.shop_id}/products`);
+            // productsResponseRaw is expected to be an AxiosResponse<{ data: Product[] }>
+            // If not, fallback to unknown and type guard
+            let productsResponse: { data?: Product[] };
+            if (typeof productsResponseRaw === 'object' && productsResponseRaw !== null && 'data' in productsResponseRaw) {
+              productsResponse = productsResponseRaw as { data?: Product[] };
+            } else {
+              productsResponse = { data: [] };
+            }
+            const prods = productsResponse.data || [];
+            console.log('[TransactionForm] Products fetched from API:', prods);
+            // Map/fix: ensure all required Product fields exist
+            const validProds = prods
+              .filter((p: any) => typeof p.id === 'number' && typeof p.name === 'string' && typeof p.category_id === 'number')
+              .map((p: any) => ({
+                ...p,
+                record_status: typeof p.record_status === 'string' ? p.record_status : 'active',
+                created_at: typeof p.created_at === 'string' ? p.created_at : '',
+              }));
+            setShopProducts(user.shop_id, validProds);
+            setProducts(validProds);
+          } catch (err) {
+            console.error('[TransactionForm] Error fetching products:', err);
+            setProducts([]);
           }
-          const prods = productsResponse.data || [];
-          console.log('[TransactionForm] Products fetched from API:', prods);
-          setShopProducts(user.shop_id, prods);
-          setProducts(prods);
         }
       } else {
         console.log('[TransactionForm] No valid shop_id, products not fetched.');
