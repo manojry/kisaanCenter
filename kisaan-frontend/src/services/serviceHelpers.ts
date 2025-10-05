@@ -80,10 +80,11 @@ export function normalizeListResponse<T = unknown>(raw: unknown, options?: Norma
 
   // Pagination meta inference
   const rawObj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
-  const page = Number(rawObj.page) || options?.page || 1;
-  const limit = Number(rawObj.limit) || options?.limit || array.length || 10;
-  const total = Number(rawObj.total) || (Array.isArray(array) ? array.length : 0);
-  const totalPages = Number(rawObj.totalPages) || Math.ceil(total / (limit || 1)) || 1;
+  const meta = (rawObj && typeof rawObj.meta === 'object') ? (rawObj.meta as Record<string, unknown>) : {};
+  const page = Number(meta.page) || Number(rawObj.page) || options?.page || 1;
+  const limit = Number(meta.limit) || Number(rawObj.limit) || options?.limit || array.length || 10;
+  const total = Number(meta.total) || Number(rawObj.total) || (Array.isArray(array) ? array.length : 0);
+  const totalPages = Number(meta.totalPages) || Number(rawObj.totalPages) || Math.ceil(total / (limit || 1)) || 1;
 
   return {
     data: Array.isArray(array) ? array : [],

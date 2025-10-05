@@ -279,13 +279,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
               </CardTitle>
               <CardDescription className="text-sm sm:text-base">
                 Products currently assigned to your shop for selling. ({products.length} assigned)
-                {shopCategories.length > 0 && (
-                  <div className="mt-2">
-                    <span className="text-sm font-medium">Shop Categories: </span>
-                    <span className="text-sm">{shopCategories.map(c => c.name).join(', ')}</span>
-                  </div>
-                )}
               </CardDescription>
+              {shopCategories.length > 0 && (
+                <div className="mt-2">
+                  <span className="text-sm font-medium">Shop Categories: </span>
+                  <span className="text-sm">{shopCategories.map(c => c.name).join(', ')}</span>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>

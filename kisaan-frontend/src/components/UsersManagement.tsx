@@ -14,11 +14,11 @@ interface UsersManagementProps {
 
 export default function UsersManagement({ onRefresh }: UsersManagementProps) {
   // shopId is currently unused, but kept for future filtering if needed.
-  const { users, isLoading, refreshUsers } = useUsers();
+  const { users, isLoading, refreshUsers, total, page, setPage, pageSize, setPageSize } = useUsers();
   const [showAddUser, setShowAddUser] = useState(false);
   useEffect(() => {
-    refreshUsers();
-  }, [refreshUsers]);
+    refreshUsers(page, pageSize);
+  }, [refreshUsers, page, pageSize]);
 
   const handleUserAdded = () => {
     if (onRefresh) onRefresh();
@@ -56,8 +56,22 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
 
   // error state and UI removed; errors should be handled in context or via notifications if needed.
 
-  return (
-    <>
+  // Pagination controls
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+  };
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value));
+    setPage(1);
+  };
+  
+   // Fix: wrap pagination controls outside Table, fix CardContent/Card/Fragment structure
+   // Fix: refresh button handler should not pass event args
+   const handleRefresh = () => refreshUsers(page, pageSize);
+
+   return (
+     <>
       <Card>
         <CardHeader>
           <div className="flex flex-col xs:flex-row xs:items-center w-full gap-2 xs:gap-0">
@@ -72,7 +86,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
             </div>
             <div className="flex gap-2 items-center xs:ml-auto">
               {/* Responsive Refresh Button */}
-              <Button onClick={refreshUsers} size="sm" variant="outline" className="px-2 py-1 text-xs xs:text-sm" style={{ minWidth: 0 }}>
+              <Button onClick={handleRefresh} size="sm" variant="outline" className="px-2 py-1 text-xs xs:text-sm" style={{ minWidth: 0 }}>
                 <span className="hidden xs:inline-flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 xs:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
                   Refresh
@@ -124,6 +138,24 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                   ))}
                 </TableBody>
               </Table>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div>
+                    <label className="mr-2 text-sm">Rows per page:</label>
+                    <select value={pageSize} onChange={handlePageSizeChange} className="border rounded px-2 py-1 text-sm">
+                      {[10, 20, 50, 100].map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handlePageChange(page - 1)} disabled={page === 1} className="px-2 py-1 border rounded disabled:opacity-50">Prev</button>
+                    <span className="text-sm">Page {page} of {totalPages}</span>
+                    <button onClick={() => handlePageChange(page + 1)} disabled={page === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Next</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {/* Mobile Card/List Layout */}

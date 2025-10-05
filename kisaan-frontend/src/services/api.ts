@@ -36,12 +36,16 @@ export const settlementsApi = {
   }): Promise<ApiResponse<Settlement>> =>
     apiClient.post<ApiResponse<Settlement>>(SETTLEMENT_ENDPOINTS.BASE, settlement),
 
+
   update: (id: number, update: {
     status?: 'pending' | 'settled';
     settlement_date?: string;
     notes?: string;
   }): Promise<ApiResponse<Settlement>> =>
     apiClient.put<ApiResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`, update),
+
+  settle: (id: number, payload: { amount?: number; notes?: string } = {}) =>
+    apiClient.post<ApiResponse<Settlement>>(`/settlements/settle/${id}`, payload),
 
   getSummary: (): Promise<ApiResponse<{
     total_pending: number;
@@ -228,10 +232,17 @@ export const usersApi = {
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<User>> => {
-  const qs = buildQueryString(params);
-  const raw = await apiClient.get<ApiResponse<User[]>>(`${USER_ENDPOINTS.BASE}${qs}`);
-  // Backend now returns { success: true, data: users[], message: "...", meta: {...} }
-  return normalizeListResponse<User>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+    const qs = buildQueryString(params);
+    const raw = await apiClient.get<ApiResponse<User[]>>(`${USER_ENDPOINTS.BASE}${qs}`);
+    // Extract meta from response
+    const meta = (raw && typeof raw === 'object' && 'meta' in raw) ? (raw as any).meta : {};
+    const normalized = normalizeListResponse<User>(raw, {
+      keys: ['data'],
+      limit: meta.limit ?? params?.limit,
+      page: meta.page ?? params?.page,
+      // total and totalPages will be inferred from meta if present
+    });
+    return normalized;
   },
   
   getById: (id: number): Promise<{ message: string; user: User }> =>

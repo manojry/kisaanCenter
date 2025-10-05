@@ -8,8 +8,13 @@ interface UsersContextType {
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  fetchUsers: () => Promise<void>;
-  refreshUsers: () => Promise<void>;
+  fetchUsers: (page?: number, limit?: number) => Promise<void>;
+  refreshUsers: (page?: number, limit?: number) => Promise<void>;
+  total: number;
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  pageSize: number;
+  setPageSize: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -24,28 +29,33 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (pageArg?: number, limitArg?: number) => {
     if (!isAuthenticated) {
       setUsers([]);
       setIsLoading(false);
+      setTotal(0);
       return;
     }
-
     setIsLoading(true);
     try {
-      const response = await usersApi.getAll({});
-      if (response.data) setUsers(response.data);
+      const response = await usersApi.getAll({ page: pageArg || page, limit: limitArg || pageSize });
+      // response is PaginatedResponse<User> with { data, total, page, limit, totalPages }
+      setUsers(response.data || []);
+      setTotal(response.total || 0);
     } catch {
-      // handle error - user will see toast notification from apiClient
       setUsers([]);
+      setTotal(0);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const refreshUsers = async () => {
-    await fetchUsers();
+  const refreshUsers = async (pageArg?: number, limitArg?: number) => {
+    await fetchUsers(pageArg, limitArg);
   };
 
   useEffect(() => {
@@ -54,11 +64,12 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       setUsers([]);
       setIsLoading(false);
+      setTotal(0);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, page, pageSize]);
 
   return (
-  <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers, refreshUsers }}>
+  <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers, refreshUsers, total, page, setPage, pageSize, setPageSize }}>
       {children}
     </UsersContext.Provider>
   );

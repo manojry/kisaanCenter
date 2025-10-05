@@ -18,6 +18,79 @@ import { apiClient } from '../services/apiClient';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+// --- User Amounts Owed Table with Pagination ---
+interface UserAmountsOwedTableProps {
+  summary: any[];
+  recoverableExpenses: any[];
+}
+
+const UserAmountsOwedTable: React.FC<UserAmountsOwedTableProps> = ({ summary, recoverableExpenses }) => {
+  const [page, setPage] = React.useState(1);
+  const pageSize = 8;
+  const totalPages = Math.ceil(summary.length / pageSize);
+  const paged = summary.slice((page - 1) * pageSize, page * pageSize);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <Table className="min-w-[600px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>User</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Pending</TableHead>
+            <TableHead>Outstanding Expenses</TableHead>
+            <TableHead className="text-right">Amount Owed</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paged.map((item, idx) => {
+            const userExpenses = recoverableExpenses.filter((exp: any) => exp.user_id === item.user_id);
+            const totalRecoverable = userExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+            const totalBalance = typeof item === 'object' && 'total_balance' in item ? (item as { total_balance: number }).total_balance : 0;
+            return (
+              <TableRow key={item.user_id || idx}>
+                <TableCell>{typeof item === 'object' && 'username' in item ? (item as { username: string }).username : ''}</TableCell>
+                <TableCell className="capitalize">{typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''}</TableCell>
+                <TableCell>{typeof item === 'object' && 'pending_count' in item ? (item as { pending_count: number }).pending_count : ''}</TableCell>
+                <TableCell>{totalRecoverable > 0 ? formatCurrency(totalRecoverable) : '-'}</TableCell>
+                <TableCell className="text-right font-bold">{formatCurrency(totalBalance)}</TableCell>
+                <TableCell>
+                  <Badge variant={totalBalance > 0 ? 'destructive' : 'default'}>
+                    {totalBalance > 0 ? 'Owes Shop' : 'Shop Owes'}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      <div className="flex justify-end mt-2">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious onClick={() => handlePageChange(page - 1)} />
+            </PaginationItem>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <PaginationItem key={i}>
+                <PaginationLink isActive={page === i + 1} onClick={() => handlePageChange(i + 1)}>{i + 1}</PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext onClick={() => handlePageChange(page + 1)} />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+    </div>
+  );
+};
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '../components/ui/pagination';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -278,37 +351,10 @@ export default function Expenses() {
                 </CardContent>
               </Card>
             ) : (
-              summary.map((item) => {
-                // Find recoverable expenses for this user
-                const userExpenses = recoverableExpenses.filter((exp) => exp.user_id === item.user_id);
-                const totalRecoverable = userExpenses.reduce((sum: number, exp) => sum + (exp.amount || 0), 0);
-                return (
-                  <Card key={`${typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''}_${item.user_id}`}> 
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">{typeof item === 'object' && 'username' in item ? (item as { username: string }).username : ''}</h3>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''} • {typeof item === 'object' && 'pending_count' in item ? (item as { pending_count: number }).pending_count : ''} pending
-                          </p>
-                          {totalRecoverable > 0 && (
-                            <p className="text-xs text-orange-600 font-semibold">Outstanding recoverable expenses: {formatCurrency(totalRecoverable)}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold">
-                            {formatCurrency(typeof item === 'object' && 'total_balance' in item ? (item as { total_balance: number }).total_balance : 0)}
-                          </div>
-                          <Badge variant={typeof item === 'object' && 'total_balance' in item && (item as { total_balance: number }).total_balance > 0 ? "destructive" : "default"}>
-                            {typeof item === 'object' && 'total_balance' in item && (item as { total_balance: number }).total_balance > 0 ? "Owes Shop" : "Shop Owes"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
+              <UserAmountsOwedTable summary={summary} recoverableExpenses={recoverableExpenses} />
             )}
+
+
             {/* Shop expenses and net earnings summary */}
             <Card className="mt-4">
               <CardHeader>

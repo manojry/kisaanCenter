@@ -163,8 +163,8 @@ import { formatCurrency } from '../lib/formatters';
     const handleSettle = async () => {
       if (!selectedSettlement || !settleAmount) return;
       try {
-        await settlementsApi.update(selectedSettlement.id, {
-          status: 'settled',
+        await settlementsApi.settle(selectedSettlement.id, {
+          amount: parseFloat(settleAmount),
           notes: `Settled amount: ${settleAmount}`
         });
         setSettleAmount('');
@@ -362,7 +362,7 @@ import { formatCurrency } from '../lib/formatters';
                         <TableCell>
                           {exp.status === 'pending' && (
                             <Button size="sm" onClick={async () => {
-                              await settlementsApi.update(exp.id, { status: 'settled' });
+                              await settlementsApi.settle(exp.id);
                               fetchData();
                             }}>Mark as Recovered</Button>
                           )}

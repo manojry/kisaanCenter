@@ -1,5 +1,14 @@
+
 import { getUserDisplayName } from '../utils/userDisplayName';
 import React, { useState } from 'react';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '../components/ui/pagination';
 import { useFarmerProductAssignment } from '../services/hooks/useFarmerProductAssignment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +25,12 @@ import { useAuth } from '../context/AuthContext';
 import { UserForm } from '../components/owner/UserForm';
 import { useUsers } from '../context/UsersContext';
 
+
+
 const OwnerUsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { users, isLoading, refreshUsers } = useUsers();
-  
+  const { users, isLoading, refreshUsers, page, setPage, pageSize, setPageSize, total } = useUsers();
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   // Modal state for assigning products
   const [assignProductsUser, setAssignProductsUser] = useState<User | null>(null);
   const {
@@ -42,20 +53,22 @@ const OwnerUsersPage: React.FC = () => {
     search: ''
   });
 
-  // Filtered users based on filters
-  const filteredUsers = users.filter(u => {
-    if (filters.role && u.role !== filters.role) return false;
-    if (filters.status && u.status !== filters.status) return false;
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      if (!u.username.toLowerCase().includes(searchLower) &&
-          !(u.contact && u.contact.includes(filters.search)) &&
-          !(u.email && u.email.toLowerCase().includes(searchLower))) {
-        return false;
-      }
-    }
-    return true;
-  });
+
+  // Backend-driven pagination: users is already paginated for current page
+  // Filters/search are sent to backend, not applied client-side
+  const filteredUsers = users;
+
+
+
+  // When filters change, reset to page 1
+  React.useEffect(() => {
+    setPage(1);
+  }, [filters.role, filters.status, filters.search]);
+
+  // When page, pageSize, or filters/search change, fetch from backend
+  React.useEffect(() => {
+    refreshUsers(page, pageSize);
+  }, [page, pageSize, filters.role, filters.status, filters.search]);
 
   const handleUserCreated = () => {
     refreshUsers();
@@ -112,7 +125,7 @@ const OwnerUsersPage: React.FC = () => {
         </div>
         <div className="flex gap-2 items-center ml-auto">
           <Button 
-            onClick={refreshUsers}
+            onClick={() => refreshUsers()}
             variant="outline"
             size="sm"
             disabled={isLoading}
@@ -183,12 +196,12 @@ const OwnerUsersPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between text-base sm:text-lg">
-            <span>Users ({filteredUsers.length})</span>
+            <span>Users ({total})</span>
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2 sm:p-4">
-          {filteredUsers.length === 0 ? (
+                {filteredUsers.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
               <p className="text-gray-500 text-base sm:text-lg">No users found</p>
               <p className="text-gray-400 text-xs sm:text-sm mt-2">
@@ -267,6 +280,48 @@ const OwnerUsersPage: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
+                {/* Pagination Controls (refactored to use shared UI) */}
+                {total > 0 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div>
+                      <label className="mr-2 text-sm">Rows per page:</label>
+                      <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded px-2 py-1 text-sm">
+                        {[10, 20, 50, 100].map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Shared Pagination UI */}
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={page > 1 ? () => setPage(page - 1) : undefined}
+                            aria-disabled={page === 1}
+                            className={page === 1 ? 'pointer-events-none opacity-50' : ''}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: totalPages }, (_, i) => (
+                          <PaginationItem key={i}>
+                            <PaginationLink
+                              isActive={page === i + 1}
+                              onClick={() => setPage(i + 1)}
+                            >
+                              {i + 1}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={page < totalPages ? () => setPage(page + 1) : undefined}
+                            aria-disabled={page >= totalPages}
+                            className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </div>
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3">
@@ -325,7 +380,6 @@ const OwnerUsersPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
-      
       {/* Product Assignment Modal */}
       {assignProductsUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
