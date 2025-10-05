@@ -104,21 +104,12 @@ const SuperadminUsers: React.FC = () => {
 
   const handlePasswordReset = async (userId: number, newPassword: string) => {
     try {
-      const response = await fetch(`/api/users/${userId}/admin-reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({ newPassword })
-      });
-      
-      if (response.ok) {
+      const response = await usersApi.adminResetPassword(userId, newPassword);
+      if (response && response.success) {
         alert('Password reset successfully');
         setShowPasswordReset(null);
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to reset password');
+        alert((response && response.message) || 'Failed to reset password');
       }
     } catch (error) {
       console.error('Error resetting password:', error);

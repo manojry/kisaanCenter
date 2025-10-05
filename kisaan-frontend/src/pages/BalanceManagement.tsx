@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTransactionStore } from '../store/transactionStore';
-import { usersApi } from '../services/api';
+import { usersApi, balanceSnapshotsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -21,10 +21,10 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   interface BalanceSnapshot {
-    id: string;
+    id: number | string;
     previous_balance: number;
     new_balance: number;
-    amount_change: number;
+    amount_change: number | string;
     [key: string]: string | number | undefined;
   }
   const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
@@ -60,19 +60,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       return;
     }
     setSnapshotsLoading(true);
-    fetch(`/api/balance-snapshots/${selectedUser.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && Array.isArray(data.data)) {
-          // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
-          const filtered = data.data.filter((s: BalanceSnapshot) =>
-            parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
-          );
-          setSnapshots(filtered);
-        } else {
-          setSnapshots([]);
-        }
-      })
+    balanceSnapshotsApi.getByUserId(selectedUser.id)
+      .then((data) => setSnapshots(data.map(s => ({ ...s, id: String(s.id) }))))
       .catch(() => setSnapshots([]))
       .finally(() => setSnapshotsLoading(false));
   }, [selectedUser]);

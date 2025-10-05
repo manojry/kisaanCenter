@@ -7,8 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Plus, Users } from 'lucide-react';
 import AddUserDialog from './AddUserDialog';
 
-
-
 interface UsersManagementProps {
   onRefresh?: () => void;
 }

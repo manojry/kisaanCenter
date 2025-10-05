@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Loader2, UserPlus } from 'lucide-react';
 import { usersApi, shopsApi } from '../../services/api';
-import axios from 'axios';
+import { commissionsApi } from '../../services/api';
 import type { UserCreate, User } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { toastService } from '../../services/toastService';
@@ -47,9 +47,9 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         if (formData.role === 'farmer') {
           // Try to fetch commission from commissions table
           try {
-            const res = await axios.get(`/api/commissions?shop_id=${formData.shop_id}`);
-            if (isMounted && res.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-              const commission = res.data.data[0];
+            const commissions = await commissionsApi.getByShopId(formData.shop_id);
+            if (isMounted && Array.isArray(commissions) && commissions.length > 0) {
+              const commission = commissions[0];
               if (commission && commission.rate) {
                 setFormData(prev => ({ ...prev, custom_commission_rate: Number(commission.rate) }));
                 return;

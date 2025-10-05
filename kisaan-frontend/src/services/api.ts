@@ -1,3 +1,10 @@
+// Commissions API
+export const commissionsApi = {
+  getByShopId: async (shop_id: number | string) => {
+    const resp = await apiClient.get<ApiResponse<{ rate: number }[]>>(`/commissions?shop_id=${shop_id}`);
+    return resp.data || [];
+  }
+};
 // (config import removed after refactor eliminating direct fetch usage)
 // Settlements API
 export const settlementsApi = {
@@ -116,8 +123,12 @@ export const shopProductsApi = {
 // Balance Snapshots API
 export const balanceSnapshotsApi = {
   getByUserId: async (userId: number | string) => {
-    const resp = await apiClient.get<ApiResponse<{ id: number; user_id: number; balance: number; created_at: string; }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
-    return resp.data || [];
+    const resp = await apiClient.get<ApiResponse<{ id: number; user_id: number; previous_balance: number; new_balance: number; amount_change: number | string; created_at: string; }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
+    // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
+    const data = (resp.data || []).filter((s) =>
+      parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
+    );
+    return data;
   }
 };
 // Superadmin Dashboard API
@@ -250,7 +261,13 @@ export const usersApi = {
     apiClient.delete(USER_ENDPOINTS.BY_ID(id)),
   
   resetPassword: (id: number, passwords: { currentPassword: string; newPassword: string }): Promise<ApiResponse> =>
-    apiClient.post(USER_ENDPOINTS.RESET_PASSWORD(id), passwords)
+    apiClient.post(USER_ENDPOINTS.RESET_PASSWORD(id), passwords),
+
+  /**
+   * Superadmin: reset any user's password (admin endpoint)
+   */
+  adminResetPassword: (id: number, newPassword: string): Promise<ApiResponse> =>
+    apiClient.post(`/users/${id}/admin-reset-password`, { newPassword })
 };
 
 // Categories API

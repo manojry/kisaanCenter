@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 
 // NEW: Import centralized data hooks
 import { useShopUsers } from '../hooks/useShopData';
+import { balanceSnapshotsApi } from '../services/api';
 
 interface User {
   id: string;
@@ -28,11 +29,11 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   // const { isAuthenticated } = useAuth(); // Unused
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   interface BalanceSnapshot {
-    id: number;
+    id: number | string;
     user_id: number;
     previous_balance: number;
     new_balance: number;
-    amount_change: string | number;
+    amount_change: number | string;
     created_at: string;
     [key: string]: unknown;
   }
@@ -65,19 +66,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       return;
     }
     setSnapshotsLoading(true);
-    fetch(`/api/balance-snapshots/${selectedUser.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && Array.isArray(data.data)) {
-          // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
-          const filtered = data.data.filter((s: BalanceSnapshot) =>
-            parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
-          );
-          setSnapshots(filtered);
-        } else {
-          setSnapshots([]);
-        }
-      })
+    balanceSnapshotsApi.getByUserId(selectedUser.id)
+      .then((data) => setSnapshots(data.map(s => ({ ...s, id: String(s.id) }))))
       .catch(() => setSnapshots([]))
       .finally(() => setSnapshotsLoading(false));
   }, [selectedUser]);

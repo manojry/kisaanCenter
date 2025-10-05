@@ -29,6 +29,25 @@ interface RequestConfig extends RequestInit {
 }
 
 class ApiClient {
+  // Fetch a blob (for file downloads)
+  async fetchBlob(url: string, config?: Partial<RequestConfig>): Promise<Blob> {
+    // Compose full URL
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url.startsWith('/') ? url : '/' + url}`;
+    // Add auth header
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Fetch as blob
+    const response = await fetch(fullUrl, {
+      ...config,
+      headers: {
+        ...headers,
+        ...(config?.headers || {})
+      }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status}`);
+    return await response.blob();
+  }
   private baseURL: string;
   private timeout: number;
   private requestInterceptors: RequestInterceptor[] = [];
