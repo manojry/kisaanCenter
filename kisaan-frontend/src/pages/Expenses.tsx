@@ -1,6 +1,10 @@
 // This file has been renamed to Expenses.tsx. Please use Expenses.tsx instead.
 
 import { useState, useEffect } from 'react';
+import ExpenseForm from './components/ExpenseForm';
+import ExpensesTable from './components/ExpensesTable';
+import ExpenseSummaryCard from './components/ExpenseSummaryCard';
+import SettlementsTab from './components/SettlementsTab';
 import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/UsersContext';
 import { useToast } from '../hooks/use-toast';
@@ -9,18 +13,20 @@ import { expenseApi, settlementsApi, shopsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
 import { Link } from "react-router-dom";
-import { Label } from '../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Badge } from '../components/ui/badge';
 import { 
   ArrowLeft,
   Receipt,
 } from 'lucide-react';
+
+import type { Settlement, User } from '../types/api';
 import { formatCurrency } from '../lib/formatters';
 
   // Clean, working Expenses page with Expenses, Settlements, and Summary tabs
+
+  // SettlementCard and SettlementDialog are now imported from ./components
+
   export default function Expenses() {
     const REASONS = [
       { value: 'food', label: 'Food' },
@@ -34,23 +40,15 @@ import { formatCurrency } from '../lib/formatters';
     const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
   const setStoreShop = useTransactionStore(state => state.setShop);
-    const [expenses, setExpenses] = useState<{
-      id: number;
-      shop_id: number;
-      user_id: number;
-      amount: number;
-      reason?: string;
-      description?: string;
-      created_at: string;
-      updated_at: string;
-      user?: import('../types/api').User;
-      date?: string;
-    }[]>([]);
+    type Expense = Settlement & { user?: User; date?: string };
+    const [expenses, setExpenses] = useState<Expense[]>([]);
     const [totalExpenses, setTotalExpenses] = useState<number>(0);
-    const [expenseReason, setExpenseReason] = useState('');
-    const [expenseUserId, setExpenseUserId] = useState('');
-    const [expenseAmount, setExpenseAmount] = useState('');
-    const [expenseDescription, setExpenseDescription] = useState('');
+    const [expenseForm, setExpenseForm] = useState({
+      reason: '',
+      userId: '',
+      amount: '',
+      description: ''
+    });
   const [settlements, setSettlements] = useState<import('../types/api').Settlement[]>([]);
     const [settleAmount, setSettleAmount] = useState('');
   const [selectedSettlement, setSelectedSettlement] = useState<import('../types/api').Settlement | null>(null);
@@ -186,17 +184,12 @@ import { formatCurrency } from '../lib/formatters';
     const handleAddExpense = async () => {
       console.log('Add Expense Clicked', {
         shopId: storeShop?.id,
-        expenseAmount,
-        expenseDescription,
-        expenseUserId,
-        expenseReason
+        ...expenseForm
       });
-      if (!storeShop?.id || !expenseAmount || !expenseDescription || !expenseUserId) {
+      if (!storeShop?.id || !expenseForm.amount || !expenseForm.description || !expenseForm.userId) {
         console.warn('Missing required fields for expense', {
           shopId: storeShop?.id,
-          expenseAmount,
-          expenseDescription,
-          expenseUserId
+          ...expenseForm
         });
         return;
       }
@@ -204,17 +197,14 @@ import { formatCurrency } from '../lib/formatters';
       try {
         const res = await settlementsApi.create({
           shop_id: storeShop.id,
-          settlementUser_id: Number(expenseUserId),
+          settlementUser_id: Number(expenseForm.userId),
           owner_id: user?.id ?? undefined,
-          amount: parseFloat(expenseAmount),
+          amount: parseFloat(expenseForm.amount),
           reason: 'adjustment',
-          notes: expenseDescription
+          notes: expenseForm.description
         });
         console.log('Expense API response:', res);
-        setExpenseAmount('');
-        setExpenseDescription('');
-        setExpenseUserId('');
-        setExpenseReason('');
+        setExpenseForm({ reason: '', userId: '', amount: '', description: '' });
         await fetchData();
         toast({
           title: 'Expense Added',
@@ -290,17 +280,7 @@ import { formatCurrency } from '../lib/formatters';
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Expense Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-2">
-                  <div><strong>Total Expenses:</strong> {formatCurrency(totalExpenses)}</div>
-                  <div><strong>Net Earnings:</strong> {formatCurrency(netEarnings)}</div>
-                </div>
-              </CardContent>
-            </Card>
+            <ExpenseSummaryCard totalExpenses={totalExpenses} netEarnings={netEarnings} />
           </TabsContent>
 
           {/* Expenses Tab */}
@@ -313,196 +293,44 @@ import { formatCurrency } from '../lib/formatters';
                 {!storeShop?.id && (
                   <div className="text-red-600 text-sm mb-2">Shop not loaded. Please wait or check your account.</div>
                 )}
-                <div>
-                  <Label htmlFor="expenseReason">Reason</Label>
-                  <select
-                    id="expenseReason"
-                    value={expenseReason}
-                    onChange={e => setExpenseReason(e.target.value)}
-                    className="w-full border rounded px-2 py-1"
-                    disabled={isLoading}
-                  >
-                    <option value="">Select reason</option>
-                    {REASONS.map(r => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="expenseUser">User</Label>
-                  <select
-                    id="expenseUser"
-                    value={expenseUserId}
-                    onChange={e => setExpenseUserId(e.target.value)}
-                    className="w-full border rounded px-2 py-1"
-                    disabled={isLoading || usersLoading || users.length === 0}
-                  >
-                    {usersLoading || users.length === 0 ? (
-                      <option value="">Loading users...</option>
-                    ) : (
-                      <>
-                        <option value="">Select user</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.firstname ? u.firstname : (u.username ? u.username : u.id)}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="expenseAmount">Amount</Label>
-                  <Input
-                    id="expenseAmount"
-                    type="number"
-                    placeholder="Enter expense amount"
-                    value={expenseAmount}
-                    onChange={(e) => setExpenseAmount(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expenseDescription">Description</Label>
-                  <Input
-                    id="expenseDescription"
-                    placeholder="Enter expense description"
-                    value={expenseDescription}
-                    onChange={(e) => setExpenseDescription(e.target.value)}
-                  />
-                </div>
-                <Button onClick={handleAddExpense} aria-label="Add Expense" disabled={!expenseAmount || !expenseDescription || !expenseUserId || !expenseReason || isLoading || !storeShop?.id}>
-                  {isLoading ? 'Adding...' : 'Add Expense'}
-                </Button>
+                <ExpenseForm
+                  expenseForm={expenseForm}
+                  setExpenseForm={setExpenseForm}
+                  handleAddExpense={handleAddExpense}
+                  isLoading={isLoading}
+                  users={users}
+                  usersLoading={usersLoading}
+                  reasons={REASONS}
+                  storeShop={storeShop}
+                />
               </CardContent>
             </Card>
 
             {/* List all expenses */}
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>All Expenses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {expenses.length === 0 ? (
-                  <div>No expenses recorded yet.</div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {expenses.map((exp) => (
-                        <TableRow key={exp.id}>
-                          <TableCell>{(exp && typeof exp === 'object' && exp !== null && 'user' in exp && exp.user && typeof exp.user === 'object' && exp.user !== null && 'username' in exp.user) ? String(exp.user.username) : String(exp.user_id)}</TableCell>
-                          <TableCell>{formatCurrency(exp.amount)}</TableCell>
-                          <TableCell>{exp.reason}</TableCell>
-                          <TableCell>{typeof exp === 'object' && 'description' in exp ? (exp as { description?: string }).description : ''}</TableCell>
-                          <TableCell>{typeof exp === 'object' && 'date' in exp && exp.date ? new Date((exp as { date?: string }).date!).toLocaleDateString() : '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <ExpensesTable expenses={expenses} />
           </TabsContent>
 
           {/* Settlements Tab */}
           <TabsContent value="settlements" className="mt-6">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">All Settlements</h2>
-              {/* Filter controls */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Input type="date" value={filterFromDate} onChange={e => setFilterFromDate(e.target.value)} placeholder="From date" />
-                <Input type="date" value={filterToDate} onChange={e => setFilterToDate(e.target.value)} placeholder="To date" />
-                <Button size="sm" onClick={fetchData}>Filter Income</Button>
-              </div>
-              {/* FIFO Repayment Form */}
-              <Card className="mb-4">
-                <CardHeader><CardTitle>FIFO Repayment</CardTitle></CardHeader>
-                <CardContent className="flex gap-2 items-end">
-                  <Input type="text" value={fifoUserId} onChange={e => setFifoUserId(e.target.value)} placeholder="User ID" />
-                  <Input type="number" value={fifoAmount} onChange={e => setFifoAmount(e.target.value)} placeholder="Amount" />
-                  <Button size="sm" onClick={handleFifoRepay} aria-label="Repay FIFO" disabled={!fifoUserId || !fifoAmount || isLoading}>Repay</Button>
-                </CardContent>
-              </Card>
-              {settlements.map((settlement) => (
-                <Card key={settlement.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <h3 className="font-semibold">{(settlement && typeof settlement === 'object' && settlement !== null && 'user' in settlement && settlement.user && typeof settlement.user === 'object' && settlement.user !== null && 'username' in settlement.user) ? String(settlement.user.username) : 'Unknown'}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {typeof settlement === 'object' && 'description' in settlement ? (settlement as { description?: string }).description : ''}
-                        </p>
-                      </div>
-                      <Badge variant={settlement.status === 'settled' ? 'default' : 'secondary'}>
-                        {settlement.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        <span>Amount: {formatCurrency(settlement.amount)}</span>
-                        {typeof settlement === 'object' && 'settled_amount' in settlement && (settlement as { settled_amount?: number }).settled_amount! > 0 && (
-                          <span className="ml-2 text-green-600">
-                            (Settled: {formatCurrency((settlement as { settled_amount?: number }).settled_amount ?? 0)})
-                          </span>
-                        )}
-                      </div>
-                      {(settlement.status === 'pending' && typeof settlement === 'object' && 'balance' in settlement && (settlement as { balance?: number }).balance! > 0) && (
-                        <Button
-                          size="sm"
-                          onClick={() => setSelectedSettlement(settlement)}
-                        >
-                          Settle
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            {/* Settlement Dialog */}
-            {selectedSettlement && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                <Card className="w-full max-w-md">
-                  <CardHeader>
-                    <CardTitle>Settle Amount</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {typeof selectedSettlement === 'object' && selectedSettlement && 'user' in selectedSettlement && selectedSettlement.user && typeof selectedSettlement.user === 'object' && 'username' in selectedSettlement.user ? String(selectedSettlement.user.username) : ''} - {typeof selectedSettlement === 'object' && selectedSettlement && 'description' in selectedSettlement ? (selectedSettlement as { description?: string }).description : ''}
-                      </p>
-                      <p className="font-semibold">
-                        Outstanding: {formatCurrency(typeof selectedSettlement === 'object' && selectedSettlement && 'balance' in selectedSettlement ? (selectedSettlement as { balance?: number }).balance ?? 0 : 0)}
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="settleAmount">Settlement Amount</Label>
-                      <Input
-                        id="settleAmount"
-                        type="number"
-                        placeholder="Enter amount received"
-                        value={settleAmount}
-                        onChange={(e) => setSettleAmount(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleSettle} aria-label="Settle" disabled={!settleAmount || isLoading}>Settle</Button>
-                      <Button variant="outline" onClick={() => setSelectedSettlement(null)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            <SettlementsTab
+              filterFromDate={filterFromDate}
+              setFilterFromDate={setFilterFromDate}
+              filterToDate={filterToDate}
+              setFilterToDate={setFilterToDate}
+              fetchData={fetchData}
+              fifoUserId={fifoUserId}
+              setFifoUserId={setFifoUserId}
+              fifoAmount={fifoAmount}
+              setFifoAmount={setFifoAmount}
+              handleFifoRepay={handleFifoRepay}
+              settlements={settlements}
+              setSelectedSettlement={setSelectedSettlement}
+              selectedSettlement={selectedSettlement}
+              settleAmount={settleAmount}
+              setSettleAmount={setSettleAmount}
+              handleSettle={handleSettle}
+              isLoading={isLoading}
+            />
           </TabsContent>
 
           {/* Outstanding Recoverable Expenses */}

@@ -1,3 +1,15 @@
+// Expense type for DRY usage across frontend
+export interface Expense {
+  id: number;
+  user_id: number;
+  user?: User;
+  amount: number;
+  reason: string;
+  description?: string;
+  date?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 // Category type for DRY usage across frontend
 export interface Category {
   id: number;
