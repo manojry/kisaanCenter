@@ -64,7 +64,7 @@ export const UserSearchSchema = z.object({
   ),
   limit: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? 20 : Number(val)),
-    z.number().int().min(1).max(100).default(20)
+    z.number().int().min(1).max(300).default(20)
   ),
 });
 
