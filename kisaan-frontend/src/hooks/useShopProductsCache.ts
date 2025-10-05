@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { shopProductsApi } from '../services/api';
 import type { Product } from '../types/api';
 
+// Unified product type for all usages (API + local fields)
+// Removed unused ShopProduct type
+
 interface ShopProductsCacheEntry {
   data: Product[] | null;
   timestamp: number;
@@ -61,15 +64,26 @@ export function useSharedShopProducts(shopId: number) {
     try {
       const rawProducts = await shopProductsApi.getShopProducts(shopId);
       // Map to ensure all required Product fields exist
-      const products = (rawProducts || []).map((p: any) => ({
-        ...p,
-        name: p.name || p.product_name || '',
-        product_name: p.product_name || p.name || '',
-        category_id: p.category_id ?? (p.category?.id ?? 0),
-        record_status: p.record_status ?? (typeof p.is_active === 'boolean' ? (p.is_active ? 'active' : 'inactive') : 'active'),
-        created_at: p.created_at,
-      }));
-      entry.data = products;
+          const products = (rawProducts || []).map((p: unknown) => {
+            const prod = p as {
+              id: number;
+              shop_id: number;
+              product_id: number;
+              product_name?: string;
+              category?: { id?: number; name?: string };
+            };
+            return {
+              id: prod.id,
+              shop_id: prod.shop_id,
+              product_id: prod.product_id,
+              product_name: typeof prod.product_name === 'string' ? prod.product_name : '',
+              category: prod.category && typeof prod.category === 'object' ? {
+                id: typeof prod.category.id === 'number' ? prod.category.id : undefined,
+                name: typeof prod.category.name === 'string' ? prod.category.name : undefined,
+              } : undefined,
+            };
+          });
+          entry.data = products as any; // ShopProduct[]
       entry.timestamp = Date.now();
       entry.error = null;
     } catch (error) {

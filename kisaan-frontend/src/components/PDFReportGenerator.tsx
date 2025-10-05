@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTransactionStore } from '../store/transactionStore';
-import { formatDate, getToday } from '../utils/dateUtils';
+import { getToday } from '../utils/dateUtils';
+import { formatDate } from '../utils/formatDate';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';

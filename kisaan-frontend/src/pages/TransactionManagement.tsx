@@ -1,7 +1,8 @@
 import { TransactionCardList } from '../components/TransactionCardList';
 import { getTransactionStatusColor } from '../utils/transactionStatusColors';
-import React, { useState, useEffect } from 'react';
-import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { formatDisplayDate, getToday } from '../utils/dateUtils';
+
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Plus, RefreshCw } from 'lucide-react';
@@ -21,13 +22,14 @@ const TransactionManagement: React.FC = () => {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  // Removed currentPage, now using query.page
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { users } = useUsers();
-  const [selectedUser, setSelectedUser] = useState<string>('');
   const todayStr = getToday();
-  const [filters, setFilters] = useState({ search: '', from_date: todayStr, to_date: todayStr });
+  const [query, setQuery] = useState({ search: '', user: '', from_date: todayStr, to_date: todayStr, page: 1 });
+
+  // No longer need handleUserSelect or selectedUser
 
   // PDF Export using utility
   const handleExportPDF = () => {
@@ -62,22 +64,22 @@ const TransactionManagement: React.FC = () => {
     exportTransactionsPDF(enriched, {
       title: 'Transactions Report',
       generatedBy: user?.username,
-      dateRange: { from: filters.from_date, to: filters.to_date }
+  dateRange: { from: query.from_date, to: query.to_date }
     });
   };
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
-  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedTransactions = filteredTransactions.slice((query.page - 1) * pageSize, query.page * pageSize);
 
   // Row expansion state
   const [openRows, setOpenRows] = useState<{[key: string]: boolean}>({});
   const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    } else if (currentPage < 1) {
-      setCurrentPage(1);
+    if (query.page > totalPages) {
+      setQuery(prev => ({ ...prev, page: totalPages }));
+    } else if (query.page < 1) {
+      setQuery(prev => ({ ...prev, page: 1 }));
     }
   }, [filteredTransactions, totalPages]);
   const transactionStore = useTransactionStore();
@@ -89,107 +91,89 @@ const TransactionManagement: React.FC = () => {
       newState[transaction.id + '-' + idx] = false;
     });
     setOpenRows(newState);
-  }, [filters, selectedUser, currentPage, filteredTransactions.length]);
+  }, [query, filteredTransactions.length]);
 
 
+
+  // Debounce and fetch when query changes, but avoid double API call on filter+page reset
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const skipNextFetchRef = useRef(false);
   useEffect(() => {
-    // Debounced filter change logic
-    const handler = setTimeout(() => {
-      setCurrentPage(1);
-    }, 100);
-    return () => clearTimeout(handler);
-  }, [user?.shop_id, filters, selectedUser]);
+    // If a filter changed and page was reset to 1, skip this effect once
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchTransactions();
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [user?.shop_id, query.from_date, query.to_date, query.search, query.user, query.page]);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [currentPage, user?.shop_id, filters, selectedUser]);
-
-  const fetchTransactions = async (invalidateDates?: string[]) => {
+  const fetchTransactions = async () => {
     if (!user?.shop_id) return;
     setIsLoading(true);
-    const { from_date, to_date, search } = filters;
-    // Always use UTC date strings for API calls
-    const start = new Date(from_date);
-    const end = new Date(to_date);
-    const dateList: string[] = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dateList.push(formatDate(d)); // formatDate always returns UTC YYYY-MM-DD
-    }
-    const shopIdStr = String(user.shop_id);
-    // Invalidate cache for affected dates if requested
-    if (invalidateDates && invalidateDates.length > 0) {
-      transactionStore.invalidateTransactions(shopIdStr, invalidateDates);
-    }
-    // Check which dates are missing in cache
-    const cachedTxns = transactionStore.getTransactions(shopIdStr, dateList);
-    const missingDates = dateList.filter(date => {
-      const shopData = transactionStore.transactionsByShopAndDate[shopIdStr] || {};
-      return !shopData[date];
-    });
-    let allTxns: Transaction[] = [...cachedTxns];
-    // If any dates missing, fetch and cache them
-    if (missingDates.length > 0) {
-      for (const date of missingDates) {
-        try {
-          const params: { shop_id: number; limit: number; from_date: string; to_date: string } = {
-            shop_id: user.shop_id,
-            limit: 50,
-            from_date: formatDate(date),
-            to_date: formatDate(date)
-          };
-          const response = await transactionsApi.getAll(params);
-          if (response.data) {
-            transactionStore.setTransactions(shopIdStr, date, response.data);
-            allTxns = allTxns.concat(response.data);
-          }
-        } catch (error) {
-          console.error('Error fetching transactions for date', date, error);
-        }
-      }
-    }
-    // Combine user and search filters in one pass
-    const searchLower = search ? search.toLowerCase() : '';
-  const matchesUser = (t: Transaction, selectedUser: string, users: User[]) => {
-  if (!selectedUser || selectedUser === 'all') return true;
-  const selectedUserObj = users.find(u => String(u.id) === selectedUser);
-  if (!selectedUserObj) return true;
-  // Only match by user id, do not allow role-based matching
-  return String(t.farmer_id) === String(selectedUserObj.id) || String(t.buyer_id) === String(selectedUserObj.id);
-    };
+    const { from_date, to_date, search, user: selectedUser } = query;
+    try {
+      const params: { shop_id: number; from_date: string; to_date: string; limit: number } = {
+        shop_id: user.shop_id,
+        from_date,
+        to_date,
+        limit: 1000 // adjust as needed
+      };
+      const response = await transactionsApi.getAll(params);
+  const allTxns: Transaction[] = response.data || [];
+      // Combine user and search filters in one pass
+      const searchLower = search ? search.toLowerCase() : '';
+      const matchesUser = (t: Transaction, selectedUser: string, users: User[]) => {
+        if (!selectedUser || selectedUser === 'all') return true;
+        const selectedUserObj = users.find(u => String(u.id) === selectedUser);
+        if (!selectedUserObj) return true;
+        // Only match by user id, do not allow role-based matching
+        return String(t.farmer_id) === String(selectedUserObj.id) || String(t.buyer_id) === String(selectedUserObj.id);
+      };
 
-  const matchesSearch = (t: Transaction, searchLower: string, users: User[]) => {
-      if (!searchLower) return true;
-      if (t.product_name?.toLowerCase().includes(searchLower)) return true;
-      if (String(t.buyer_id).includes(searchLower) || String(t.farmer_id).includes(searchLower)) return true;
-      const buyerUser = users.find(u => String(u.id) === String(t.buyer_id));
-      const farmerUser = users?.find?.(u => String(u.id) === String(t.farmer_id));
-      if (buyerUser?.firstname?.trim() && buyerUser.firstname.toLowerCase().includes(searchLower)) return true;
-      if (farmerUser?.firstname?.trim() && farmerUser.firstname.toLowerCase().includes(searchLower)) return true;
-      return false;
-    };
+      const matchesSearch = (t: Transaction, searchLower: string, users: User[]) => {
+        if (!searchLower) return true;
+        if (t.product_name?.toLowerCase().includes(searchLower)) return true;
+        if (String(t.buyer_id).includes(searchLower) || String(t.farmer_id).includes(searchLower)) return true;
+        const buyerUser = users.find(u => String(u.id) === String(t.buyer_id));
+        const farmerUser = users?.find?.(u => String(u.id) === String(t.farmer_id));
+        if (buyerUser?.firstname?.trim() && buyerUser.firstname.toLowerCase().includes(searchLower)) return true;
+        if (farmerUser?.firstname?.trim() && farmerUser.firstname.toLowerCase().includes(searchLower)) return true;
+        return false;
+      };
 
-  const filteredTransactions = allTxns.filter(t =>
-      matchesUser(t, selectedUser, users) && matchesSearch(t, searchLower, users)
-    );
-    setTransactions(allTxns); // Store all fetched transactions
-    setFilteredTransactions(filteredTransactions); // Store filtered transactions for display
-    setCurrentPage(1); // Reset to first page after filtering
-    setIsLoading(false);
+      const filteredTransactions = allTxns.filter(t =>
+        matchesUser(t, selectedUser, users) && matchesSearch(t, searchLower, users)
+      );
+      setTransactions(allTxns); // Store all fetched transactions
+      setFilteredTransactions(filteredTransactions); // Store filtered transactions for display
+    } catch (error) {
+      console.error('Error fetching transactions', error);
+      setTransactions([]);
+      setFilteredTransactions([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTransactionCreated = () => {
-  setShowCreateForm(false);
-  // Invalidate cache for the affected date(s) and refetch
-  const affectedDate = filters.from_date;
-  transactionStore.invalidateTransactions(String(user?.shop_id), [affectedDate]);
-  fetchTransactions([affectedDate]);
-  // Refetch payments and balances after transaction
-  if (user?.shop_id) {
-    import('../services/api').then(m => {
-      m.paymentsApi.getAll({ payee_type: 'SHOP', page: 1, limit: 50 }).then(() => {});
-      m.balanceSnapshotsApi.getByUserId(String(user.shop_id)).then(() => {});
-    });
-  }
+    setShowCreateForm(false);
+    // Invalidate cache for the affected date(s) and refetch
+    const affectedDate = query.from_date;
+    transactionStore.invalidateTransactions(String(user?.shop_id), [affectedDate]);
+  fetchTransactions();
+    // Refetch payments and balances after transaction
+    if (user?.shop_id) {
+      import('../services/api').then(m => {
+        m.paymentsApi.getAll({ payee_type: 'SHOP', page: 1, limit: 50 }).then(() => {});
+        m.balanceSnapshotsApi.getByUserId(String(user.shop_id)).then(() => {});
+      });
+    }
   };
 
   // Determine transaction status based on payment info
@@ -211,7 +195,7 @@ const TransactionManagement: React.FC = () => {
       newState[transaction.id + '-' + idx] = false;
     });
     setOpenRows(newState);
-  }, [filters, selectedUser, currentPage, filteredTransactions.length]);
+  }, [query, filteredTransactions.length]);
 
   if (showCreateForm) {
     return (
@@ -268,9 +252,27 @@ const TransactionManagement: React.FC = () => {
 
       {/* Filters */}
       <TransactionFilters
-        filters={filters}
-        setFilters={setFilters}
-        setSelectedUser={setSelectedUser}
+        filters={query}
+        setFilters={fn => {
+          setQuery(prev => {
+            const next = typeof fn === 'function' ? fn(prev) : fn;
+            // Always return a full query object with page
+            const fullNext = { ...next, page: prev.page };
+            // If any filter changes, always reset page to 1
+            if (
+              prev.from_date !== next.from_date ||
+              prev.to_date !== next.to_date ||
+              prev.search !== next.search ||
+              prev.user !== next.user
+            ) {
+              if (prev.page !== 1) {
+                skipNextFetchRef.current = true;
+              }
+              return { ...next, page: 1 };
+            }
+            return fullNext;
+          });
+        }}
       />
 
       <Card>
@@ -279,11 +281,11 @@ const TransactionManagement: React.FC = () => {
             <span>Transactions ({filteredTransactions.length})</span>
             {totalPages > 1 && (
               <div className="flex gap-2 items-center ml-4">
-                <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
+                <Button size="sm" variant="outline" disabled={query.page === 1} onClick={() => setQuery(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}>
                   Prev
                 </Button>
-                <span className="text-xs">Page {currentPage} of {totalPages}</span>
-                <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>
+                <span className="text-xs">Page {query.page} of {totalPages}</span>
+                <Button size="sm" variant="outline" disabled={query.page === totalPages} onClick={() => setQuery(prev => ({ ...prev, page: Math.min(totalPages, prev.page + 1) }))}>
                   Next
                 </Button>
               </div>
@@ -295,7 +297,7 @@ const TransactionManagement: React.FC = () => {
             <div className="text-center py-8 sm:py-12">
               <p className="text-gray-500 text-base sm:text-lg">No transactions found</p>
               <p className="text-gray-400 text-xs sm:text-sm mt-2">
-                {filters.search || filters.from_date || filters.to_date
+                {query.search || query.from_date || query.to_date
                   ? 'Try adjusting your filters'
                   : 'Create your first transaction to get started'}
               </p>

@@ -1,10 +1,10 @@
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
-  formatDate,
   parseDate,
   getToday
 } from '../utils/dateUtils';
+import { formatDate } from '../utils/formatDate';
 import { useState, useEffect } from 'react';
 import { analyticsApi } from '../services/api';
 

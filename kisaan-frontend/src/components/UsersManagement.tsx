@@ -1,30 +1,32 @@
 import { Badge } from './ui/badge';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatDate } from '../utils/formatDate';
 import { Input } from './ui/input';
 import { useUsers } from '../context/UsersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Plus, Users } from 'lucide-react';
-import AddUserDialog from './AddUserDialog';
+import { Users } from 'lucide-react';
+import { usersApi } from '../services/api';
 
-interface UsersManagementProps {
-  onRefresh?: () => void;
-}
-// Removed unused shopId prop
 
-export default function UsersManagement({ onRefresh }: UsersManagementProps) {
-  // shopId is currently unused, but kept for future filtering if needed.
-  const { users, isLoading, refreshUsers, total, page, setPage, pageSize, setPageSize } = useUsers();
-  const [showAddUser, setShowAddUser] = useState(false);
+export default function UsersManagement() {
   const [search, setSearch] = useState('');
+  const { users, isLoading, refreshUsers, total, page, setPage, pageSize, setPageSize } = useUsers();
   useEffect(() => {
     refreshUsers(page, pageSize);
   }, [refreshUsers, page, pageSize]);
 
-  const handleUserAdded = () => {
-    if (onRefresh) onRefresh();
+  // Toggle user status (active/inactive)
+  const handleToggleStatus = async (userId: number, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    try {
+      await usersApi.update(userId, { status: newStatus });
+      refreshUsers(page, pageSize);
+      } catch {
+        // Optionally show error toast
+        // toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
+    }
   };
 
   const getRoleBadge = (role: string) => {
@@ -109,11 +111,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
                 </span>
               </Button>
-              <Button onClick={() => setShowAddUser(true)} size="sm" className="px-2 py-1 text-xs xs:text-sm bg-green-600 hover:bg-green-700" style={{ minWidth: 0 }}>
-                <Plus className="h-4 w-4 mr-1 xs:mr-2" />
-                <span className="hidden xs:inline">Add User</span>
-                <span className="inline xs:hidden">+</span>
-              </Button>
+
             </div>
           </div>
           {/* Search Bar */}
@@ -158,6 +156,15 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                       <TableCell>
                         {formatDate(user.created_at)}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant={user.status === 'active' ? 'destructive' : 'default'}
+                          onClick={() => handleToggleStatus(user.id, user.status)}
+                        >
+                          {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -196,6 +203,15 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                   <div className="break-words col-span-2"><span className="font-medium">Status:</span> {getStatusBadge(user.status)}</div>
                   <div className="break-words col-span-2"><span className="font-medium">Created:</span> {formatDate(user.created_at)}</div>
                 </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    variant={user.status === 'active' ? 'destructive' : 'default'}
+                    onClick={() => handleToggleStatus(user.id, user.status)}
+                  >
+                    {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
                 {idx < users.length - 1 && <div className="border-t mt-3 pt-3" />}
               </div>
             ))}
@@ -203,11 +219,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
         </CardContent>
       </Card>
 
-      <AddUserDialog 
-        open={showAddUser} 
-        onOpenChange={setShowAddUser}
-        onSuccess={handleUserAdded}
-      />
+  {/* AddUserDialog removed */}
     </>
   );
 }

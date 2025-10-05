@@ -14,7 +14,7 @@ interface UsersContextType {
   setPageSize: React.Dispatch<React.SetStateAction<number>>;
   total: number;
   setTotal: React.Dispatch<React.SetStateAction<number>>;
-  refreshUsers: (page?: number, pageSize?: number, filters?: Record<string, any>) => Promise<void>;
+  refreshUsers: (page?: number, pageSize?: number, filters?: Record<string, unknown>) => Promise<void>;
 }
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);

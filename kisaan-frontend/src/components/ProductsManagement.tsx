@@ -21,11 +21,7 @@ type Product = BaseProduct & {
   price?: number | null;
 };
 
-interface Category {
-  id: number;
-  name: string;
-  description?: string;
-}
+
 
 interface ProductsManagementProps {
   shopId?: number;
@@ -37,8 +33,8 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   // Fix: If rawProducts is an object with a data field, use that; else use as is
   const products = Array.isArray(rawProducts)
     ? (rawProducts as Product[])
-    : (rawProducts && Array.isArray((rawProducts as any).data))
-      ? ((rawProducts as any).data as Product[])
+    : (rawProducts && Array.isArray((rawProducts as unknown as { data?: unknown[] }).data))
+      ? ((rawProducts as unknown as { data?: Product[] }).data as Product[])
       : [];
   // Debug: log products to inspect created_at
   console.log('DEBUG products for table:', products.map(p => ({ id: p.id, name: p.name, created_at: p.created_at })));
@@ -163,6 +159,8 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   };
 
   // Remove a product from this shop
+  // productId is required for future removal logic; currently unused
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleRemoveProduct = async (productId: number) => {
     if (!shopId) return;
     // Removal logic here (currently disabled in UI)

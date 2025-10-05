@@ -1,6 +1,6 @@
 // This file has been renamed to Expenses.tsx. Please use Expenses.tsx instead.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ExpenseForm from './components/ExpenseForm';
 import ExpensesTable from './components/ExpensesTable';
 import ExpenseSummaryCard from './components/ExpenseSummaryCard';
@@ -30,6 +30,7 @@ import type { Settlement, User } from '../types/api';
 
 export default function Expenses() {
   const [settlements, setSettlements] = useState<import('../types/api').Settlement[]>([]);
+  const [activeTab, setActiveTab] = useState<'expenses' | 'settlements' | 'summary'>('expenses');
   // Compute summary: group settlements by user_id and sum their amounts as total_balance
 
   // ...existing code...
@@ -67,6 +68,8 @@ export default function Expenses() {
   // Removed unused shopExpenses state
   const [netEarnings, setNetEarnings] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshFlag, setRefreshFlag] = useState(false);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
       // If storeShop is missing but user.shop_id exists, set it globally
@@ -101,34 +104,44 @@ export default function Expenses() {
       }
     }, [storeShop]);
 
+    // Set storeShop when user changes
     useEffect(() => {
-      fetchData();
-    }, [user]);
+      let cancelled = false;
+      const getShop = async () => {
+        if (user?.id && user?.shop_id) {
+          const shop = await fetchOwnerShop(user.id, user.shop_id);
+          if (!cancelled) setStoreShop(shop);
+        }
+      };
+      getShop();
+      return () => { cancelled = true; };
+    }, [user?.id, user?.shop_id]);
 
-    const fetchData = async () => {
-      if (!user?.id) return;
+    // Only fetch data when storeShop is set (and not null)
+    // Only fetch data for the active tab
+    const fetchData = useCallback(async () => {
+      console.log('fetchData called', { activeTab, filterFromDate, filterToDate, refreshFlag, storeShopId: storeShop?.id });
+      if (!user?.id || !storeShop?.id) return;
       setIsLoading(true);
       try {
-        // Prefer direct fetch by shop_id if available
-        const firstShop = await fetchOwnerShop(user.id, user.shop_id);
-        setStoreShop(firstShop);
-        if (firstShop?.id) {
+        if (activeTab === 'expenses') {
           // Expenses (fetch as settlements with reason 'adjustment')
-          const expensesRes = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'adjustment' });
+          const expensesRes = await settlementsApi.getAll({ shop_id: storeShop.id, reason: 'adjustment' });
           const expensesData = expensesRes?.data || [];
           setExpenses(expensesData);
           setTotalExpenses(expensesData.reduce((sum: number, exp: { amount?: number }) => sum + (exp.amount || 0), 0));
+          setNetEarnings(expensesData.reduce((sum: number, exp: { amount?: number }) => sum + (exp.amount || 0), 0));
+        } else if (activeTab === 'settlements') {
           // Settlements
-          const params: Record<string, unknown> = { shop_id: firstShop.id };
+          const params: Record<string, unknown> = { shop_id: storeShop.id };
           if (filterFromDate) params.from_date = filterFromDate;
           if (filterToDate) params.to_date = filterToDate;
           const settlementsRes = await settlementsApi.getAll(params);
           setSettlements(settlementsRes?.data || []);
+        } else if (activeTab === 'summary') {
           // Recoverable expenses (pending)
-          const recoverableRes = await settlementsApi.getAll({ shop_id: firstShop.id, reason: 'expense', status: 'pending' });
+          const recoverableRes = await settlementsApi.getAll({ shop_id: storeShop.id, reason: 'expense', status: 'pending' });
           setRecoverableExpenses(recoverableRes?.data || []);
-          // Net earnings (commission - expenses)
-          setNetEarnings(expensesData.reduce((sum: number, exp: { amount?: number }) => sum + (exp.amount || 0), 0));
         }
       } catch (error) {
         toast({
@@ -140,7 +153,22 @@ export default function Expenses() {
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [user?.id, storeShop?.id, filterFromDate, filterToDate, activeTab, toast]);
+
+    useEffect(() => {
+      console.log('useEffect for fetchData', { activeTab, filterFromDate, filterToDate, refreshFlag, storeShopId: storeShop?.id });
+      if (!storeShop?.id) return;
+      // Only fetch for the active tab and its relevant filters
+      if (activeTab === 'expenses' || activeTab === 'settlements' || activeTab === 'summary') {
+        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+        debounceTimeout.current = setTimeout(() => {
+          fetchData();
+        }, 150); // 150ms debounce
+      }
+      return () => {
+        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      };
+    }, [storeShop?.id, activeTab, refreshFlag, filterFromDate, filterToDate]);
 
     // FIFO Repayment
     const handleFifoRepay = async () => {
@@ -154,7 +182,7 @@ export default function Expenses() {
         });
         setFifoAmount('');
         setFifoUserId('');
-        fetchData();
+        setRefreshFlag(f => !f);
       } catch (error) {
         toast({
           title: 'Error',
@@ -175,7 +203,7 @@ export default function Expenses() {
         });
         setSettleAmount('');
         setSelectedSettlement(null);
-        fetchData();
+        setRefreshFlag(f => !f);
       } catch (error) {
         toast({
           title: 'Error',
@@ -211,7 +239,7 @@ export default function Expenses() {
         });
         console.log('Expense API response:', res);
         setExpenseForm({ reason: '', userId: '', amount: '', description: '' });
-        await fetchData();
+        setRefreshFlag(f => !f);
         toast({
           title: 'Expense Added',
           description: 'Expense has been successfully recorded.',
@@ -277,7 +305,7 @@ export default function Expenses() {
           </p>
         </div>
 
-        <Tabs defaultValue="expenses" className="w-full">
+          <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="settlements">Settlements</TabsTrigger>
@@ -321,7 +349,7 @@ export default function Expenses() {
               setFilterFromDate={setFilterFromDate}
               filterToDate={filterToDate}
               setFilterToDate={setFilterToDate}
-              fetchData={fetchData}
+              fetchData={() => {}} // prevent auto-fetch on mount
               fifoUserId={fifoUserId}
               setFifoUserId={setFifoUserId}
               fifoAmount={fifoAmount}
@@ -343,42 +371,45 @@ export default function Expenses() {
               <CardTitle>Outstanding Recoverable Expenses</CardTitle>
             </CardHeader>
             <CardContent>
-              {recoverableExpenses.length === 0 ? (
-                <div>No outstanding recoverable expenses.</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableCell>User</TableCell>
-                      <TableCell>Type</TableCell>
-                      <TableCell>Pending</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell className="text-right">Balance</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Action</TableCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recoverableExpenses.map((exp, idx) => (
-                      <TableRow key={exp.id || idx}>
-                        <TableCell>{'username' in exp && typeof exp.username === 'string' ? exp.username : ''}</TableCell>
-                        <TableCell className="capitalize">{'user_type' in exp && typeof exp.user_type === 'string' ? exp.user_type : ''}</TableCell>
-                        <TableCell>{'pending_count' in exp && typeof exp.pending_count === 'number' ? exp.pending_count : ''}</TableCell>
-                        <TableCell>{exp.amount}</TableCell>
-                        <TableCell className="text-right font-semibold"></TableCell>
-                        <TableCell>{exp.status}</TableCell>
-                        <TableCell>
-                          {exp.status === 'pending' && (
-                            <Button size="sm" onClick={async () => {
-                              await settlementsApi.settle(exp.id);
-                              fetchData();
-                            }}>Mark as Recovered</Button>
-                          )}
-                        </TableCell>
+              {/* Only show recoverable expenses if summary tab is active */}
+              {activeTab === 'summary' && (
+                recoverableExpenses.length === 0 ? (
+                  <div>No outstanding recoverable expenses.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableCell>User</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Pending</TableCell>
+                        <TableCell>Amount</TableCell>
+                        <TableCell className="text-right">Balance</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Action</TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {recoverableExpenses.map((exp, idx) => (
+                        <TableRow key={exp.id || idx}>
+                          <TableCell>{'username' in exp && typeof exp.username === 'string' ? exp.username : ''}</TableCell>
+                          <TableCell className="capitalize">{'user_type' in exp && typeof exp.user_type === 'string' ? exp.user_type : ''}</TableCell>
+                          <TableCell>{'pending_count' in exp && typeof exp.pending_count === 'number' ? exp.pending_count : ''}</TableCell>
+                          <TableCell>{exp.amount}</TableCell>
+                          <TableCell className="text-right font-semibold"></TableCell>
+                          <TableCell>{exp.status}</TableCell>
+                          <TableCell>
+                            {exp.status === 'pending' && (
+                              <Button size="sm" onClick={async () => {
+                                await settlementsApi.settle(exp.id);
+                                fetchData();
+                              }}>Mark as Recovered</Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )
               )}
             </CardContent>
           </Card>

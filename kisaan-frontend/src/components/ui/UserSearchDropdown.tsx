@@ -4,20 +4,23 @@ import { Input } from './input';
 import type { User } from '../../types/api';
 import { useUsers } from '../../context/UsersContext';
 
+
 interface UserSearchDropdownProps {
   onSelect: (user: User) => void;
   placeholder?: string;
 }
+
 
 export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect, placeholder }) => {
   const { users, isLoading } = useUsers();
   const [query, setQuery] = useState('');
   const [show, setShow] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
   let filtered: User[] = [];
   if (users.length === 0) {
-    console.log('[UserSearchDropdown] No users loaded from context.');
     filtered = [];
   } else {
     filtered = users.filter(
@@ -26,15 +29,12 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
         (u.username && u.username.toLowerCase().includes(query.toLowerCase())) ||
         (u.contact && u.contact.includes(query))
     );
-    if (filtered.length === 0) {
-      console.log('[UserSearchDropdown] No users match the query:', query);
-    }
   }
 
-  // Keyboard navigation
   useEffect(() => {
     if (!show || filtered.length === 0) return;
     setActiveIndex(0);
+    // eslint-disable-next-line
   }, [show, query]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -50,7 +50,9 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (activeIndex >= 0 && activeIndex < filtered.length) {
-        onSelect(filtered[activeIndex]);
+        const user = filtered[activeIndex];
+        setSelectedUser(user);
+        onSelect(user);
         setShow(false);
         setQuery('');
       }
@@ -71,14 +73,29 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
   return (
     <div className="relative w-56">
       <Input
-        value={query}
-        onChange={e => setQuery(e.target.value)}
+        value={selectedUser ? (selectedUser.firstname || selectedUser.username) : query}
+        onChange={e => {
+          setQuery(e.target.value);
+          setSelectedUser(null);
+          setShow(true);
+        }}
         onFocus={() => setShow(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder || 'Search user...'}
         className="w-full"
         autoComplete="off"
+        readOnly={!!selectedUser}
       />
+      {selectedUser && (
+        <button
+          type="button"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          onClick={() => { setSelectedUser(null); onSelect(null as unknown as User); setQuery(''); setShow(false); }}
+          aria-label="Clear selection"
+        >
+          ×
+        </button>
+      )}
       {isLoading && (
         <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow p-2 text-gray-500 text-sm">Loading users...</div>
       )}
@@ -94,7 +111,7 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
                   'p-2 cursor-pointer ' +
                   (idx === activeIndex ? 'bg-blue-100 user-dropdown-active' : 'hover:bg-blue-50')
                 }
-                onClick={() => { onSelect(user); setShow(false); setQuery(''); }}
+                onClick={() => { setSelectedUser(user); onSelect(user); setShow(false); setQuery(''); }}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
                 {user.firstname || user.username} ({user.role})

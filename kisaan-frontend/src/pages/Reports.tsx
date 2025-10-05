@@ -1,5 +1,5 @@
 // import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
-import { useUsers } from '../hooks/useApi';
+import { useUsers } from '../context/UsersContext';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';
@@ -15,14 +15,13 @@ export default function Reports() {
   // Get shop and stats from dashboard hook
     // const { stats } = useOwnerDashboard();
     // Get all users from users hook
-    const { data: usersData } = useUsers();
+  const { users } = useUsers();
   // Shop info: for owner, shop is usually user.shop_id or from stats
   // Use stats.shop_name if available, else fallback to 'your shop'
     const shop = user?.role === 'owner' && user?.shop_id
       ? { id: String(user.shop_id), name: 'your shop' }
       : null;
   // If superadmin, shop selection logic may differ (not handled here)
-  const users = usersData?.data || [];
   const mappedUsers = users.map(u => ({
     id: String(u.id),
     username: u.username,
