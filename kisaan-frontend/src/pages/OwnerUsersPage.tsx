@@ -23,7 +23,7 @@ import { Plus, Search, Edit, RefreshCw } from 'lucide-react';
 import type { User } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { UserForm } from '../components/owner/UserForm';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 
 // Simple error boundary for context errors
 class ContextErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: unknown }> {

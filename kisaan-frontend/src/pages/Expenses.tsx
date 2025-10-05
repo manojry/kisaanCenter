@@ -6,7 +6,7 @@ import ExpensesTable from './components/ExpensesTable';
 import ExpenseSummaryCard from './components/ExpenseSummaryCard';
 import SettlementsTab from './components/SettlementsTab';
 import { useTransactionStore } from '../store/transactionStore';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 import { useToast } from '../hooks/use-toast';
 import { useAuth } from '../context/AuthContext';
 import { expenseApi, settlementsApi } from '../services/api';

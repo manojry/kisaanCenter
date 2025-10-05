@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from './input';
 import type { User } from '../../types/api';
-import { useUsers } from '../../context/UsersContext';
+import { useUsers } from '../../context/useUsers';
 
 
 interface UserSearchDropdownProps {
@@ -10,9 +10,8 @@ interface UserSearchDropdownProps {
   placeholder?: string;
 }
 
-
 export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect, placeholder }) => {
-  const { users, isLoading } = useUsers();
+  const { allUsers, isLoading } = useUsers();
   const [query, setQuery] = useState('');
   const [show, setShow] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -20,10 +19,10 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
   const listRef = useRef<HTMLDivElement>(null);
 
   let filtered: User[] = [];
-  if (users.length === 0) {
+  if (allUsers.length === 0) {
     filtered = [];
   } else {
-    filtered = users.filter(
+    filtered = allUsers.filter(
       u =>
         (u.firstname && u.firstname.toLowerCase().includes(query.toLowerCase())) ||
         (u.username && u.username.toLowerCase().includes(query.toLowerCase())) ||

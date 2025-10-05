@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Badge } from './ui/badge';
 import { formatDate } from '../utils/formatDate';
 import { Input } from './ui/input';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';

@@ -11,7 +11,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { transactionsApi } from '../services/api';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
 import type { User } from '../types/api';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 import { getUserDisplayNameById } from '../utils/userDisplayName';
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';

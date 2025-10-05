@@ -1,5 +1,5 @@
 // import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
 import { useToast } from '../hooks/use-toast';

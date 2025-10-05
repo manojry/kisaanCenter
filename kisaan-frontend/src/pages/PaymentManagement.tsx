@@ -3,7 +3,7 @@ import type { BalanceSnapshot } from '../types/api';
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
 import { paymentsApi, balanceSnapshotsApi } from '../services/api';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 import { useAuth } from '../context/AuthContext';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

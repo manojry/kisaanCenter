@@ -49,6 +49,12 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       .filter((u) => ['farmer', 'buyer'].includes(u.role));
   }, [allUsers]);
 
+  // Pagination state for All Users Balance Overview table
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(users.length / pageSize);
+  const pagedUsers = users.slice((page - 1) * pageSize, page * pageSize);
+
   // Fetch balance snapshots for selected user
   useEffect(() => {
     if (!selectedUser) {
@@ -157,60 +163,104 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
               No users found for this shop
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map(user => (
-                    <TableRow 
-                      key={user.id}
-                      className={selectedUser?.id === user.id ? 'bg-blue-50' : ''}
-                    >
-                      <TableCell className="font-medium">
-                        {getUserDisplayName(user)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadgeClass(user.role)}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {user.contact || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        <span className={user.balance < 0 ? 'text-red-600' : user.balance > 0 ? 'text-green-600' : 'text-gray-600'}>
-                          ₹{user.balance?.toFixed(2) || '0.00'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {user.balance < 0 ? (
-                          <Badge variant="destructive" className="text-xs">
-                            <TrendingDown className="w-3 h-3 mr-1" />
-                            Owes ₹{Math.abs(user.balance).toFixed(2)}
-                          </Badge>
-                        ) : user.balance > 0 ? (
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                            Credit ₹{user.balance.toFixed(2)}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">
-                            Settled
-                          </Badge>
-                        )}
-                      </TableCell>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {pagedUsers.map(user => (
+                      <TableRow 
+                        key={user.id}
+                        className={selectedUser?.id === user.id ? 'bg-blue-50' : ''}
+                      >
+                        <TableCell className="font-medium">
+                          {getUserDisplayName(user)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getRoleBadgeClass(user.role)}>
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {user.contact || 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          <span className={user.balance < 0 ? 'text-red-600' : user.balance > 0 ? 'text-green-600' : 'text-gray-600'}>
+                            ₹{user.balance?.toFixed(2) || '0.00'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user.balance < 0 ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <TrendingDown className="w-3 h-3 mr-1" />
+                              Owes ₹{Math.abs(user.balance).toFixed(2)}
+                            </Badge>
+                          ) : user.balance > 0 ? (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              Credit ₹{user.balance.toFixed(2)}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Settled
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Pagination controls: always show page number(s) */}
+              <div className="flex justify-end items-center gap-2 mt-4">
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                >
+                  First
+                </button>
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Prev
+                </button>
+                {/* Numbered page buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                  <button
+                    key={pg}
+                    className={`px-3 py-1 border rounded ${pg === page ? 'bg-blue-600 text-white font-bold' : ''}`}
+                    onClick={() => setPage(pg)}
+                    disabled={pg === page}
+                  >
+                    {pg}
+                  </button>
+                ))}
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </button>
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                >
+                  Last
+                </button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

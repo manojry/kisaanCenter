@@ -1,35 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { usersApi } from '../services/api';
 import type { User } from '../types/api';
-import type { Dispatch, SetStateAction } from 'react';
+import { UsersContext } from './UsersContextExport';
 
-type UsersContextType = {
-  users: User[];
-  setUsers: Dispatch<SetStateAction<User[]>>;
-  isLoading: boolean;
-  setIsLoading: Dispatch<SetStateAction<boolean>>;
-  page: number;
-  setPage: Dispatch<SetStateAction<number>>;
-  pageSize: number;
-  setPageSize: Dispatch<SetStateAction<number>>;
-  total: number;
 
-  setTotal: Dispatch<SetStateAction<number>>;
-  allUsers: User[];
-  refreshUsers: (force?: boolean) => Promise<void>;
-  allUsersFetched: boolean;
-};
 
-const UsersContext = createContext<UsersContextType | undefined>(undefined);
-
-export const useUsers = () => {
-  const context = useContext(UsersContext);
-  if (!context) {
-    throw new Error('useUsers must be used within a UsersProvider');
-  }
-  return context;
-};
 
 
 interface UsersProviderProps {
@@ -61,14 +38,34 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
     try {
       // Only fetch if forced or on initial load
       if (force || allUsers.length === 0) {
-    const limit = 100;
-    const response = await usersApi.getAll({ page: 1, limit });
-    setAllUsers(response.data || []);
-    setTotal(response.total ?? (response.data?.length || 0));
-    // Use normalized response.total, which is set from meta.total if present
-    setAllUsersFetched((response.data?.length || 0) >= (response.total ?? (response.data?.length || 0)));
+        const limit = 100;
+        let page = 1;
+  let allFetchedUsers: User[] = [];
+        let total = 0;
+        let done = false;
+        while (!done) {
+          const response = await usersApi.getAll({ page, limit });
+          console.log(`[UsersContext] usersApi.getAll page ${page} response:`, response);
+          if (response.data && response.data.length > 0) {
+            allFetchedUsers = allFetchedUsers.concat(response.data);
+          }
+          total = response.total ?? allFetchedUsers.length;
+          // If less than limit returned, or we've reached/exceeded total, stop
+          if (!response.data || response.data.length < limit || allFetchedUsers.length >= total) {
+            done = true;
+          } else {
+            page++;
+          }
+        }
+        setAllUsers(allFetchedUsers);
+        setTotal(total);
+        setAllUsersFetched(allFetchedUsers.length >= total);
+        setTimeout(() => {
+          console.log('[UsersContext] allUsers after set:', allFetchedUsers);
+        }, 0);
       }
-    } catch {
+    } catch (err) {
+      console.error('[UsersContext] Error fetching users:', err);
       setAllUsers([]);
       setTotal(0);
     } finally {
@@ -78,7 +75,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
 
   // Filter, paginate users on the frontend
   useEffect(() => {
-    let filtered = allUsers;
+    const filtered = allUsers;
     // Optionally, you can add more filters here (e.g., role, search) via context if needed
     setTotal(filtered.length);
     const start = (page - 1) * pageSize;
@@ -96,7 +93,6 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
       setTotal(0);
       setAllUsersFetched(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   return (
@@ -118,6 +114,4 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
       {children}
     </UsersContext.Provider>
   );
-};
-
-export { UsersContext };
+}

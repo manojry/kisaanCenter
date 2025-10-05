@@ -10,7 +10,7 @@ import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, TrendingDown } from 'lucide-react';
 import type { User, BalanceSnapshot as SharedBalanceSnapshot } from '../types/api';
-import { useUsers } from '../context/UsersContext';
+import { useUsers } from '../context/useUsers';
 
 interface BalanceManagementProps {
   shopId: number;
@@ -18,6 +18,11 @@ interface BalanceManagementProps {
 
 const BalanceManagement: React.FC<BalanceManagementProps> = () => {
   const { users } = useUsers();
+  // Pagination state for User Amounts Owed table
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(users.length / pageSize);
+  const pagedUsers = users.slice((page - 1) * pageSize, page * pageSize);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   // Extend shared BalanceSnapshot type to allow for string id and index signature if needed
   type BalanceSnapshot = Omit<SharedBalanceSnapshot, 'id'> & {
@@ -163,7 +168,8 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
           </CardContent>
         </Card>
       </div>
-      {/* Users Table - All balances shown as amount owed */}
+  {/* Users Table - All balances shown as amount owed */}
+  <div className="mb-2 text-sm text-gray-500">Debug: users.length = {users.length}</div>
       <Card>
         <CardHeader>
           <CardTitle>User Amounts Owed</CardTitle>
@@ -177,7 +183,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {pagedUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     {getUserDisplayName(user)}
@@ -194,6 +200,48 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
               ))}
             </TableBody>
           </Table>
+          {/* Pagination controls: always show page number(s) */}
+          <div className="flex justify-end items-center gap-2 mt-4">
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+            >
+              First
+            </button>
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Prev
+            </button>
+            {/* Numbered page buttons */}
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+              <button
+                key={pg}
+                className={`px-3 py-1 border rounded ${pg === page ? 'bg-blue-600 text-white font-bold' : ''}`}
+                onClick={() => setPage(pg)}
+                disabled={pg === page}
+              >
+                {pg}
+              </button>
+            ))}
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </button>
+            <button
+              className="px-3 py-1 border rounded disabled:opacity-50"
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+            >
+              Last
+            </button>
+          </div>
         </CardContent>
       </Card>
     </div>
