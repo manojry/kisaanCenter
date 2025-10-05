@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -5,21 +6,7 @@ import { Badge } from '../components/ui/badge';
 import { CheckCircle, Star, ArrowRight, Users, Zap, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
-
-interface Plan {
-  id: number;
-  name: string;
-  description: string;
-  price_monthly: number;
-  price_yearly: number;
-  features: string[];
-  max_users: number;
-  max_transactions: number;
-  storage_gb: number;
-  support_level: string;
-  is_popular: boolean;
-  is_active: boolean;
-}
+import type { Plan } from '../types/api';
 
 const PricingPage: React.FC = () => {
   const [plans, setPlans] = useState<Plan[]>([]);

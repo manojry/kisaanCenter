@@ -10,17 +10,15 @@ import { Plus, AlertCircle, Package, Trash2 } from 'lucide-react';
 // import AddProductDialog from './AddProductDialog';
 import { useToast } from '@/hooks/use-toast';
 
-interface Product {
-  id: number;
-  name: string;
-  category_id: number;
+import type { Product as BaseProduct } from '../types/api';
+
+// Extend Product for UI needs
+type Product = BaseProduct & {
   category_name?: string;
   price?: number;
   unit?: string;
   description?: string;
-  created_at: string;
-  record_status?: string;
-}
+};
 
 interface Category {
   id: number;
@@ -30,9 +28,10 @@ interface Category {
 
 interface ProductsManagementProps {
   shopId?: number;
+  onRefresh?: () => Promise<void>;
 }
 
-export default function ProductsManagement({ shopId }: ProductsManagementProps) {
+export default function ProductsManagement({ shopId, onRefresh }: ProductsManagementProps) {
   const [products, setProducts] = useState<Product[]>([]);
   // Use global shop products cache
   const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
@@ -67,8 +66,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   useEffect(() => {
     if (shopId) {
       const cached = getShopProducts(shopId);
-      if (cached) {
-        setProducts(cached);
+      if (Array.isArray(cached)) {
+        setProducts(cached.filter((item): item is Product =>
+          typeof item.id === 'number' &&
+          typeof item.name === 'string' &&
+          typeof item.category_id === 'number' &&
+          typeof item.created_at === 'string')
+        );
         setIsLoading(false);
       } else {
         setIsLoading(true);
@@ -85,7 +89,12 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   useEffect(() => {
     if (shopId) {
       if (availableProductsCache[shopId]) {
-        setAllProducts(availableProductsCache[shopId]);
+        setAllProducts(availableProductsCache[shopId].filter((item): item is Product =>
+          typeof item.id === 'number' &&
+          typeof item.name === 'string' &&
+          typeof item.category_id === 'number' &&
+          typeof item.created_at === 'string')
+        );
       } else {
         fetchAvailableProducts(shopId);
       }
@@ -101,7 +110,14 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
       console.log('📦 Shop products response:', response);
       const productsData = (response && (response.products || response.data)) || [];
       setShopProducts(shopId, Array.isArray(productsData) ? productsData : []);
-      setProducts(getShopProducts(shopId));
+      const shopProducts = getShopProducts(shopId);
+      setProducts(Array.isArray(shopProducts)
+        ? shopProducts.filter((item): item is Product =>
+            typeof item.id === 'number' &&
+            typeof item.name === 'string' &&
+            typeof item.category_id === 'number' &&
+            typeof item.created_at === 'string')
+        : []);
       console.log('✅ Shop products loaded:', productsData.length);
     } catch (err) {
       const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to load shop products';
@@ -125,7 +141,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
       const available = (response && (response.products || response.data)) || [];
       const message = response && response.message;
   availableProductsCache[shopId] = Array.isArray(available) ? available : [];
-  setAllProducts(availableProductsCache[shopId]);
+  setAllProducts(Array.isArray(availableProductsCache[shopId])
+    ? availableProductsCache[shopId].filter((item): item is Product =>
+        typeof item.id === 'number' &&
+        typeof item.name === 'string' &&
+        typeof item.category_id === 'number' &&
+        typeof item.created_at === 'string')
+    : []);
       console.log('✅ Available products loaded:', available.length);
       if (message) {
         console.log('ℹ️ Backend message:', message);
@@ -145,7 +167,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
           !assignedIds.includes(p.id) && p.record_status === 'active'
         ) : [];
         availableProductsCache[shopId] = filtered;
-        setAllProducts(filtered);
+        setAllProducts(Array.isArray(filtered)
+          ? filtered.filter((item): item is Product =>
+              typeof item.id === 'number' &&
+              typeof item.name === 'string' &&
+              typeof item.category_id === 'number' &&
+              typeof item.created_at === 'string')
+          : []);
         console.log('✅ Fallback products loaded:', filtered.length);
       } catch (fallbackErr) {
         const error2 = fallbackErr && typeof fallbackErr === 'object' && 'message' in fallbackErr ? (fallbackErr as { message?: string }).message : 'Failed to fetch fallback products';

@@ -1,3 +1,18 @@
+// Plan type for DRY usage across frontend
+export interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  price_monthly: number;
+  price_yearly: number;
+  features: string[];
+  max_users: number;
+  max_transactions: number;
+  storage_gb: number;
+  support_level: string;
+  is_popular: boolean;
+  is_active: boolean;
+}
 // Expense type for DRY usage across frontend
 export interface Expense {
   id: number;
