@@ -1,14 +1,7 @@
 
 import { getUserDisplayName } from '../utils/userDisplayName';
 import React, { useState } from 'react';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious
-} from '../components/ui/pagination';
+
 import { useFarmerProductAssignment } from '../services/hooks/useFarmerProductAssignment';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +61,7 @@ const OwnerUsersPage: React.FC = () => {
 
 const OwnerUsersPageInner: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { users, isLoading, refreshUsers, page, setPage, pageSize, setPageSize, total, allUsers, allUsersFetched } = useUsers();
+  const { users, isLoading, refreshUsers, page, setPage, pageSize, total, allUsers, allUsersFetched } = useUsers();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   // Modal state for assigning products
   const [assignProductsUser, setAssignProductsUser] = useState<User | null>(null);
@@ -321,52 +314,7 @@ const OwnerUsersPageInner: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
-                {/* Pagination Controls (refactored to use shared UI) */}
-                {total > 0 && (
-                  <div className="flex items-center justify-between mt-4">
-                    <div>
-                      <label className="mr-2 text-sm">Rows per page:</label>
-                      <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded px-2 py-1 text-sm">
-                        {[10, 20, 50, 100].map(size => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {/* Shared Pagination UI */}
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={page > 1 ? () => setPage(page - 1) : undefined}
-                            aria-disabled={page === 1}
-                            className={
-                              'cursor-pointer ' + (page === 1 ? 'pointer-events-none opacity-50' : '')
-                            }
-                          />
-                        </PaginationItem>
-                        {Array.from({ length: totalPages }, (_, i) => (
-                          <PaginationItem key={i}>
-                            <PaginationLink
-                              isActive={page === i + 1}
-                              onClick={() => setPage(i + 1)}
-                            >
-                              {i + 1}
-                            </PaginationLink>
-                          </PaginationItem>
-                        ))}
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={page < totalPages ? () => setPage(page + 1) : undefined}
-                            aria-disabled={page >= totalPages}
-                            className={
-                              'cursor-pointer ' + (page >= totalPages ? 'pointer-events-none opacity-50' : '')
-                            }
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
+                {/* Pagination Controls removed; only new pagination remains */}
               </div>
               {/* Mobile Pagination Controls */}
               {totalPages > 1 && (
