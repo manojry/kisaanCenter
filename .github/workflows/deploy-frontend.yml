@@ -35,7 +35,7 @@ jobs:
 
     - name: 📥 Install dependencies
       working-directory: kisaan-frontend
-      run: npm ci
+      run: npm ci --legacy-peer-deps
 
     - name: TypeScript type checking
       working-directory: kisaan-frontend
@@ -96,9 +96,9 @@ jobs:
         echo "✅ Environment file created successfully"
         echo "Backend URL will be: $BACKEND_URL"
 
-    - name: Install dependencies
+    - name: 📥 Install dependencies
       working-directory: kisaan-frontend
-      run: npm ci
+      run: npm ci --legacy-peer-deps
 
     - name: Build
       working-directory: kisaan-frontend
