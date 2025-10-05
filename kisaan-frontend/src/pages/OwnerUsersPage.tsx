@@ -25,9 +25,44 @@ import { useAuth } from '../context/AuthContext';
 import { UserForm } from '../components/owner/UserForm';
 import { useUsers } from '../context/UsersContext';
 
+// Simple error boundary for context errors
+class ContextErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ color: 'red', padding: 24 }}>
+          <h2>Context Error</h2>
+          <pre>{this.state.error?.message || String(this.state.error)}</pre>
+          <p>
+            This page requires AuthProvider and UsersProvider to be present in the React tree.<br />
+            Please ensure you are not rendering this page outside the main App layout.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 
 const OwnerUsersPage: React.FC = () => {
+  // Wrap hooks in error boundary to catch context errors
+  return (
+    <ContextErrorBoundary>
+      <OwnerUsersPageInner />
+    </ContextErrorBoundary>
+  );
+};
+
+const OwnerUsersPageInner: React.FC = () => {
   const { user: currentUser } = useAuth();
   const { users, isLoading, refreshUsers, page, setPage, pageSize, setPageSize, total } = useUsers();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -298,7 +333,9 @@ const OwnerUsersPage: React.FC = () => {
                           <PaginationPrevious
                             onClick={page > 1 ? () => setPage(page - 1) : undefined}
                             aria-disabled={page === 1}
-                            className={page === 1 ? 'pointer-events-none opacity-50' : ''}
+                            className={
+                              'cursor-pointer ' + (page === 1 ? 'pointer-events-none opacity-50' : '')
+                            }
                           />
                         </PaginationItem>
                         {Array.from({ length: totalPages }, (_, i) => (
@@ -315,7 +352,9 @@ const OwnerUsersPage: React.FC = () => {
                           <PaginationNext
                             onClick={page < totalPages ? () => setPage(page + 1) : undefined}
                             aria-disabled={page >= totalPages}
-                            className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                            className={
+                              'cursor-pointer ' + (page >= totalPages ? 'pointer-events-none opacity-50' : '')
+                            }
                           />
                         </PaginationItem>
                       </PaginationContent>
