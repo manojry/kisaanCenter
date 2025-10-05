@@ -143,9 +143,20 @@ export default function Expenses() {
     ? summary.map((item) => ({
         user_id: item.user_id,
         total_balance: (item as { total_balance?: number }).total_balance ?? 0,
-        username: (item.user && item.user.username) || (item as any).username || '',
-        user_type: (item as any).user_type || '',
-        pending_count: (item as any).pending_count || 0,
+        username:
+          (item.user && typeof item.user.username === 'string' && item.user.username) ||
+          (typeof ((item as unknown as Record<string, unknown>).username) === 'string'
+            ? (item as unknown as Record<string, unknown>).username as string
+            : '') ||
+          '',
+        user_type:
+          typeof (item as unknown as Record<string, unknown>).user_type === 'string'
+            ? (item as unknown as Record<string, unknown>).user_type as string
+            : '',
+        pending_count:
+          typeof (item as unknown as Record<string, unknown>).pending_count === 'number'
+            ? (item as unknown as Record<string, unknown>).pending_count as number
+            : 0,
       }))
     : [];
   const REASONS = [
