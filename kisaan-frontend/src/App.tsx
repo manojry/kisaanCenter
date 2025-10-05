@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Auth from './pages/Auth';
+// import Auth from './pages/Auth';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import OwnerDashboardNew from './pages/OwnerDashboardNew';

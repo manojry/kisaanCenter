@@ -15,7 +15,7 @@ export interface PaginatedResponse<T> {
 }
 
 /** Build a query string from params (skips undefined/null/empty). Includes leading '?' or returns '' */
-export function buildQueryString(params?: Record<string, any> | undefined): string {
+export function buildQueryString(params?: Record<string, unknown> | undefined): string {
   if (!params) return '';
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -55,34 +55,35 @@ const DEFAULT_LIST_KEYS = ['data', 'items', 'results', 'list', 'rows', 'users', 
  *  - T[] (array directly)
  *  - Any object containing a candidate key with array value
  */
-export function normalizeListResponse<T = any>(raw: any, options?: NormalizeOptions): PaginatedResponse<T> {
+export function normalizeListResponse<T = unknown>(raw: unknown, options?: NormalizeOptions): PaginatedResponse<T> {
   const keys = options?.keys?.length ? options.keys : DEFAULT_LIST_KEYS;
-  let array: any[] = [];
+  let array: T[] = [];
 
   if (Array.isArray(raw)) {
-    array = raw;
+    array = raw as T[];
   } else if (raw && typeof raw === 'object') {
     // Identify first candidate key containing an array
-    const foundKey = keys.find(k => Array.isArray((raw as any)[k]));
+    const foundKey = keys.find(k => Array.isArray((raw as Record<string, unknown>)[k]));
     if (foundKey) {
-      array = (raw as any)[foundKey];
-    } else if (Array.isArray(raw.data)) {
-      array = raw.data; // fallback if not captured
+      array = (raw as Record<string, unknown>)[foundKey] as T[];
+    } else if (Array.isArray((raw as { data?: unknown[] }).data)) {
+      array = (raw as { data: T[] }).data;
     }
   }
 
   // If still empty and raw.data could be non-array with nested arrays, attempt shallow scan
   if (array.length === 0 && raw && typeof raw === 'object') {
-    for (const v of Object.values(raw)) {
-      if (Array.isArray(v)) { array = v; break; }
+    for (const v of Object.values(raw as Record<string, unknown>)) {
+      if (Array.isArray(v)) { array = v as T[]; break; }
     }
   }
 
   // Pagination meta inference
-  const page = Number(raw?.page) || options?.page || 1;
-  const limit = Number(raw?.limit) || options?.limit || array.length || 10;
-  const total = Number(raw?.total) || (Array.isArray(array) ? array.length : 0);
-  const totalPages = Number(raw?.totalPages) || Math.ceil(total / (limit || 1)) || 1;
+  const rawObj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+  const page = Number(rawObj.page) || options?.page || 1;
+  const limit = Number(rawObj.limit) || options?.limit || array.length || 10;
+  const total = Number(rawObj.total) || (Array.isArray(array) ? array.length : 0);
+  const totalPages = Number(rawObj.totalPages) || Math.ceil(total / (limit || 1)) || 1;
 
   return {
     data: Array.isArray(array) ? array : [],
@@ -94,7 +95,7 @@ export function normalizeListResponse<T = any>(raw: any, options?: NormalizeOpti
 }
 
 // Convenience combo for typical list endpoint implementations
-export function fetchAndNormalizeList<T>(promise: Promise<any>, opts?: NormalizeOptions): Promise<PaginatedResponse<T>> {
+export function fetchAndNormalizeList<T>(promise: Promise<unknown>, opts?: NormalizeOptions): Promise<PaginatedResponse<T>> {
   return promise.then(raw => normalizeListResponse<T>(raw, opts));
 }
 
@@ -105,33 +106,36 @@ export function fetchAndNormalizeList<T>(promise: Promise<any>, opts?: Normalize
  * - { success: true, data: {...} }
  * - { success: true, user: {...} }
  */
-export function normalizeSingleItemResponse<T = any>(raw: any, itemKey?: string): T | null {
+export function normalizeSingleItemResponse<T = unknown>(raw: unknown, itemKey?: string): T | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
 
+  const rawObj = raw as Record<string, unknown>;
+
   // If there's a data property, prefer it first
-  if (raw.data) {
+  if ('data' in rawObj && rawObj.data) {
+    const data = rawObj.data as Record<string, unknown>;
     // Check if data has the specific item key (e.g., data.user)
-    if (itemKey && raw.data[itemKey]) {
-      return raw.data[itemKey];
+    if (itemKey && data[itemKey]) {
+      return data[itemKey] as T;
     }
     // Otherwise return data directly if it looks like the item
-    if (typeof raw.data === 'object' && !Array.isArray(raw.data)) {
-      return raw.data;
+    if (typeof data === 'object' && !Array.isArray(data)) {
+      return data as T;
     }
   }
 
   // Fallback to the direct item key (e.g., raw.user)
-  if (itemKey && raw[itemKey]) {
-    return raw[itemKey];
+  if (itemKey && rawObj[itemKey]) {
+    return rawObj[itemKey] as T;
   }
 
   // If no specific key provided, try common keys
   const commonKeys = ['user', 'shop', 'product', 'category', 'transaction', 'payment'];
   for (const key of commonKeys) {
-    if (raw[key] && typeof raw[key] === 'object') {
-      return raw[key];
+    if (rawObj[key] && typeof rawObj[key] === 'object') {
+      return rawObj[key] as T;
     }
   }
 

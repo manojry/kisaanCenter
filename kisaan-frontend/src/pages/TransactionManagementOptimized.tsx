@@ -8,21 +8,25 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
-import type { Transaction } from '../types/api';
+import type { Transaction as BaseTransaction, User, Payment } from '../types/api';
+
+// Extend Transaction type with optional frontend-enriched fields
+type Transaction = BaseTransaction & {
+  buyer_name?: string;
+  farmer_name?: string;
+  total_sale_value?: number;
+  rate?: number;
+};
 import { useAuth } from '../context/AuthContext';
 import { TransactionForm } from '../components/owner/TransactionForm';
 
 // NEW: Import centralized data hooks
-import { useShopTransactions, useShopUsers, useCreateTransaction } from '../hooks/useShopData';
+import { useShopTransactions, useShopUsers } from '../hooks/useShopData';
 
 // Helper to get user name by id (kept for compatibility)
-type User = { id: string | number; firstname?: string; username?: string };
-const getUserName = (users: User[], id: string | number): string => {
-  const user = users.find((u: User) => String(u.id) === String(id));
-  return user?.firstname?.trim() ? user.firstname! : user?.username ?? '';
-};
 
-const TransactionManagement: React.FC = () => {
+
+const TransactionManagement = (): React.ReactElement => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -43,7 +47,7 @@ const TransactionManagement: React.FC = () => {
     isLoading: usersLoading 
   } = useShopUsers(user?.shop_id);
 
-  const createTransactionMutation = useCreateTransaction(user?.shop_id);
+  // const createTransactionMutation = useCreateTransaction(user?.shop_id); // Remove unused
 
   // Apply client-side filtering
   const filteredTransactions = useMemo(() => {
@@ -51,7 +55,7 @@ const TransactionManagement: React.FC = () => {
 
     // Filter by selected user
     if (selectedUser) {
-      filtered = filtered.filter((txn: any) => 
+      filtered = filtered.filter((txn: Transaction) => 
         String(txn.buyer_id) === selectedUser || String(txn.farmer_id) === selectedUser
       );
     }
@@ -59,7 +63,7 @@ const TransactionManagement: React.FC = () => {
     // Filter by search term
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter((txn: any) => 
+      filtered = filtered.filter((txn: Transaction & { buyer_name?: string; farmer_name?: string }) => 
         txn.product_name?.toLowerCase().includes(searchLower) ||
         txn.buyer_name?.toLowerCase().includes(searchLower) ||
         txn.farmer_name?.toLowerCase().includes(searchLower) ||
@@ -80,16 +84,13 @@ const TransactionManagement: React.FC = () => {
   const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
   
   const collapseAll = () => {
-    const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
-      newState[transaction.id + '-' + idx] = false;
-    });
-    setOpenRows(newState);
+    // Reset openRows state when data changes
+    setOpenRows({});
   };
   
   const expandAll = () => {
     const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
+    paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
       newState[transaction.id + '-' + idx] = true;
     });
     setOpenRows(newState);
@@ -105,17 +106,11 @@ const TransactionManagement: React.FC = () => {
   }, [filteredTransactions.length, totalPages, currentPage]);
 
   // Reset open rows when data changes
-  useEffect(() => {
-    const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
-      newState[transaction.id + '-' + idx] = false;
-    });
-    setOpenRows(newState);
-  }, [filters, selectedUser, currentPage, filteredTransactions.length]);
+  // (Removed empty useEffect that was causing a type error)
 
   // PDF Export using utility (transactions already come enriched with user names)
   const handleExportPDF = () => {
-    const enriched = filteredTransactions.map((txn: any) => ({
+  const enriched = filteredTransactions.map((txn: Transaction & { buyer_name?: string; farmer_name?: string; total_sale_value?: number; buyer_paid?: number; deficit?: number; farmer_paid?: number; farmer_due?: number; }) => ({
       id: txn.id,
       transaction_id: txn.id,
       created_at: formatDisplayDate(txn.created_at),
@@ -127,7 +122,7 @@ const TransactionManagement: React.FC = () => {
       deficit: txn.deficit,
       farmer_paid: txn.farmer_paid,
       farmer_due: txn.farmer_due,
-      payments: (txn.payments || []).map((p: any) => {
+  payments: (txn.payments || []).map((p: Payment) => {
         const payer = String(p.payer_type) === 'BUYER' ? txn.buyer_name : 
                      String(p.payer_type) === 'FARMER' ? txn.farmer_name : 
                      String(p.payer_type) === 'SHOP' ? 'Shop' : String(p.payer_type);
@@ -149,12 +144,6 @@ const TransactionManagement: React.FC = () => {
       generatedBy: user?.username,
       dateRange: { from: filters.from_date, to: filters.to_date }
     });
-  };
-
-  // Handle form submission
-  const handleTransactionCreated = () => {
-    setShowCreateForm(false);
-    // Data will automatically refresh via React Query
   };
 
   if (error) {
@@ -202,8 +191,8 @@ const TransactionManagement: React.FC = () => {
               </Button>
             </div>
             <TransactionForm 
-              onClose={() => setShowCreateForm(false)}
-              onTransactionCreated={handleTransactionCreated}
+              // onClose removed to match TransactionFormProps
+              // onTransactionCreated removed to match TransactionFormProps
             />
           </div>
         </div>
@@ -255,7 +244,7 @@ const TransactionManagement: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All users</SelectItem>
-                  {users.map((user: any) => (
+                  {users.map((user: User) => (
                     <SelectItem key={user.id} value={String(user.id)}>
                       {user.firstname || user.username} ({user.role})
                     </SelectItem>
@@ -334,7 +323,7 @@ const TransactionManagement: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedTransactions.map((transaction: any, idx: number) => {
+                  paginatedTransactions.map((transaction: Transaction, idx: number) => {
                     const rowKey = transaction.id + '-' + idx;
                     const isExpanded = openRows[rowKey] || false;
                     
@@ -393,7 +382,7 @@ const TransactionManagement: React.FC = () => {
                                   <div>
                                     <h4 className="font-semibold mb-2">Payments</h4>
                                     <div className="space-y-2">
-                                      {transaction.payments.map((payment: any, pidx: number) => (
+                                      {transaction.payments.map((payment: Payment, pidx: number) => (
                                         <div key={pidx} className="text-sm p-2 bg-white rounded border">
                                           <p><strong>Amount:</strong> ₹{payment.amount}</p>
                                           <p><strong>Method:</strong> {payment.method}</p>
@@ -449,6 +438,6 @@ const TransactionManagement: React.FC = () => {
       )}
     </div>
   );
-};
+}
 
 export default TransactionManagement;

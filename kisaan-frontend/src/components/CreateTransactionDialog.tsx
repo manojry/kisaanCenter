@@ -28,7 +28,7 @@ interface CreateTransactionDialogProps {
 export default function CreateTransactionDialog({ open, onOpenChange, onSuccess, shopId }: CreateTransactionDialogProps) {
   const { farmers, buyers, products, categories, isLoading: dataLoading, error: dataError, refetch } = useTransactionFormData();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   
   const { values: formData, setField, handleChange, reset } = useFormState({
     farmer_id: '',
@@ -69,7 +69,8 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
         }
       }
     } else {
-      setFilteredProducts(products);
+      // Only include products that have category_id (type guard)
+      setFilteredProducts((products as Product[]).filter((p): p is Product => typeof p.category_id === 'number'));
     }
   }, [formData.category_id, products, formData.product_id, setField]);
 
@@ -90,7 +91,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
     setIsSubmitting(true);
 
     try {
-      const selectedProduct = products.find((p: any) => p.id === parseInt(formData.product_id));
+  const selectedProduct = (products as Product[]).find((p) => p.id === parseInt(formData.product_id));
       const payload = {
         shop_id: shopId,
         farmer_id: parseInt(formData.farmer_id),
@@ -129,10 +130,10 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
       onSuccess();
       onOpenChange(false);
       reset();
-    } catch (err: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: err.message || 'Failed to create transaction',
+        description: (error as Error).message || 'Failed to create transaction',
         variant: 'destructive',
       });
     } finally {
@@ -165,7 +166,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
                 <SelectValue placeholder="Select farmer" />
               </SelectTrigger>
               <SelectContent>
-                {farmers.map((farmer: any) => (
+                {farmers.map((farmer) => (
                   <SelectItem key={farmer.id} value={farmer.id.toString()}>{farmer.username}</SelectItem>
                 ))}
               </SelectContent>
@@ -178,7 +179,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
                 <SelectValue placeholder="Select buyer" />
               </SelectTrigger>
               <SelectContent>
-                {buyers.map((buyer: any) => (
+                {buyers.map((buyer) => (
                   <SelectItem key={buyer.id} value={buyer.id.toString()}>{buyer.username}</SelectItem>
                 ))}
               </SelectContent>
@@ -194,7 +195,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category: any) => (
+                {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
                     {category.name}
                   </SelectItem>
@@ -213,7 +214,7 @@ export default function CreateTransactionDialog({ open, onOpenChange, onSuccess,
                 <SelectValue placeholder={formData.category_id ? "Select product" : "Select category first"} />
               </SelectTrigger>
               <SelectContent>
-                {filteredProducts.map((product: any) => (
+                {filteredProducts.map((product) => (
                   <SelectItem key={product.id} value={product.id.toString()}>
                     {product.name} {product.unit && `(${product.unit})`}
                   </SelectItem>

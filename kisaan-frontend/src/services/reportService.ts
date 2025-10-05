@@ -34,7 +34,7 @@ export const reportService = {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    let extension = 'pdf';
+  const extension = 'pdf';
     link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
     document.body.appendChild(link);
     link.click();
@@ -53,7 +53,7 @@ export const reportService = {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    let extension = 'pdf';
+  const extension = 'pdf';
     link.download = `${filters.report_type}-report-${Date.now()}.${extension}`;
     document.body.appendChild(link);
     link.click();

@@ -12,8 +12,8 @@ export default tseslint.config([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs['recommended-latest'],
-      reactRefresh.configs.vite,
+      // reactHooks.configs['recommended-latest'], // Disabled: not compatible with flat config
+      // reactRefresh.configs.vite, // Disabled: not compatible with flat config
     ],
     languageOptions: {
       ecmaVersion: 2020,

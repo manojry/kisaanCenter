@@ -2,6 +2,14 @@
 
 // ...existing code...
 import React, { useState, useEffect } from 'react';
+import type { Shop, Settlement as BaseSettlement, User } from '../types/api';
+
+// Extend Settlement type for frontend-enriched fields
+type Settlement = BaseSettlement & {
+  user?: User;
+  description?: string;
+  balance?: number;
+};
 import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/UsersContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,20 +44,20 @@ export default function Expenses() {
   const { users, isLoading: usersLoading } = useUsers();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [shop, setShop] = useState<any>(null);
-  const [summary, setSummary] = useState<any[]>([]);
-  const [settlements, setSettlements] = useState<any[]>([]);
-  const [recoverableExpenses, setRecoverableExpenses] = useState<any[]>([]);
-  const [shopExpenses, setShopExpenses] = useState<any[]>([]);
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [summary, setSummary] = useState<Settlement[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [recoverableExpenses, setRecoverableExpenses] = useState<Settlement[]>([]);
+  const [shopExpenses, setShopExpenses] = useState<Settlement[]>([]);
   const [netEarnings, setNetEarnings] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [settleAmount, setSettleAmount] = useState('');
-  const [selectedSettlement, setSelectedSettlement] = useState<any>(null);
+  const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDescription, setExpenseDescription] = useState('');
   // Filters
-  const [filterUser, setFilterUser] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterUser] = useState('');
+  const [filterStatus] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
   // FIFO Repayment
@@ -58,15 +66,15 @@ export default function Expenses() {
   // Fetch shop users when shop changes
   React.useEffect(() => {
     if (shop?.id) {
-      let users = transactionStore.getUsers(shop.id);
+      let users = transactionStore.getUsers(String(shop.id));
       if (!users || users.length === 0) {
         (async () => {
           try {
-            const usersRes: any = await apiClient.get(`/shops/${shop.id}/users`);
+            const usersRes = await apiClient.get<{ users: User[] }>(`/shops/${shop.id}/users`);
             users = usersRes?.users || [];
-            transactionStore.setUsers(shop.id, users);
-          } catch (err) {
-            transactionStore.setUsers(shop.id, []);
+            transactionStore.setUsers(String(shop.id), users);
+          } catch {
+            transactionStore.setUsers(String(shop.id), []);
           }
         })();
       }
@@ -81,12 +89,12 @@ export default function Expenses() {
     if (!user?.id) return;
     setIsLoading(true);
     try {
-      const shopRes: any = await apiClient.get(`/shops?owner_id=${user.id}`);
+      const shopRes = await apiClient.get<{ shops: Shop[] }>(`/shops?owner_id=${user.id}`);
       const firstShop = shopRes?.shops?.[0] ?? null;
       setShop(firstShop);
       if (firstShop?.id) {
         // Build filter params
-        const params: any = { shop_id: firstShop.id };
+        const params: Record<string, string | number> = { shop_id: firstShop.id };
         if (filterUser) params.user_id = filterUser;
         if (filterStatus) params.status = filterStatus;
         if (filterFromDate) params.from_date = filterFromDate;
@@ -101,25 +109,25 @@ export default function Expenses() {
           apiClient.get(`/settlements?shop_id=${firstShop.id}&reason=expense&status=pending`),
           apiClient.get(`/settlements?shop_id=${firstShop.id}&user_id=shop&reason=expense`)
         ]);
-        let summaryData: any[] = [];
+        let summaryData: Settlement[] = [];
         if (summaryRes && typeof summaryRes === 'object' && 'data' in summaryRes) {
-          summaryData = summaryRes.data as any[];
+          summaryData = summaryRes.data as Settlement[];
         } else if (Array.isArray(summaryRes)) {
-          summaryData = summaryRes;
+          summaryData = summaryRes as Settlement[];
         }
 
-        let settlementsData: any[] = [];
+        let settlementsData: Settlement[] = [];
         if (settlementsRes && typeof settlementsRes === 'object' && 'data' in settlementsRes) {
-          settlementsData = settlementsRes.data as any[];
+          settlementsData = settlementsRes.data as Settlement[];
         } else if (Array.isArray(settlementsRes)) {
-          settlementsData = settlementsRes;
+          settlementsData = settlementsRes as Settlement[];
         }
 
-        let recoverableData: any[] = [];
+        let recoverableData: Settlement[] = [];
         if (recoverableRes && typeof recoverableRes === 'object' && 'data' in recoverableRes) {
-          recoverableData = recoverableRes.data as any[];
+          recoverableData = recoverableRes.data as Settlement[];
         } else if (Array.isArray(recoverableRes)) {
-          recoverableData = recoverableRes;
+          recoverableData = recoverableRes as Settlement[];
         }
 
         let shopExpData: any[] = [];
@@ -497,7 +505,7 @@ export default function Expenses() {
                   {selectedSettlement.user?.username} - {selectedSettlement.description}
                 </p>
                 <p className="font-semibold">
-                  Outstanding: {formatCurrency(selectedSettlement.balance)}
+                  Outstanding: {formatCurrency(selectedSettlement.balance ?? 0)}
                 </p>
               </div>
               <div>

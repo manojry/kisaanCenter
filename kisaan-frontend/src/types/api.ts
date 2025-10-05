@@ -94,7 +94,7 @@ export interface Transaction {
   transaction_date: string;
   settlement_date?: string;    // Added to match backend
   notes?: string;              // Added to match backend
-  metadata?: any;              // Added to match backend
+  metadata?: Record<string, unknown> | null; // Added to match backend
   created_at: string;
   updated_at: string;
   payments: Payment[];
@@ -161,13 +161,13 @@ export interface Settlement {
 }
 
 // API Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
 }
 
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
   data: T[];
   total: number;
   page: number;

@@ -28,7 +28,7 @@ const TransactionManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('');
   const todayStr = getToday();
   const [filters, setFilters] = useState({ search: '', from_date: todayStr, to_date: todayStr });
@@ -78,14 +78,14 @@ const TransactionManagement: React.FC = () => {
   const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
   const collapseAll = () => {
     const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
+    paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
       newState[transaction.id + '-' + idx] = false;
     });
     setOpenRows(newState);
   };
   const expandAll = () => {
     const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
+  paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
       newState[transaction.id + '-' + idx] = true;
     });
     setOpenRows(newState);
@@ -103,7 +103,7 @@ const TransactionManagement: React.FC = () => {
   // Reset open rows when data / pagination changes
   useEffect(() => {
     const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: any, idx: number) => {
+    paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
       newState[transaction.id + '-' + idx] = false;
     });
     setOpenRows(newState);
@@ -180,7 +180,7 @@ const TransactionManagement: React.FC = () => {
     }
     // Combine user and search filters in one pass
     const searchLower = search ? search.toLowerCase() : '';
-    const matchesUser = (t: Transaction, selectedUser: string, users: any[]) => {
+  const matchesUser = (t: Transaction, selectedUser: string, users: User[]) => {
   if (!selectedUser || selectedUser === 'all') return true;
   const selectedUserObj = users.find(u => String(u.id) === selectedUser);
   if (!selectedUserObj) return true;
@@ -188,7 +188,7 @@ const TransactionManagement: React.FC = () => {
   return String(t.farmer_id) === String(selectedUserObj.id) || String(t.buyer_id) === String(selectedUserObj.id);
     };
 
-    const matchesSearch = (t: Transaction, searchLower: string, users: any[]) => {
+  const matchesSearch = (t: Transaction, searchLower: string, users: User[]) => {
       if (!searchLower) return true;
       if (t.product_name?.toLowerCase().includes(searchLower)) return true;
       if (String(t.buyer_id).includes(searchLower) || String(t.farmer_id).includes(searchLower)) return true;
@@ -199,7 +199,7 @@ const TransactionManagement: React.FC = () => {
       return false;
     };
 
-    let filteredTransactions = allTxns.filter(t =>
+  const filteredTransactions = allTxns.filter(t =>
       matchesUser(t, selectedUser, users) && matchesSearch(t, searchLower, users)
     );
     setTransactions(allTxns); // Store all fetched transactions
@@ -428,7 +428,7 @@ const TransactionManagement: React.FC = () => {
                       const open = openRows[rowKey] || false;
                       // Find farmer user for firstname
                       const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
-                      let farmerName = farmerUser?.firstname?.trim() ? farmerUser.firstname : farmerUser?.username ?? '';
+                const farmerName = farmerUser?.firstname?.trim() ? farmerUser.firstname : farmerUser?.username ?? '';
                       return (
                         <React.Fragment key={rowKey}>
                           <TableRow>
@@ -524,8 +524,8 @@ const TransactionManagement: React.FC = () => {
                                             if (type === String(transaction.farmer_id)) return getUserName(users, transaction.farmer_id);
                                             return type;
                                           };
-                                          let payer = renderParty(String(p.payer_type));
-                                          let payee = renderParty(String(p.payee_type));
+                                    const payer = renderParty(String(p.payer_type));
+                                    const payee = renderParty(String(p.payee_type));
                                           return (
                                             <li key={i} className="mb-1 flex items-center gap-1">
                                               <span className="font-medium flex items-center gap-1">{payer} <span className="mx-1">→</span> {payee}:</span> {formatCurrency(p.amount)}

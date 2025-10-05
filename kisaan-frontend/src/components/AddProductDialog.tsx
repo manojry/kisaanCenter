@@ -42,6 +42,7 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
   const [isLoading, setIsLoading] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+  type Category = { id: number; name: string; };
 
   useEffect(() => {
     if (open) {
@@ -64,13 +65,17 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
 
   const fetchCategories = async () => {
     try {
-      const response: any = await apiClient.get('/categories');
-      const categoriesData = Array.isArray(response)
-        ? response
-        : (Array.isArray(response?.data) ? response.data : []);
+      const response = await apiClient.get('/categories');
+      // Assume response is { data: Category[] } or Category[]
+      let categoriesData: Category[] = [];
+      if (Array.isArray(response)) {
+        categoriesData = response;
+      } else if (response && Array.isArray((response as { data?: unknown }).data)) {
+        categoriesData = (response as { data: Category[] }).data;
+      }
       setCategoriesCache(categoriesData);
       setCategories(categoriesData);
-    } catch (err: any) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load categories',
@@ -103,12 +108,11 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
 
       // Create the product first
       const productResponse = await apiClient.post('/products', productData);
-      const createdProduct = (productResponse as any)?.data || productResponse;
-      
-      // If product was created and we have a shopId, assign it to the shop
-      if (createdProduct?.id && shopId) {
+      // createdProduct can be { id: number } or similar
+      const createdProduct = (productResponse as { data?: { id?: number } }).data || productResponse;
+      if (createdProduct && typeof createdProduct === 'object' && 'id' in createdProduct && shopId) {
         try {
-          await apiClient.post(`/shops/${shopId}/products/${createdProduct.id}`);
+          await apiClient.post(`/shops/${shopId}/products/${(createdProduct as { id: number }).id}`);
         } catch (assignError) {
           console.warn('Product created but failed to assign to shop:', assignError);
           // Still continue - product was created successfully
@@ -124,10 +128,10 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
       reset();
       onSuccess();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: err.message || 'Failed to create product',
+        description: (error as Error).message || 'Failed to create product',
         variant: 'destructive',
       });
     } finally {
@@ -136,8 +140,9 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setField(field as any, value);
+    setField(field as FieldName, value);
   };
+  type FieldName = 'name' | 'description' | 'category_id' | 'price' | 'unit';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

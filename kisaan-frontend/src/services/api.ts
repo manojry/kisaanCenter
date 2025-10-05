@@ -12,12 +12,12 @@ export const settlementsApi = {
     // Using helper utilities for query + normalization
     (async () => {
       const qs = buildQueryString(params);
-      const raw = await apiClient.get(`${SETTLEMENT_ENDPOINTS.BASE}${qs}`) as any;
+      const raw = await apiClient.get<PaginatedResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}${qs}`);
       return normalizeListResponse<Settlement>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
     })(),
 
   getById: (id: number): Promise<ApiResponse<Settlement>> =>
-    apiClient.get(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`),
+    apiClient.get<ApiResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`),
 
   create: (settlement: {
     shop_id: number;
@@ -27,14 +27,14 @@ export const settlementsApi = {
     reason: 'overpayment' | 'underpayment' | 'adjustment';
     notes?: string;
   }): Promise<ApiResponse<Settlement>> =>
-    apiClient.post(SETTLEMENT_ENDPOINTS.BASE, settlement),
+    apiClient.post<ApiResponse<Settlement>>(SETTLEMENT_ENDPOINTS.BASE, settlement),
 
   update: (id: number, update: {
     status?: 'pending' | 'settled';
     settlement_date?: string;
     notes?: string;
   }): Promise<ApiResponse<Settlement>> =>
-    apiClient.put(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`, update),
+    apiClient.put<ApiResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`, update),
 
   getSummary: (): Promise<ApiResponse<{
     total_pending: number;
@@ -42,55 +42,69 @@ export const settlementsApi = {
     count_pending: number;
     count_settled: number;
   }>> =>
-    apiClient.get(SETTLEMENT_ENDPOINTS.SUMMARY),
+    apiClient.get<ApiResponse<{
+      total_pending: number;
+      total_settled: number;
+      count_pending: number;
+      count_settled: number;
+    }>>(SETTLEMENT_ENDPOINTS.SUMMARY),
 };
 export const shopProductsApi = {
   getShops: async (user: User | null) => {
     if (user?.role === 'owner' && user?.shop_id) {
-      const single = await apiClient.get(SHOP_ENDPOINTS.BY_ID(user.shop_id)) as any;
+      const single = await apiClient.get<ApiResponse<Shop>>(SHOP_ENDPOINTS.BY_ID(user.shop_id));
       return single?.data ? [single.data] : [];
     }
-    const resp = await apiClient.get(SHOP_ENDPOINTS.BASE) as any;
+    const resp = await apiClient.get<ApiResponse<Shop[]>>(SHOP_ENDPOINTS.BASE);
     return resp.data || [];
   },
   getCategories: async () => {
-    const resp = await apiClient.get(CATEGORY_ENDPOINTS.BASE) as any;
-    const categories = resp.data || resp.categories || [];
+    const resp = await apiClient.get<ApiResponse<Category[]>>(CATEGORY_ENDPOINTS.BASE);
+    const categories = resp.data || [];
     // Note: status field removed from category model, return all categories
     return categories;
   },
   getProducts: async (categoryId: number) => {
-    const resp = await apiClient.get(`${PRODUCT_ENDPOINTS.BASE}${buildQueryString({ category_id: categoryId })}`) as any;
-    const products = resp.data || resp.products || [];
-    return products.filter((p: any) => p.record_status === 'active');
+    const resp = await apiClient.get<ApiResponse<Product[]>>(`${PRODUCT_ENDPOINTS.BASE}${buildQueryString({ category_id: categoryId })}`);
+    const products = resp.data || [];
+    return products.filter((p) => p.record_status === 'active');
   },
   getShopProducts: async (shopId: number) => {
-    const resp = await apiClient.get(SHOP_ENDPOINTS.PRODUCTS(shopId)) as any;
-    const list = resp.products || resp.data || [];
-    return list.map((p: any) => ({
+    // The backend may return extra fields for shop products, so we use a mapped type
+    type ShopProductMapped = Product & {
+      shop_id: number;
+      product_id: number;
+      product_name: string;
+      category?: { id: number; name: string };
+      category_name?: string;
+      is_active?: boolean;
+      // legacy fields
+      category_id?: number;
+      record_status?: string;
+    };
+    const resp = await apiClient.get<ApiResponse<ShopProductMapped[]>>(SHOP_ENDPOINTS.PRODUCTS(shopId));
+    const list: ShopProductMapped[] = resp.data || [];
+    return list.map((p) => ({
       id: p.id,
       shop_id: shopId,
-      product_id: p.id,
-      product_name: p.name,
-      // Use structured category object when returned by backend, fall back to legacy category_name
-      category: p.category || (p.category_id ? { id: p.category_id, name: p.category_name || '' } : undefined),
-      category_name: (p.category && p.category.name) || p.category_name || '',
-      // Prefer mapping-level is_active when available (shop_products mapping),
-      // otherwise fall back to the product's record_status.
+      product_id: p.product_id ?? p.id,
+      product_name: p.product_name ?? p.name,
+      category: p.category || (p.category_id ? { id: p.category_id, name: (p as any).category_name || '' } : undefined),
+      category_name: (p.category && p.category.name) || (p as any).category_name || '',
       is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active')
     }));
   },
   getAvailableProducts: async (shopId: number) => {
-    const resp = await apiClient.get(SHOP_ENDPOINTS.AVAILABLE_PRODUCTS(shopId)) as any;
-    return resp.data || [];
+  const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.AVAILABLE_PRODUCTS(shopId));
+  return resp.data || [];
   },
   getAssignableProducts: async (shopId: number) => {
-    const resp = await apiClient.get(SHOP_ENDPOINTS.ASSIGNABLE_PRODUCTS(shopId)) as any;
-    return resp.data || [];
+  const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.ASSIGNABLE_PRODUCTS(shopId));
+  return resp.data || [];
   },
   getTransactionProducts: async (shopId: number, farmerId?: number) => {
-    const resp = await apiClient.get(SHOP_ENDPOINTS.TRANSACTION_PRODUCTS(shopId, farmerId)) as any;
-    return resp.data || [];
+  const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.TRANSACTION_PRODUCTS(shopId, farmerId));
+  return resp.data || [];
   },
   assignProduct: (shopId: number, productId: number) =>
     apiClient.post(SHOP_ENDPOINTS.PRODUCT_ASSIGN(shopId, productId)),
@@ -102,16 +116,16 @@ export const shopProductsApi = {
 // Balance Snapshots API
 export const balanceSnapshotsApi = {
   getByUserId: async (userId: number | string) => {
-    const resp = await apiClient.get(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId)) as any;
-    return resp.data || [];
+  const resp = await apiClient.get<ApiResponse<any[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
+  return resp.data || [];
   }
 };
 // Superadmin Dashboard API
 export const superadminDashboardApi = {
   getDashboard: async () => apiClient.get(DASHBOARD_ENDPOINTS.SUPERADMIN.DASHBOARD),
   getRecentShops: async () => {
-    const resp = await apiClient.get(`${SHOP_ENDPOINTS.BASE}${buildQueryString({ limit: 5 })}`) as any;
-    return resp.data || [];
+  const resp = await apiClient.get<ApiResponse<Shop[]>>(`${SHOP_ENDPOINTS.BASE}${buildQueryString({ limit: 5 })}`);
+  return resp.data || [];
   }
 };
 // Owner Dashboard API
@@ -126,7 +140,7 @@ export const analyticsApi = {
       date_from: dateRange?.from,
       date_to: dateRange?.to
     });
-    const raw: any = await apiClient.get(`${TRANSACTION_ENDPOINTS.ANALYTICS}${qs}`);
+    const raw = await apiClient.get<ApiResponse<any>>(`${TRANSACTION_ENDPOINTS.ANALYTICS}${qs}`);
     return raw?.data || raw || null;
   }
 };
@@ -203,18 +217,18 @@ export const usersApi = {
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<User>> => {
-    const qs = buildQueryString(params);
-    const raw = await apiClient.get(`${USER_ENDPOINTS.BASE}${qs}`) as any;
-    // Backend now returns { success: true, data: users[], message: "...", meta: {...} }
-    return normalizeListResponse<User>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  const qs = buildQueryString(params);
+  const raw = await apiClient.get<ApiResponse<User[]>>(`${USER_ENDPOINTS.BASE}${qs}`);
+  // Backend now returns { success: true, data: users[], message: "...", meta: {...} }
+  return normalizeListResponse<User>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
   },
   
   getById: (id: number): Promise<{ message: string; user: User }> =>
     apiClient.get(USER_ENDPOINTS.BY_ID(id)),
   
   create: async (user: UserCreate): Promise<ApiResponse<User>> => {
-    const raw = await apiClient.post(USER_ENDPOINTS.BASE, user) as any;
-    const normalizedUser = normalizeSingleItemResponse<User>(raw, 'user');
+  const raw = await apiClient.post<ApiResponse<User>>(USER_ENDPOINTS.BASE, user);
+  const normalizedUser = normalizeSingleItemResponse<User>(raw, 'user');
     return {
       success: raw.success || true,
       message: raw.message || 'User created successfully',
@@ -223,8 +237,8 @@ export const usersApi = {
   },
   
   update: async (id: number, user: Partial<User>): Promise<ApiResponse<User>> => {
-    const raw = await apiClient.put(USER_ENDPOINTS.BY_ID(id), user) as any;
-    const normalizedUser = normalizeSingleItemResponse<User>(raw, 'user');
+  const raw = await apiClient.put<ApiResponse<User>>(USER_ENDPOINTS.BY_ID(id), user);
+  const normalizedUser = normalizeSingleItemResponse<User>(raw, 'user');
     return {
       success: raw.success || true,
       message: raw.message || 'User updated successfully',
@@ -307,10 +321,10 @@ export const shopsApi = {
   getAvailableOwners: async () => {
     try {
       // Try the dedicated endpoint first
-      const raw = await apiClient.get(SHOP_ENDPOINTS.AVAILABLE_OWNERS) as any;
-      const normalized = normalizeListResponse<any>(raw, { keys: ['data'] });
+      const raw = await apiClient.get<ApiResponse<User[]>>(SHOP_ENDPOINTS.AVAILABLE_OWNERS);
+      const normalized = normalizeListResponse<User>(raw, { keys: ['data'] });
       return normalized.data;
-    } catch (error) {
+    } catch {
       console.warn('Available owners endpoint not found, falling back to filtering all users');
       // Fallback: Get all owners and filter out those who already have shops
       try {
@@ -318,15 +332,13 @@ export const shopsApi = {
           usersApi.getAll({ role: 'owner' }),
           shopsApi.getAll()
         ]);
-        
         const allOwners = usersResponse.data || [];
         const allShops = shopsResponse.data || [];
         const ownersWithShops = new Set(allShops.map(shop => shop.owner_id).filter(Boolean));
-        
         // Return owners who don't have shops yet
         return allOwners.filter(owner => !ownersWithShops.has(owner.id));
-      } catch (fallbackError) {
-        console.error('Error in fallback available owners:', fallbackError);
+      } catch {
+        // fallback error
         return [];
       }
     }
@@ -337,9 +349,9 @@ export const shopsApi = {
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<Shop>> => {
-    const qs = buildQueryString(params);
-    const raw = await apiClient.get(`${SHOP_ENDPOINTS.BASE}${qs}`) as any;
-    return normalizeListResponse<Shop>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  const qs = buildQueryString(params);
+  const raw = await apiClient.get<ApiResponse<Shop[]>>(`${SHOP_ENDPOINTS.BASE}${qs}`);
+  return normalizeListResponse<Shop>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
   },
   
   getById: (id: number): Promise<ApiResponse<Shop>> =>
@@ -459,8 +471,8 @@ export const paymentsApi = {
     apiClient.get(PAYMENT_ENDPOINTS.OUTSTANDING),
   
   getFarmerPayments: async (farmerId: number): Promise<PaginatedResponse<Payment>> => {
-    const raw = await apiClient.get(PAYMENT_ENDPOINTS.FARMER(farmerId)) as any;
-    return normalizeListResponse<Payment>(raw, { keys: ['data'] });
+  const raw = await apiClient.get<ApiResponse<Payment[]>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
+  return normalizeListResponse<Payment>(raw, { keys: ['data'] });
   },
   
   getBuyerPayments: (buyerId: number): Promise<PaginatedResponse<Payment>> =>
@@ -472,26 +484,26 @@ export const expenseApi = {
   addExpense: (payload: { shop_id: number; user_id: number; amount: number; reason?: string; description?: string; }): Promise<ApiResponse> =>
     apiClient.post(EXPENSE_ENDPOINTS.BASE, payload),
   getExpenses: (shop_id: number): Promise<ApiResponse<any[]>> =>
-    apiClient.get(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`)
+  apiClient.get<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>>(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`)
 };
 
 // Dashboard API - using available endpoints
 export const dashboardApi = {
   getBusinessSummary: async (): Promise<ApiResponse<BusinessSummary>> => {
     // Use transactions analytics to build summary
-    const transactionsRes = await apiClient.get(TRANSACTION_ENDPOINTS.ANALYTICS) as any;
-    const usersRes = await apiClient.get(USER_ENDPOINTS.BASE) as any;
-    const shopsRes = await apiClient.get(SHOP_ENDPOINTS.BASE) as any;
+  const transactionsRes = await apiClient.get<ApiResponse<any>>(TRANSACTION_ENDPOINTS.ANALYTICS);
+  const usersRes = await apiClient.get<ApiResponse<User[]>>(USER_ENDPOINTS.BASE);
+  const shopsRes = await apiClient.get<ApiResponse<Shop[]>>(SHOP_ENDPOINTS.BASE);
     return {
       success: true,
       message: 'Business summary',
       data: {
         totalUsers: usersRes.data?.length || 0,
-        totalTransactions: (transactionsRes.data && transactionsRes.data.total_transactions) ? transactionsRes.data.total_transactions : 0,
+        totalTransactions: (transactionsRes.data && (transactionsRes.data as any).total_transactions) ? (transactionsRes.data as any).total_transactions : 0,
         totalPayments: 0,
         totalSettlements: 0,
-        totalRevenue: (transactionsRes.data && transactionsRes.data.total_value) ? transactionsRes.data.total_value : 0,
-        activeShops: shopsRes.data?.filter((s: any) => s.status === 'active').length || 0,
+        totalRevenue: (transactionsRes.data && (transactionsRes.data as any).total_value) ? (transactionsRes.data as any).total_value : 0,
+        activeShops: shopsRes.data?.filter((s: Shop) => s.status === 'active').length || 0,
         pendingPayments: 0
       }
     };
@@ -600,14 +612,20 @@ export const farmerProductApi = {
   // Get farmer's assigned products with prices
   getFarmerProducts: async (farmerId: number): Promise<ApiResponse<any[]>> => {
     try {
-      const raw = await apiClient.get(FARMER_PRODUCT_ENDPOINTS.FARMER_PRODUCTS(farmerId)) as any;
+      const raw = await apiClient.get<ApiResponse<Product[]>>(FARMER_PRODUCT_ENDPOINTS.FARMER_PRODUCTS(farmerId));
+      let data: Product[] = [];
+      if (Array.isArray(raw)) {
+        data = raw as Product[];
+      } else if (Array.isArray(raw.data)) {
+        data = raw.data;
+      }
       return {
         success: true,
         message: 'Farmer products fetched',
-        data: raw.data || raw || []
+        data
       };
-    } catch (error: any) {
-      console.warn(`Error fetching farmer products for ${farmerId}:`, error);
+    } catch (err) {
+      console.warn(`Error fetching farmer products for ${farmerId}:`, err);
       return {
         success: false,
         message: 'Failed to fetch farmer products',
@@ -618,12 +636,12 @@ export const farmerProductApi = {
 
   // Assign product to farmer
   assignProduct: (farmerId: number, productId: number, makeDefault?: boolean): Promise<ApiResponse<any>> =>
-    apiClient.post(FARMER_PRODUCT_ENDPOINTS.ASSIGN_PRODUCT(farmerId), { 
+    apiClient.post<ApiResponse<Product>>(FARMER_PRODUCT_ENDPOINTS.ASSIGN_PRODUCT(farmerId), { 
       product_id: productId, 
       make_default: makeDefault 
     }),
 
   // Set product as default for farmer
   setDefault: (farmerId: number, productId: number): Promise<ApiResponse<any>> =>
-    apiClient.put(FARMER_PRODUCT_ENDPOINTS.SET_DEFAULT(farmerId, productId))
+  apiClient.put<ApiResponse<Product>>(FARMER_PRODUCT_ENDPOINTS.SET_DEFAULT(farmerId, productId))
 };

@@ -68,29 +68,29 @@ class ToastService {
   /**
    * Handle API success responses with automatic toast
    */
-  apiSuccess(response: any, customMessage?: string) {
-    const message = customMessage || response?.message || 'Operation completed successfully';
+  apiSuccess(response: unknown, customMessage?: string) {
+    const message = typeof response === 'object' && response && 'message' in response
+      ? (customMessage || (response as { message?: string }).message || 'Operation completed successfully')
+      : (customMessage || 'Operation completed successfully');
     return this.success(message);
   }
 
   /**
    * Handle API error responses with automatic toast
    */
-  apiError(error: any, customMessage?: string) {
+  apiError(error: unknown, customMessage?: string) {
     let message = customMessage;
-    
     if (!message) {
-      if (error?.response?.data?.message) {
-        message = error.response.data.message;
-      } else if (error?.message) {
-        message = error.message;
+      if (typeof error === 'object' && error && 'response' in error && (error as any).response?.data?.message) {
+        message = (error as any).response.data.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = (error as { message?: string }).message;
       } else if (typeof error === 'string') {
         message = error;
       } else {
         message = 'An unexpected error occurred';
       }
     }
-
     return this.error(message!);
   }
 
@@ -108,7 +108,7 @@ class ToastService {
   /**
    * Dismiss a specific toast
    */
-  dismiss(_toastId?: string) {
+  dismiss() {
     // The useToast hook provides dismiss functionality
     // This method allows external dismissal if needed
     return toast({ 
