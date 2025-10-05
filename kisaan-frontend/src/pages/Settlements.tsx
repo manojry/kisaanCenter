@@ -20,9 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // --- User Amounts Owed Table with Pagination ---
+import type { Settlement as ApiSettlement } from '../types/api';
+
 interface UserAmountsOwedTableProps {
-  summary: any[];
-  recoverableExpenses: any[];
+  summary: Array<{ user_id: number; total_balance: number; [key: string]: unknown }>;
+  recoverableExpenses: ApiSettlement[];
 }
 
 const UserAmountsOwedTable: React.FC<UserAmountsOwedTableProps> = ({ summary, recoverableExpenses }) => {
@@ -50,14 +52,14 @@ const UserAmountsOwedTable: React.FC<UserAmountsOwedTableProps> = ({ summary, re
         </TableHeader>
         <TableBody>
           {paged.map((item, idx) => {
-            const userExpenses = recoverableExpenses.filter((exp: any) => exp.user_id === item.user_id);
-            const totalRecoverable = userExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
-            const totalBalance = typeof item === 'object' && 'total_balance' in item ? (item as { total_balance: number }).total_balance : 0;
+            const userExpenses = recoverableExpenses.filter((exp) => exp.user_id === item.user_id);
+            const totalRecoverable = userExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+            const totalBalance = typeof item === 'object' && 'total_balance' in item ? item.total_balance : 0;
             return (
               <TableRow key={item.user_id || idx}>
-                <TableCell>{typeof item === 'object' && 'username' in item ? (item as { username: string }).username : ''}</TableCell>
-                <TableCell className="capitalize">{typeof item === 'object' && 'user_type' in item ? (item as { user_type: string }).user_type : ''}</TableCell>
-                <TableCell>{typeof item === 'object' && 'pending_count' in item ? (item as { pending_count: number }).pending_count : ''}</TableCell>
+                <TableCell>{typeof item === 'object' && 'username' in item && typeof item.username === 'string' ? item.username : ''}</TableCell>
+                <TableCell className="capitalize">{typeof item === 'object' && 'user_type' in item && typeof item.user_type === 'string' ? item.user_type : ''}</TableCell>
+                <TableCell>{typeof item === 'object' && 'pending_count' in item && typeof item.pending_count === 'number' ? item.pending_count : ''}</TableCell>
                 <TableCell>{totalRecoverable > 0 ? formatCurrency(totalRecoverable) : '-'}</TableCell>
                 <TableCell className="text-right font-bold">{formatCurrency(totalBalance)}</TableCell>
                 <TableCell>
@@ -106,12 +108,11 @@ import { Link } from 'react-router-dom';
 import { formatCurrency } from '../lib/formatters';
 
 export default function Expenses() {
-  const REASONS = [
-    { value: 'food', label: 'Food' },
-    { value: 'tea', label: 'Tea' },
-    { value: 'transport', label: 'Transport' },
-    { value: 'advance', label: 'Advance' }
-  ];
+  // ...existing hooks and logic...
+  // ...existing state declarations...
+  // ...existing code...
+  // State declarations (including summary)
+  // ...existing code...
   const [expenseReason, setExpenseReason] = useState('');
   const transactionStore = useTransactionStore();
   const [expenseUserId, setExpenseUserId] = useState('');
@@ -137,6 +138,23 @@ export default function Expenses() {
   // FIFO Repayment
   const [fifoAmount, setFifoAmount] = useState('');
   const [fifoUserId, setFifoUserId] = useState('');
+  // Map summary to expected structure for UserAmountsOwedTableProps
+  const summaryMapped = Array.isArray(summary)
+    ? summary.map((item) => ({
+        user_id: item.user_id,
+        total_balance: (item as { total_balance?: number }).total_balance ?? 0,
+        username: (item.user && item.user.username) || (item as any).username || '',
+        user_type: (item as any).user_type || '',
+        pending_count: (item as any).pending_count || 0,
+      }))
+    : [];
+  const REASONS = [
+    { value: 'food', label: 'Food' },
+    { value: 'tea', label: 'Tea' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'advance', label: 'Advance' }
+  ];
+  // ...existing state declarations...
   // Fetch shop users when shop changes
   React.useEffect(() => {
     if (shop?.id) {
@@ -351,7 +369,7 @@ export default function Expenses() {
                 </CardContent>
               </Card>
             ) : (
-              <UserAmountsOwedTable summary={summary} recoverableExpenses={recoverableExpenses} />
+              <UserAmountsOwedTable summary={summaryMapped} recoverableExpenses={recoverableExpenses} />
             )}
 
 

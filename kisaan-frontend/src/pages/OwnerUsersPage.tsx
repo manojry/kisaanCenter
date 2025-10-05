@@ -26,12 +26,12 @@ import { UserForm } from '../components/owner/UserForm';
 import { useUsers } from '../context/UsersContext';
 
 // Simple error boundary for context errors
-class ContextErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: any }> {
+class ContextErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: unknown }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { error: null };
   }
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     return { error };
   }
   render() {
@@ -39,7 +39,11 @@ class ContextErrorBoundary extends React.Component<{ children: React.ReactNode }
       return (
         <div style={{ color: 'red', padding: 24 }}>
           <h2>Context Error</h2>
-          <pre>{this.state.error?.message || String(this.state.error)}</pre>
+          <pre>{
+            this.state.error && typeof this.state.error === 'object' && 'message' in this.state.error
+              ? (this.state.error as { message: string }).message
+              : String(this.state.error)
+          }</pre>
           <p>
             This page requires AuthProvider and UsersProvider to be present in the React tree.<br />
             Please ensure you are not rendering this page outside the main App layout.

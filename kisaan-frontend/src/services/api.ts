@@ -235,11 +235,12 @@ export const usersApi = {
     const qs = buildQueryString(params);
     const raw = await apiClient.get<ApiResponse<User[]>>(`${USER_ENDPOINTS.BASE}${qs}`);
     // Extract meta from response
-    const meta = (raw && typeof raw === 'object' && 'meta' in raw) ? (raw as any).meta : {};
+    const meta = (raw && typeof raw === 'object' && 'meta' in raw) ? (raw as { meta: unknown }).meta : {};
+    const metaObj = (meta && typeof meta === 'object') ? meta as Record<string, unknown> : {};
     const normalized = normalizeListResponse<User>(raw, {
       keys: ['data'],
-      limit: meta.limit ?? params?.limit,
-      page: meta.page ?? params?.page,
+      limit: typeof metaObj.limit === 'number' ? metaObj.limit : params?.limit,
+      page: typeof metaObj.page === 'number' ? metaObj.page : params?.page,
       // total and totalPages will be inferred from meta if present
     });
     return normalized;

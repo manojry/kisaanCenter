@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { expenseApi, settlementsApi } from '../services/api';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -22,45 +22,51 @@ import {
 } from 'lucide-react';
 
 import type { Settlement, User } from '../types/api';
-import { formatCurrency } from '../lib/formatters';
 
   // Clean, working Expenses page with Expenses, Settlements, and Summary tabs
 
   // SettlementCard and SettlementDialog are now imported from ./components
 
-  export default function Expenses() {
-    const REASONS = [
-      { value: 'food', label: 'Food' },
-      { value: 'tea', label: 'Tea' },
-      { value: 'transport', label: 'Transport' },
-      { value: 'advance', label: 'Advance' }
-    ];
-    const transactionStore = useTransactionStore();
-    const { users, isLoading: usersLoading } = useUsers();
-    const { toast } = useToast();
-    const { user } = useAuth();
+
+export default function Expenses() {
+  const [settlements, setSettlements] = useState<import('../types/api').Settlement[]>([]);
+  // Compute summary: group settlements by user_id and sum their amounts as total_balance
+
+  // ...existing code...
+
+  // Example usage: render UserAmountsOwedTable with summary and recoverableExpenses
+  // <UserAmountsOwedTable summary={summary} recoverableExpenses={recoverableExpenses} />
+  const REASONS = [
+    { value: 'food', label: 'Food' },
+    { value: 'tea', label: 'Tea' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'advance', label: 'Advance' }
+  ];
+  const transactionStore = useTransactionStore();
+  const { users, isLoading: usersLoading } = useUsers();
+  const { toast } = useToast();
+  const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
   const setStoreShop = useTransactionStore(state => state.setShop);
-    type Expense = Settlement & { user?: User; date?: string };
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [totalExpenses, setTotalExpenses] = useState<number>(0);
-    const [expenseForm, setExpenseForm] = useState({
-      reason: '',
-      userId: '',
-      amount: '',
-      description: ''
-    });
-  const [settlements, setSettlements] = useState<import('../types/api').Settlement[]>([]);
-    const [settleAmount, setSettleAmount] = useState('');
+  type Expense = Settlement & { user?: User; date?: string };
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState<number>(0);
+  const [expenseForm, setExpenseForm] = useState({
+    reason: '',
+    userId: '',
+    amount: '',
+    description: ''
+  });
+  const [settleAmount, setSettleAmount] = useState('');
   const [selectedSettlement, setSelectedSettlement] = useState<import('../types/api').Settlement | null>(null);
-    const [filterFromDate, setFilterFromDate] = useState('');
-    const [filterToDate, setFilterToDate] = useState('');
-    const [fifoAmount, setFifoAmount] = useState('');
-    const [fifoUserId, setFifoUserId] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [fifoAmount, setFifoAmount] = useState('');
+  const [fifoUserId, setFifoUserId] = useState('');
   const [recoverableExpenses, setRecoverableExpenses] = useState<import('../types/api').Settlement[]>([]);
-    // Removed unused shopExpenses state
-    const [netEarnings, setNetEarnings] = useState<number>(0);
-    const [isLoading, setIsLoading] = useState(true);
+  // Removed unused shopExpenses state
+  const [netEarnings, setNetEarnings] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
       // If storeShop is missing but user.shop_id exists, set it globally
@@ -345,19 +351,23 @@ import { formatCurrency } from '../lib/formatters';
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableCell>User</TableCell>
+                      <TableCell>Type</TableCell>
+                      <TableCell>Pending</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell className="text-right">Balance</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recoverableExpenses.map((exp) => (
-                      <TableRow key={exp.id}>
-                        <TableCell>{(exp && typeof exp === 'object' && exp !== null && 'user' in exp && exp.user && typeof exp.user === 'object' && exp.user !== null && 'username' in exp.user) ? String(exp.user.username) : String(exp.user_id)}</TableCell>
-                        <TableCell>{formatCurrency(exp.amount)}</TableCell>
-                        <TableCell>{typeof exp === 'object' && 'description' in exp ? (exp as { description?: string }).description : exp.reason}</TableCell>
+                    {recoverableExpenses.map((exp, idx) => (
+                      <TableRow key={exp.id || idx}>
+                        <TableCell>{'username' in exp && typeof exp.username === 'string' ? exp.username : ''}</TableCell>
+                        <TableCell className="capitalize">{'user_type' in exp && typeof exp.user_type === 'string' ? exp.user_type : ''}</TableCell>
+                        <TableCell>{'pending_count' in exp && typeof exp.pending_count === 'number' ? exp.pending_count : ''}</TableCell>
+                        <TableCell>{exp.amount}</TableCell>
+                        <TableCell className="text-right font-semibold"></TableCell>
                         <TableCell>{exp.status}</TableCell>
                         <TableCell>
                           {exp.status === 'pending' && (

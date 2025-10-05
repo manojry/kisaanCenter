@@ -93,7 +93,7 @@ export default function AddProductDialog({ open, onOpenChange, onSuccess, shopId
     }
     setIsLoading(true);
     try {
-      const productData: any = {
+      const productData: Record<string, unknown> = {
         name: formData.name,
         description: formData.description || null,
         category_id: parseInt(formData.category_id),

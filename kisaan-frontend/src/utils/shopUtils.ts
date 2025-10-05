@@ -36,7 +36,9 @@ export const fetchOwnerShop = async (ownerId: string | number, shopId?: string |
           ? response.data
           : [];
       if (shops.length > 0) return shops[0];
-    } catch {}
+    } catch {
+      // Ignore error, fallback logic will handle
+    }
     // Fallback: fetch all and filter
     const response = await apiClient.get<{ data?: Shop[]; shops?: Shop[] }>('/shops');
     const allShops: Shop[] = Array.isArray(response?.data)

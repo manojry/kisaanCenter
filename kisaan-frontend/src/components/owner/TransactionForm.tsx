@@ -19,11 +19,8 @@ interface TransactionFormData extends TransactionCreate {
 }
 import { useAuth } from '../../context/AuthContext';
 
-interface Product {
-  id: number;
-  name: string;
-  category_id: number;
-}
+// Use the Product type from types/api for full compatibility
+import type { Product } from '../../types/api';
 
 import type { Transaction } from '../../types/api';
 interface TransactionFormProps {
@@ -155,14 +152,34 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
             console.log('[TransactionForm] Products fetched from API:', prods);
             // Map/fix: ensure all required Product fields exist
             const validProds = prods
-              .filter((p: any) => typeof p.id === 'number' && typeof p.name === 'string' && typeof p.category_id === 'number')
-              .map((p: any) => ({
-                ...p,
-                record_status: typeof p.record_status === 'string' ? p.record_status : 'active',
-                created_at: typeof p.created_at === 'string' ? p.created_at : '',
-              }));
-            setShopProducts(user.shop_id, validProds);
-            setProducts(validProds);
+              .filter((p: unknown) => {
+                if (typeof p === 'object' && p !== null && 'id' in p && 'name' in p && 'category_id' in p) {
+                  return typeof (p as { id: unknown }).id === 'number' && typeof (p as { name: unknown }).name === 'string' && typeof (p as { category_id: unknown }).category_id === 'number';
+                }
+                return false;
+              })
+              .map((p: unknown) => {
+                if (typeof p === 'object' && p !== null) {
+                  const obj = p as Record<string, unknown>;
+                  const mapped: Product = {
+                    id: obj.id as number,
+                    name: obj.name as string,
+                    category_id: obj.category_id as number,
+                    record_status: typeof obj.record_status === 'string' ? (obj.record_status as 'active' | 'inactive') : 'active',
+                    created_at: typeof obj.created_at === 'string' ? obj.created_at as string : '',
+                  };
+                  if (typeof obj.updated_at === 'string') {
+                    mapped.updated_at = obj.updated_at as string;
+                  }
+                  return mapped;
+                }
+                // fallback: skip invalid
+                return null;
+              })
+              .filter((p): p is Product => p !== null);
+            const filteredProds: Product[] = validProds.filter((p): p is Product => p !== null);
+            setShopProducts(user.shop_id, filteredProds);
+            setProducts(filteredProds);
           } catch (err) {
             console.error('[TransactionForm] Error fetching products:', err);
             setProducts([]);
