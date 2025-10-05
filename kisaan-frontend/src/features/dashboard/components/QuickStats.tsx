@@ -63,7 +63,7 @@ export function QuickStats() {
   // Mock data based on role
   const getStatsForRole = () => {
     switch (user?.role) {
-      case 'OWNER':
+  case 'owner':
         return [
           {
             title: 'Total Revenue',
@@ -91,7 +91,7 @@ export function QuickStats() {
           }
         ];
 
-      case 'FARMER':
+  case 'farmer':
         return [
           {
             title: 'Total Sales',
@@ -117,7 +117,7 @@ export function QuickStats() {
           }
         ];
 
-      case 'BUYER':
+  case 'buyer':
         return [
           {
             title: 'Total Purchases',
@@ -143,7 +143,7 @@ export function QuickStats() {
           }
         ];
 
-      case 'EMPLOYEE':
+  // case 'employee': // Not a valid User.role, removed to fix type error
         return [
           {
             title: 'Transactions Processed',
@@ -170,7 +170,7 @@ export function QuickStats() {
           }
         ];
 
-      case 'SUPERADMIN':
+  case 'superadmin':
         return [
           {
             title: 'Total Shops',

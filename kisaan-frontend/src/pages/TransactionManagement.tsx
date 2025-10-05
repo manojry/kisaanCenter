@@ -331,7 +331,6 @@ const TransactionManagement: React.FC = () => {
               <div className="block sm:hidden space-y-3 w-full">
                 <TransactionCardList
                   paginatedTransactions={paginatedTransactions}
-                  users={users}
                   getTransactionStatus={getTransactionStatus}
                   getTransactionStatusColor={getTransactionStatusColor}
                 />
