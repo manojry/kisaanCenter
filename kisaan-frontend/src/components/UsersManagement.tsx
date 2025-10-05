@@ -1,5 +1,5 @@
+import React, { useState } from 'react';
 import { Badge } from './ui/badge';
-import { useEffect, useState } from 'react';
 import { formatDate } from '../utils/formatDate';
 import { Input } from './ui/input';
 import { useUsers } from '../context/UsersContext';
@@ -8,33 +8,32 @@ import { Button } from './ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Users } from 'lucide-react';
 import { usersApi } from '../services/api';
-
+import type { User } from '../types/api';
 
 export default function UsersManagement() {
   const [search, setSearch] = useState('');
-  const { users, isLoading, refreshUsers, total, page, setPage, pageSize, setPageSize } = useUsers();
-  useEffect(() => {
-    refreshUsers(page, pageSize);
-  }, [refreshUsers, page, pageSize]);
+  const [roleFilter, setRoleFilter] = useState('all');
+  const { allUsers, isLoading, refreshUsers, page, setPage, pageSize, setPageSize } = useUsers();
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  // Removed duplicate useEffect: context already fetches on page/pageSize change
 
   // Toggle user status (active/inactive)
   const handleToggleStatus = async (userId: number, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     try {
       await usersApi.update(userId, { status: newStatus });
-      refreshUsers(page, pageSize);
-      } catch {
-        // Optionally show error toast
-        // toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
+  refreshUsers();
+    } catch {
+      // Optionally show error toast
+      // toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
     }
   };
 
   const getRoleBadge = (role: string) => {
-    // Use UserTypeBadge for farmer, buyer, shop; fallback to default badge for others
-  if (role === 'farmer') return <Badge userType="FARMER" />;
-  if (role === 'buyer') return <Badge userType="BUYER" />;
-  if (role === 'shop') return <Badge userType="SHOP" />;
-    // For owner, superadmin, employee, etc. use a simple badge
+    if (role === 'farmer') return <Badge userType="FARMER" />;
+    if (role === 'buyer') return <Badge userType="BUYER" />;
+    if (role === 'shop') return <Badge userType="SHOP" />;
     return <span className="inline-block rounded bg-gray-200 text-gray-800 px-2 py-1 text-xs font-semibold uppercase">{role}</span>;
   };
 
@@ -46,16 +45,25 @@ export default function UsersManagement() {
     );
   };
 
-  // Filter users by search query
-  const filteredUsers = search.trim().length === 0 ? users : users.filter(u => {
-    const q = search.trim().toLowerCase();
-    return (
-      (u.firstname && u.firstname.toLowerCase().includes(q)) ||
-      (u.username && u.username.toLowerCase().includes(q)) ||
-      (u.contact && u.contact.toLowerCase().includes(q)) ||
-      (u.email && u.email.toLowerCase().includes(q))
-    );
-  });
+  // Filter and paginate users on the frontend
+  React.useEffect(() => {
+    let users = allUsers;
+    if (roleFilter !== 'all') {
+      users = users.filter((u: User) => u.role === roleFilter);
+    }
+    if (search.trim().length > 0) {
+      const q = search.trim().toLowerCase();
+      users = users.filter((u: User) =>
+        (u.firstname && u.firstname.toLowerCase().includes(q)) ||
+        (u.username && u.username.toLowerCase().includes(q)) ||
+        (u.contact && u.contact.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+      );
+    }
+    setTotal(users.length);
+    const start = (page - 1) * pageSize;
+    setFilteredUsers(users.slice(start, start + pageSize));
+  }, [allUsers, roleFilter, search, page, pageSize]);
 
   if (isLoading) {
     return (
@@ -70,24 +78,26 @@ export default function UsersManagement() {
     );
   }
 
-  // error state and UI removed; errors should be handled in context or via notifications if needed.
-
-  // Pagination controls
   const totalPages = Math.ceil(total / pageSize);
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
   };
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(Number(e.target.value));
+    const newSize = Number(e.target.value);
+    setPageSize(newSize);
     setPage(1);
   };
-  
-   // Fix: wrap pagination controls outside Table, fix CardContent/Card/Fragment structure
-   // Fix: refresh button handler should not pass event args
-   const handleRefresh = () => refreshUsers(page, pageSize);
 
-   return (
-     <>
+  const handleRefresh = () => refreshUsers(true);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [roleFilter, search]);
+
+  return (
+    <>
       <Card>
         <CardHeader>
           <div className="flex flex-col xs:flex-row xs:items-center w-full gap-2 xs:gap-0">
@@ -97,25 +107,34 @@ export default function UsersManagement() {
                 Users Management
               </CardTitle>
               <CardDescription className="text-xs xs:text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                Manage farmers and buyers in your shop ({users.length} users)
+                Manage farmers and buyers in your shop ({total} users)
               </CardDescription>
             </div>
             <div className="flex gap-2 items-center xs:ml-auto">
-              {/* Responsive Refresh Button */}
               <Button onClick={handleRefresh} size="sm" variant="outline" className="px-2 py-1 text-xs xs:text-sm" style={{ minWidth: 0 }}>
                 <span className="hidden xs:inline-flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 xs:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
                   Refresh
                 </span>
                 <span className="inline-flex xs:hidden items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M5.423 19.584A9 9 0 1021 12.001h-1.5" /></svg>
                 </span>
               </Button>
-
             </div>
           </div>
-          {/* Search Bar */}
-          <div className="mt-4 flex w-full">
+          {/* Filters Row */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-2 w-full items-center">
+            <select
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value)}
+              className="border rounded px-2 py-1 text-sm w-full sm:w-auto"
+              style={{ minWidth: 120 }}
+            >
+              <option value="all">All Roles</option>
+              <option value="farmer">Farmer</option>
+              <option value="buyer">Buyer</option>
+              <option value="owner">Owner</option>
+              <option value="superadmin">Superadmin</option>
+            </select>
             <Input
               type="text"
               placeholder="Search users by name, username, contact, or email..."
@@ -125,7 +144,6 @@ export default function UsersManagement() {
             />
           </div>
         </CardHeader>
-
         <CardContent>
           {filteredUsers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -212,14 +230,15 @@ export default function UsersManagement() {
                     {user.status === 'active' ? 'Deactivate' : 'Activate'}
                   </Button>
                 </div>
-                {idx < users.length - 1 && <div className="border-t mt-3 pt-3" />}
+                {idx < filteredUsers.length - 1 && <div className="border-t mt-3 pt-3" />}
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
-
-  {/* AddUserDialog removed */}
     </>
   );
 }
+
+
+

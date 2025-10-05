@@ -1,68 +1,102 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User } from '../types/api';
-import { usersApi } from '../services/api';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { usersApi } from '../services/api';
+import type { User } from '../types/api';
+import type { Dispatch, SetStateAction } from 'react';
 
-interface UsersContextType {
+type UsersContextType = {
   users: User[];
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  setUsers: Dispatch<SetStateAction<User[]>>;
   isLoading: boolean;
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
   page: number;
-  setPage: React.Dispatch<React.SetStateAction<number>>;
+  setPage: Dispatch<SetStateAction<number>>;
   pageSize: number;
-  setPageSize: React.Dispatch<React.SetStateAction<number>>;
+  setPageSize: Dispatch<SetStateAction<number>>;
   total: number;
-  setTotal: React.Dispatch<React.SetStateAction<number>>;
-  refreshUsers: (page?: number, pageSize?: number, filters?: Record<string, unknown>) => Promise<void>;
-}
+
+  setTotal: Dispatch<SetStateAction<number>>;
+  allUsers: User[];
+  refreshUsers: (force?: boolean) => Promise<void>;
+  allUsersFetched: boolean;
+};
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
 
 export const useUsers = () => {
   const context = useContext(UsersContext);
-  if (!context) throw new Error('useUsers must be used within a UsersProvider');
+  if (!context) {
+    throw new Error('useUsers must be used within a UsersProvider');
+  }
   return context;
 };
 
-export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+
+interface UsersProviderProps {
+  children: React.ReactNode;
+}
+
+export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // filtered/paged users
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const backendTotal = useRef<number>(0);
+  const [allUsersFetched, setAllUsersFetched] = useState(false);
 
-  // Always fetch all users (limit=300) for global cache
-  const refreshUsers = async () => {
+  // Fetch all users (large limit, e.g. 1000)
+  const refreshUsers = async (force = false) => {
     if (!isAuthenticated) {
+      setAllUsers([]);
       setUsers([]);
       setIsLoading(false);
       setTotal(0);
+      backendTotal.current = 0;
       return;
     }
     setIsLoading(true);
     try {
-  const response = await usersApi.getAll({ page: 1, limit: 100 });
-      setUsers(response.data || []);
-      setTotal(response.total ?? 0);
+      // Only fetch if forced or on initial load
+      if (force || allUsers.length === 0) {
+    const limit = 100;
+    const response = await usersApi.getAll({ page: 1, limit });
+    setAllUsers(response.data || []);
+    setTotal(response.total ?? (response.data?.length || 0));
+    // Use normalized response.total, which is set from meta.total if present
+    setAllUsersFetched((response.data?.length || 0) >= (response.total ?? (response.data?.length || 0)));
+      }
     } catch {
-      setUsers([]);
+      setAllUsers([]);
       setTotal(0);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Filter, paginate users on the frontend
+  useEffect(() => {
+    let filtered = allUsers;
+    // Optionally, you can add more filters here (e.g., role, search) via context if needed
+    setTotal(filtered.length);
+    const start = (page - 1) * pageSize;
+    setUsers(filtered.slice(start, start + pageSize));
+  }, [allUsers, page, pageSize]);
+
+  // Fetch all users on mount or auth change
   useEffect(() => {
     if (isAuthenticated) {
-      refreshUsers();
+      refreshUsers(true);
     } else {
+      setAllUsers([]);
       setUsers([]);
       setIsLoading(false);
       setTotal(0);
+      setAllUsersFetched(false);
     }
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   return (
@@ -77,9 +111,13 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPageSize,
       total,
       setTotal,
-      refreshUsers
+      allUsers,
+      refreshUsers,
+      allUsersFetched
     }}>
       {children}
     </UsersContext.Provider>
   );
 };
+
+export { UsersContext };

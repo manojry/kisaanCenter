@@ -68,7 +68,7 @@ const OwnerUsersPage: React.FC = () => {
 
 const OwnerUsersPageInner: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { users, isLoading, refreshUsers, page, setPage, pageSize, setPageSize, total } = useUsers();
+  const { users, isLoading, refreshUsers, page, setPage, pageSize, setPageSize, total, allUsers, allUsersFetched } = useUsers();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   // Modal state for assigning products
   const [assignProductsUser, setAssignProductsUser] = useState<User | null>(null);
@@ -93,9 +93,11 @@ const OwnerUsersPageInner: React.FC = () => {
   });
 
 
-  // Backend-driven pagination: users is already paginated for current page
-  // Filters/search are sent to backend, not applied client-side
-  const filteredUsers = users;
+  // If all users are fetched, paginate locally from allUsers
+  let filteredUsers = users;
+  if (allUsersFetched) {
+    filteredUsers = allUsers.slice((page - 1) * pageSize, page * pageSize);
+  }
 
 
 
@@ -106,8 +108,11 @@ const OwnerUsersPageInner: React.FC = () => {
 
   // When page, pageSize, or filters/search change, fetch from backend
   React.useEffect(() => {
-    refreshUsers(page, pageSize);
-  }, [page, pageSize, filters.role, filters.status, filters.search]);
+    if (!allUsersFetched) {
+      refreshUsers();
+    }
+    // else: do not call refreshUsers, just paginate locally
+  }, [page, pageSize, filters.role, filters.status, filters.search, allUsersFetched]);
 
   const handleUserCreated = () => {
     refreshUsers();
