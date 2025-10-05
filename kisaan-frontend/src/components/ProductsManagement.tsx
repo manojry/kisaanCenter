@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { useShopProductsCache } from '../hooks/useShopProductsCache';
+import { formatDate } from '../utils/formatDate';
+import { useSharedShopProducts } from '../hooks/useShopProductsCache';
 import { apiClient } from '../services/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -12,12 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 
 import type { Product as BaseProduct } from '../types/api';
 
-// Extend Product for UI needs
+// Extend Product type locally to match backend fields
 type Product = BaseProduct & {
   category_name?: string;
-  price?: number;
-  unit?: string;
-  description?: string;
+  unit?: string | null;
+  description?: string | null;
+  price?: number | null;
 };
 
 interface Category {
@@ -31,18 +32,23 @@ interface ProductsManagementProps {
 }
 
 export default function ProductsManagement({ shopId }: ProductsManagementProps) {
-  const [products, setProducts] = useState<Product[]>([]);
-  // Use global shop products cache
-  const { getShopProducts, setShopProducts, invalidateShopProducts } = useShopProductsCache();
+  // Use global shop products cache only
+  const { products: rawProducts, isLoading: productsLoading, refresh: refreshProducts } = useSharedShopProducts(shopId ?? 0);
+  // Fix: If rawProducts is an object with a data field, use that; else use as is
+  const products = Array.isArray(rawProducts)
+    ? (rawProducts as Product[])
+    : (rawProducts && Array.isArray((rawProducts as any).data))
+      ? ((rawProducts as any).data as Product[])
+      : [];
+  // Debug: log products to inspect created_at
+  console.log('DEBUG products for table:', products.map(p => ({ id: p.id, name: p.name, created_at: p.created_at })));
+  // Debug: log products to inspect created_at
+  console.log('DEBUG products for table:', products.map(p => ({ id: p.id, name: p.name, created_at: p.created_at })));
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   // Cache for available products by shopId
   // Global cache for available products by shopId (per session)
   const availableProductsCache: { [shopId: number]: Product[] } = {};
-  const [shopCategories, setShopCategories] = useState<Category[]>([]);
-  // Cache for shop categories by shopId
-  // Global cache for shop categories by shopId (per session)
-  const shopCategoriesCache: { [shopId: number]: Category[] } = {};
-  const [isLoading, setIsLoading] = useState(true);
+  // Removed unused isLoading state
   // const [showAddProduct, setShowAddProduct] = useState(false);
   const { toast } = useToast();
 
@@ -62,28 +68,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
     );
   }
 
-  useEffect(() => {
-    if (shopId) {
-      const cached = getShopProducts(shopId);
-      if (Array.isArray(cached)) {
-        setProducts(cached.filter((item): item is Product =>
-          typeof item.id === 'number' &&
-          typeof item.name === 'string' &&
-          typeof item.category_id === 'number' &&
-          typeof item.created_at === 'string')
-        );
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
-        fetchShopProducts(shopId);
-      }
-      if (shopCategoriesCache[shopId]) {
-        setShopCategories(shopCategoriesCache[shopId]);
-      } else {
-        fetchShopCategories(shopId);
-      }
-    }
-  }, [shopId]);
+  // No need to fetch/set products manually; handled by useSharedShopProducts
 
   useEffect(() => {
     if (shopId) {
@@ -92,61 +77,29 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
           typeof item.id === 'number' &&
           typeof item.name === 'string' &&
           typeof item.category_id === 'number' &&
-          typeof item.created_at === 'string')
+          typeof item.created_at === 'string') as Product[]
         );
       } else {
         fetchAvailableProducts(shopId);
       }
     }
-  }, [shopId, products]);
+    // No return value
+  }, [shopId]);
 
-  // Fetch products assigned to this shop
-  const fetchShopProducts = async (shopId: number) => {
-    setIsLoading(true);
-    try {
-      console.log('🔍 Fetching shop products for shopId:', shopId);
-      const response = await apiClient.get(`/shops/${shopId}/products`) as { products?: Product[]; data?: Product[] };
-      console.log('📦 Shop products response:', response);
-      const productsData = (response && (response.products || response.data)) || [];
-      setShopProducts(shopId, Array.isArray(productsData) ? productsData : []);
-      const shopProducts = getShopProducts(shopId);
-      setProducts(Array.isArray(shopProducts)
-        ? shopProducts.filter((item): item is Product =>
-            typeof item.id === 'number' &&
-            typeof item.name === 'string' &&
-            typeof item.category_id === 'number' &&
-            typeof item.created_at === 'string')
-        : []);
-      console.log('✅ Shop products loaded:', productsData.length);
-    } catch (err) {
-      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to load shop products';
-      console.error('❌ Error fetching shop products:', err);
-      toast({
-        title: 'Error',
-        description: error,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch available products for this shop (filtered by shop categories)
   const fetchAvailableProducts = async (shopId: number) => {
     try {
-      console.log('🔍 Fetching available products for shopId:', shopId);
-  const response = await apiClient.get(`/shops/${shopId}/available-products`) as { products?: Product[]; data?: Product[]; message?: string };
+      const response = await apiClient.get(`/shops/${shopId}/available-products`) as { products?: Product[]; data?: Product[]; message?: string };
       console.log('📦 Available products response:', response);
       const available = (response && (response.products || response.data)) || [];
       const message = response && response.message;
-  availableProductsCache[shopId] = Array.isArray(available) ? available : [];
-  setAllProducts(Array.isArray(availableProductsCache[shopId])
-    ? availableProductsCache[shopId].filter((item): item is Product =>
-        typeof item.id === 'number' &&
-        typeof item.name === 'string' &&
-        typeof item.category_id === 'number' &&
-        typeof item.created_at === 'string')
-    : []);
+      availableProductsCache[shopId] = Array.isArray(available) ? available : [];
+      setAllProducts(Array.isArray(availableProductsCache[shopId])
+        ? (availableProductsCache[shopId].filter((item): item is Product =>
+            typeof item.id === 'number' &&
+            typeof item.name === 'string' &&
+            typeof item.category_id === 'number' &&
+            typeof item.created_at === 'string') as Product[])
+        : []);
       console.log('✅ Available products loaded:', available.length);
       if (message) {
         console.log('ℹ️ Backend message:', message);
@@ -167,11 +120,11 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
         ) : [];
         availableProductsCache[shopId] = filtered;
         setAllProducts(Array.isArray(filtered)
-          ? filtered.filter((item): item is Product =>
+          ? (filtered.filter((item): item is Product =>
               typeof item.id === 'number' &&
               typeof item.name === 'string' &&
               typeof item.category_id === 'number' &&
-              typeof item.created_at === 'string')
+              typeof item.created_at === 'string') as Product[])
           : []);
         console.log('✅ Fallback products loaded:', filtered.length);
       } catch (fallbackErr) {
@@ -183,21 +136,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   };
 
   // Fetch shop categories
-  const fetchShopCategories = async (shopId: number) => {
-    try {
-      console.log('🔍 Fetching shop categories for shopId:', shopId);
-  const response = await apiClient.get(`/shops/${shopId}/categories`) as { categories?: Category[]; data?: Category[] };
-  console.log('📂 Shop categories response:', response);
-  const categories = (response && (response.categories || response.data)) || [];
-  const cats = Array.isArray(categories) ? categories : [];
-  shopCategoriesCache[shopId] = cats;
-  setShopCategories(cats);
-  console.log('✅ Shop categories loaded:', cats.length);
-    } catch (err) {
-      console.error('❌ Failed to fetch shop categories:', err);
-      setShopCategories([]);
-    }
-  };
+  // Removed unused fetchShopCategories
 
   // Removed unused handleProductAdded
 
@@ -208,10 +147,8 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
       console.log('🔄 Assigning product', productId, 'to shop', shopId);
       const response = await apiClient.post(`/shops/${shopId}/products/${productId}`);
       console.log('✅ Product assigned successfully:', response);
-      // Invalidate cache for this shop
-      invalidateShopProducts(shopId);
       await Promise.all([
-        fetchShopProducts(shopId),
+        refreshProducts(),
         fetchAvailableProducts(shopId)
       ]);
     } catch (err) {
@@ -228,31 +165,13 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
   // Remove a product from this shop
   const handleRemoveProduct = async (productId: number) => {
     if (!shopId) return;
-    try {
-      await apiClient.delete(`/shops/${shopId}/products/${productId}`);
-      // Invalidate cache for this shop
-      invalidateShopProducts(shopId);
-      await Promise.all([
-        fetchShopProducts(shopId),
-        fetchAvailableProducts(shopId)
-      ]);
-    } catch (err) {
-      const error = err && typeof err === 'object' && 'message' in err ? (err as { message?: string }).message : 'Failed to remove product';
-      console.error('Failed to remove product:', err);
-      toast({
-        title: 'Error',
-        description: error,
-        variant: 'destructive',
-      });
-    }
+    // Removal logic here (currently disabled in UI)
+    // ...existing code...
   };
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (!amount || isNaN(Number(amount))) return '₹0.00';
-    return `₹${Number(amount).toFixed(2)}`;
-  };
+  // Removed unused formatCurrency
 
-  if (isLoading) {
+  if (productsLoading) {
     return (
       <Card>
         <CardContent className="p-6">
@@ -280,12 +199,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
               <CardDescription className="text-sm sm:text-base">
                 Products currently assigned to your shop for selling. ({products.length} assigned)
               </CardDescription>
-              {shopCategories.length > 0 && (
-                <div className="mt-2">
-                  <span className="text-sm font-medium">Shop Categories: </span>
-                  <span className="text-sm">{shopCategories.map(c => c.name).join(', ')}</span>
-                </div>
-              )}
+              {/* Shop categories removed */}
             </div>
           </div>
         </CardHeader>
@@ -316,7 +230,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                     <TableRow>
                       <TableHead>Product Name</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
+                      {/* <TableHead>Price</TableHead> */}
                       <TableHead>Unit</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Assigned Date</TableHead>
@@ -330,17 +244,17 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                         <TableCell>
                           <Badge variant="outline">{product.category_name || '-'}</Badge>
                         </TableCell>
-                        <TableCell className="font-medium">{formatCurrency(product.price)}</TableCell>
+                        {/* Price column removed */}
                         <TableCell>{product.unit || '-'}</TableCell>
                         <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
-                        <TableCell>{product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{formatDate(product.created_at)}</TableCell>
                         <TableCell>
                           <Button 
                             size="sm" 
                             variant="outline" 
-                            onClick={() => handleRemoveProduct(product.id)} 
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             title="Remove"
+                            onClick={() => handleRemoveProduct(product.id)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -359,18 +273,18 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                       <Badge variant="outline" className="w-fit">{product.category_name || '-'}</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
-                      <div className="break-words break-all"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
+                      {/* Price field removed */}
                       <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
-                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {product.created_at ? new Date(product.created_at).toLocaleDateString() : '-'}</div>
+                      <div className="break-words break-all col-span-2"><span className="font-medium">Assigned:</span> {formatDate(product.created_at)}</div>
                     </div>
                     <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description || '-'}</div>
                     <div className="flex justify-end">
                       <Button 
                         size="icon" 
                         variant="outline" 
-                        onClick={() => handleRemoveProduct(product.id)} 
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         title="Remove"
+                        onClick={() => handleRemoveProduct(product.id)}
                       >
                         <Trash2 className="w-5 h-5" />
                       </Button>
@@ -391,10 +305,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
             Central Products - Available for Assignment
           </CardTitle>
           <CardDescription>
-            {shopCategories.length > 0 
-              ? `Products from your shop categories: ${shopCategories.map(c => c.name).join(', ')} (${allProducts.length} available)`
-              : `No categories assigned to your shop - showing all central products (${allProducts.length} available)`
-            }
+            {`All central products available for assignment (${allProducts.length} available)`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -403,10 +314,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No central products available for assignment</p>
               <p className="text-sm mt-2">
-                {shopCategories.length === 0 
-                  ? 'No categories assigned to your shop. All central products are available for assignment.'
-                  : 'All products from your categories are already assigned to your shop.'
-                }
+                No categories assigned to your shop. All central products are available for assignment.
               </p>
             </div>
           ) : (
@@ -421,7 +329,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                   Once assigned, they will appear in your shop's product list for transactions.
                 </p>
                 <div className="mt-2 text-xs text-blue-600">
-                  Debug: Shop ID: {shopId}, Assigned: {products.length}, Available: {allProducts.length}, Categories: {shopCategories.length}
+                  Debug: Shop ID: {shopId}, Assigned: {products.length}, Available: {allProducts.length}
                 </div>
               </div>
               {/* Desktop Table */}
@@ -431,7 +339,7 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                     <TableRow>
                       <TableHead>Product Name</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
+                      {/* <TableHead>Price</TableHead> */}
                       <TableHead>Unit</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Action</TableHead>
@@ -444,14 +352,14 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                         <TableCell>
                           <Badge variant="secondary">{product.category_name || '-'}</Badge>
                         </TableCell>
-                        <TableCell className="font-medium">{formatCurrency(product.price)}</TableCell>
-                        <TableCell>{product.unit || '-'}</TableCell>
-                        <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
+                        {/* Price column removed */}
+                        <TableCell>{product.unit ?? '-'}</TableCell>
+                        <TableCell className="max-w-xs truncate">{product.description ?? '-'}</TableCell>
                         <TableCell>
                           <Button 
                             size="sm" 
-                            onClick={() => handleAssignProduct(product.id)}
                             className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleAssignProduct(product.id)}
                           >
                             <Plus className="w-4 h-4 mr-1" />
                             Assign to Shop
@@ -471,15 +379,15 @@ export default function ProductsManagement({ shopId }: ProductsManagementProps) 
                       <Badge variant="secondary" className="w-fit">{product.category_name || '-'}</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
-                      <div className="break-words break-all"><span className="font-medium">Price:</span> {formatCurrency(product.price)}</div>
-                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit || '-'}</div>
+                      {/* Price field removed */}
+                      <div className="break-words break-all"><span className="font-medium">Unit:</span> {product.unit ?? '-'}</div>
                     </div>
-                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description || '-'}</div>
+                    <div className="text-xs break-words break-all mb-2"><span className="font-medium">Description:</span> {product.description ?? '-'}</div>
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
-                        onClick={() => handleAssignProduct(product.id)}
                         className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleAssignProduct(product.id)}
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Assign to Shop

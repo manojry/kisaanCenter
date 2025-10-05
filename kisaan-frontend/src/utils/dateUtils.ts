@@ -1,13 +1,12 @@
 // src/utils/dateUtils.ts
+
+import { formatDate } from './formatDate';
 // Standard date utility functions for KisaanCenter
 
 /**
  * Format a JS Date or ISO string to 'YYYY-MM-DD' (for input[type=date], API, etc.)
  */
-export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().split('T')[0];
-}
+
 
 /**
  * Format a JS Date or ISO string to 'DD-MM-YYYY' (for display)

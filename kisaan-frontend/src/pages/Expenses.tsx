@@ -43,7 +43,7 @@ export default function Expenses() {
     { value: 'advance', label: 'Advance' }
   ];
   const transactionStore = useTransactionStore();
-  const { users, isLoading: usersLoading } = useUsers();
+  useUsers();
   const { toast } = useToast();
   const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
@@ -304,8 +304,6 @@ export default function Expenses() {
                   setExpenseForm={setExpenseForm}
                   handleAddExpense={handleAddExpense}
                   isLoading={isLoading}
-                  users={users}
-                  usersLoading={usersLoading}
                   reasons={REASONS}
                   storeShop={storeShop}
                 />

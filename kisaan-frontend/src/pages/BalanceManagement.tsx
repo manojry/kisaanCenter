@@ -1,25 +1,23 @@
 import { getUserDisplayName } from '../utils/userDisplayName';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useTransactionStore } from '../store/transactionStore';
-import { usersApi, balanceSnapshotsApi } from '../services/api';
+import { formatDate } from '../utils/formatDate';
+import { balanceSnapshotsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserSearchDropdown } from '@/components/ui/UserSearchDropdown';
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, TrendingDown } from 'lucide-react';
 import type { User, BalanceSnapshot as SharedBalanceSnapshot } from '../types/api';
+import { useUsers } from '../context/UsersContext';
 
 interface BalanceManagementProps {
   shopId: number;
 }
 
-const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
-  const transactionStore = useTransactionStore();
-  const { isAuthenticated } = useAuth();
-  const [users, setUsers] = useState<User[]>(transactionStore.getUsers(String(shopId)));
+const BalanceManagement: React.FC<BalanceManagementProps> = () => {
+  const { users } = useUsers();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   // Extend shared BalanceSnapshot type to allow for string id and index signature if needed
   type BalanceSnapshot = Omit<SharedBalanceSnapshot, 'id'> & {
@@ -29,27 +27,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
   const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await usersApi.getAll({ shop_id: shopId });
-  const userList = Array.isArray(response.data) ? response.data as User[] : [];
-  const filteredUsers = userList.filter((u) => u.role === 'farmer' || u.role === 'buyer');
-  setUsers(filteredUsers);
-  transactionStore.setUsers(String(shopId), filteredUsers);
-    } catch (error) {
-      setUsers([]);
-      transactionStore.setUsers(String(shopId), []);
-      console.error('Error fetching users:', error);
-    }
-  };
 
-  // Fetch users only once on mount, and only if authenticated
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (users.length === 0) {
-      fetchUsers();
-    }
-  }, [shopId, isAuthenticated]);
 
   // Fetch balance snapshots for selected user
   useEffect(() => {
@@ -75,24 +53,12 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="font-semibold" style={{whiteSpace: 'nowrap'}}>Select User:</span>
-          <Select
-            value={selectedUser ? String(selectedUser.id) : ''}
-            onValueChange={val => {
-              const user = users.find(u => String(u.id) === val);
-              setSelectedUser(user || null);
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Choose user" />
-            </SelectTrigger>
-            <SelectContent>
-              {users.map(user => (
-                <SelectItem key={user.id} value={String(user.id)}>
-                  {getUserDisplayName(user)} ({user.role}) - ₹{user.balance.toLocaleString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div style={{ minWidth: 220 }}>
+            <UserSearchDropdown
+              onSelect={user => setSelectedUser(user)}
+              placeholder="Search user..."
+            />
+          </div>
         </div>
         {selectedUser && (
           <div className="flex items-center gap-4">
@@ -133,13 +99,11 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                   {snapshots.map(s => {
                     let dateStr = '';
                     if (s.createdAt) {
-                      const d = new Date(s.createdAt);
-                      dateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
+                      dateStr = formatDate(s.createdAt);
                     }
                     let snapshotDateStr = '';
                     if (s.snapshot_date) {
-                      const d = new Date(s.snapshot_date);
-                      snapshotDateStr = isNaN(d.getTime()) ? '' : d.toLocaleString();
+                      snapshotDateStr = formatDate(s.snapshot_date);
                     }
                     function safeNumber(val: number | string) {
                       const n = typeof val === 'number' ? val : parseFloat(val as string);

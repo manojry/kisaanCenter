@@ -1,5 +1,7 @@
 import { Badge } from './ui/badge';
 import { useState, useEffect } from 'react';
+import { formatDate } from '../utils/formatDate';
+import { Input } from './ui/input';
 import { useUsers } from '../context/UsersContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -16,6 +18,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
   // shopId is currently unused, but kept for future filtering if needed.
   const { users, isLoading, refreshUsers, total, page, setPage, pageSize, setPageSize } = useUsers();
   const [showAddUser, setShowAddUser] = useState(false);
+  const [search, setSearch] = useState('');
   useEffect(() => {
     refreshUsers(page, pageSize);
   }, [refreshUsers, page, pageSize]);
@@ -40,6 +43,17 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
       </Badge>
     );
   };
+
+  // Filter users by search query
+  const filteredUsers = search.trim().length === 0 ? users : users.filter(u => {
+    const q = search.trim().toLowerCase();
+    return (
+      (u.firstname && u.firstname.toLowerCase().includes(q)) ||
+      (u.username && u.username.toLowerCase().includes(q)) ||
+      (u.contact && u.contact.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q))
+    );
+  });
 
   if (isLoading) {
     return (
@@ -102,10 +116,20 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
               </Button>
             </div>
           </div>
+          {/* Search Bar */}
+          <div className="mt-4 flex w-full">
+            <Input
+              type="text"
+              placeholder="Search users by name, username, contact, or email..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full max-w-md"
+            />
+          </div>
         </CardHeader>
 
         <CardContent>
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No users found. Add farmers and buyers to get started.</p>
@@ -124,7 +148,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
@@ -132,7 +156,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                       <TableCell>{user.email || '-'}</TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell>
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {formatDate(user.created_at)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -160,7 +184,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
           )}
           {/* Mobile Card/List Layout */}
           <div className="block sm:hidden space-y-4">
-            {users.map((user, idx) => (
+            {filteredUsers.map((user, idx) => (
               <div key={user.id} className="rounded-lg border p-4 bg-white shadow-sm w-full max-w-full overflow-x-hidden mx-auto">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-semibold text-lg break-words truncate max-w-[70%]" title={user.firstname && user.firstname.trim() ? user.firstname : user.username}>{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
@@ -170,7 +194,7 @@ export default function UsersManagement({ onRefresh }: UsersManagementProps) {
                   <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Contact:</span> {user.contact || '-'}</div>
                   <div className="break-words truncate max-w-[90vw]"><span className="font-medium">Email:</span> {user.email || '-'}</div>
                   <div className="break-words col-span-2"><span className="font-medium">Status:</span> {getStatusBadge(user.status)}</div>
-                  <div className="break-words col-span-2"><span className="font-medium">Created:</span> {new Date(user.created_at).toLocaleDateString()}</div>
+                  <div className="break-words col-span-2"><span className="font-medium">Created:</span> {formatDate(user.created_at)}</div>
                 </div>
                 {idx < users.length - 1 && <div className="border-t mt-3 pt-3" />}
               </div>

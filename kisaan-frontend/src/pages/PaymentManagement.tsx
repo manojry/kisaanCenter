@@ -1,6 +1,7 @@
 import { getUserDisplayName } from '../utils/userDisplayName';
 import type { BalanceSnapshot } from '../types/api';
 import React, { useState, useEffect } from 'react';
+import { formatDate } from '../utils/formatDate';
 import { paymentsApi, balanceSnapshotsApi } from '../services/api';
 import { useUsers } from '../context/UsersContext';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +9,7 @@ import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserSearchDropdown } from '@/components/ui/UserSearchDropdown';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const PaymentManagement: React.FC = () => {
@@ -28,8 +29,7 @@ const PaymentManagement: React.FC = () => {
   if (!isAuthenticated || !hasRole('owner')) {
     return <div className="p-8 text-center text-red-600 font-bold">Unauthorized: Only owners can access this page.</div>;
   }
-  const { users: allUsers, fetchUsers } = useUsers();
-  const users = allUsers.filter((u) => ['farmer', 'buyer'].includes(u.role));
+  const { users, refreshUsers } = useUsers();
   const [selectedUser, setSelectedUser] = useState<import('../types/api').User | null>(null);
   // ...existing code...
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -118,15 +118,14 @@ const PaymentManagement: React.FC = () => {
         setMessage('Payment recorded!');
         setPaymentAmount('');
         // Refresh users, snapshots, and payments after payment
-        if (fetchUsers) await fetchUsers();
+  await refreshUsers();
         if (selectedUser) {
           const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
           setSnapshots(snapshotsData);
           const payRes = await paymentsApi.getAll({ payer_type: selectedUser.role ? selectedUser.role.toUpperCase() : '' });
           setPayments(payRes.data || []);
-          // Refetch selectedUser to get updated balance
-          await fetchUsers();
-          const updatedUser = allUsers.find((u) => u.id === selectedUser.id);
+          // Refetch selectedUser to get updated balance from global users
+          const updatedUser = users.find((u) => u.id === selectedUser.id);
           if (updatedUser) setSelectedUser(updatedUser);
         }
       } else if (res && res.message) {
@@ -150,24 +149,10 @@ const PaymentManagement: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="font-semibold" style={{whiteSpace: 'nowrap'}}>Select User:</span>
-          <Select
-            value={selectedUser ? String(selectedUser.id) : ''}
-            onValueChange={val => {
-              const user = users.find(u => String(u.id) === val);
-              setSelectedUser(user || null);
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Choose user" />
-            </SelectTrigger>
-            <SelectContent>
-              {users.map(user => (
-                <SelectItem key={user.id} value={String(user.id)}>
-                  {getUserDisplayName(user)} ({user.role}) - ₹{user.balance.toLocaleString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <UserSearchDropdown
+            onSelect={setSelectedUser}
+            placeholder="Search user by name or phone"
+          />
         </div>
         {selectedUser && (
           <div className="flex items-center gap-4">
@@ -231,8 +216,7 @@ const PaymentManagement: React.FC = () => {
                           let dateStr = '';
                           const dateVal = s.createdAt || s.created_at;
                           if (dateVal) {
-                            const d = new Date(dateVal);
-                            dateStr = isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+                            dateStr = formatDate(dateVal);
                           }
                           const bal = typeof s.new_balance === 'number' ? s.new_balance : parseFloat(s.new_balance ?? '0');
                           const balanceStr = isNaN(bal) ? '0.00' : bal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -266,7 +250,7 @@ const PaymentManagement: React.FC = () => {
                       <TableBody>
                         {payments.map(p => (
                           <TableRow key={p.id}>
-                            <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell>{formatDate(p.created_at)}</TableCell>
                             <TableCell>₹{Number(p.amount).toLocaleString()}</TableCell>
                             <TableCell>{p.payer_type} → {p.payee_type}</TableCell>
                             <TableCell>{p.status}</TableCell>

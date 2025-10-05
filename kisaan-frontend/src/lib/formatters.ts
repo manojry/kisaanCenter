@@ -8,14 +8,7 @@ export function formatCurrency(value: number, currency: string = 'INR'): string 
   }).format(value);
 }
 
-export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+
 
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);

@@ -2,6 +2,7 @@ import React from 'react';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
+import { UserSearchDropdown } from '../../components/ui/UserSearchDropdown';
 
 interface ExpenseFormProps {
   expenseForm: {
@@ -18,8 +19,7 @@ interface ExpenseFormProps {
   }>>;
   handleAddExpense: () => void;
   isLoading: boolean;
-  users: Array<{ id: string | number; firstname?: string; username?: string }>;
-  usersLoading: boolean;
+  // users and usersLoading props are no longer needed
   reasons: Array<{ value: string; label: string }>;
   storeShop: { id?: string | number } | null;
 }
@@ -29,8 +29,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
   setExpenseForm,
   handleAddExpense,
   isLoading,
-  users,
-  usersLoading,
   reasons,
   storeShop
 }) => (
@@ -52,26 +50,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
     </div>
     <div>
       <Label htmlFor="expenseUser">User</Label>
-      <select
-        id="expenseUser"
-        value={expenseForm.userId}
-        onChange={e => setExpenseForm(f => ({ ...f, userId: e.target.value }))}
-        className="w-full border rounded px-2 py-1"
-        disabled={isLoading || usersLoading || users.length === 0}
-      >
-        {usersLoading || users.length === 0 ? (
-          <option value="">Loading users...</option>
-        ) : (
-          <>
-            <option value="">Select user</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.firstname ? u.firstname : (u.username ? u.username : String(u.id))}
-              </option>
-            ))}
-          </>
-        )}
-      </select>
+      <UserSearchDropdown
+        onSelect={user => setExpenseForm(f => ({ ...f, userId: String(user.id) }))}
+        placeholder="Search user..."
+      />
     </div>
     <div>
       <Label htmlFor="expenseAmount">Amount</Label>

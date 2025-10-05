@@ -102,7 +102,8 @@ export const shopProductsApi = {
       product_name: p.product_name ?? p.name,
       category: p.category || (p.category_id ? { id: p.category_id, name: typeof p.category_name === 'string' ? p.category_name : '' } : undefined),
       category_name: (p.category && p.category.name) || (typeof p.category_name === 'string' ? p.category_name : ''),
-      is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active')
+      is_active: typeof p.is_active !== 'undefined' ? !!p.is_active : (p.record_status === 'active'),
+  created_at: p.created_at ?? null
     }));
   },
   getAvailableProducts: async (shopId: number) => {

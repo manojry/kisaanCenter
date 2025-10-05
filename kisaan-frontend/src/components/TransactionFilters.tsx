@@ -1,21 +1,16 @@
 import React from 'react';
 import { Input } from '../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import type { User } from '../types/api';
+import { UserSearchDropdown } from '../components/ui/UserSearchDropdown';
 
 interface TransactionFiltersProps {
   filters: { search: string; from_date: string; to_date: string };
   setFilters: React.Dispatch<React.SetStateAction<{ search: string; from_date: string; to_date: string }>>;
-  users: User[];
-  selectedUser: string;
   setSelectedUser: (v: string) => void;
 }
 
 export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
   filters,
   setFilters,
-  users,
-  selectedUser,
   setSelectedUser,
 }) => (
   <div className="flex flex-wrap gap-2 items-center">
@@ -28,18 +23,11 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({
           className="pl-10 text-sm w-full sm:w-64"
         />
       </div>
-      <div className="ml-2 w-36">
-        <Select value={selectedUser} onValueChange={setSelectedUser}>
-          <SelectTrigger className="text-sm w-full">
-            <SelectValue placeholder="Select user" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All users</SelectItem>
-            {users.map(u => (
-              <SelectItem key={u.id} value={String(u.id)}>{u.firstname ? u.firstname : u.username}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="ml-2 w-56">
+        <UserSearchDropdown
+          onSelect={user => setSelectedUser(user ? String(user.id) : '')}
+          placeholder="Search and select user"
+        />
       </div>
     </div>
     <div className="flex gap-2 items-center">

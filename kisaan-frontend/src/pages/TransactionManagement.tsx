@@ -10,6 +10,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { transactionsApi } from '../services/api';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
 import type { User } from '../types/api';
+import { useUsers } from '../context/UsersContext';
 import { getUserDisplayNameById } from '../utils/userDisplayName';
 import type { Transaction } from '../types/api';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +24,7 @@ const TransactionManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
   const [selectedUser, setSelectedUser] = useState<string>('');
   const todayStr = getToday();
   const [filters, setFilters] = useState({ search: '', from_date: todayStr, to_date: todayStr });
@@ -89,20 +90,7 @@ const TransactionManagement: React.FC = () => {
     });
     setOpenRows(newState);
   }, [filters, selectedUser, currentPage, filteredTransactions.length]);
-  useEffect(() => {
-    fetchUsers();
-  }, [user?.shop_id]);
 
-  const fetchUsers = async () => {
-    if (!user?.shop_id) return;
-    try {
-      const response = await import('../services/api').then(m => m.usersApi.getAll({ shop_id: user.shop_id, limit: 100 }));
-      setUsers(response.data || []);
-    } catch (error) {
-      setUsers([]);
-      console.error('Error fetching users:', error);
-    }
-  };
 
   useEffect(() => {
     // Debounced filter change logic
@@ -282,9 +270,7 @@ const TransactionManagement: React.FC = () => {
       <TransactionFilters
         filters={filters}
         setFilters={setFilters}
-        selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
-        users={users}
       />
 
       <Card>

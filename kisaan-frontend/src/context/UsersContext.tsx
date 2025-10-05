@@ -8,13 +8,13 @@ interface UsersContextType {
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   isLoading: boolean;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  fetchUsers: (page?: number, limit?: number) => Promise<void>;
-  refreshUsers: (page?: number, limit?: number) => Promise<void>;
-  total: number;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
   pageSize: number;
   setPageSize: React.Dispatch<React.SetStateAction<number>>;
+  total: number;
+  setTotal: React.Dispatch<React.SetStateAction<number>>;
+  refreshUsers: (page?: number, pageSize?: number, filters?: Record<string, any>) => Promise<void>;
 }
 
 const UsersContext = createContext<UsersContextType | undefined>(undefined);
@@ -29,11 +29,12 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { isAuthenticated } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
 
-  const fetchUsers = async (pageArg?: number, limitArg?: number) => {
+  // Always fetch all users (limit=300) for global cache
+  const refreshUsers = async () => {
     if (!isAuthenticated) {
       setUsers([]);
       setIsLoading(false);
@@ -42,10 +43,9 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setIsLoading(true);
     try {
-      const response = await usersApi.getAll({ page: pageArg || page, limit: limitArg || pageSize });
-      // response is PaginatedResponse<User> with { data, total, page, limit, totalPages }
+  const response = await usersApi.getAll({ page: 1, limit: 100 });
       setUsers(response.data || []);
-      setTotal(response.total || 0);
+      setTotal(response.total ?? 0);
     } catch {
       setUsers([]);
       setTotal(0);
@@ -54,22 +54,31 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const refreshUsers = async (pageArg?: number, limitArg?: number) => {
-    await fetchUsers(pageArg, limitArg);
-  };
-
   useEffect(() => {
     if (isAuthenticated) {
-      fetchUsers();
+      refreshUsers();
     } else {
       setUsers([]);
       setIsLoading(false);
       setTotal(0);
     }
-  }, [isAuthenticated, page, pageSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return (
-  <UsersContext.Provider value={{ users, setUsers, isLoading, setIsLoading, fetchUsers, refreshUsers, total, page, setPage, pageSize, setPageSize }}>
+    <UsersContext.Provider value={{
+      users,
+      setUsers,
+      isLoading,
+      setIsLoading,
+      page,
+      setPage,
+      pageSize,
+      setPageSize,
+      total,
+      setTotal,
+      refreshUsers
+    }}>
       {children}
     </UsersContext.Provider>
   );
