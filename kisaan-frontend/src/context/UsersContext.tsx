@@ -62,7 +62,7 @@ export const UsersProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoading(false);
       setTotal(0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [isAuthenticated]);
 
   return (

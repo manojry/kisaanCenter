@@ -34,7 +34,6 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
   useEffect(() => {
     if (!show || filtered.length === 0) return;
     setActiveIndex(0);
-    // eslint-disable-next-line
   }, [show, query]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

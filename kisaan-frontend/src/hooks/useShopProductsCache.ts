@@ -7,8 +7,10 @@ import type { Product } from '../types/api';
 // Unified product type for all usages (API + local fields)
 // Removed unused ShopProduct type
 
+import type { ShopProduct } from '../types/api';
+
 interface ShopProductsCacheEntry {
-  data: Product[] | null;
+  data: (Product[] | ShopProduct[] | null);
   timestamp: number;
   isLoading: boolean;
   error: string | null;
@@ -83,7 +85,7 @@ export function useSharedShopProducts(shopId: number) {
               } : undefined,
             };
           });
-          entry.data = products as any; // ShopProduct[]
+          entry.data = products as ShopProduct[];
       entry.timestamp = Date.now();
       entry.error = null;
     } catch (error) {
