@@ -1,13 +1,12 @@
-import { Badge } from '../components/ui/badge';
+import { TransactionCardList } from '../components/TransactionCardList';
+import { getTransactionStatusColor } from '../utils/transactionStatusColors';
 import React, { useState, useEffect } from 'react';
 import { formatDisplayDate, getToday, formatDate } from '../utils/dateUtils';
-import { formatCurrency } from '../utils/format';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
+import { TransactionFilters } from '../components/TransactionFilters';
+import { TransactionTable } from '../components/TransactionTable';
 import { transactionsApi } from '../services/api';
 import { exportTransactionsPDF } from '../utils/pdf/transactionReport';
 import type { User } from '../types/api';
@@ -72,20 +71,6 @@ const TransactionManagement: React.FC = () => {
   // Row expansion state
   const [openRows, setOpenRows] = useState<{[key: string]: boolean}>({});
   const toggleRow = (rowKey: string) => setOpenRows(prev => ({ ...prev, [rowKey]: !prev[rowKey] }));
-  const collapseAll = () => {
-    const newState: {[key: string]: boolean} = {};
-    paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
-      newState[transaction.id + '-' + idx] = false;
-    });
-    setOpenRows(newState);
-  };
-  const expandAll = () => {
-    const newState: {[key: string]: boolean} = {};
-  paginatedTransactions.forEach((transaction: Transaction, idx: number) => {
-      newState[transaction.id + '-' + idx] = true;
-    });
-    setOpenRows(newState);
-  };
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -219,14 +204,6 @@ const TransactionManagement: React.FC = () => {
   }
   };
 
-  // Use global formatCurrency utility from utils/format
-  // Use formatDisplayDate from dateUtils for display
-  const formatDateDisplay = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    return formatDisplayDate(dateString);
-  }
-
-
   // Determine transaction status based on payment info
   const getTransactionStatus = (transaction: Transaction) => {
     if (transaction.deficit && Number(transaction.deficit) > 0) {
@@ -238,16 +215,7 @@ const TransactionManagement: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Buyer Due': return 'bg-red-100 text-red-800';
-      case 'Farmer Due': return 'bg-yellow-100 text-yellow-800';
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // Use global getTransactionStatusColor util
 
   useEffect(() => {
     const newState: {[key: string]: boolean} = {};
@@ -311,58 +279,13 @@ const TransactionManagement: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <Card className="mt-2">
-        <CardHeader className="py-2 px-3">
-        </CardHeader>
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center w-full sm:w-auto">
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search"
-                  value={filters.search}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="pl-10 text-sm w-full sm:w-64"
-                />
-              </div>
-              <div className="ml-2 w-36">
-                <Select
-                  value={selectedUser}
-                  onValueChange={setSelectedUser}
-                >
-                  <SelectTrigger className="text-sm w-full">
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All users</SelectItem>
-                    {users.map(u => (
-                      <SelectItem key={u.id} value={String(u.id)}>{u.firstname ? u.firstname : u.username}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Input
-                type="date"
-                placeholder="From date"
-                value={filters.from_date}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
-                className="text-sm w-32"
-              />
-              <span className="text-xs text-gray-500">to</span>
-              <Input
-                type="date"
-                placeholder="To date"
-                value={filters.to_date}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
-                className="text-sm w-32"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <TransactionFilters
+        filters={filters}
+        setFilters={setFilters}
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}
+        users={users}
+      />
 
       <Card>
         <CardHeader>
@@ -395,209 +318,23 @@ const TransactionManagement: React.FC = () => {
             <>
               {/* Desktop Table */}
               <div className="hidden sm:block overflow-x-auto">
-                <Table className="min-w-[700px] text-xs sm:text-sm">
-                  <TableHeader>
-                    <TableRow className="!py-1 !px-2">
-                      <TableHead className="!py-1 !px-2">Txn</TableHead>
-                      <TableHead colSpan={4} className="!py-1 !px-2"></TableHead>
-                      <TableHead className="text-right !py-1 !px-2" style={{ minWidth: 180 }}>
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const allOpen = Object.values(openRows).every(Boolean);
-                              if (allOpen) collapseAll(); else expandAll();
-                            }}
-                          >
-                            {Object.values(openRows).every(Boolean) ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
-                            {Object.values(openRows).every(Boolean) ? 'Collapse All' : 'Expand All'}
-                          </Button>
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedTransactions.map((transaction, idx) => {
-                      const derivedStatus = getTransactionStatus(transaction);
-                      const rowKey = transaction.id + '-' + idx;
-                      const open = openRows[rowKey] || false;
-                      // Find farmer user for firstname
-                      const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
-                const farmerName = farmerUser?.firstname?.trim() ? farmerUser.firstname : farmerUser?.username ?? '';
-                      return (
-                        <React.Fragment key={rowKey}>
-                          <TableRow>
-                            <TableCell colSpan={6} style={{ padding: 0 }}>
-                              <button
-                                type="button"
-                                className="flex items-center cursor-pointer py-2 px-1 w-full text-left focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
-                                aria-pressed={open}
-                                aria-label={open ? 'Collapse transaction details' : 'Expand transaction details'}
-                                tabIndex={0}
-                                onClick={() => {
-                                  toggleRow(rowKey);
-                                }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    toggleRow(rowKey);
-                                  }
-                                }}
-                                onTouchStart={() => {
-                                  toggleRow(rowKey);
-                                }}
-                              >
-                                <Badge className={getStatusColor(derivedStatus)} style={{ marginRight: 8 }}>{derivedStatus}</Badge>
-                                <span className="font-semibold mr-2">{farmerName}</span>
-                                {farmerUser && <Badge userType="FARMER" className="mr-2 align-middle" />}
-                                <span className="text-xs text-gray-500 mr-2">{formatDateDisplay(transaction.created_at)}</span>
-                                <span className="text-xs text-gray-500 mr-2">Product: {transaction.product_name}</span>
-                                <span className="font-medium mr-2">{formatCurrency(transaction.total_amount)}</span>
-                                {open ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
-                              </button>
-                            </TableCell>
-                          </TableRow>
-                          {open && (
-                            <TableRow>
-                              <TableCell colSpan={6} style={{ background: '#f9fafb', padding: '12px 16px' }}>
-                                <div className="grid grid-cols-3 gap-4 text-xs">
-                                  <div className="col-span-1">
-                                    <div>
-                                      <span className="font-medium">Buyer:</span> {getUserDisplayNameById(users, transaction.buyer_id)} {(() => {
-                                        const buyerUser = users.find(u => String(u.id) === String(transaction.buyer_id));
-                                        return buyerUser ? <Badge userType="BUYER" /> : null;
-                                      })()}
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Seller:</span> {getUserDisplayNameById(users, transaction.farmer_id)} {(() => {
-                                        const farmerUser = users.find(u => String(u.id) === String(transaction.farmer_id));
-                                        return farmerUser ? <Badge userType="FARMER" /> : null;
-                                      })()}
-                                    </div>
-                                  </div>
-                                  <div className="col-span-1">
-                                    {(() => {
-                                      // Map backend payments to summary fields
-                                      let buyerPaid = 0, buyerTotal = 0, farmerPaid = 0, farmerTotal = 0;
-                                      if (transaction.payments && transaction.payments.length > 0) {
-                                        transaction.payments.forEach(p => {
-                                          if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') {
-                                            buyerPaid += Number(p.amount);
-                                            buyerTotal += Number(p.amount);
-                                          }
-                                          if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') {
-                                            farmerPaid += Number(p.amount);
-                                            farmerTotal += Number(p.amount);
-                                          }
-                                        });
-                                      }
-                                      // Use transaction.total_amount for buyer total, transaction.farmer_earning for farmer total if available
-                                      if (transaction.total_amount) buyerTotal = Number(transaction.total_amount);
-                                      if (transaction.farmer_earning) farmerTotal = Number(transaction.farmer_earning);
-                                      const buyerPending = buyerTotal - buyerPaid;
-                                      const farmerPending = farmerTotal - farmerPaid;
-                                      return (
-                                        <>
-                                          <div><span className="font-medium">Buyer Paid:</span> {formatCurrency(buyerPaid)}</div>
-                                          <div><span className="font-medium">Buyer Pending:</span> {formatCurrency(buyerPending)}</div>
-                                          <div><span className="font-medium">Farmer Paid:</span> {formatCurrency(farmerPaid)}</div>
-                                          <div><span className="font-medium">Farmer Pending:</span> {formatCurrency(farmerPending)}</div>
-                                        </>
-                                      );
-                                    })()}
-                                  </div>
-                                  <div className="col-span-1">
-                                    <span className="font-medium">Payments:</span>
-                                    {transaction.payments && transaction.payments.length > 0 ? (
-                                      <ul className="mt-1 ml-2 list-disc">
-                                        {transaction.payments.map((p, i) => {
-                                          const renderParty = (type: string) => {
-                                            if (type === 'BUYER' || type === 'FARMER' || type === 'SHOP') return <Badge userType={type} />;
-                                            // fallback: show user name for unknown type
-                                            // Try to resolve user id from payment context
-                                            if (type === String(transaction.buyer_id)) return getUserDisplayNameById(users, transaction.buyer_id);
-                                            if (type === String(transaction.farmer_id)) return getUserDisplayNameById(users, transaction.farmer_id);
-                                            return type;
-                                          };
-                                    const payer = renderParty(String(p.payer_type));
-                                    const payee = renderParty(String(p.payee_type));
-                                          return (
-                                            <li key={i} className="mb-1 flex items-center gap-1">
-                                              <span className="font-medium flex items-center gap-1">{payer} <span className="mx-1">→</span> {payee}:</span> {formatCurrency(p.amount)}
-                                              {' '}<span className="text-gray-500">({p.method}{p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : ''})</span>
-                                            </li>
-                                          );
-                                        })}
-                                      </ul>
-                                    ) : (
-                                      <span className="text-gray-400 text-xs">No payments</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <TransactionTable
+                  paginatedTransactions={paginatedTransactions}
+                  openRows={openRows}
+                  toggleRow={toggleRow}
+                  users={users}
+                  getTransactionStatus={getTransactionStatus}
+                  getTransactionStatusColor={getTransactionStatusColor}
+                />
               </div>
               {/* Mobile Card/List Layout */}
               <div className="block sm:hidden space-y-3 w-full">
-                 {paginatedTransactions.map((transaction, idx) => {
-                  const derivedStatus = getTransactionStatus(transaction);
-                  return (
-                    <div key={transaction.id + '-' + idx} className="rounded-lg border p-3 bg-white shadow-sm w-full mx-auto break-words">
-                      <div className="flex justify-between items-center mb-1 gap-2">
-                        <span className="font-semibold text-base break-words max-w-[60%] truncate">{transaction.product_name}</span>
-                        <Badge className={getStatusColor(derivedStatus)}>{derivedStatus}</Badge>
-                      </div>
-                      <div className="text-xs text-gray-500 mb-1 break-words">{formatDateDisplay(transaction.created_at)}</div>
-                      <div className="flex flex-wrap gap-2 text-xs mb-1">
-            <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_amount)}</div>
-                        <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
-                        <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
-                        <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
-                        <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Pending:</span> {formatCurrency(transaction.farmer_due)}</div>
-                      </div>
-                      <div className="text-xs break-words">
-                        <span className="font-medium">Payments:</span> {transaction.payments && transaction.payments.length > 0 ? (
-                          <span>
-                            {(() => {
-                              const first = transaction.payments[0];
-                              let label = '';
-                              if (first.payer_type === 'BUYER' && first.payee_type === 'SHOP') label = 'Paid by Buyer';
-                              else if (first.payer_type === 'SHOP' && first.payee_type === 'FARMER') label = 'Paid to Farmer';
-                              else if (first.payer_type === 'SHOP' && first.payee_type === 'SHOP') label = 'Commission';
-                              else label = `Paid by ${first.payer_type} to ${first.payee_type}`;
-                              return (
-                                <>
-                                      {label}: {formatCurrency(first.amount)} ({first.method}{first.payment_date ? `, ${formatDisplayDate(first.payment_date)}` : ''})
-                                  {transaction.payments.length > 1 && (
-                                    <span title={transaction.payments.slice(1).map(p => {
-                                      let l = '';
-                                      if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') l = 'Paid by Buyer';
-                                      else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') l = 'Paid to Farmer';
-                                      else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') l = 'Commission';
-                                      else l = `Paid by ${p.payer_type} to ${p.payee_type}`;
-                                          return `${l}: ${formatCurrency(p.amount)} (${p.method}${p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : ''})`;
-                                    }).join('\n')}>
-                                      {" "}+{transaction.payments.length - 1} more
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">No payments</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                <TransactionCardList
+                  paginatedTransactions={paginatedTransactions}
+                  users={users}
+                  getTransactionStatus={getTransactionStatus}
+                  getTransactionStatusColor={getTransactionStatusColor}
+                />
               </div>
             </>
           )}
