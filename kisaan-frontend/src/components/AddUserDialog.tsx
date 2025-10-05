@@ -63,7 +63,7 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
         created_by: user?.id,
         status: 'active',
         // Convert commission_rate to number if provided, otherwise null
-        commission_rate: formData.commission_rate ? parseFloat(formData.commission_rate) : null
+  commission_rate: formData.commission_rate ? parseFloat(formData.commission_rate) : 10
       };
 
       await apiClient.post('/users', userData);
