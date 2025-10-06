@@ -92,14 +92,11 @@ export const useSharedUsers = (options: UseSharedUsersOptions = {}): UseSharedUs
 
   const fetchUsers = useCallback(async () => {
     if (!enabled) return;
-    
     try {
       usersCache.setLoading(true);
-      
-  const params: Record<string, unknown> = {};
+      const params: Record<string, unknown> = { limit: 100 };
       if (shop_id) params.shop_id = shop_id;
       if (roles?.length) params.role = roles.join(',');
-      
       const response = await usersApi.getAll(params);
       usersCache.setData(response.data || []);
     } catch (error) {

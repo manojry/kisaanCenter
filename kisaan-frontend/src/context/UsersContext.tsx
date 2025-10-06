@@ -57,7 +57,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
             page++;
           }
         }
-        setAllUsers(allFetchedUsers);
+  setAllUsers(allFetchedUsers);
         setTotal(total);
         setAllUsersFetched(allFetchedUsers.length >= total);
         setTimeout(() => {
@@ -65,7 +65,6 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
         }, 0);
       }
     } catch (err) {
-  // ...removed log...
       setAllUsers([]);
       setTotal(0);
     } finally {
