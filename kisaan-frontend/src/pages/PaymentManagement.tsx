@@ -1,4 +1,4 @@
-import { getUserDisplayName } from '../utils/userDisplayName';
+import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
 import type { BalanceSnapshot } from '../types/api';
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
@@ -93,7 +93,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment to ${getUserDisplayName(selectedUser)}`,
+          notes: `Payment to ${getUserDisplayWithRoleAndId(selectedUser)}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };
@@ -104,7 +104,7 @@ const PaymentManagement: React.FC = () => {
           amount: parseFloat(paymentAmount),
           method: paymentMethod,
           status: 'PAID',
-          notes: `Payment from ${getUserDisplayName(selectedUser)}`,
+          notes: `Payment from ${getUserDisplayWithRoleAndId(selectedUser)}`,
           counterparty_id: Number(selectedUser.id),
           shop_id: shopId
         };

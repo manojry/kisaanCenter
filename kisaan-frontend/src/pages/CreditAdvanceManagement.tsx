@@ -1,4 +1,4 @@
-import { getUserDisplayName } from '../utils/userDisplayName';
+import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
 import React, { useEffect, useState } from 'react';
 import type { User } from '../types/api';
 import { useTransactionStore } from '../store/transactionStore';
@@ -141,7 +141,7 @@ const CreditAdvanceManagement: React.FC = () => {
             <SelectContent>
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
-                  {getUserDisplayName(user)} ({user.role})
+                  {getUserDisplayWithRoleAndId(user)}
                 </SelectItem>
               ))}
             </SelectContent>

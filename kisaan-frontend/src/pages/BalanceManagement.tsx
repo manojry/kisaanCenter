@@ -1,4 +1,4 @@
-import { getUserDisplayName } from '../utils/userDisplayName';
+import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
 
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
@@ -186,7 +186,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
               {pagedUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
-                    {getUserDisplayName(user)}
+                    {getUserDisplayWithRoleAndId(user)}
                     <Badge variant="outline" className={`ml-2 ${getRoleBadgeClass(user.role)}`}>
                       {user.role}
                     </Badge>

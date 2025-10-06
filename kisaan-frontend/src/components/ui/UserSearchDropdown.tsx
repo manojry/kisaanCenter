@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from './input';
 import type { User } from '../../types/api';
 import { useUsers } from '../../context/useUsers';
+import { getUserDisplayWithRoleAndId } from '../../utils/userDisplayName';
 
 
 interface UserSearchDropdownProps {
@@ -71,7 +72,7 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
   return (
     <div className="relative w-56">
       <Input
-        value={selectedUser ? (selectedUser.firstname || selectedUser.username) : query}
+        value={selectedUser ? getUserDisplayWithRoleAndId(selectedUser) : query}
         onChange={e => {
           setQuery(e.target.value);
           setSelectedUser(null);
@@ -112,7 +113,7 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
                 onClick={() => { setSelectedUser(user); onSelect(user); setShow(false); setQuery(''); }}
                 onMouseEnter={() => setActiveIndex(idx)}
               >
-                {user.firstname || user.username} ({user.role})
+                {getUserDisplayWithRoleAndId(user)}
               </div>
             ))
           )}

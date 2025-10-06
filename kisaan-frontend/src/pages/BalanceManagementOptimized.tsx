@@ -1,4 +1,4 @@
-import { getUserDisplayName } from '../utils/userDisplayName';
+import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
 
 import React, { useState, useEffect } from 'react';
 
@@ -127,7 +127,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
               {users.map(user => (
                 <SelectItem key={user.id} value={String(user.id)}>
                   <div className="flex items-center gap-2">
-                    <span>{getUserDisplayName(user)}</span>
+                    <span>{getUserDisplayWithRoleAndId(user)}</span>
                     <Badge className={getRoleBadgeClass(user.role)}>
                       {user.role}
                     </Badge>
@@ -182,7 +182,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
                         className={selectedUser?.id === user.id ? 'bg-blue-50' : ''}
                       >
                         <TableCell className="font-medium">
-                          {getUserDisplayName(user)}
+                          {getUserDisplayWithRoleAndId(user)}
                         </TableCell>
                         <TableCell>
                           <Badge className={getRoleBadgeClass(user.role)}>
@@ -270,7 +270,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = ({ shopId }) => {
         <Card>
           <CardHeader>
             <CardTitle>
-              Balance History - {getUserDisplayName(selectedUser)}
+              Balance History - {getUserDisplayWithRoleAndId(selectedUser)}
             </CardTitle>
           </CardHeader>
           <CardContent>
