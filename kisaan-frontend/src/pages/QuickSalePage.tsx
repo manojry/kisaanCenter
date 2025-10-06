@@ -53,6 +53,15 @@ function QuickSalePageInner() {
     );
   }
   
+  const mappedProducts = (products || []).map((p: any) => ({
+    id: p.id,
+    name: p.name || p.product_name || '',
+    category_id: p.category_id,
+    record_status: p.record_status,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }));
+
   return (
     <Card className="w-full max-w-2xl mx-auto px-2 sm:px-0">
       <CardHeader>
@@ -76,7 +85,7 @@ function QuickSalePageInner() {
               farmers={farmers}
               buyers={buyers}
               categories={categories}
-              products={products}
+              products={mappedProducts}
               values={{
                 farmer_id: formData.farmer_id,
                 buyer_id: formData.buyer_id,

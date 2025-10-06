@@ -43,6 +43,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     useSimplifiedApi: false,
   });
 
+  // Map ShopProduct[] to Product[] for TransactionPartySelectors
+  const mappedProducts = (products || []).map((p: any) => ({
+    id: p.id,
+    name: p.name || p.product_name || '',
+    category_id: p.category_id,
+    record_status: p.record_status,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }));
+
   if (error) {
     return (
       <div className="p-6">
@@ -74,7 +84,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
               farmers={farmers}
               buyers={buyers}
               categories={categories}
-              products={formData.category_id ? products.filter(p => p.category_id === formData.category_id) : products}
+              products={formData.category_id ? mappedProducts.filter(p => p.category_id === formData.category_id) : mappedProducts}
               values={{
                 farmer_id: formData.farmer_id,
                 buyer_id: formData.buyer_id,
