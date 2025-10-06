@@ -33,6 +33,7 @@ import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import OwnerSettings from './pages/OwnerSettings';
 import { Toaster } from './components/ui/toaster';
+import TransactionManagementOptimized from './pages/TransactionManagementOptimized';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
@@ -89,7 +90,7 @@ const AppRoutes = () => {
         } />
         <Route path="/transactions" element={
           <ProtectedRoute allowedRoles={['owner']}>
-            <TransactionManagement key="transactions" />
+            <TransactionManagementOptimized key="transactions" />
           </ProtectedRoute>
         } />
         <Route path="/users" element={

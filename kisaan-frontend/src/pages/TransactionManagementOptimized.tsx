@@ -30,7 +30,7 @@ const TransactionManagement = (): React.ReactElement => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<string>('');
+    const [selectedUser, setSelectedUser] = useState<string>('all');
   const todayStr = getToday();
   const [filters, setFilters] = useState({ search: '', from_date: todayStr, to_date: todayStr });
 
@@ -54,7 +54,7 @@ const TransactionManagement = (): React.ReactElement => {
     let filtered = transactions;
 
     // Filter by selected user
-    if (selectedUser) {
+      if (selectedUser && selectedUser !== 'all') {
       filtered = filtered.filter((txn: Transaction) => 
         String(txn.buyer_id) === selectedUser || String(txn.farmer_id) === selectedUser
       );
@@ -243,7 +243,7 @@ const TransactionManagement = (): React.ReactElement => {
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All users</SelectItem>
+                  <SelectItem value="all">All users</SelectItem>
                   {users.map((user: User) => (
                     <SelectItem key={user.id} value={String(user.id)}>
                       {user.firstname || user.username} ({user.role})
@@ -286,20 +286,41 @@ const TransactionManagement = (): React.ReactElement => {
           )}
         </p>
         
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={collapseAll}>
-            <ChevronUp className="w-4 h-4 mr-1" />
-            Collapse All
-          </Button>
-          <Button variant="outline" size="sm" onClick={expandAll}>
-            <ChevronDown className="w-4 h-4 mr-1" />
-            Expand All
-          </Button>
-        </div>
+        {paginatedTransactions.length > 0 && (
+          <div className="flex gap-2">
+            {Object.values(openRows).some(Boolean) ? (
+              <Button variant="outline" size="sm" onClick={collapseAll}>
+                <ChevronUp className="w-4 h-4 mr-1" />
+                Collapse All
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={expandAll}>
+                <ChevronDown className="w-4 h-4 mr-1" />
+                Expand All
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Transactions Table */}
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-base sm:text-lg">
+            <span>Transactions ({filteredTransactions.length})</span>
+            {totalPages > 1 && (
+              <div className="flex gap-2 items-center ml-4">
+                <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}>
+                  Prev
+                </Button>
+                <span className="text-xs">Page {currentPage} of {totalPages}</span>
+                <Button size="sm" variant="outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -349,15 +370,35 @@ const TransactionManagement = (): React.ReactElement => {
                           <TableCell>
                             {formatDisplayDate(transaction.created_at)}
                           </TableCell>
-                          <TableCell>{transaction.product_name}</TableCell>
-                          <TableCell>{transaction.buyer_name}</TableCell>
-                          <TableCell>{transaction.farmer_name}</TableCell>
+                          <TableCell>{
+                            transaction.product_name && transaction.product_name !== 'undefined'
+                              ? transaction.product_name
+                              : (transaction.product_id || 'Unknown')
+                          }</TableCell>
+                          <TableCell>{
+                            (transaction.buyer_name && transaction.buyer_name !== 'undefined')
+                              ? transaction.buyer_name
+                              : (
+                                  users.find((u: User) => String(u.id) === String(transaction.buyer_id))?.firstname ||
+                                  users.find((u: User) => String(u.id) === String(transaction.buyer_id))?.username ||
+                                  transaction.buyer_id || 'Unknown'
+                                )
+                          }</TableCell>
+                          <TableCell>{
+                            (() => {
+                              const farmerUser = users.find((u: User) => String(u.id) === String(transaction.farmer_id));
+                              if (farmerUser) {
+                                return farmerUser.firstname || farmerUser.username || transaction.farmer_id || 'Unknown';
+                              }
+                              return transaction.farmer_id || 'Unknown';
+                            })()
+                          }</TableCell>
                           <TableCell className="font-semibold">
-                            ₹{transaction.total_sale_value?.toFixed(2)}
+                            ₹{(transaction.total_sale_value ?? transaction.total_amount ?? 0).toFixed(2)}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {transaction.payments?.length > 0 ? 'Has Payments' : 'Pending'}
+                              {transaction.payments?.length > 0 ? 'Paid' : 'Pending'}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -370,11 +411,16 @@ const TransactionManagement = (): React.ReactElement => {
                                 <div>
                                   <h4 className="font-semibold mb-2">Transaction Details</h4>
                                   <div className="space-y-1 text-sm">
+                                    <p><strong>Product:</strong> {transaction.product_name}</p>
                                     <p><strong>Quantity:</strong> {transaction.quantity} kg</p>
-                                    <p><strong>Rate:</strong> ₹{transaction.rate}/kg</p>
-                                    <p><strong>Buyer Paid:</strong> ₹{transaction.buyer_paid}</p>
-                                    <p><strong>Farmer Paid:</strong> ₹{transaction.farmer_paid}</p>
-                                    <p><strong>Farmer Due:</strong> ₹{transaction.farmer_due}</p>
+                                    <p><strong>Unit Price:</strong> ₹{transaction.unit_price}</p>
+                                    <p><strong>Sale Value:</strong> ₹{transaction.total_sale_value ?? transaction.total_amount}</p>
+                                    <p><strong>Farmer Earning:</strong> ₹{transaction.farmer_earning}</p>
+                                    <p><strong>Commission:</strong> ₹{transaction.commission_amount} ({transaction.commission_rate}%)</p>
+                                    <p><strong>Status:</strong> {transaction.status}</p>
+                                    <p><strong>Buyer Paid:</strong> ₹{transaction.buyer_paid ?? (transaction.payments?.filter(p => p.payer_type === 'BUYER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)}</p>
+                                    <p><strong>Farmer Paid:</strong> ₹{transaction.farmer_paid ?? (transaction.payments?.filter(p => p.payee_type === 'FARMER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)}</p>
+                                    <p><strong>Farmer Due:</strong> ₹{transaction.farmer_due ?? ((transaction.farmer_earning || 0) - (transaction.farmer_paid ?? (transaction.payments?.filter(p => p.payee_type === 'FARMER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)))}</p>
                                   </div>
                                 </div>
                                 
@@ -386,10 +432,11 @@ const TransactionManagement = (): React.ReactElement => {
                                         <div key={pidx} className="text-sm p-2 bg-white rounded border">
                                           <p><strong>Amount:</strong> ₹{payment.amount}</p>
                                           <p><strong>Method:</strong> {payment.method}</p>
+                                          <p><strong>Status:</strong> {payment.status}</p>
                                           <p><strong>From:</strong> {payment.payer_type}</p>
                                           <p><strong>To:</strong> {payment.payee_type}</p>
-                                          {payment.payment_date && (
-                                            <p><strong>Date:</strong> {formatDisplayDate(payment.payment_date)}</p>
+                                          {payment.created_at && (
+                                            <p><strong>Date:</strong> {formatDisplayDate(payment.created_at)}</p>
                                           )}
                                         </div>
                                       ))}
