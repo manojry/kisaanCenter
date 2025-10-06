@@ -376,13 +376,13 @@ const TransactionManagement = (): React.ReactElement => {
                               : (transaction.product_id || 'Unknown')
                           }</TableCell>
                           <TableCell>{
-                            (transaction.buyer_name && transaction.buyer_name !== 'undefined')
-                              ? transaction.buyer_name
-                              : (
-                                  users.find((u: User) => String(u.id) === String(transaction.buyer_id))?.firstname ||
-                                  users.find((u: User) => String(u.id) === String(transaction.buyer_id))?.username ||
-                                  transaction.buyer_id || 'Unknown'
-                                )
+                            (() => {
+                              const buyerUser = users.find((u: User) => String(u.id) === String(transaction.buyer_id));
+                              if (buyerUser) {
+                                return buyerUser.firstname || buyerUser.username || transaction.buyer_id || 'Unknown';
+                              }
+                              return transaction.buyer_id || 'Unknown';
+                            })()
                           }</TableCell>
                           <TableCell>{
                             (() => {

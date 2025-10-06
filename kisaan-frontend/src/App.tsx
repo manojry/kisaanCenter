@@ -13,7 +13,6 @@ import ReportsPage from './pages/Reports';
 import ExpensesPage from './pages/Expenses';
 import BalanceManagement from './pages/BalanceManagement';
 import PaymentManagement from './pages/PaymentManagement';
-import TransactionManagement from './pages/TransactionManagement';
 import QuickSalePage from './pages/QuickSalePage';
 import SuperadminDashboard from './pages/SuperadminDashboard';
 import SuperadminShops from './pages/SuperadminShops';
