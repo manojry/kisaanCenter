@@ -177,6 +177,7 @@ export function useTransactionFormLogic({
         farmer_id: formData.farmer_id,
         buyer_id: formData.buyer_id,
         category_id: formData.category_id || 1,
+        product_id: formData.product_id,
         product_name: formData.product_name,
         quantity: formData.quantity,
         unit_price: formData.unit_price,
