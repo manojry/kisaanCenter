@@ -1,4 +1,3 @@
-
 import { User } from '../models/user';
 import { Payment } from '../models/payment';
 import { Transaction } from '../models/transaction';
@@ -7,8 +6,9 @@ import { logger } from '../shared/logging/logger';
 import { AuditLog } from '../models/auditLog';
 import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '../dtos';
 import { Op } from 'sequelize';
+import { PARTY_TYPE } from '../shared/partyTypes';
 import BalanceSnapshot from '../models/balanceSnapshot';
-
+import { TransactionService } from './transactionService';
 
 
 
@@ -53,21 +53,45 @@ export class PaymentService {
       new_values: JSON.stringify(payment.toJSON())
     });
 
+    // Update transaction status if applicable
+    if (payment.transaction_id) {
+      const transaction = await Transaction.findByPk(payment.transaction_id);
+      if (transaction) {
+        // Get all payments for this transaction
+        const payments = await Payment.findAll({ where: { transaction_id: transaction.id, status: 'PAID' } });
+        const buyerPaid = payments
+          .filter(p => p.payer_type === PARTY_TYPE.BUYER)
+          .reduce((sum, p) => sum + Number(p.amount), 0);
+        const farmerPaid = payments
+          .filter(p => p.payee_type === PARTY_TYPE.FARMER)
+          .reduce((sum, p) => sum + Number(p.amount), 0);
+
+        if (
+          buyerPaid >= Number(transaction.total_amount) &&
+          farmerPaid >= Number(transaction.farmer_earning)
+        ) {
+          // Update status to 'paid'
+          const txnService = new TransactionService();
+          await txnService.updateTransactionStatus(transaction.id, 'paid');
+        }
+      }
+    }
+
     return payment.toJSON() as PaymentResponseDTO;
   }
 
   private async updateUserBalancesAfterPayment(payment: Payment): Promise<void> {
-    let userIdToUpdate: number | null = null;
-    let userRole: 'buyer' | 'farmer' | null = null;
+  let userIdToUpdate: number | null = null;
+  let userRole: typeof PARTY_TYPE.BUYER | typeof PARTY_TYPE.FARMER | null = null;
 
-    if (payment.payer_type === 'BUYER' && payment.payee_type === 'SHOP') {
+    if (payment.payer_type === PARTY_TYPE.BUYER && payment.payee_type === PARTY_TYPE.SHOP) {
       // Buyer pays shop: reduce buyer's balance (buyer owes less)
       userIdToUpdate = payment.counterparty_id;
-      userRole = 'buyer';
-    } else if (payment.payer_type === 'SHOP' && payment.payee_type === 'FARMER') {
+      userRole = PARTY_TYPE.BUYER;
+    } else if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
       // Shop pays farmer: reduce farmer's balance (farmer is owed less)
       userIdToUpdate = payment.counterparty_id;
-      userRole = 'farmer';
+      userRole = PARTY_TYPE.FARMER;
     }
 
     if (userIdToUpdate && userRole) {
@@ -80,10 +104,10 @@ export class PaymentService {
 
       let newBalance = previousBalance;
       const paymentAmount = Number(payment.amount);
-      if (userRole === 'farmer') {
+      if (userRole === PARTY_TYPE.FARMER) {
         // Subtract payment from farmer's balance (pending amount)
         newBalance = previousBalance - paymentAmount;
-      } else if (userRole === 'buyer') {
+      } else if (userRole === PARTY_TYPE.BUYER) {
         // Subtract payment from buyer's balance (pending amount)
         newBalance = previousBalance - paymentAmount;
       }
@@ -97,10 +121,10 @@ export class PaymentService {
       // Create balance snapshot with error handling
       try {
         const amountChange = newBalance - previousBalance;
-        if (amountChange !== 0) {
+        if (amountChange !== 0 && (userRole === PARTY_TYPE.BUYER || userRole === PARTY_TYPE.FARMER)) {
           await BalanceSnapshot.create({
             user_id: userIdToUpdate,
-            balance_type: userRole,
+            balance_type: userRole === PARTY_TYPE.BUYER ? 'buyer' : 'farmer',
             previous_balance: previousBalance,
             amount_change: amountChange,
             new_balance: newBalance,
@@ -115,13 +139,13 @@ export class PaymentService {
         console.warn(`[BALANCE SNAPSHOT WARNING] Could not create snapshot for user ${userIdToUpdate}:`, error?.message || 'Unknown error');
       }
 
-      console.log(`[${userRole.toUpperCase()} BALANCE UPDATE] UserID: ${userIdToUpdate}, New Balance: ${newBalance}`);
+  console.log(`[${userRole.toUpperCase()} BALANCE UPDATE] UserID: ${userIdToUpdate}, New Balance: ${newBalance}`);
     }
   }
 
   private async allocatePaymentToTransactions(payment: Payment): Promise<void> {
     // Only allocate buyer payments to shop (these fund commission realization)
-    if (payment.payer_type !== 'BUYER' || payment.payee_type !== 'SHOP') {
+    if (payment.payer_type !== PARTY_TYPE.BUYER || payment.payee_type !== PARTY_TYPE.SHOP) {
       return;
     }
 
@@ -338,7 +362,7 @@ export class PaymentService {
     options?: { startDate?: Date; endDate?: Date }
   ): Promise<{ totalPayments: number; totalPaid: number; payments: PaymentResponseDTO[] }> {
     const where: Record<string, unknown> = {
-      payer_type: 'BUYER',
+      payer_type: PARTY_TYPE.BUYER,
       status: { [Op.not]: 'FAILED' }
     };
     if (options?.startDate && options?.endDate) {

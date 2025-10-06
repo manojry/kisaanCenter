@@ -1,3 +1,6 @@
+// DRY helpers for robust name/value mapping (matches card, PDF, and table logic)
+// DRY helpers for robust name/value mapping (matches card, PDF, and table logic)
+import * as txnHelpers from '../utils/transactionHelpers';
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatDisplayDate, getToday } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -109,41 +112,19 @@ const TransactionManagement = (): React.ReactElement => {
   // (Removed empty useEffect that was causing a type error)
 
   // PDF Export using utility (transactions already come enriched with user names)
+  // Use robust fallback for buyer/farmer/shop names (matches card/table logic)
+  // Use getUserDisplayNameById for user/shop name resolution
   const handleExportPDF = () => {
-  const enriched = filteredTransactions.map((txn: Transaction & { buyer_name?: string; farmer_name?: string; total_sale_value?: number; buyer_paid?: number; deficit?: number; farmer_paid?: number; farmer_due?: number; }) => ({
-      id: txn.id,
-      transaction_id: txn.id,
-      created_at: formatDisplayDate(txn.created_at),
-      product_name: txn.product_name,
-      buyer_name: txn.buyer_name || 'Unknown',
-      farmer_name: txn.farmer_name || 'Unknown',
-      total_sale_value: txn.total_sale_value,
-      buyer_paid: txn.buyer_paid,
-      deficit: txn.deficit,
-      farmer_paid: txn.farmer_paid,
-      farmer_due: txn.farmer_due,
-  payments: (txn.payments || []).map((p: Payment) => {
-        const payer = String(p.payer_type) === 'BUYER' ? txn.buyer_name : 
-                     String(p.payer_type) === 'FARMER' ? txn.farmer_name : 
-                     String(p.payer_type) === 'SHOP' ? 'Shop' : String(p.payer_type);
-        const payee = String(p.payee_type) === 'BUYER' ? txn.buyer_name : 
-                     String(p.payee_type) === 'FARMER' ? txn.farmer_name : 
-                     String(p.payee_type) === 'SHOP' ? 'Shop' : String(p.payee_type);
-        return {
-          payer,
-          payee,
-          amount: p.amount,
-          method: p.method,
-          payment_date: p.payment_date ? formatDisplayDate(p.payment_date) : undefined,
-        };
-      })
-    }));
-    
-    exportTransactionsPDF(enriched, {
-      title: 'Transactions Report',
-      generatedBy: user?.username,
-      dateRange: { from: filters.from_date, to: filters.to_date }
-    });
+    // Pass raw filteredTransactions and users to let exportTransactionsPDF handle enrichment
+    exportTransactionsPDF(
+      filteredTransactions,
+      {
+        title: 'Transactions Report',
+        generatedBy: user?.username,
+        dateRange: { from: filters.from_date, to: filters.to_date }
+      },
+      users
+    );
   };
 
   if (error) {
@@ -206,10 +187,11 @@ const TransactionManagement = (): React.ReactElement => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Search</label>
+              <label htmlFor="search-input" className="block text-sm font-medium mb-1">Search</label>
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
+                  id="search-input"
                   placeholder="Search transactions..."
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
@@ -219,8 +201,9 @@ const TransactionManagement = (): React.ReactElement => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-1">From Date</label>
+              <label htmlFor="from-date-input" className="block text-sm font-medium mb-1">From Date</label>
               <Input
+                id="from-date-input"
                 type="date"
                 value={filters.from_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, from_date: e.target.value }))}
@@ -228,8 +211,9 @@ const TransactionManagement = (): React.ReactElement => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-1">To Date</label>
+              <label htmlFor="to-date-input" className="block text-sm font-medium mb-1">To Date</label>
               <Input
+                id="to-date-input"
                 type="date"
                 value={filters.to_date}
                 onChange={(e) => setFilters(prev => ({ ...prev, to_date: e.target.value }))}
@@ -237,9 +221,9 @@ const TransactionManagement = (): React.ReactElement => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-1">Filter by User</label>
+              <label htmlFor="user-select" className="block text-sm font-medium mb-1">Filter by User</label>
               <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger>
+                <SelectTrigger id="user-select">
                   <SelectValue placeholder="All users" />
                 </SelectTrigger>
                 <SelectContent>
@@ -347,7 +331,6 @@ const TransactionManagement = (): React.ReactElement => {
                   paginatedTransactions.map((transaction: Transaction, idx: number) => {
                     const rowKey = transaction.id + '-' + idx;
                     const isExpanded = openRows[rowKey] || false;
-                    
                     return (
                       <React.Fragment key={rowKey}>
                         <TableRow className="cursor-pointer hover:bg-gray-50">
@@ -375,24 +358,8 @@ const TransactionManagement = (): React.ReactElement => {
                               ? transaction.product_name
                               : (transaction.product_id || 'Unknown')
                           }</TableCell>
-                          <TableCell>{
-                            (() => {
-                              const buyerUser = users.find((u: User) => String(u.id) === String(transaction.buyer_id));
-                              if (buyerUser) {
-                                return buyerUser.firstname || buyerUser.username || transaction.buyer_id || 'Unknown';
-                              }
-                              return transaction.buyer_id || 'Unknown';
-                            })()
-                          }</TableCell>
-                          <TableCell>{
-                            (() => {
-                              const farmerUser = users.find((u: User) => String(u.id) === String(transaction.farmer_id));
-                              if (farmerUser) {
-                                return farmerUser.firstname || farmerUser.username || transaction.farmer_id || 'Unknown';
-                              }
-                              return transaction.farmer_id || 'Unknown';
-                            })()
-                          }</TableCell>
+                          <TableCell>{txnHelpers.getBuyerName(users, transaction) || transaction.buyer_id || 'Unknown'}</TableCell>
+                          <TableCell>{txnHelpers.getFarmerName(users, transaction) || transaction.farmer_id || 'Unknown'}</TableCell>
                           <TableCell className="font-semibold">
                             ₹{(transaction.total_sale_value ?? transaction.total_amount ?? 0).toFixed(2)}
                           </TableCell>
@@ -402,7 +369,6 @@ const TransactionManagement = (): React.ReactElement => {
                             </Badge>
                           </TableCell>
                         </TableRow>
-                        
                         {/* Expanded row details */}
                         {isExpanded && (
                           <TableRow>
@@ -418,28 +384,45 @@ const TransactionManagement = (): React.ReactElement => {
                                     <p><strong>Farmer Earning:</strong> ₹{transaction.farmer_earning}</p>
                                     <p><strong>Commission:</strong> ₹{transaction.commission_amount} ({transaction.commission_rate}%)</p>
                                     <p><strong>Status:</strong> {transaction.status}</p>
-                                    <p><strong>Buyer Paid:</strong> ₹{transaction.buyer_paid ?? (transaction.payments?.filter(p => p.payer_type === 'BUYER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)}</p>
-                                    <p><strong>Farmer Paid:</strong> ₹{transaction.farmer_paid ?? (transaction.payments?.filter(p => p.payee_type === 'FARMER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)}</p>
-                                    <p><strong>Farmer Due:</strong> ₹{transaction.farmer_due ?? ((transaction.farmer_earning || 0) - (transaction.farmer_paid ?? (transaction.payments?.filter(p => p.payee_type === 'FARMER').reduce((sum, p) => sum + (p.amount || 0), 0) || 0)))}</p>
+                                    <p><strong>Buyer Paid:</strong> ₹{txnHelpers.getBuyerPaid(transaction)}</p>
+                                    <p><strong>Farmer Paid:</strong> ₹{txnHelpers.getFarmerPaid(transaction)}</p>
+                                    <p><strong>Farmer Due:</strong> ₹{txnHelpers.getFarmerDue(transaction)}</p>
                                   </div>
                                 </div>
-                                
                                 {transaction.payments && transaction.payments.length > 0 && (
                                   <div>
                                     <h4 className="font-semibold mb-2">Payments</h4>
                                     <div className="space-y-2">
-                                      {transaction.payments.map((payment: Payment, pidx: number) => (
-                                        <div key={pidx} className="text-sm p-2 bg-white rounded border">
-                                          <p><strong>Amount:</strong> ₹{payment.amount}</p>
-                                          <p><strong>Method:</strong> {payment.method}</p>
-                                          <p><strong>Status:</strong> {payment.status}</p>
-                                          <p><strong>From:</strong> {payment.payer_type}</p>
-                                          <p><strong>To:</strong> {payment.payee_type}</p>
-                                          {payment.created_at && (
-                                            <p><strong>Date:</strong> {formatDisplayDate(payment.created_at)}</p>
-                                          )}
-                                        </div>
-                                      ))}
+                                      {transaction.payments.map((payment: Payment, pidx: number) => {
+                                        // Name and role resolution
+                                        let payer = '';
+                                        let payee = '';
+                                        let payerRole = String(payment.payer_type);
+                                        let payeeRole = String(payment.payee_type);
+                                        const buyerName = txnHelpers.getBuyerName(users, transaction);
+                                        const farmerName = txnHelpers.getFarmerName(users, transaction);
+                                        const shopName = txnHelpers.getShopName(users, transaction);
+                                        if (payerRole === 'BUYER') payer = `${buyerName} (BUYER)`;
+                                        else if (payerRole === 'FARMER') payer = `${farmerName} (FARMER)`;
+                                        else if (payerRole === 'SHOP') payer = `${shopName} (SHOP)`;
+                                        else payer = payerRole;
+                                        if (payeeRole === 'BUYER') payee = `${buyerName} (BUYER)`;
+                                        else if (payeeRole === 'FARMER') payee = `${farmerName} (FARMER)`;
+                                        else if (payeeRole === 'SHOP') payee = `${shopName} (SHOP)`;
+                                        else payee = payeeRole;
+                                        return (
+                                          <div key={pidx} className="text-sm p-2 bg-white rounded border">
+                                            <p><strong>Amount:</strong> ₹{payment.amount}</p>
+                                            <p><strong>Method:</strong> {payment.method}</p>
+                                            <p><strong>Status:</strong> {payment.status}</p>
+                                            <p><strong>From:</strong> {payer}</p>
+                                            <p><strong>To:</strong> {payee}</p>
+                                            {payment.created_at && (
+                                              <p><strong>Date:</strong> {formatDisplayDate(payment.created_at)}</p>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   </div>
                                 )}

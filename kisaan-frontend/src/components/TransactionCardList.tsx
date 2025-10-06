@@ -1,11 +1,66 @@
-// import React from 'react';
+
+
 
 import { useState } from 'react';
 import { Badge } from '../components/ui/badge';
 import { formatCurrency } from '../utils/format';
 import { formatDisplayDate } from '../utils/dateUtils';
-import type { Transaction, User } from '../types/api';
+import type { Transaction, User, Payment } from '../types/api';
 import { getUserDisplayNameById } from '../utils/userDisplayName';
+
+// Helper: resolve user name with robust fallback
+function resolveUserName(users: User[], id: string | number): string {
+  if (!Array.isArray(users)) return String(id) || 'Unknown';
+  let name = getUserDisplayNameById(users, id);
+  if (!name || name === 'undefined') {
+    const fallbackUser = users.find(u => String(u.id) === String(id));
+    name = fallbackUser?.firstname || fallbackUser?.username || String(id) || 'Unknown';
+  }
+  return name;
+}
+
+// Helper: resolve shop name
+function resolveShopName(users: User[], shop_id: string | number): string {
+  const shopUser = Array.isArray(users) ? users.find(u => String(u.id) === String(shop_id)) : undefined;
+  return shopUser ? (shopUser.firstname || shopUser.username || 'Shop') : 'Shop';
+}
+
+// Helper: get payment label
+function getPaymentLabel(p: Payment, buyerName: string, farmerName: string, shopName: string): string {
+  const payerRole = String(p.payer_type);
+  const payeeRole = String(p.payee_type);
+  if (payerRole === 'BUYER' && payeeRole === 'SHOP') return `Paid by ${buyerName} (BUYER) to ${shopName} (SHOP)`;
+  if (payerRole === 'SHOP' && payeeRole === 'FARMER') return `Paid by ${shopName} (SHOP) to ${farmerName} (FARMER)`;
+  if (payerRole === 'SHOP' && payeeRole === 'SHOP') return `Commission (${shopName} (SHOP))`;
+  let payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
+  let payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
+  return `Paid by ${payer} to ${payee}`;
+}
+
+// Helper: render payment details
+function PaymentDetails({ payments, buyerName, farmerName, shopName }: { payments: Payment[]; buyerName: string; farmerName: string; shopName: string }) {
+  if (!payments || payments.length === 0) return <div className="text-gray-400 text-xs">No payments</div>;
+  return (
+    <ul className="space-y-1">
+      {payments.map((p, pidx) => {
+        const payerRole = String(p.payer_type);
+        const payeeRole = String(p.payee_type);
+        let payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
+        let payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
+        const label = getPaymentLabel(p, buyerName, farmerName, shopName);
+        return (
+          <li key={p.id ?? `${pidx}` } className="bg-gray-50 rounded p-2 border text-xs">
+            <div><span className="font-medium">{label}:</span> {formatCurrency(p.amount)}</div>
+            <div><span className="font-medium">From:</span> {payer}</div>
+            <div><span className="font-medium">To:</span> {payee}</div>
+            <div><span className="font-medium">Method:</span> {p.method}</div>
+            {p.payment_date && <div><span className="font-medium">Date:</span> {formatDisplayDate(p.payment_date)}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 interface TransactionCardListProps {
   paginatedTransactions: Transaction[];
@@ -26,10 +81,9 @@ export const TransactionCardList: React.FC<TransactionCardListProps> = ({
     <div className="block sm:hidden space-y-3 w-full">
       {paginatedTransactions.map((transaction, idx) => {
         const derivedStatus = getTransactionStatus(transaction);
-        let farmerName = Array.isArray(users) ? getUserDisplayNameById(users, transaction.farmer_id) : '';
-        let buyerName = Array.isArray(users) ? getUserDisplayNameById(users, transaction.buyer_id) : '';
-        if (!farmerName) farmerName = String(transaction.farmer_id);
-        if (!buyerName) buyerName = String(transaction.buyer_id);
+        const farmerName = resolveUserName(users, transaction.farmer_id);
+        const buyerName = resolveUserName(users, transaction.buyer_id);
+        const shopName = resolveShopName(users, transaction.shop_id);
         const isExpanded = expandedIdx === idx;
         return (
           <div key={transaction.id + '-' + idx} className="rounded-lg border p-3 bg-white shadow-sm w-full mx-auto break-words">
@@ -55,7 +109,7 @@ export const TransactionCardList: React.FC<TransactionCardListProps> = ({
             </div>
             <div className="text-xs text-gray-500 mb-1 break-words">{formatDisplayDate(transaction.created_at)}</div>
             <div className="flex flex-wrap gap-2 text-xs mb-1">
-              <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(transaction.total_amount)}</div>
+              <div className="break-words max-w-[48%]"><span className="font-medium">Total:</span> {formatCurrency(typeof transaction.total_amount !== 'undefined' ? transaction.total_amount : 0)}</div>
               <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Paid:</span> {formatCurrency(transaction.buyer_paid)}</div>
               <div className="break-words max-w-[48%]"><span className="font-medium">Buyer Pending:</span> {formatCurrency(transaction.deficit)}</div>
               <div className="break-words max-w-[48%]"><span className="font-medium">Farmer Paid:</span> {formatCurrency(transaction.farmer_paid)}</div>
@@ -64,26 +118,7 @@ export const TransactionCardList: React.FC<TransactionCardListProps> = ({
             {isExpanded && (
               <div className="mt-2 border-t pt-2">
                 <div className="text-xs font-semibold mb-1">Payments</div>
-                {transaction.payments && transaction.payments.length > 0 ? (
-                  <ul className="space-y-1">
-                    {transaction.payments.map((p, pidx) => {
-                      let label = '';
-                      if (p.payer_type === 'BUYER' && p.payee_type === 'SHOP') label = 'Paid by Buyer';
-                      else if (p.payer_type === 'SHOP' && p.payee_type === 'FARMER') label = 'Paid to Farmer';
-                      else if (p.payer_type === 'SHOP' && p.payee_type === 'SHOP') label = 'Commission';
-                      else label = `Paid by ${p.payer_type} to ${p.payee_type}`;
-                      return (
-                        <li key={pidx} className="bg-gray-50 rounded p-2 border text-xs">
-                          <div><span className="font-medium">{label}:</span> {formatCurrency(p.amount)}</div>
-                          <div><span className="font-medium">Method:</span> {p.method}</div>
-                          {p.payment_date && <div><span className="font-medium">Date:</span> {formatDisplayDate(p.payment_date)}</div>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div className="text-gray-400 text-xs">No payments</div>
-                )}
+                <PaymentDetails payments={transaction.payments} buyerName={buyerName} farmerName={farmerName} shopName={shopName} />
               </div>
             )}
           </div>

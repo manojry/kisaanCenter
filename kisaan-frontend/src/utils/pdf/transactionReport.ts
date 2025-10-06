@@ -1,11 +1,107 @@
+// Helper: format ISO date string to readable format
+function formatDisplayDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  // Format: DD MMM YYYY, HH:mm (24h)
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  const hours = d.getHours().toString().padStart(2, '0');
+  const mins = d.getMinutes().toString().padStart(2, '0');
+  return `${day} ${month} ${year}, ${hours}:${mins}`;
+}
+// Global helper: enrich transactions with user names from user context
+export function enrichTransactionsWithNames(transactions: any[], users: any[], shops?: any[]): any[] {
+  const userMap: Record<string, any> = {};
+  users.forEach(u => { userMap[String(u.id)] = u; });
+  let shopMap: Record<string, any> = {};
+  if (shops && Array.isArray(shops)) {
+    shops.forEach(s => { shopMap[String(s.id)] = s; });
+  }
+  return transactions.map(t => {
+    // Use total_amount as fallback for total_sale_value
+    let total_sale_value = t.total_sale_value;
+    if (
+      total_sale_value === undefined ||
+      total_sale_value === null ||
+      total_sale_value === '' ||
+      isNaN(Number(total_sale_value))
+    ) {
+      if (typeof t.total_amount !== 'undefined' && t.total_amount !== null && !isNaN(Number(t.total_amount))) {
+        total_sale_value = Number(t.total_amount);
+      } else if (typeof t.quantity !== 'undefined' && typeof t.unit_price !== 'undefined') {
+        total_sale_value = Number(t.quantity) * Number(t.unit_price);
+      } else if (typeof t.quantity !== 'undefined' && typeof t.rate !== 'undefined') {
+        total_sale_value = Number(t.quantity) * Number(t.rate);
+      }
+    }
+    // Use unit_price as fallback for rate
+    let rate = t.rate;
+    if (rate === undefined || rate === null || rate === '' || isNaN(Number(rate))) {
+      if (typeof t.unit_price !== 'undefined' && t.unit_price !== null && !isNaN(Number(t.unit_price))) {
+        rate = Number(t.unit_price);
+      }
+    }
+    // Calculate buyer_paid: sum of payments where payer_type is BUYER
+    let buyer_paid = 0;
+    if (Array.isArray(t.payments)) {
+      buyer_paid = t.payments
+        .filter((p: any) => p.payer_type === 'BUYER' && !isNaN(Number(p.amount)))
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    }
+    // Calculate farmer_paid: sum of payments where payee_type is FARMER
+    let farmer_paid = 0;
+    if (Array.isArray(t.payments)) {
+      farmer_paid = t.payments
+        .filter((p: any) => p.payee_type === 'FARMER' && !isNaN(Number(p.amount)))
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    }
+    return {
+      ...t,
+      buyer_name: userMap[String(t.buyer_id)]?.firstname || 'Unknown',
+      farmer_name: userMap[String(t.farmer_id)]?.firstname || 'Unknown',
+      shop_name: shopMap[String(t.shop_id)]?.name || 'Shop',
+      total_sale_value,
+      rate,
+      buyer_paid,
+      farmer_paid,
+    };
+  });
+}
+
+// Helper: get payment label using only transaction's names (simple mapping)
+function getPaymentLabelSimple(p: PaymentLike, t: any): string {
+  const payerRole = String(p.payer_type);
+  const payeeRole = String(p.payee_type);
+  const buyerName = t.buyer_name || 'Unknown';
+  const farmerName = t.farmer_name || 'Unknown';
+  const shopName = t.shop_name || 'Shop';
+  if (payerRole === 'SHOP' && payeeRole === 'FARMER') {
+    return `Paid by ${shopName} (SHOP) to Seller (${farmerName})`;
+  }
+  if (payerRole === 'BUYER' && payeeRole === 'SHOP') {
+    return `Paid by Buyer (${buyerName}) to ${shopName} (SHOP)`;
+  }
+  if (payerRole === 'SHOP' && payeeRole === 'SHOP') {
+    return `Commission (${shopName})`;
+  }
+  // fallback for any other case
+  return `Paid by ${payerRole} to ${payeeRole}`;
+}
 import jsPDF from 'jspdf';
 
 export interface PaymentLike {
+  id?: string | number;
   payer?: string;
   payee?: string;
   amount?: number | string;
   method?: string;
   payment_date?: string; // already formatted date string
+  status?: string;
+  payer_type?: string;
+  payee_type?: string;
+  created_at?: string;
 }
 
 export interface TransactionLike {
@@ -15,6 +111,7 @@ export interface TransactionLike {
   product_name?: string;
   buyer_name?: string;
   farmer_name?: string;
+  shop_name?: string;
   total_sale_value?: number | string;
   buyer_paid?: number | string;
   deficit?: number | string; // buyer pending
@@ -39,8 +136,18 @@ const formatCurrency = (value: number | string | undefined) => {
   return 'Rs. ' + num.toLocaleString('en-IN');
 };
 
-export function exportTransactionsPDF(transactions: TransactionLike[], options: ExportOptions = {}) {
+// Accepts optional users context to resolve names
+export function exportTransactionsPDF(
+  transactions: TransactionLike[],
+  options: ExportOptions = {},
+  users?: any[]
+) {
   if (!transactions || transactions.length === 0) return;
+  // If users context is provided, enrich transactions with names
+  const txs = users ? enrichTransactionsWithNames(transactions, users) : transactions;
+  // Build userMap for payment label resolution
+  const userMap: Record<string, any> = {};
+  if (users) users.forEach(u => { userMap[String(u.id)] = u; });
   const doc = new jsPDF({ orientation: 'landscape' });
   let y = 14;
 
@@ -54,14 +161,16 @@ export function exportTransactionsPDF(transactions: TransactionLike[], options: 
     const dr = options.dateRange;
     if (dr.from || dr.to) { doc.text(`Period: ${dr.from || ''} to ${dr.to || ''}`, 14, y); y += 5; }
   }
-  if (options.ownerFirstName || options.ownerUsername) {
+  if (options.shopName) {
+    doc.text(`Generated By: ${options.shopName}`, 14, y); y += 5;
+  } else if (options.ownerFirstName || options.ownerUsername) {
     const ownerLabel = options.ownerFirstName ? options.ownerFirstName : options.ownerUsername;
     doc.text(`Generated By: ${ownerLabel}`, 14, y); y += 5;
   } else if (options.generatedBy) {
     doc.text(`Generated By: ${options.generatedBy}`, 14, y); y += 5;
   }
   // Summary totals
-  const totals = transactions.reduce((acc, t) => {
+  const totals = txs.reduce((acc, t) => {
     const toNum = (v: number | string | undefined) => { const n = typeof v === 'string' ? parseFloat(v) : v ?? 0; return isNaN(Number(n)) ? 0 : Number(n); };
     acc.total += toNum(t.total_sale_value);
     acc.buyerPaid += toNum(t.buyer_paid);
@@ -98,68 +207,76 @@ export function exportTransactionsPDF(transactions: TransactionLike[], options: 
     }
   };
 
-  transactions.forEach((t, index) => {
-    ensureSpace(30); // rough reservation; will handle additional payments dynamically
-  doc.setFontSize(11);
-  const txId = t.transaction_id || t.id || index + 1;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Txn #${txId}`, leftX, y);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  if (t.created_at) doc.text(String(t.created_at), leftX + 35, y);
-  y += 5;
-
-  // Important info bold
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Product: ${t.product_name || ''}`, leftX + 4, y);
-  y += 5;
-  doc.text(`Buyer: ${t.buyer_name || ''}`, leftX + 4, y);
-  y += 5;
-  doc.text(`Seller: ${t.farmer_name || ''}`, leftX + 4, y);
-  y += 5;
-  doc.text(`Total: ${formatCurrency(t.total_sale_value)}`, leftX + 4, y);
-  y += 5;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Buyer Paid: ${formatCurrency(t.buyer_paid)} | Buyer Pending: ${formatCurrency(t.deficit)}`, leftX + 4, y);
-  y += 5;
-  doc.text(`Farmer Paid: ${formatCurrency(t.farmer_paid)} | Farmer Pending: ${formatCurrency(t.farmer_due)}`, leftX + 4, y);
-  y += 5;
-
-    // Payments
+  // One transaction per row: left = info, right = payments
+  const colWidth = (doc.internal.pageSize.getWidth() - 28) / 2; // 2 columns, 14 margin each side
+  let rowY = y;
+  for (let i = 0; i < txs.length; i++) {
+    ensureSpace(36);
+    const t = txs[i];
+    const infoX = 14;
+    const paymentsX = infoX + colWidth;
+    let txY = rowY;
+    // Left: transaction info
+    doc.setFontSize(11);
+    const txId = t.transaction_id || t.id || i + 1;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Txn #${txId}`, infoX, txY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+  if (t.created_at) doc.text(formatDisplayDate(t.created_at), infoX + 35, txY);
+    txY += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Product: ${t.product_name || ''}`, infoX + 4, txY);
+    txY += 5;
+    doc.text(`Buyer: ${t.buyer_name || ''}`, infoX + 4, txY);
+    txY += 5;
+    doc.text(`Seller: ${t.farmer_name || ''}`, infoX + 4, txY);
+    txY += 5;
+    doc.text(`Total: ${formatCurrency(t.total_sale_value)}`, infoX + 4, txY);
+    txY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Buyer Paid: ${formatCurrency(t.buyer_paid)} | Buyer Pending: ${formatCurrency(t.deficit)}`, infoX + 4, txY);
+    txY += 5;
+    doc.text(`Farmer Paid: ${formatCurrency(t.farmer_paid)} | Farmer Pending: ${formatCurrency(t.farmer_due)}`, infoX + 4, txY);
+    // Right: payments
+    let payY = rowY;
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('Payments:', leftX + 4, y); y += 5;
+    doc.text('Payments:', paymentsX, payY); payY += 5;
     doc.setFont('helvetica', 'normal');
     if (t.payments && t.payments.length) {
-      t.payments.forEach((p) => {
+      t.payments.forEach((p: PaymentLike) => {
         ensureSpace(6);
-        const payer = p.payer || '';
-        const payee = p.payee || '';
+        const label = getPaymentLabelSimple(p, t);
         const amount = formatCurrency(p.amount || 0);
         const method = p.method || '';
-        const date = p.payment_date ? `, ${p.payment_date}` : '';
-        // Bold amount only
-        const prefix = `• ${payer} -> ${payee}: `;
+  const date = p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : '';
+        let prefix = '• ' + label + ': ';
         const suffix = ` (${method}${date})`;
         doc.setFont('helvetica', 'normal');
         const prefixWidth = doc.getTextWidth(prefix);
         const amountWidth = doc.getTextWidth(amount);
-        const startX = leftX + 10;
-        doc.text(prefix, startX, y);
+        const startX = paymentsX + 2;
+        doc.text(prefix, startX, payY);
         doc.setFont('helvetica', 'bold');
-        doc.text(amount, startX + prefixWidth, y);
+        doc.text(amount, startX + prefixWidth, payY);
         doc.setFont('helvetica', 'normal');
-        doc.text(suffix, startX + prefixWidth + amountWidth, y);
-        y += 5;
+        doc.text(suffix, startX + prefixWidth + amountWidth, payY);
+        payY += 5;
       });
     } else {
-      doc.text('No payments', leftX + 10, y); y += 5;
+      doc.text('No payments', paymentsX + 2, payY); payY += 5;
     }
-
-    // Divider
-    y += 2;
-    doc.setDrawColor(230); doc.line(12, y, 283, y); y += 6;
-  });
+    // Divider (full row)
+    const dividerY = Math.max(txY, payY) + 2;
+    doc.setDrawColor(230); doc.line(infoX + 2, dividerY, infoX + 2 + colWidth * 2 - 4, dividerY);
+    rowY = dividerY + 6;
+    // Add new page if needed
+    if (rowY > doc.internal.pageSize.getHeight() - 24) {
+      doc.addPage();
+      rowY = 14;
+    }
+  }
 
   doc.save('transactions.pdf');
 }
