@@ -17,7 +17,7 @@ export interface TransactionAttributes {
   product_id?: number | null;
   commission_rate?: number | null; // percentage (0-100)
   commission_type?: string | null; // percentage | fixed (future)
-  status?: string | null;
+  status?: 'pending' | 'completed' | 'cancelled' | 'settled';
   transaction_date?: Date | null;
   settlement_date?: Date | null;
   notes?: string | null;
@@ -43,7 +43,7 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
   public product_id?: number | null;
   public commission_rate?: number | null;
   public commission_type?: string | null;
-  public status?: string | null;
+  public status?: 'pending' | 'completed' | 'cancelled' | 'settled';
   public transaction_date?: Date | null;
   public settlement_date?: Date | null;
   public notes?: string | null;

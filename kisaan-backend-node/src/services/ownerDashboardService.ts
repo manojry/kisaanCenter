@@ -27,12 +27,16 @@ export class OwnerDashboardService {
       // 4. Get payment allocations for commission realization calculation
       const transactionIds = transactions.map(t => t.id);
       let allocations: PaymentAllocation[] = [];
+      let payments: any[] = [];
       try {
         allocations = transactionIds.length
           ? await PaymentAllocation.findAll({ where: { transaction_id: transactionIds } })
           : [];
+        payments = transactionIds.length
+          ? await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: transactionIds } })
+          : [];
       } catch (allocErr) {
-        console.warn(`${logPrefix} allocation fetch failed (continuing with zero allocations):`, (allocErr as Error)?.message || allocErr);
+        console.warn(`${logPrefix} allocation/payment fetch failed (continuing with zero allocations):`, (allocErr as Error)?.message || allocErr);
       }
 
   // 5. Calculate stats (+ integrity instrumentation)
@@ -72,15 +76,28 @@ export class OwnerDashboardService {
       
       console.log(`${logPrefix} Found ${todayTransactions.length} transactions for today (${today}) out of ${transactions.length} total`);
 
-      // Sum all positive buyer balances, regardless of transaction date
-      const buyer_payments_due = Number(buyers
-        .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
-        .toFixed(2));
 
-      // Sum all positive farmer balances
-      const farmer_payments_due = Number(farmers
-        .reduce((sum, u) => sum + (Number(u.balance) > 0 ? Number(u.balance) : 0), 0)
-        .toFixed(2));
+      // Calculate buyer_total_spent and farmer_total_earned based on actual payments
+      let buyer_total_spent = 0;
+      let farmer_total_earned = 0;
+      
+      // Get actual payment amounts for accurate calculations
+      for (const t of transactions) {
+        const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
+        
+        // Buyer payments (what buyers actually paid)
+        const buyerPayments = transactionPayments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+        const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        buyer_total_spent += buyerPaid;
+        
+        // Farmer payments (what farmers actually received)
+        const farmerPayments = transactionPayments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+        const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        farmer_total_earned += farmerPaid;
+      }
+      
+      buyer_total_spent = Number(buyer_total_spent.toFixed(2));
+      farmer_total_earned = Number(farmer_total_earned.toFixed(2));
 
       const today_sales = Number(todayTransactions
         .reduce((sum, t) => sum + Number((t as Transaction).total_amount || 0), 0)
@@ -177,8 +194,23 @@ export class OwnerDashboardService {
         today_sales,
         today_transactions: todayTransactions.length,
         today_commission,
-        buyer_payments_due,
-        farmer_payments_due,
+        buyer_total_spent,
+        farmer_total_earned,
+        // Calculate buyer_payments_due: sum of (total_amount - paid) for all transactions
+        buyer_payments_due: Number(transactions.reduce((sum, t) => {
+          const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
+          const buyerPayments = transactionPayments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+          const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount || 0), 0);
+          const totalAmount = Number((t as Transaction).total_amount || 0);
+          return sum + Math.max(totalAmount - buyerPaid, 0);
+        }, 0).toFixed(2)),
+        farmer_payments_due: Number(transactions.reduce((sum, t) => {
+          const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
+          const farmerPayments = transactionPayments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+          const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount || 0), 0);
+          const farmerEarning = Number((t as Transaction).farmer_earning || 0);
+          return sum + Math.max(farmerEarning - farmerPaid, 0);
+        }, 0).toFixed(2)),
         total_users: users.length,
         commission_realized,
         duration_ms: Date.now() - started

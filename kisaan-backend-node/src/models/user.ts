@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
-// Simplified to align with current physical DB columns
+
 export interface UserAttributes {
   id: number;
   username: string;
@@ -11,14 +11,18 @@ export interface UserAttributes {
   email?: string | null;
   firstname?: string | null;
   contact?: string | null;
-  balance: number; // running balance (positive: platform owes user, negative: user owes platform)
+  balance: number;
+  status?: string | null;
+  cumulative_value?: number | null;
   created_by?: number | null;
-  custom_commission_rate?: number | null; // user-level override (e.g., farmer specific)
-  createdAt?: Date;
-  updatedAt?: Date;
+  custom_commission_rate?: number | null;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'email' | 'created_by' | 'createdAt' | 'updatedAt'> {}
+
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'email' | 'created_by' | 'created_at' | 'updated_at'> {}
+
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
@@ -30,10 +34,12 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public firstname!: string | null;
   public contact!: string | null;
   public balance!: number;
+  public status!: string | null;
+  public cumulative_value!: number | null;
   public created_by!: number | null;
   public custom_commission_rate!: number | null;
-  public createdAt!: Date;
-  public updatedAt!: Date;
+  public created_at!: Date;
+  public updated_at!: Date;
 }
 
 User.init(
@@ -78,6 +84,16 @@ User.init(
       allowNull: false,
       defaultValue: 0.00,
     },
+    status: {
+      type: DataTypes.ENUM('active', 'inactive', 'suspended'),
+      allowNull: false,
+      defaultValue: 'active',
+    },
+    cumulative_value: {
+      type: DataTypes.DECIMAL(12,2),
+      allowNull: false,
+      defaultValue: 0.00,
+    },
     created_by: {
       type: DataTypes.BIGINT,
       allowNull: true,
@@ -88,13 +104,13 @@ User.init(
       allowNull: true,
       defaultValue: null,
     },
-    createdAt: {
+    created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
       field: 'created_at'
     },
-    updatedAt: {
+    updated_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -104,9 +120,7 @@ User.init(
   {
     sequelize,
     tableName: 'kisaan_users',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
+  timestamps: false,
     indexes: [
       { unique: true, fields: ['username'] },
       { fields: ['shop_id'] },

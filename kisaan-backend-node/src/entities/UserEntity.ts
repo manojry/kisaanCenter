@@ -10,6 +10,8 @@ export class UserEntity {
   email?: string | null;
   firstname?: string | null;
   balance?: number;
+  status?: string | null;
+  cumulative_value?: number | null;
   created_by?: number | null;
   custom_commission_rate?: number | null;
   created_at?: Date;

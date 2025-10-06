@@ -101,7 +101,6 @@ export class TransactionService {
     } else if (normalizedName) {
       const lowered = normalizedName.toLowerCase();
       if (assignments.length) {
-  // ...existing code...
         const ids = Array.from(assignedIds);
         if (ids.length) {
           const placeholders = ids.map(() => '?').join(',');
@@ -299,6 +298,11 @@ export class TransactionService {
       }
 
       // Construct entity (canonical fields only)
+      // Set status: COMPLETED if payment is already made, else PENDING
+  let txnStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
+      if ('payment_cleared' in data && data.payment_cleared === true) {
+        txnStatus = TRANSACTION_STATUS.COMPLETED;
+      }
       const transactionEntity = new TransactionEntity({
         shop_id: data.shop_id,
         farmer_id: data.farmer_id,
@@ -312,7 +316,7 @@ export class TransactionService {
         commission_rate: normalizedCommissionRate,
         commission_amount: commissionAmount,
         farmer_earning: farmerEarning,
-        status: TRANSACTION_STATUS.PENDING,
+        status: txnStatus,
         transaction_date: data.transaction_date || new Date(),
         notes: data.notes?.trim() || null
       });
@@ -357,7 +361,7 @@ export class TransactionService {
           /* intentionally ignore debug errors */
         }
         createdTransaction = await this.transactionRepository.create(transactionEntity, { tx });
-        await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, tx);
+  await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, transactionEntity.status ?? 'pending', tx);
         // Ledger entries - ensure numeric conversion to prevent string concatenation
         const farmerBalanceBefore = Number(farmer.balance || 0);
         const buyerBalanceBefore = Number(buyer.balance || 0);
@@ -603,15 +607,24 @@ export class TransactionService {
     try {
       const transaction = await this.getTransactionById(id, requestingUser);
 
-      // Validate status
-      const validStatuses = Object.values(TRANSACTION_STATUS);
-      if (!validStatuses.includes(status as import('../shared/constants').TransactionStatus)) {
-        throw new ValidationError('Invalid transaction status');
-      }
+      // Calculate total paid to farmer for this transaction
+      const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: id } });
+      const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+      const paidToFarmer = allocations
+        .map(a => {
+          const payment = payments.find(p => p.id === a.payment_id);
+          if (payment && payment.payee_type === 'FARMER' && payment.status === 'PAID') {
+            return Number(a.allocated_amount || 0);
+          }
+          return 0;
+        })
+        .reduce((s, v) => s + v, 0);
+      const fullyPaid = Math.abs(Number(transaction.farmer_earning || 0) - paidToFarmer) < 0.01;
+      const newStatus = fullyPaid ? TRANSACTION_STATUS.COMPLETED : TRANSACTION_STATUS.PENDING;
 
       const updatedEntity = new TransactionEntity({
         ...transaction,
-        status: status as import('../shared/constants').TransactionStatus
+        status: newStatus
       });
 
       const updatedTransaction = await this.transactionRepository.update(id, updatedEntity);
@@ -676,26 +689,57 @@ export class TransactionService {
     buyer: UserEntity,
     farmerEarning: number,
     totalAmount: number,
+    transactionStatus: string,
     tx?: import('sequelize').Transaction
   ): Promise<void> {
     try {
       // Ensure numeric conversion to prevent string concatenation issues
       const currentFarmerBalance = Number(farmer.balance || 0);
       const currentBuyerBalance = Number(buyer.balance || 0);
-      
-      const newFarmerBalance = currentFarmerBalance + Number(farmerEarning);
-      const newBuyerBalance = currentBuyerBalance + Number(totalAmount);
-      
+      const currentFarmerCumulative = Number(farmer.cumulative_value || 0);
+      const currentBuyerCumulative = Number(buyer.cumulative_value || 0);
+
+      // Always increment cumulative_value for total earned/spent
+      const newFarmerCumulative = currentFarmerCumulative + Number(farmerEarning);
+      const newBuyerCumulative = currentBuyerCumulative + Number(totalAmount);
+
+      // Calculate new farmer balance: sum of unpaid earnings for all their transactions
+      const allFarmerTxns = await this.transactionRepository.findByFarmer(farmer.id!);
+  const { Op } = await import('sequelize');
+  const txnIds = allFarmerTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
+  const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: { [Op.in]: txnIds } } });
+  const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: { [Op.in]: txnIds } } });
+      const newFarmerBalance = allFarmerTxns.reduce((sum, t) => {
+        const paidToFarmer = allocations
+          .filter(a => a.transaction_id === t.id)
+          .map(a => {
+            const payment = payments.find(p => p.id === a.payment_id);
+            if (payment && payment.payee_type === 'FARMER' && payment.status === 'PAID') {
+              return Number(a.allocated_amount || 0);
+            }
+            return 0;
+          })
+          .reduce((s, v) => s + v, 0);
+        const unpaid = Math.max(Number(t.farmer_earning || 0) - paidToFarmer, 0);
+        return sum + unpaid;
+      }, 0);
+
       // Round to 2 decimal places to prevent floating point precision issues
       const updatedFarmer = new UserEntity({ 
         ...farmer, 
-        balance: Math.round(newFarmerBalance * 100) / 100 
+        balance: Math.round(newFarmerBalance * 100) / 100,
+        cumulative_value: Math.round(newFarmerCumulative * 100) / 100
       });
       await this.userRepository.update(farmer.id!, updatedFarmer, tx ? { tx } : undefined);
-      
+
+      // Buyer balance logic unchanged
+      const newBuyerBalance = transactionStatus === TRANSACTION_STATUS.PENDING
+        ? currentBuyerBalance + Number(totalAmount)
+        : currentBuyerBalance;
       const updatedBuyer = new UserEntity({ 
         ...buyer, 
-        balance: Math.round(newBuyerBalance * 100) / 100 
+        balance: Math.round(newBuyerBalance * 100) / 100,
+        cumulative_value: Math.round(newBuyerCumulative * 100) / 100
       });
       await this.userRepository.update(buyer.id!, updatedBuyer, tx ? { tx } : undefined);
     } catch (error) {
@@ -761,5 +805,97 @@ export class TransactionService {
     } catch (error) {
       throw new DatabaseError('Failed to retrieve farmer earnings', error instanceof Error ? { message: error.message } : undefined);
     }
+  }
+  /**
+   * Calculate dashboard summary for a shop (or owner dashboard)
+   * Returns correct buyer_total_spent, farmer_total_earned, commission_realized, payments_due, etc.
+   */
+  async getDashboardSummary(shopId: number, date?: Date): Promise<Record<string, unknown>> {
+    // Get all transactions for the shop (optionally filter by date)
+    const transactions = await this.transactionRepository.findByShop(shopId);
+    let filteredTxns = transactions;
+    if (date) {
+      // Filter by transaction_date (UTC day)
+      const dayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0));
+      const dayEnd = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+      filteredTxns = transactions.filter(t => t.transaction_date && t.transaction_date >= dayStart && t.transaction_date <= dayEnd);
+    }
+
+    // Collect all transaction IDs
+    const txnIds = filteredTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
+    
+    // Get all payments for these transactions
+    let payments: any[] = [];
+    if (txnIds.length > 0) {
+      const { Op } = await import('sequelize');
+      payments = await (await import('../models/payment')).Payment.findAll({ 
+        where: { transaction_id: { [Op.in]: txnIds } } 
+      });
+    }
+
+    // Calculate buyer_total_spent, farmer_total_earned, commission_realized, payments_due
+    let buyer_total_spent = 0;
+    let farmer_total_earned = 0;
+    let commission_realized = 0;
+    let buyer_payments_due = 0;
+    let farmer_payments_due = 0;
+
+    // Debug logging
+    try {
+      console.log('[getDashboardSummary] Debug info:', {
+        filteredTxns: filteredTxns.length,
+        txnIds,
+        paymentsFound: payments.length,
+        samplePayment: payments[0]
+      });
+    } catch (e) { /* ignore */ }
+
+    for (const txn of filteredTxns) {
+      // Buyer payments (to shop)
+      const buyerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+      const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      
+      // buyer_total_spent should be total transaction amount (what buyer is responsible for)
+      buyer_total_spent += Number(txn.total_amount || 0);
+      buyer_payments_due += Math.max(Number(txn.total_amount || 0) - buyerPaid, 0);
+
+      // Farmer payments (from shop)
+      const farmerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+      const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      
+      // farmer_total_earned should be what they actually received
+      farmer_total_earned += farmerPaid;
+      farmer_payments_due += Math.max(Number(txn.farmer_earning || 0) - farmerPaid, 0);
+
+      // Commission realized (only if transaction is fully paid by buyer)
+      if (buyerPaid >= Number(txn.total_amount || 0)) {
+        commission_realized += Number(txn.commission_amount || 0);
+      }
+
+      // Debug per transaction
+      try {
+        console.log(`[getDashboardSummary] Transaction ${txn.id}:`, {
+          total_amount: txn.total_amount,
+          farmer_earning: txn.farmer_earning,
+          buyerPayments: buyerPayments.length,
+          buyerPaid,
+          farmerPayments: farmerPayments.length,
+          farmerPaid
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    return {
+      today_sales: filteredTxns.reduce((sum, t) => sum + (t.total_amount || 0), 0),
+      today_transactions: filteredTxns.length,
+      today_commission: filteredTxns.reduce((sum, t) => sum + (t.commission_amount || 0), 0),
+      buyer_total_spent,
+      farmer_total_earned,
+      buyer_payments_due,
+      farmer_payments_due,
+  total_users: (await this.userRepository.findAll()).length,
+      commission_realized,
+      duration_ms: 0 // You can add timing if needed
+    };
   }
 }

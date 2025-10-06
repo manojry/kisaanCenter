@@ -106,11 +106,20 @@ export function useTransactionFormLogic({
       try {
         const farmerResponse = await farmerProductApi.getFarmerProducts(formData.farmer_id);
         const farmerProducts = farmerResponse.success ? (farmerResponse.data || []) : [];
-  const farmerShopProducts = (farmerProducts as unknown[]).map(toShopProduct);
-        const farmerProductIds = new Set(farmerShopProducts.map((p) => p.id));
-        const remainingShopProducts = (shopProducts || []).map(toShopProduct).filter((p) => !farmerProductIds.has(p.id));
-        const combinedProducts = [...farmerShopProducts, ...remainingShopProducts];
-        setProducts(combinedProducts);
+        // Map farmer products to use actual product_id
+        const farmerShopProducts = (farmerProducts as unknown[]).map((p: any) => ({
+          ...toShopProduct(p),
+          id: p.product_id || (p.Product && p.Product.id) || toShopProduct(p).id,
+        }));
+        // Deduplicate by product_id
+        const allProducts = [...farmerShopProducts, ...(shopProducts || []).map(toShopProduct)];
+        const dedupedProducts = Object.values(
+          allProducts.reduce((acc, prod) => {
+            acc[prod.id] = prod;
+            return acc;
+          }, {} as Record<number, ShopProduct>)
+        );
+        setProducts(dedupedProducts);
         // Auto-select first farmer product if available
         if (farmerProducts.length > 0 && !formData.product_name) {
           const firstProduct = toShopProduct(farmerProducts[0]);

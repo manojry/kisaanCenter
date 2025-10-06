@@ -29,8 +29,10 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
   role: model.role,
       shop_id: model.shop_id,
       balance: model.balance,
-      created_at: model.createdAt,
-      updated_at: model.updatedAt,
+      status: model.status,
+      cumulative_value: model.cumulative_value,
+  created_at: model.created_at,
+  updated_at: model.updated_at,
       created_by: model.created_by,
   custom_commission_rate: model.custom_commission_rate ?? null
     });
@@ -46,6 +48,8 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
       role: entity.role,
       shop_id: entity.shop_id,
       balance: entity.balance,
+      status: entity.status,
+      cumulative_value: entity.cumulative_value,
       created_by: entity.created_by,
       custom_commission_rate: entity.custom_commission_rate
     };

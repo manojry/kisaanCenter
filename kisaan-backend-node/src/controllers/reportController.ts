@@ -37,15 +37,8 @@ class ReportController {
           // If 'status' is not a field on User, skip this or use a safe fallback
           let activeUsers = 0;
           try {
-            // @ts-expect-error: status may not exist on User, fallback if error
-            const countResult = await User.count({ where: { status: 'active' } });
-            if (typeof countResult === 'number') {
-              activeUsers = countResult;
-            } else if (Array.isArray(countResult) && countResult.length > 0 && typeof countResult[0].count === 'number') {
-              activeUsers = countResult[0].count;
-            } else {
-              activeUsers = totalUsers;
-            }
+            const activeCount = await User.count({ where: { status: 'active' } });
+            activeUsers = typeof activeCount === 'number' ? activeCount : totalUsers;
           } catch {
             // fallback if status does not exist
             activeUsers = totalUsers;
