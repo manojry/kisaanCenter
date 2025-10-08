@@ -20,17 +20,30 @@ export class PaymentService {
     }
 
     // Create payment record first
-  const paymentData: CreatePaymentDTO = { ...data, status: 'PAID' };
+    const paymentData: CreatePaymentDTO = { ...data, status: 'PAID' };
     if (data.transaction_id !== undefined) paymentData.transaction_id = data.transaction_id;
     else delete paymentData.transaction_id;
-    
+    console.log('[PAYMENT] Creating payment', paymentData);
     const payment = await Payment.create(paymentData);
     if (!payment || !payment.id) {
+      console.error('[PAYMENT] Payment creation failed: No valid payment ID returned', paymentData);
       throw new Error('Payment creation failed: No valid payment ID returned');
     }
+    console.log('[PAYMENT] Created payment', payment.toJSON());
 
     // Now update user balances after payment is created
     await this.updateUserBalancesAfterPayment(payment);
+
+    // Always allocate payment to its transaction
+    if (payment.transaction_id) {
+      const { PaymentAllocation } = require('../models/paymentAllocation');
+      await PaymentAllocation.create({
+        payment_id: payment.id,
+        transaction_id: payment.transaction_id,
+        allocated_amount: payment.amount
+      });
+      console.log('[PAYMENT] Allocated payment to transaction', { paymentId: payment.id, transactionId: payment.transaction_id, amount: payment.amount });
+    }
 
     // Allocate payment to outstanding transactions for commission tracking
     await this.allocatePaymentToTransactions(payment);
@@ -43,7 +56,6 @@ export class PaymentService {
       const transaction = await Transaction.findByPk(data.transaction_id);
       shop_id = transaction?.shop_id || null;
     }
-    
     await AuditLog.create({
       shop_id: shop_id ?? 1,
       user_id: userId,
@@ -53,28 +65,11 @@ export class PaymentService {
       new_values: JSON.stringify(payment.toJSON())
     });
 
-    // Update transaction status if applicable
+    // Always recalculate status for the transaction after payment
     if (payment.transaction_id) {
-      const transaction = await Transaction.findByPk(payment.transaction_id);
-      if (transaction) {
-        // Get all payments for this transaction
-        const payments = await Payment.findAll({ where: { transaction_id: transaction.id, status: 'PAID' } });
-        const buyerPaid = payments
-          .filter(p => p.payer_type === PARTY_TYPE.BUYER)
-          .reduce((sum, p) => sum + Number(p.amount), 0);
-        const farmerPaid = payments
-          .filter(p => p.payee_type === PARTY_TYPE.FARMER)
-          .reduce((sum, p) => sum + Number(p.amount), 0);
-
-        if (
-          buyerPaid >= Number(transaction.total_amount) &&
-          farmerPaid >= Number(transaction.farmer_earning)
-        ) {
-          // Update status to 'paid'
-          const txnService = new TransactionService();
-          await txnService.updateTransactionStatus(transaction.id, 'paid');
-        }
-      }
+      const txnService = new TransactionService();
+      console.log('[PAYMENT] Triggering transaction status update', { transactionId: payment.transaction_id });
+      await txnService.updateTransactionStatus(payment.transaction_id);
     }
 
     return payment.toJSON() as PaymentResponseDTO;
@@ -149,43 +144,19 @@ export class PaymentService {
       return;
     }
 
-    const buyerId = payment.counterparty_id;
-    const shopId = payment.shop_id;
     const paymentAmount = Number(payment.amount || 0);
-
-    console.log('[ALLOCATE] start', { paymentId: payment.id, buyerId, shopId, paymentAmount, txRef: payment.transaction_id });
-
-    // Get all outstanding transactions for this buyer in this shop (ordered by creation date)
-    const whereClause: Record<string, number> = {};
-    if (typeof buyerId === 'number') whereClause.buyer_id = buyerId;
-    if (typeof shopId === 'number') whereClause.shop_id = shopId;
-    const transactions = await Transaction.findAll({
-      where: whereClause,
-      order: [['created_at', 'ASC']]
-    });
-
-    if (!transactions.length) {
-      console.log('[ALLOCATE] No transactions found for buyer/shop criteria. Skipping distribution.', { buyerId, shopId });
-    }
-
-    let remainingAmount = paymentAmount;
-
-    // Fast-path: if payment references a specific transaction_id ensure at least that transaction gets allocation
     if (payment.transaction_id) {
       try {
         const targetTx = await Transaction.findByPk(payment.transaction_id);
         if (targetTx) {
-          const transactionTotal = Number((targetTx as Transaction).total_amount || 0);
+          const transactionTotal = Number(targetTx.total_amount || 0);
           const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id } });
           const alreadyPaid = existingAllocations.reduce((sum, alloc) => sum + Number(alloc.allocated_amount || 0), 0);
           const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
           if (outstandingAmount > 0) {
-            const allocationAmount = Math.min(remainingAmount, outstandingAmount);
-            if (allocationAmount > 0) {
-              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
-              remainingAmount -= allocationAmount;
-              console.log('[ALLOCATE] Direct allocation via payment.transaction_id', { paymentId: payment.id, transactionId: targetTx.id, allocationAmount, remainingAfter: remainingAmount });
-            }
+            const allocationAmount = Math.min(paymentAmount, outstandingAmount);
+            await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+            console.log('[ALLOCATE] Direct allocation via payment.transaction_id', { paymentId: payment.id, transactionId: targetTx.id, allocationAmount });
           } else {
             console.log('[ALLOCATE] Target transaction already fully allocated', { transactionId: targetTx.id, alreadyPaid, transactionTotal });
           }
@@ -196,44 +167,6 @@ export class PaymentService {
         const error = directErr as Error;
         console.warn('[ALLOCATE] Direct allocation error', error?.message || directErr);
       }
-    }
-
-    for (const transaction of transactions) {
-      if (remainingAmount <= 0) break;
-
-      // Skip if we already directly allocated full payment to this transaction
-      if (payment.transaction_id && Number(payment.transaction_id) === Number(transaction.id)) {
-        continue;
-      }
-
-  const transactionTotal = Number((transaction as Transaction).total_amount || 0);
-      
-      // Calculate how much of this transaction has already been paid
-      const existingAllocations = await PaymentAllocation.findAll({
-        where: { transaction_id: transaction.id }
-      });
-      const alreadyPaid = existingAllocations.reduce((sum, alloc) => sum + Number(alloc.allocated_amount || 0), 0);
-      
-      const outstandingAmount = transactionTotal - alreadyPaid;
-      
-      if (outstandingAmount > 0) {
-        // Allocate as much as possible to this transaction
-        const allocationAmount = Math.min(remainingAmount, outstandingAmount);
-        
-        await PaymentAllocation.create({
-          payment_id: payment.id,
-          transaction_id: transaction.id,
-          allocated_amount: allocationAmount
-        });
-
-        remainingAmount -= allocationAmount;
-        
-        console.log(`[PAYMENT ALLOCATION] Payment ${payment.id} -> Transaction ${transaction.id}: ${allocationAmount}`);
-      }
-    }
-
-    if (remainingAmount > 0) {
-      console.log(`[PAYMENT ALLOCATION] Unallocated amount: ${remainingAmount} for payment ${payment.id}`);
     }
   }
 

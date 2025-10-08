@@ -79,8 +79,9 @@ const TransactionManagement = (): React.ReactElement => {
 
   // Pagination logic
   const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / pageSize));
-  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => b.id - a.id);
+  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
+  const paginatedTransactions = sortedTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Row expansion state
   const [openRows, setOpenRows] = useState<{[key: string]: boolean}>({});

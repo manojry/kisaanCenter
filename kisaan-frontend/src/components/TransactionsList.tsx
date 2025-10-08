@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Filter, RefreshCw, Download, Package } from 'lucide-react';
-import { formatCurrency, formatQuantity, formatDate } from '../lib/formatters';
+import { formatCurrency, formatQuantity } from '../lib/formatters';
+import { formatDate } from '../utils/formatDate';
 import { useToast } from '@/hooks/use-toast';
 import { useSharedUsers } from '../hooks/useSharedUsers';
 
@@ -105,7 +106,8 @@ export default function TransactionsList({ shopId, onRefresh }: TransactionsList
   };
 
   const applyFilters = () => {
-    let filtered = [...transactions];
+  // Sort by transaction id descending by default
+  let filtered = [...transactions].sort((a, b) => b.id - a.id);
 
     // Status filter
     if (filters.status) {

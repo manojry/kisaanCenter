@@ -322,9 +322,9 @@ export class TransactionService {
       });
 
       let createdTransaction: TransactionEntity | undefined;
-  // ...existing code...
+      let createdPayments: any[] = [];
       const externalTx = options?.tx;
-  const run = async (tx: import('sequelize').Transaction) => {
+      const run = async (tx: import('sequelize').Transaction) => {
         if (options?.idempotencyKey) {
           const existing = await this.idempotencyRepo.findByKey(options.idempotencyKey);
           if (!existing) {
@@ -361,11 +361,10 @@ export class TransactionService {
           /* intentionally ignore debug errors */
         }
         createdTransaction = await this.transactionRepository.create(transactionEntity, { tx });
-  await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, transactionEntity.status ?? 'pending', tx);
+        await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, transactionEntity.status ?? 'pending', tx);
         // Ledger entries - ensure numeric conversion to prevent string concatenation
         const farmerBalanceBefore = Number(farmer.balance || 0);
         const buyerBalanceBefore = Number(buyer.balance || 0);
-        
         await this.ledgerRepository.create({
           transaction_id: (createdTransaction as { id: number }).id,
           user_id: farmer.id!,
@@ -403,6 +402,38 @@ export class TransactionService {
         throw new DatabaseError('Transaction creation failed (no result)');
       }
 
+      // Now create payments after transaction is committed
+      try {
+        const PaymentService = require('./paymentService').PaymentService;
+        const paymentService = new PaymentService();
+        // Buyer pays shop
+        const buyerPayment = await paymentService.createPayment({
+          transaction_id: (createdTransaction as { id: number }).id,
+          payer_type: 'BUYER',
+          payee_type: 'SHOP',
+          amount: totalAmount,
+          method: 'CASH',
+          status: 'PAID',
+          payment_date: new Date(),
+          notes: ''
+        }, buyer.id);
+        // Shop pays farmer
+        const farmerPayment = await paymentService.createPayment({
+          transaction_id: (createdTransaction as { id: number }).id,
+          payer_type: 'SHOP',
+          payee_type: 'FARMER',
+          amount: farmerEarning,
+          method: 'CASH',
+          status: 'PAID',
+          payment_date: new Date(),
+          notes: ''
+        }, farmer.id);
+        createdPayments = [buyerPayment, farmerPayment];
+      } catch (err) {
+        console.error('[transaction:create:payment-error]', err);
+        throw new DatabaseError('Failed to create payments for transaction', err instanceof Error ? { message: err.message, stack: err.stack } : undefined);
+      }
+
       try {
         console.info('[transaction:create]', {
           id: (createdTransaction as { id: number }).id,
@@ -421,6 +452,19 @@ export class TransactionService {
         });
       } catch (err) {
         /* intentionally ignore debug errors */
+      }
+      // Trigger status recalculation after payments
+      try {
+        const txnService = new TransactionService();
+        await txnService.updateTransactionStatus((createdTransaction as { id: number }).id);
+        // Refetch transaction to get latest status
+        createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
+      } catch (err) {
+        /* intentionally ignore status update errors */
+      }
+      // Attach payments to transaction response
+      if (createdTransaction) {
+        (createdTransaction as any).payments = createdPayments;
       }
       return createdTransaction;
     } catch (error) {
@@ -603,52 +647,47 @@ export class TransactionService {
   /**
    * Update transaction status
    */
-  async updateTransactionStatus(id: number, status: string, requestingUser?: { role: string; id: number }): Promise<TransactionEntity> {
+  async updateTransactionStatus(id: number, status?: string, requestingUser?: { role: string; id: number }): Promise<TransactionEntity> {
     try {
       const transaction = await this.getTransactionById(id, requestingUser);
 
       // Calculate total paid to farmer for this transaction
-      const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: id } });
       const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
-      // Calculate paid to farmer
-      const paidToFarmer = allocations
-        .map(a => {
-          const payment = payments.find(p => p.id === a.payment_id);
-          if (payment && payment.payee_type === 'FARMER' && payment.status === 'PAID') {
-            return Number(a.allocated_amount || 0);
-          }
-          return 0;
-        })
-        .reduce((s, v) => s + v, 0);
-
-      // Calculate paid to buyer
-      const paidToBuyer = allocations
-        .map(a => {
-          const payment = payments.find(p => p.id === a.payment_id);
-          if (payment && payment.payer_type === 'BUYER' && payment.status === 'PAID') {
-            return Number(a.allocated_amount || 0);
-          }
-          return 0;
-        })
-        .reduce((s, v) => s + v, 0);
-
-      // Commission confirmation logic (if available in metadata)
-      let commissionConfirmed = false;
-      if (transaction.metadata && typeof transaction.metadata === 'object' && 'commission_confirmed' in transaction.metadata) {
-        commissionConfirmed = Boolean((transaction.metadata as any).commission_confirmed);
+      console.log('[TXN STATUS] Payments for transaction', { transactionId: id, payments });
+      // If allocations exist, use allocation logic; else, check payments directly
+      let isBuyerPaid = false;
+      let isFarmerPaid = false;
+      if (payments.length > 0) {
+        // Check if all payments to SHOP from BUYER are PAID and match total_amount
+        const buyerPayments = payments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+        const buyerPaidAmount = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount), 0);
+        isBuyerPaid = Math.abs(Number(transaction.total_amount || 0) - buyerPaidAmount) < 0.01;
+        // Check if all payments to FARMER from SHOP are PAID and match farmer_earning
+        const farmerPayments = payments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+        const farmerPaidAmount = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount), 0);
+        isFarmerPaid = Math.abs(Number(transaction.farmer_earning || 0) - farmerPaidAmount) < 0.01;
+        console.log('[TXN STATUS] Buyer paid?', { transactionId: id, buyerPaidAmount, expected: transaction.total_amount, isBuyerPaid });
+        console.log('[TXN STATUS] Farmer paid?', { transactionId: id, farmerPaidAmount, expected: transaction.farmer_earning, isFarmerPaid });
       }
-
-      const isBuyerPaid = Math.abs(Number(transaction.total_amount || 0) - paidToBuyer) < 0.01;
-      const isFarmerPaid = Math.abs(Number(transaction.farmer_earning || 0) - paidToFarmer) < 0.01;
-
+      // Commission confirmation logic: auto-set to true if both payments are made
+      let commissionConfirmed = false;
+      let newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
+      if (isBuyerPaid && isFarmerPaid) {
+        commissionConfirmed = true;
+        newMetadata.commission_confirmed = true;
+      } else if ('commission_confirmed' in newMetadata) {
+        commissionConfirmed = Boolean(newMetadata.commission_confirmed);
+      }
       let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
       if (isBuyerPaid && isFarmerPaid && commissionConfirmed) {
         newStatus = TRANSACTION_STATUS.COMPLETED;
       }
+      console.log('[TXN STATUS] Final status decision', { transactionId: id, newStatus, commissionConfirmed });
 
       const updatedEntity = new TransactionEntity({
         ...transaction,
-        status: newStatus
+        status: newStatus,
+        metadata: newMetadata
       });
 
       const updatedTransaction = await this.transactionRepository.update(id, updatedEntity);

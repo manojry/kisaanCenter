@@ -78,33 +78,8 @@ export class TransactionController {
 
       // Create the transaction
   const transaction = await this.transactionService.createTransaction(serviceData, requestingUser);
-      
-      // Create payments if provided
-      const createdPayments: Array<Record<string, unknown>> = [];
-      if (payments && Array.isArray(payments)) {
-        for (const payment of payments) {
-          const paymentData = {
-            transaction_id: transaction.id,
-            payer_type: payment.payer_type,
-            payee_type: payment.payee_type,
-            amount: payment.amount,
-            method: payment.method,
-            status: payment.status || 'PAID',
-            payment_date: payment.payment_date || new Date(),
-            notes: payment.notes
-          };
-          const createdPayment = await paymentService.createPayment(paymentData, userId);
-          createdPayments.push(createdPayment as unknown as Record<string, unknown>);
-        }
-      }
-
-      // Return transaction with payments
-      const response = {
-        ...transaction,
-        payments: createdPayments
-      };
-
-      return createdResp(res, response, { message: 'Transaction created successfully' });
+  // Return transaction with payments (already attached by service)
+  return createdResp(res, transaction, { message: 'Transaction created successfully' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction:create failed');
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
