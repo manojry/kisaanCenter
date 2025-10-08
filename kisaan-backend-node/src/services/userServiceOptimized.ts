@@ -129,8 +129,8 @@ export const getUsersWithShopInfo = async (
     shop_name: user.shop?.name,
     balance: user.balance,
     custom_commission_rate: user.custom_commission_rate ?? undefined,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt
+  created_at: user.created_at,
+  updated_at: user.updated_at
   }));
 
   return {
@@ -172,8 +172,8 @@ export const getUsersByShopCached = async (
     shop_name: user.shop?.name,
     balance: user.balance,
     custom_commission_rate: user.custom_commission_rate ?? undefined,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt
+  created_at: user.created_at,
+  updated_at: user.updated_at
   }));
 };
 
@@ -233,8 +233,8 @@ export const getUsersWithBalance = async (
     shop_name: user.shop?.name,
     balance: user.balance,
     custom_commission_rate: user.custom_commission_rate ?? undefined,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt
+  created_at: user.created_at,
+  updated_at: user.updated_at
   }));
 };
 
@@ -264,8 +264,8 @@ export const createUserOptimized = async (
     shop_id: user.shop_id || undefined,
     balance: user.balance,
     custom_commission_rate: user.custom_commission_rate || undefined,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt
+  created_at: user.created_at,
+  updated_at: user.updated_at
   };
 };
 
@@ -308,8 +308,8 @@ export const updateUserOptimized = async (
     shop_id: user.shop_id || undefined,
     balance: user.balance,
     custom_commission_rate: user.custom_commission_rate || undefined,
-    created_at: user.createdAt,
-    updated_at: user.updatedAt
+  created_at: user.created_at,
+  updated_at: user.updated_at
   };
 };
 

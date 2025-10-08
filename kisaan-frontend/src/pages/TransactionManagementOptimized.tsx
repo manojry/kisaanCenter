@@ -369,8 +369,21 @@ const TransactionManagement = (): React.ReactElement => {
                             ₹{(transaction.total_sale_value ?? transaction.total_amount ?? 0).toFixed(2)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">
-                              {transaction.status === 'completed' ? 'Completed' : transaction.status === 'pending' ? 'Pending' : transaction.status}
+                            <Badge
+                              variant="outline"
+                              className={
+                                transaction.status === 'completed'
+                                  ? 'bg-green-100 text-green-800 border-green-300'
+                                  : transaction.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                    : 'bg-gray-100 text-gray-800 border-gray-300'
+                              }
+                            >
+                              {transaction.status === 'completed'
+                                ? 'Completed'
+                                : transaction.status === 'pending'
+                                  ? 'Pending'
+                                  : transaction.status}
                             </Badge>
                           </TableCell>
                         </TableRow>
