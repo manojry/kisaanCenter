@@ -1,5 +1,6 @@
 
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { Shop } from '../models/shop';
@@ -19,6 +20,7 @@ function getUserRole(req: Request): string | undefined {
 
 class ReportController {
   async generateReport(req: Request, res: Response) {
+  console.log('[REPORT] /api/reports/generate called with:', req.query);
     try {
       const queryObj = req.query as Record<string, string | undefined>;
       const { shop_id, date_from, date_to, report_type, format = 'json' } = queryObj;
@@ -73,8 +75,14 @@ class ReportController {
           return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         }
         const farmer_id = queryObj.farmer_id;
-        const txnWhere: Record<string, string | number> = { shop_id: String(shop_id) };
+        const txnWhere: Record<string, any> = { shop_id: String(shop_id) };
         if (farmer_id) txnWhere.farmer_id = farmer_id;
+        // Fix: Use Sequelize Op and Date objects for proper timestamp filtering
+        if (date_from || date_to) {
+          txnWhere.created_at = {};
+          if (date_from) txnWhere.created_at[Op.gte] = new Date(date_from);
+          if (date_to) txnWhere.created_at[Op.lte] = new Date(date_to);
+        }
         type TransactionRow = {
           id: number;
           buyer_id: number;
@@ -84,7 +92,9 @@ class ReportController {
           unit_price: number | string;
           total_amount: number | string;
         };
-        const transactions = await Transaction.findAll({ where: txnWhere, raw: true }) as TransactionRow[];
+  console.log('[REPORT] DB Query - Transaction.findAll where:', txnWhere);
+  const transactions = await Transaction.findAll({ where: txnWhere, raw: true }) as TransactionRow[];
+  console.log('[REPORT] DB Response - transactions:', transactions);
         const buyerIds = [...new Set(transactions.map((t) => t.buyer_id))];
         const farmerIds = [...new Set(transactions.map((t) => t.farmer_id))];
         type UserRow = { id: number; username: string };
@@ -130,6 +140,7 @@ class ReportController {
           await workbook.xlsx.write(res);
           return res.end();
         }
+  console.log('[REPORT] API Response - report rows:', _rows);
   return success(res, _rows, { message: 'Shop report generated', meta: { count: _rows.length } });
       } else {
         return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Insufficient permissions to generate this report');

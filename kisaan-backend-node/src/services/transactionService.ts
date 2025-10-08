@@ -610,6 +610,7 @@ export class TransactionService {
       // Calculate total paid to farmer for this transaction
       const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: id } });
       const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+      // Calculate paid to farmer
       const paidToFarmer = allocations
         .map(a => {
           const payment = payments.find(p => p.id === a.payment_id);
@@ -619,8 +620,31 @@ export class TransactionService {
           return 0;
         })
         .reduce((s, v) => s + v, 0);
-      const fullyPaid = Math.abs(Number(transaction.farmer_earning || 0) - paidToFarmer) < 0.01;
-      const newStatus = fullyPaid ? TRANSACTION_STATUS.COMPLETED : TRANSACTION_STATUS.PENDING;
+
+      // Calculate paid to buyer
+      const paidToBuyer = allocations
+        .map(a => {
+          const payment = payments.find(p => p.id === a.payment_id);
+          if (payment && payment.payer_type === 'BUYER' && payment.status === 'PAID') {
+            return Number(a.allocated_amount || 0);
+          }
+          return 0;
+        })
+        .reduce((s, v) => s + v, 0);
+
+      // Commission confirmation logic (if available in metadata)
+      let commissionConfirmed = false;
+      if (transaction.metadata && typeof transaction.metadata === 'object' && 'commission_confirmed' in transaction.metadata) {
+        commissionConfirmed = Boolean((transaction.metadata as any).commission_confirmed);
+      }
+
+      const isBuyerPaid = Math.abs(Number(transaction.total_amount || 0) - paidToBuyer) < 0.01;
+      const isFarmerPaid = Math.abs(Number(transaction.farmer_earning || 0) - paidToFarmer) < 0.01;
+
+      let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
+      if (isBuyerPaid && isFarmerPaid && commissionConfirmed) {
+        newStatus = TRANSACTION_STATUS.COMPLETED;
+      }
 
       const updatedEntity = new TransactionEntity({
         ...transaction,
@@ -650,8 +674,8 @@ export class TransactionService {
     totalFarmerEarnings: number;
   }> {
     try {
+      // Fetch transactions for the shop
       const transactions = await this.transactionRepository.findByShop(shopId);
-      
       let filteredTransactions = transactions;
       if (startDate && endDate) {
         filteredTransactions = transactions.filter(t => 

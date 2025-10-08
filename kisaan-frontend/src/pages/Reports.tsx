@@ -1,4 +1,4 @@
-// import { useOwnerDashboard } from '../hooks/useOwnerDashboard';
+import React from 'react';
 import { useUsers } from '../context/useUsers';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -22,11 +22,11 @@ export default function Reports() {
       ? { id: String(user.shop_id), name: 'your shop' }
       : null;
   // If superadmin, shop selection logic may differ (not handled here)
-  const mappedUsers = users.map(u => ({
+  const mappedUsers = React.useMemo(() => users.map(u => ({
     id: String(u.id),
     username: u.username,
     role: u.role
-  }));
+  })), [users]);
 
   if (!user || (user.role !== 'owner' && user.role !== 'superadmin')) {
     toast({

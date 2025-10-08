@@ -12,11 +12,12 @@ interface ReportFilters {
 export const reportService = {
 
   async generateReport(filters: ReportFilters) {
+    // This method is now for export only (download)
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    // Use apiClient to get blob
+    // Use apiClient to get blob for export
     const response = await apiClient.fetchBlob(`/reports/generate?${params.toString()}`);
     const url = window.URL.createObjectURL(response);
     const link = document.createElement('a');
@@ -49,17 +50,13 @@ export const reportService = {
   },
 
   async previewReport(filters: ReportFilters) {
+    // This method fetches JSON data for preview
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    params.append('format', 'pdf');
-    // Use apiClient to get HTML string
-    const html = await apiClient.get(`/reports/generate?${params.toString()}`);
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(html as string);
-      newWindow.document.close();
-    }
+    // Do NOT append format=pdf for preview
+    // Use apiClient to get JSON data
+    return await apiClient.get(`/reports/generate?${params.toString()}`);
   }
 };

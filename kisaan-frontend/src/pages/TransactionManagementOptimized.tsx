@@ -160,9 +160,8 @@ const TransactionManagement = (): React.ReactElement => {
       {/* Create Transaction Form Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Create New Transaction</h2>
+          <div className="bg-white rounded-lg p-2 pt-2 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
@@ -172,8 +171,7 @@ const TransactionManagement = (): React.ReactElement => {
               </Button>
             </div>
             <TransactionForm 
-              // onClose removed to match TransactionFormProps
-              // onTransactionCreated removed to match TransactionFormProps
+              onSuccess={() => setShowCreateForm(false)}
             />
           </div>
         </div>
@@ -365,7 +363,7 @@ const TransactionManagement = (): React.ReactElement => {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {transaction.payments?.length > 0 ? 'Paid' : 'Pending'}
+                              {transaction.status === 'completed' ? 'Completed' : transaction.status === 'pending' ? 'Pending' : transaction.status}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -387,6 +385,22 @@ const TransactionManagement = (): React.ReactElement => {
                                     <p><strong>Buyer Paid:</strong> ₹{txnHelpers.getBuyerPaid(transaction)}</p>
                                     <p><strong>Farmer Paid:</strong> ₹{txnHelpers.getFarmerPaid(transaction)}</p>
                                     <p><strong>Farmer Due:</strong> ₹{txnHelpers.getFarmerDue(transaction)}</p>
+                                    {/* Commission confirmation UI */}
+                                    {transaction.metadata && transaction.metadata.commission_confirmed ? (
+                                      <p className="text-green-700 font-semibold">Commission Confirmed</p>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          await fetch(`/api/transactions/${transaction.id}/confirm-commission`, { method: 'POST' });
+                                          if (typeof refetchTransactions === 'function') refetchTransactions();
+                                        }}
+                                        className="mt-2"
+                                      >
+                                        Confirm Commission
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                                 {transaction.payments && transaction.payments.length > 0 && (

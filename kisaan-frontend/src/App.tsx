@@ -32,6 +32,7 @@ import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import OwnerSettings from './pages/OwnerSettings';
 import { Toaster } from './components/ui/toaster';
+import ZustandTest from './components/ZustandTest';
 import TransactionManagementOptimized from './pages/TransactionManagementOptimized';
 
 // Protected Route Component
