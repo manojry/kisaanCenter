@@ -42,9 +42,11 @@ const Header = () => {
           {user ? (
             <div className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-medium text-foreground">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs capitalize">
+                <span className="text-sm font-medium text-foreground">
+                  <span className="font-semibold">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
+                </span>
+                <Badge variant="secondary" className="text-xs capitalize">
                     {user.role}
                   </Badge>
                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="Online" />

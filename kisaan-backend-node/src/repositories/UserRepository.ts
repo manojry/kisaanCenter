@@ -26,15 +26,16 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
       username: model.username,
       password: model.password,
       email: model.email,
-  role: model.role,
+      role: model.role,
       shop_id: model.shop_id,
+      firstname: model.firstname ?? '',
       balance: model.balance,
       status: model.status,
       cumulative_value: model.cumulative_value,
-  created_at: model.created_at,
-  updated_at: model.updated_at,
+      created_at: model.created_at,
+      updated_at: model.updated_at,
       created_by: model.created_by,
-  custom_commission_rate: model.custom_commission_rate ?? null
+      custom_commission_rate: model.custom_commission_rate ?? null
     });
   }
 

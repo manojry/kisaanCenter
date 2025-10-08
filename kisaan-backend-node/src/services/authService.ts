@@ -14,6 +14,8 @@ export interface LoginResponseDTO {
     username: string;
     role: string;
     shop_id?: number | null;
+    firstname?: string;
+    shop_name?: string | null;
   };
 }
 
@@ -56,6 +58,18 @@ export class AuthService {
         throw new AuthorizationError('Invalid username or password');
       }
 
+      // Fetch shop name if shop_id exists
+      let shopName: string | null = null;
+      if (user.shop_id) {
+        try {
+          const { Shop } = await import('../models/shop');
+          const shop = await Shop.findByPk(user.shop_id);
+          shopName = shop ? shop.name : null;
+        } catch (err) {
+          console.error('Error fetching shop name:', err);
+        }
+      }
+
       // Generate JWT token (no expiration - only expires on logout)
       const token = jwt.sign(
         {
@@ -73,7 +87,9 @@ export class AuthService {
           id: user.id!,
           username: user.username,
           role: user.role,
-          shop_id: user.shop_id
+          shop_id: user.shop_id,
+          firstname: user.firstname ?? '',
+          shop_name: shopName
         }
       };
     } catch (error) {

@@ -31,6 +31,7 @@ import { useShopTransactions, useShopUsers } from '../hooks/useShopData';
 
 const TransactionManagement = (): React.ReactElement => {
   const { user } = useAuth();
+  const ownerDisplayName = user?.firstname || user?.username;
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateForm, setShowCreateForm] = useState(false);
     const [selectedUser, setSelectedUser] = useState<string>('all');
@@ -151,7 +152,12 @@ const TransactionManagement = (): React.ReactElement => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Transaction Management</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Transaction Management</h1>
+          {ownerDisplayName && (
+            <p className="text-sm text-gray-500 mt-1">Shop Owner: <span className="font-semibold">{ownerDisplayName}</span></p>
+          )}
+        </div>
         <Button onClick={() => setShowCreateForm(true)} className="bg-green-600 hover:bg-green-700">
           <Plus className="w-4 h-4 mr-2" />
           New Transaction
