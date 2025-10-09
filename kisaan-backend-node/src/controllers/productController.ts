@@ -131,9 +131,12 @@ export const updateProduct = async (req: Request, res: Response) => {
     const id = parseId(req.params.id, 'product');
 
     // Extract allowed fields only
-  const { name, category_id, description, unit, auto_resolve_name } = req.body || {};
+    const { name, category_id, description, unit, auto_resolve_name, record_status } = req.body || {};
     const updateData: Record<string, unknown> = {};
-  const autoResolve = !!auto_resolve_name; // optional flag to auto-generate unique name on conflict
+    const autoResolve = !!auto_resolve_name; // optional flag to auto-generate unique name on conflict
+
+    // If record_status is undefined or null, default to 'active'
+    updateData.record_status = (typeof record_status !== 'undefined' && record_status !== null) ? record_status : 'active';
 
     // Validate & normalize name
     if (name !== undefined) {

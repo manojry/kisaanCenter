@@ -32,7 +32,7 @@ Product.init({
   category_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_categories', key: 'id' } },
   description: { type: DataTypes.TEXT, allowNull: true },
   unit: { type: DataTypes.STRING(32), allowNull: true },
-  record_status: { type: DataTypes.STRING(20), allowNull: true },
+  record_status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'active' },
   created_at: { type: DataTypes.DATE, allowNull: true, defaultValue: DataTypes.NOW },
   updated_at: { type: DataTypes.DATE, allowNull: true, defaultValue: DataTypes.NOW }
 }, {

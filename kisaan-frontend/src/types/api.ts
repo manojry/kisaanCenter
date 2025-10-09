@@ -89,23 +89,28 @@ export interface User {
 
 export interface UserCreate {
   username?: string;
+  password: string;
   role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
   shop_id?: number;
   contact?: string;
   email?: string;
-  password: string;
-  balance?: number;
-  custom_commission_rate?: number; // Updated to match backend field name
-  firstname?: string; // For auto-generating usernames
-  // Note: status and cumulative_value removed - not in database schema
+  status?: 'active' | 'inactive';
+  balance?: number; // default 0
+  cumulative_value?: number; // default 0
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
+  custom_commission_rate?: number;
+  firstname?: string;
 }
 
-// ...existing code...
 
 export interface Product {
   id: number;
   name: string;
   category_id: number;
+  unit?: string;
+  description?: string;
   record_status: 'active' | 'inactive';
   created_at: string;
   updated_at?: string;

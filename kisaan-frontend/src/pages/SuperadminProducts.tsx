@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 import type { Product, Category } from '../types/api';
 
@@ -18,7 +19,7 @@ const SuperadminProducts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<{ name: string; category_id: number; record_status: 'active' | 'inactive' }>({ name: '', category_id: 0, record_status: 'active' });
+  const [formData, setFormData] = useState<{ name: string; category_id: number; record_status: 'active' | 'inactive'; unit?: string; description?: string }>({ name: '', category_id: 0, record_status: 'active', unit: '', description: '' });
   const [filters, setFilters] = useState({ category_id: '', record_status: '', search: '' });
 
   useEffect(() => {
@@ -64,15 +65,22 @@ const SuperadminProducts: React.FC = () => {
     e.preventDefault();
     if (!formData.name || !formData.category_id) return;
     try {
+      // Always assign default status if missing
+      const payload = {
+        ...formData,
+        record_status: formData.record_status || 'active',
+        unit: formData.unit || '',
+        description: formData.description || ''
+      };
       if (editingProduct) {
-        await productsApi.update(editingProduct.id, formData);
+        await productsApi.update(editingProduct.id, payload);
       } else {
-        await productsApi.create(formData);
+        await productsApi.create(payload);
       }
       fetchProducts();
       setShowCreateForm(false);
       setEditingProduct(null);
-      setFormData({ name: '', category_id: 0, record_status: 'active' });
+      setFormData({ name: '', category_id: 0, record_status: 'active', unit: '', description: '' });
     } catch (error) {
       console.error('Error saving product:', error);
     }
@@ -90,7 +98,13 @@ const SuperadminProducts: React.FC = () => {
 
   const handleEdit = (product: Product) => {
   setEditingProduct(product);
-  setFormData({ name: product.name, category_id: product.category_id, record_status: product.record_status });
+  setFormData({
+    name: product.name,
+    category_id: product.category_id,
+    record_status: product.record_status || 'active',
+    unit: product.unit || '',
+    description: product.description || ''
+  });
     setShowCreateForm(true);
   };
 
@@ -148,6 +162,25 @@ const SuperadminProducts: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="unit">Unit</Label>
+                  <Input
+                    id="unit"
+                    value={formData.unit || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                    placeholder="e.g. kg, piece, etc."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Product description (optional)"
+                    rows={3}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="record_status">Status</Label>
