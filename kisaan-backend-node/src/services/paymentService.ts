@@ -36,7 +36,11 @@ export class PaymentService {
 
     // Always allocate payment to its transaction
     if (payment.transaction_id) {
-      const { PaymentAllocation } = require('../models/paymentAllocation');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // const { PaymentAllocation } = require('../models/paymentAllocation');
+  // Use import for PaymentAllocation
+  // import { PaymentAllocation } from '../models/paymentAllocation';
+  const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
       await PaymentAllocation.create({
         payment_id: payment.id,
         transaction_id: payment.transaction_id,

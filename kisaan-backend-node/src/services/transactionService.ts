@@ -1,3 +1,4 @@
+import { Payment } from '../models/payment';
 import { sequelize } from '../models/index';
 /**
  * Transaction Service
@@ -322,7 +323,7 @@ export class TransactionService {
       });
 
       let createdTransaction: TransactionEntity | undefined;
-      let createdPayments: any[] = [];
+  let createdPayments: unknown[] = [];
       const externalTx = options?.tx;
       const run = async (tx: import('sequelize').Transaction) => {
         if (options?.idempotencyKey) {
@@ -404,7 +405,8 @@ export class TransactionService {
 
       // Now create payments after transaction is committed
       try {
-        const PaymentService = require('./paymentService').PaymentService;
+        // Use dynamic import for PaymentService
+        const { PaymentService } = await import('./paymentService');
         const paymentService = new PaymentService();
         // Buyer pays shop
         const buyerPayment = await paymentService.createPayment({
@@ -414,9 +416,8 @@ export class TransactionService {
           amount: totalAmount,
           method: 'CASH',
           status: 'PAID',
-          payment_date: new Date(),
           notes: ''
-        }, buyer.id);
+  }, buyer.id!);
         // Shop pays farmer
         const farmerPayment = await paymentService.createPayment({
           transaction_id: (createdTransaction as { id: number }).id,
@@ -425,9 +426,8 @@ export class TransactionService {
           amount: farmerEarning,
           method: 'CASH',
           status: 'PAID',
-          payment_date: new Date(),
           notes: ''
-        }, farmer.id);
+  }, farmer.id!);
         createdPayments = [buyerPayment, farmerPayment];
       } catch (err) {
         console.error('[transaction:create:payment-error]', err);
@@ -464,7 +464,7 @@ export class TransactionService {
       }
       // Attach payments to transaction response
       if (createdTransaction) {
-        (createdTransaction as any).payments = createdPayments;
+        (createdTransaction as unknown as { payments?: unknown[] }).payments = createdPayments;
       }
       return createdTransaction;
     } catch (error) {
@@ -671,7 +671,7 @@ export class TransactionService {
       }
       // Commission confirmation logic: auto-set to true if both payments are made
       let commissionConfirmed = false;
-      let newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
+  const newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
       if (isBuyerPaid && isFarmerPaid) {
         commissionConfirmed = true;
         newMetadata.commission_confirmed = true;
@@ -757,7 +757,7 @@ export class TransactionService {
   ): Promise<void> {
     try {
       // Ensure numeric conversion to prevent string concatenation issues
-      const currentFarmerBalance = Number(farmer.balance || 0);
+  const _currentFarmerBalance = Number(farmer.balance || 0);
       const currentBuyerBalance = Number(buyer.balance || 0);
       const currentFarmerCumulative = Number(farmer.cumulative_value || 0);
       const currentBuyerCumulative = Number(buyer.cumulative_value || 0);
@@ -888,7 +888,7 @@ export class TransactionService {
     const txnIds = filteredTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
     
     // Get all payments for these transactions
-    let payments: any[] = [];
+  let payments: Payment[] = [];
     if (txnIds.length > 0) {
       const { Op } = await import('sequelize');
       payments = await (await import('../models/payment')).Payment.findAll({ 
