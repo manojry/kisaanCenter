@@ -395,7 +395,7 @@ const TransactionManagement = (): React.ReactElement => {
                                 <div>
                                   <h4 className="font-semibold mb-2">Transaction Details</h4>
                                   <div className="space-y-1 text-sm">
-                                    <p><strong>Product:</strong> {transaction.product_name}</p>
+                                    <p><strong>Product:</strong> {transaction.product_name && transaction.product_name !== 'undefined' ? transaction.product_name : (transaction.product_id || 'Unknown')}</p>
                                     <p><strong>Quantity:</strong> {transaction.quantity} kg</p>
                                     <p><strong>Unit Price:</strong> ₹{transaction.unit_price}</p>
                                     <p><strong>Sale Value:</strong> ₹{transaction.total_sale_value ?? transaction.total_amount}</p>

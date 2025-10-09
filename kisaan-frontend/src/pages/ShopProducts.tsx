@@ -94,7 +94,14 @@ const ShopProducts: React.FC = () => {
     setIsLoading(true);
     try {
       const shopProductsData = await shopProductsApi.getShopProducts(Number(selectedShop));
-      setShopProducts(shopProductsData);
+      // Map API response to LocalShopProduct type if needed
+      const mappedProducts = (shopProductsData || []).map((sp: any) => ({
+        ...sp,
+        product_name: sp.product_name || sp.name || '-',
+        category_name: sp.category_name || '-',
+        is_active: typeof sp.is_active === 'boolean' ? sp.is_active : true,
+      }));
+      setShopProducts(mappedProducts);
     } catch (error) {
       console.error('Error fetching shop products:', error);
     } finally {
@@ -333,7 +340,7 @@ const ShopProducts: React.FC = () => {
                   <TableBody>
                     {filteredShopProducts.map((shopProduct) => (
                       <TableRow key={shopProduct.id}>
-                        <TableCell className="font-medium">{shopProduct.product_name}</TableCell>
+                        <TableCell className="font-medium">{shopProduct.product_name || '-'}</TableCell>
                         <TableCell>{shopProduct.category_name}</TableCell>
                         <TableCell>
                           <Badge 
