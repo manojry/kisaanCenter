@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Label,
   Select,
@@ -21,9 +21,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { reportService } from "@/services/reportService";
 // Type definitions
 // Temporary stubs for missing functions/constants
-const useTransactionStore = (...args: any[]) => [];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const useTransactionStore = (..._args: unknown[]) => [];
 const getToday = () => new Date().toISOString().slice(0, 10);
-const exportTransactionsPDF = (...args: any[]) => {};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const exportTransactionsPDF = (..._args: unknown[]) => {};
 const formatDate = (date: string) => date;
 type UserType = { readonly id: string; readonly username: string; readonly role: string };
 interface PDFReportGeneratorProps {
@@ -46,7 +48,7 @@ type ReportRow = {
 
 export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGeneratorProps) {
   const userSelector = useCallback(
-    (state: any) => (state.usersByShop?.[shopId] || []).map((u: any) => ({
+    (state: { usersByShop?: Record<string, UserType[]> }) => (state.usersByShop?.[shopId] || []).map((u: UserType) => ({
       id: String(u.id),
       username: u.username,
       role: u.role
@@ -56,7 +58,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const zustandUsers: UserType[] = useTransactionStore(userSelector);
   const allUsers: ReadonlyArray<UserType> = zustandUsers.length > 0 ? zustandUsers : users;
 
-  const getDisplayName = (username: unknown): string => {
+  const getDisplayName = (username: string | undefined): string => {
     const uname = typeof username === 'string' ? username : '';
     const user = allUsers.find(u => u.username === uname);
     return user ? user.username + (user.role ? ` (${user.role})` : '') : uname;
@@ -70,7 +72,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
-  const handleExportPDF = () => {
+  const handleExportPDF = (): void => {
     if (!reportRows.length) {
       toast({ title: 'Error', description: 'No report data to export.', variant: 'destructive' });
       return;
@@ -100,15 +102,22 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         dateRange: { from: dateFrom, to: dateTo }
       });
       toast({ title: 'Success', description: 'PDF exported successfully!' });
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to export PDF. Please try again.', variant: 'destructive' });
     }
   };
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (): Promise<void> => {
     setIsGenerating(true);
     try {
-      const filters: any = {
+      interface ReportFilters {
+        shop_id: string;
+        report_type: 'shop' | 'farmer' | 'user';
+        date_from?: string;
+        date_to?: string;
+        user_id?: string;
+      }
+      const filters: ReportFilters = {
         shop_id: shopId,
         report_type: reportType
       };
@@ -116,14 +125,14 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       if (dateTo) filters.date_to = formatDate(dateTo);
       if (selectedUser) filters.user_id = selectedUser;
       const response = await reportService.previewReport(filters);
-      const rows = response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)
-        ? (response as any).data
+      const rows = response && typeof response === 'object' && 'data' in response && Array.isArray((response as { data?: unknown[] }).data)
+        ? (response as { data?: unknown[] }).data as ReportRow[]
         : [];
       setReportRows(rows);
       if (rows.length === 0) {
         toast({ title: 'No Data', description: 'No report data found for the selected filters.', variant: 'destructive' });
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to generate report', variant: 'destructive' });
     } finally {
       setIsGenerating(false);

@@ -107,7 +107,11 @@ export function useTransactionFormLogic({
         const farmerResponse = await farmerProductApi.getFarmerProducts(formData.farmer_id);
         const farmerProducts = farmerResponse.success ? (farmerResponse.data || []) : [];
         // Map farmer products to use actual product_id
-        const farmerShopProducts = (farmerProducts as unknown[]).map((p: any) => ({
+        type FarmerProduct = {
+          product_id?: number;
+          Product?: { id?: number };
+        };
+        const farmerShopProducts = (farmerProducts as FarmerProduct[]).map((p) => ({
           ...toShopProduct(p),
           id: p.product_id || (p.Product && p.Product.id) || toShopProduct(p).id,
         }));

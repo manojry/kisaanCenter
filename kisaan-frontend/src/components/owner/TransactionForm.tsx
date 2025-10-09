@@ -44,10 +44,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   });
 
   // Map ShopProduct[] to Product[] for TransactionPartySelectors
-  const mappedProducts = (products || []).map((p: any) => ({
+  type ShopProduct = {
+    id: number;
+    name?: string;
+    product_name?: string;
+    category_id?: number;
+    record_status?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
+  const mappedProducts = (products || []).map((p: ShopProduct) => ({
     id: p.id,
     name: p.name || p.product_name || '',
-    category_id: p.category_id,
+    category_id: typeof p.category_id === 'number' ? p.category_id : 0,
     record_status: p.record_status,
     created_at: p.created_at,
     updated_at: p.updated_at,

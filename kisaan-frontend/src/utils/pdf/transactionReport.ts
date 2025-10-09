@@ -13,10 +13,14 @@ function formatDisplayDate(dateStr?: string): string {
   return `${day} ${month} ${year}, ${hours}:${mins}`;
 }
 // Global helper: enrich transactions with user names from user context
-export function enrichTransactionsWithNames(transactions: any[], users: any[], shops?: any[]): any[] {
-  const userMap: Record<string, any> = {};
+// Removed conflicting import
+type UserLike = { id: string | number; firstname?: string };
+type ShopLike = { id: string | number; name?: string };
+// Removed local interfaces, use exported ones below
+export function enrichTransactionsWithNames(transactions: TransactionLike[], users: UserLike[], shops?: ShopLike[]): TransactionLike[] {
+  const userMap: Record<string, UserLike> = {};
   users.forEach(u => { userMap[String(u.id)] = u; });
-  let shopMap: Record<string, any> = {};
+  const shopMap: Record<string, ShopLike> = {};
   if (shops && Array.isArray(shops)) {
     shops.forEach(s => { shopMap[String(s.id)] = s; });
   }
@@ -48,15 +52,15 @@ export function enrichTransactionsWithNames(transactions: any[], users: any[], s
     let buyer_paid = 0;
     if (Array.isArray(t.payments)) {
       buyer_paid = t.payments
-        .filter((p: any) => p.payer_type === 'BUYER' && !isNaN(Number(p.amount)))
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        .filter((p: PaymentLike) => p.payer_type === 'BUYER' && !isNaN(Number(p.amount)))
+        .reduce((sum: number, p: PaymentLike) => sum + Number(p.amount), 0);
     }
     // Calculate farmer_paid: sum of payments where payee_type is FARMER
     let farmer_paid = 0;
     if (Array.isArray(t.payments)) {
       farmer_paid = t.payments
-        .filter((p: any) => p.payee_type === 'FARMER' && !isNaN(Number(p.amount)))
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        .filter((p: PaymentLike) => p.payee_type === 'FARMER' && !isNaN(Number(p.amount)))
+        .reduce((sum: number, p: PaymentLike) => sum + Number(p.amount), 0);
     }
     return {
       ...t,
@@ -72,7 +76,7 @@ export function enrichTransactionsWithNames(transactions: any[], users: any[], s
 }
 
 // Helper: get payment label using only transaction's names (simple mapping)
-function getPaymentLabelSimple(p: PaymentLike, t: any): string {
+function getPaymentLabelSimple(p: PaymentLike, t: TransactionLike): string {
   const payerRole = String(p.payer_type);
   const payeeRole = String(p.payee_type);
   const buyerName = t.buyer_name || 'Unknown';
@@ -119,6 +123,13 @@ export interface TransactionLike {
   farmer_paid?: number | string;
   farmer_due?: number | string; // farmer pending
   payments?: PaymentLike[];
+  total_amount?: number | string;
+  quantity?: number | string;
+  unit_price?: number | string;
+  rate?: number | string;
+  buyer_id?: string | number;
+  farmer_id?: string | number;
+  shop_id?: string | number;
 }
 
 interface ExportOptions {
@@ -141,13 +152,13 @@ const formatCurrency = (value: number | string | undefined) => {
 export function exportTransactionsPDF(
   transactions: TransactionLike[],
   options: ExportOptions = {},
-  users?: any[]
+  users?: UserLike[]
 ) {
   if (!transactions || transactions.length === 0) return;
   // If users context is provided, enrich transactions with names
   const txs = users ? enrichTransactionsWithNames(transactions, users) : transactions;
   // Build userMap for payment label resolution
-  const userMap: Record<string, any> = {};
+  const userMap: Record<string, UserLike> = {};
   if (users) users.forEach(u => { userMap[String(u.id)] = u; });
   const doc = new jsPDF({ orientation: 'landscape' });
   let y = 14;
@@ -252,7 +263,7 @@ export function exportTransactionsPDF(
         const amount = formatCurrency(p.amount || 0);
         const method = p.method || '';
   const date = p.payment_date ? `, ${formatDisplayDate(p.payment_date)}` : '';
-        let prefix = '• ' + label + ': ';
+        const prefix = '• ' + label + ': ';
         const suffix = ` (${method}${date})`;
         doc.setFont('helvetica', 'normal');
         const prefixWidth = doc.getTextWidth(prefix);
