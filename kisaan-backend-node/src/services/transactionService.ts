@@ -453,14 +453,12 @@ export class TransactionService {
       } catch (err) {
         /* intentionally ignore debug errors */
       }
-      // Trigger status recalculation after payments
+      // Status update is handled by PaymentService.createPayment() calls above
+      // Refetch transaction to get latest status after payments
       try {
-        const txnService = new TransactionService();
-        await txnService.updateTransactionStatus((createdTransaction as { id: number }).id);
-        // Refetch transaction to get latest status
         createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
       } catch (err) {
-        /* intentionally ignore status update errors */
+        /* intentionally ignore refetch errors */
       }
       // Attach payments to transaction response
       if (createdTransaction) {

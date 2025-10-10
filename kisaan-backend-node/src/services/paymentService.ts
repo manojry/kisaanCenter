@@ -229,6 +229,11 @@ export class PaymentService {
       new_values: JSON.stringify(payment.toJSON())
     });
 
+    // If payment is now PAID and linked to a transaction, update transaction status
+    if (payment.status === 'PAID' && payment.transaction_id) {
+      const txnService = new TransactionService();
+      await txnService.updateTransactionStatus(payment.transaction_id);
+    }
     return payment.toJSON() as PaymentResponseDTO;
   }
 
