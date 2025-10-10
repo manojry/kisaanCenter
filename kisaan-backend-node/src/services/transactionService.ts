@@ -670,25 +670,23 @@ export class TransactionService {
         console.log('[TXN STATUS] Farmer paid?', { transactionId: id, farmerPaidAmount, expected: transaction.farmer_earning, isFarmerPaid });
       }
       // Commission confirmation logic: auto-set to true if both payments are made
-      let commissionConfirmed = false;
-      let newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
-      if (isBuyerPaid && isFarmerPaid) {
-        commissionConfirmed = true;
-        newMetadata.commission_confirmed = true;
-      } else if ('commission_confirmed' in newMetadata) {
-        commissionConfirmed = Boolean(newMetadata.commission_confirmed);
-      }
-      let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
-      if (isBuyerPaid && isFarmerPaid && commissionConfirmed) {
-        newStatus = TRANSACTION_STATUS.COMPLETED;
-      }
-      console.log('[TXN STATUS] Final status decision', { transactionId: id, newStatus, commissionConfirmed });
+        let newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
+        let commissionConfirmed = false;
+        let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
+        if (isBuyerPaid && isFarmerPaid) {
+          commissionConfirmed = true;
+          newMetadata.commission_confirmed = true;
+          newStatus = TRANSACTION_STATUS.COMPLETED;
+        } else if ('commission_confirmed' in newMetadata) {
+          commissionConfirmed = Boolean(newMetadata.commission_confirmed);
+        }
+        console.log('[TXN STATUS] Final status decision', { transactionId: id, newStatus, commissionConfirmed });
 
-      const updatedEntity = new TransactionEntity({
-        ...transaction,
-        status: newStatus,
-        metadata: newMetadata
-      });
+        const updatedEntity = new TransactionEntity({
+          ...transaction,
+          status: newStatus,
+          metadata: newMetadata
+        });
 
       const updatedTransaction = await this.transactionRepository.update(id, updatedEntity);
       if (!updatedTransaction) {
