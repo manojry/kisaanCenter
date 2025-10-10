@@ -16,7 +16,7 @@ export class TransactionEntity {
   commission_type?: string;
   commission_amount?: number;
   farmer_earning?: number;
-  status?: 'pending' | 'completed' | 'cancelled' | 'settled';
+  status?: 'pending' | 'completed' | 'partial' | 'cancelled' | 'settled';
   transaction_date?: Date;
   settlement_date?: Date | null;
   notes?: string | null;
