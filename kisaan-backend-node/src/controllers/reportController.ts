@@ -75,13 +75,14 @@ class ReportController {
           return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         }
         const farmer_id = queryObj.farmer_id;
-        const txnWhere: Record<string, any> = { shop_id: String(shop_id) };
+  const txnWhere: Record<string, unknown> = { shop_id: String(shop_id) };
         if (farmer_id) txnWhere.farmer_id = farmer_id;
         // Fix: Use Sequelize Op and Date objects for proper timestamp filtering
         if (date_from || date_to) {
           txnWhere.created_at = {};
-          if (date_from) txnWhere.created_at[Op.gte] = new Date(date_from);
-          if (date_to) txnWhere.created_at[Op.lte] = new Date(date_to);
+          const createdAtObj = txnWhere.created_at as Record<string | symbol, unknown>;
+          if (date_from) createdAtObj[Op.gte] = new Date(date_from);
+          if (date_to) createdAtObj[Op.lte] = new Date(date_to);
         }
         type TransactionRow = {
           id: number;

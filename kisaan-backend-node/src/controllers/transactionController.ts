@@ -57,10 +57,10 @@ export class TransactionController {
       
       // Import PaymentService for payment creation
       const { PaymentService } = await import('../services/paymentService');
-      const paymentService = new PaymentService();
+  const _paymentService = new PaymentService();
 
   // Extract transaction data (remove payments array)
-  const { payments, ...transactionData } = req.body;
+  const { payments: _payments, ...transactionData } = req.body;
       
       const serviceData = {
         shop_id: transactionData.shop_id,

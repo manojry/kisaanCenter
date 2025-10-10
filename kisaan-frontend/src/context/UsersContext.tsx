@@ -64,7 +64,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
           // ...removed log...
         }, 0);
       }
-    } catch (err) {
+  } catch {
       setAllUsers([]);
       setTotal(0);
     } finally {

@@ -32,8 +32,8 @@ function getPaymentLabel(p: Payment, buyerName: string, farmerName: string, shop
   if (payerRole === 'BUYER' && payeeRole === 'SHOP') return `Paid by ${buyerName} (BUYER) to ${shopName} (SHOP)`;
   if (payerRole === 'SHOP' && payeeRole === 'FARMER') return `Paid by ${shopName} (SHOP) to ${farmerName} (FARMER)`;
   if (payerRole === 'SHOP' && payeeRole === 'SHOP') return `Commission (${shopName} (SHOP))`;
-  let payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
-  let payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
+  const payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
+  const payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
   return `Paid by ${payer} to ${payee}`;
 }
 
@@ -45,8 +45,8 @@ function PaymentDetails({ payments, buyerName, farmerName, shopName }: { payment
       {payments.map((p, pidx) => {
         const payerRole = String(p.payer_type);
         const payeeRole = String(p.payee_type);
-        let payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
-        let payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
+        const payer = payerRole === 'BUYER' ? `${buyerName} (BUYER)` : payerRole === 'FARMER' ? `${farmerName} (FARMER)` : payerRole === 'SHOP' ? `${shopName} (SHOP)` : payerRole;
+        const payee = payeeRole === 'BUYER' ? `${buyerName} (BUYER)` : payeeRole === 'FARMER' ? `${farmerName} (FARMER)` : payeeRole === 'SHOP' ? `${shopName} (SHOP)` : payeeRole;
         const label = getPaymentLabel(p, buyerName, farmerName, shopName);
         return (
           <li key={p.id ?? `${pidx}` } className="bg-gray-50 rounded p-2 border text-xs">

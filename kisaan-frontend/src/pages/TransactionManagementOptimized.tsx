@@ -431,8 +431,8 @@ const TransactionManagement = (): React.ReactElement => {
                                         // Name and role resolution
                                         let payer = '';
                                         let payee = '';
-                                        let payerRole = String(payment.payer_type);
-                                        let payeeRole = String(payment.payee_type);
+                                        const payerRole = String(payment.payer_type);
+                                        const payeeRole = String(payment.payee_type);
                                         const buyerName = txnHelpers.getBuyerName(users, transaction);
                                         const farmerName = txnHelpers.getFarmerName(users, transaction);
                                         const shopName = txnHelpers.getShopName(users, transaction);

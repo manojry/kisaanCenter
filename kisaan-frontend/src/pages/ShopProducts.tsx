@@ -1,6 +1,18 @@
-import type { ShopProduct } from '../types/api';
+// import type { ShopProduct } from '../types/api'; // Removed unused import to fix lint error
 // Extend shared ShopProduct type for local needs
-type LocalShopProduct = ShopProduct & { category_name: string; is_active: boolean };
+type LocalShopProduct = {
+  id: number;
+  shop_id: number;
+  product_id: number;
+  is_active: boolean;
+  created_at?: Date;
+  updated_at?: Date;
+  name: string;
+  product_name: string;
+  category_id: number;
+  record_status?: string | null;
+  category_name?: string;
+};
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { shopProductsApi } from '../services/api';
@@ -95,11 +107,18 @@ const ShopProducts: React.FC = () => {
     try {
       const shopProductsData = await shopProductsApi.getShopProducts(Number(selectedShop));
       // Map API response to LocalShopProduct type if needed
-      const mappedProducts = (shopProductsData || []).map((sp: any) => ({
-        ...sp,
-        product_name: sp.product_name || sp.name || '-',
-        category_name: sp.category_name || '-',
+        const mappedProducts = (((shopProductsData as unknown[]) as LocalShopProduct[]) || []).map(sp => ({
+        id: typeof sp.id === 'number' ? sp.id : 0,
+        shop_id: typeof sp.shop_id === 'number' ? sp.shop_id : 0,
+        product_id: typeof sp.product_id === 'number' ? sp.product_id : 0,
         is_active: typeof sp.is_active === 'boolean' ? sp.is_active : true,
+        created_at: sp.created_at ? new Date(sp.created_at) : undefined,
+        updated_at: sp.updated_at ? new Date(sp.updated_at) : undefined,
+        name: typeof sp.name === 'string' ? sp.name : '-',
+        product_name: typeof sp.product_name === 'string' ? sp.product_name : (typeof sp.name === 'string' ? sp.name : '-'),
+        category_id: typeof sp.category_id === 'number' ? sp.category_id : 0,
+        record_status: typeof sp.record_status === 'string' ? sp.record_status : 'active',
+        category_name: typeof sp.category_name === 'string' ? sp.category_name : '-',
       }));
       setShopProducts(mappedProducts);
     } catch (error) {
@@ -148,7 +167,7 @@ const ShopProducts: React.FC = () => {
   const filteredShopProducts = shopProducts.filter(sp =>
     filters.search === '' || 
     sp.product_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-    sp.category_name.toLowerCase().includes(filters.search.toLowerCase())
+    (sp.category_name ? sp.category_name.toLowerCase() : '').includes(filters.search.toLowerCase())
   );
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Label,
   Select,
@@ -21,9 +21,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { reportService } from "@/services/reportService";
 // Type definitions
 // Temporary stubs for missing functions/constants
-const useTransactionStore = (...args: any[]) => [];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const useTransactionStore = (..._args: unknown[]) => [];
 const getToday = () => new Date().toISOString().slice(0, 10);
-const exportTransactionsPDF = (...args: any[]) => {};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const exportTransactionsPDF = (..._args: unknown[]) => {};
 const formatDate = (date: string) => date;
 type UserType = { readonly id: string; readonly username: string; readonly role: string };
 interface PDFReportGeneratorProps {
@@ -46,7 +48,7 @@ type ReportRow = {
 
 export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGeneratorProps) {
   const userSelector = useCallback(
-    (state: any) => (state.usersByShop?.[shopId] || []).map((u: any) => ({
+    (state: { usersByShop?: Record<string, UserType[]> }) => (state.usersByShop?.[shopId] || []).map((u: UserType) => ({
       id: String(u.id),
       username: u.username,
       role: u.role
@@ -56,10 +58,22 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const zustandUsers: UserType[] = useTransactionStore(userSelector);
   const allUsers: ReadonlyArray<UserType> = zustandUsers.length > 0 ? zustandUsers : users;
 
-  const getDisplayName = (username: unknown): string => {
+
+  // Helper to get display name
+  const getDisplayName = (username: string | undefined): string => {
     const uname = typeof username === 'string' ? username : '';
     const user = allUsers.find(u => u.username === uname);
     return user ? user.username + (user.role ? ` (${user.role})` : '') : uname;
+  };
+
+  // Helper to sum paid amounts for multi-party payments
+  const getPaidAmount = (row: ReportRow): number => {
+    if (Array.isArray(row.payments)) {
+      return row.payments
+        .filter((p: any) => p.status === 'PAID')
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    }
+    return typeof row.paid_amount === 'number' ? row.paid_amount : Number(row.paid_amount) || 0;
   };
 
   const [reportRows, setReportRows] = useState<ReportRow[]>([]);
@@ -70,7 +84,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
-  const handleExportPDF = () => {
+  const handleExportPDF = (): void => {
     if (!reportRows.length) {
       toast({ title: 'Error', description: 'No report data to export.', variant: 'destructive' });
       return;
@@ -90,7 +104,7 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         buyer_name: getDisplayName(row.buyer),
         farmer_name: getDisplayName(row.farmer),
         total_sale_value: typeof row.total_amount === 'number' ? row.total_amount : row.total_amount || '',
-        buyer_paid: typeof row.paid_amount === 'number' ? row.paid_amount : row.paid_amount || '',
+        paid_amount: getPaidAmount(row),
         quantity: typeof row.quantity === 'number' ? row.quantity : row.quantity || '',
         unit_price: typeof row.unit_price === 'number' ? row.unit_price : row.unit_price || '',
       }));
@@ -100,15 +114,22 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
         dateRange: { from: dateFrom, to: dateTo }
       });
       toast({ title: 'Success', description: 'PDF exported successfully!' });
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to export PDF. Please try again.', variant: 'destructive' });
     }
   };
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReport = async (): Promise<void> => {
     setIsGenerating(true);
     try {
-      const filters: any = {
+      interface ReportFilters {
+        shop_id: string;
+        report_type: 'shop' | 'farmer' | 'user';
+        date_from?: string;
+        date_to?: string;
+        user_id?: string;
+      }
+      const filters: ReportFilters = {
         shop_id: shopId,
         report_type: reportType
       };
@@ -116,14 +137,14 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
       if (dateTo) filters.date_to = formatDate(dateTo);
       if (selectedUser) filters.user_id = selectedUser;
       const response = await reportService.previewReport(filters);
-      const rows = response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)
-        ? (response as any).data
+      const rows = response && typeof response === 'object' && 'data' in response && Array.isArray((response as { data?: unknown[] }).data)
+        ? (response as { data?: unknown[] }).data as ReportRow[]
         : [];
       setReportRows(rows);
       if (rows.length === 0) {
         toast({ title: 'No Data', description: 'No report data found for the selected filters.', variant: 'destructive' });
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to generate report', variant: 'destructive' });
     } finally {
       setIsGenerating(false);
@@ -275,7 +296,7 @@ function ActionButtons({
               <th className="px-2 py-1">Quantity</th>
               <th className="px-2 py-1">Unit Price</th>
               <th className="px-2 py-1">Sale Value</th>
-              <th className="px-2 py-1">Buyer Paid</th>
+              <th className="px-2 py-1">Paid Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -289,7 +310,7 @@ function ActionButtons({
                 <td className="px-2 py-1">{typeof row.quantity === 'string' || typeof row.quantity === 'number' ? row.quantity : ''}</td>
                 <td className="px-2 py-1">{typeof row.unit_price === 'string' || typeof row.unit_price === 'number' ? row.unit_price : ''}</td>
                 <td className="px-2 py-1">{typeof row.total_amount === 'string' || typeof row.total_amount === 'number' ? row.total_amount : ''}</td>
-                <td className="px-2 py-1">{typeof row.paid_amount === 'string' || typeof row.paid_amount === 'number' ? row.paid_amount : ''}</td>
+                <td className="px-2 py-1">{getPaidAmount(row)}</td>
               </tr>
             ))}
           </tbody>

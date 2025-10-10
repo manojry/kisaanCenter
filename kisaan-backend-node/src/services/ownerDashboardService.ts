@@ -1,3 +1,4 @@
+import { Payment } from '../models/payment';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
@@ -27,7 +28,7 @@ export class OwnerDashboardService {
       // 4. Get payment allocations for commission realization calculation
       const transactionIds = transactions.map(t => t.id);
       let allocations: PaymentAllocation[] = [];
-      let payments: any[] = [];
+  let payments: Payment[] = [];
       try {
         allocations = transactionIds.length
           ? await PaymentAllocation.findAll({ where: { transaction_id: transactionIds } })
