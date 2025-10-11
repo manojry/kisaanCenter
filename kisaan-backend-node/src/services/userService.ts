@@ -1,5 +1,5 @@
 // User service for business logic related to users
-import { USER_ROLES } from '../shared/constants';
+import { USER_ROLES } from '../shared/constants/index';
 
 import { User } from '../models/user';
 import { UserDTO } from '../dtos';

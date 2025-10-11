@@ -8,6 +8,7 @@ import { Shop } from '../models/shop';
 import { Op } from 'sequelize';
 import { UserDTO, UserFilters, UserContext } from '../types/user';
 import { AuthorizationError, ValidationError } from '../shared/utils/errors';
+import { USER_ROLES } from '../shared/constants/index'; // Static import of USER_ROLES
 
 // Cache for shop-scoped user data
 class UserCacheService {
@@ -26,12 +27,11 @@ class UserCacheService {
     const users = await User.findAll({
       where: { 
         shop_id: shopId,
-        role: { [Op.in]: ['farmer', 'buyer', 'employee'] }
+        role: { [Op.in]: [USER_ROLES.FARMER, USER_ROLES.BUYER, USER_ROLES.EMPLOYEE] }
       },
       include: [
         {
           model: Shop,
-          as: 'shop',
           attributes: ['id', 'name'],
           required: false
         }
@@ -70,9 +70,9 @@ export const getUsersWithShopInfo = async (
   
   const where: Record<string, unknown> = {};
   const includeShop = [];
-
   // Build efficient WHERE clause based on requesting user's role
-  if (_requestingUser.role === 'owner') {
+  // using static USER_ROLES import
+  if (_requestingUser.role === USER_ROLES.OWNER) {
     // Single query to get shop IDs owned by this user
     includeShop.push({
       model: Shop,
@@ -81,7 +81,7 @@ export const getUsersWithShopInfo = async (
       required: true,
       attributes: ['id', 'name']
     });
-  } else if (_requestingUser.role === 'farmer' || _requestingUser.role === 'buyer') {
+  } else if (_requestingUser.role === USER_ROLES.FARMER || _requestingUser.role === USER_ROLES.BUYER) {
     // Users can only see themselves
   where.id = _requestingUser.id;
   }
@@ -92,7 +92,7 @@ export const getUsersWithShopInfo = async (
   if (filters.shop_id) where.shop_id = filters.shop_id;
   if (filters.search) {
     // Use a separate 'or' variable to avoid symbol index
-  (where as Record<string, unknown>).or = [
+    (where as Record<string, unknown>).or = [
       { username: { [Op.iLike]: `%${filters.search}%` } },
       { firstname: { [Op.iLike]: `%${filters.search}%` } },
       { email: { [Op.iLike]: `%${filters.search}%` } }
@@ -152,7 +152,7 @@ export const getUsersByShopCached = async (
 ): Promise<UserDTO[]> => {
   
   // Permission check
-  if (requestingUser.role === 'owner') {
+  if (requestingUser.role === USER_ROLES.OWNER) {
     const shop = await Shop.findByPk(shopId);
     if (!shop || shop.owner_id !== requestingUser.id) {
       throw new AuthorizationError('Access denied to shop users');
@@ -187,7 +187,7 @@ export const getUsersWithBalance = async (
 ): Promise<UserDTO[]> => {
   
   // Permission check
-  if (requestingUser.role === 'owner') {
+  if (requestingUser.role === USER_ROLES.OWNER) {
     const shop = await Shop.findByPk(shopId);
     if (!shop || shop.owner_id !== requestingUser.id) {
       throw new AuthorizationError('Access denied to shop users');
@@ -195,10 +195,10 @@ export const getUsersWithBalance = async (
   }
 
   // Single query with subqueries for balance calculation
-  const users = await User.findAll({
+    const users = await User.findAll({
     where: { 
       shop_id: shopId,
-      role: { [Op.in]: ['farmer', 'buyer'] }
+      role: { [Op.in]: [USER_ROLES.FARMER, USER_ROLES.BUYER] }
     },
     include: [
       {
@@ -284,7 +284,8 @@ export const updateUserOptimized = async (
   }
 
   // Permission check
-  if (_requestingUser.role === 'owner' && user.shop_id) {
+  const { USER_ROLES } = await import('../shared/constants');
+  if (_requestingUser.role === USER_ROLES.OWNER && user.shop_id) {
   const shop = await Shop.findByPk(user.shop_id);
   if (!shop || shop.owner_id !== _requestingUser.id) {
       throw new AuthorizationError('Access denied');
@@ -323,14 +324,15 @@ export class PermissionService {
     targetShopId: number
   ): Promise<boolean> {
     
-    if (userRole === 'superadmin') return true;
+    const { USER_ROLES } = await import('../shared/constants');
+    if (userRole === USER_ROLES.SUPERADMIN) return true;
     
-    if (userRole === 'owner') {
+    if (userRole === USER_ROLES.OWNER) {
       const shop = await Shop.findByPk(targetShopId, { attributes: ['owner_id'] });
       return shop?.owner_id === userId;
     }
     
-    if (['farmer', 'buyer', 'employee'].includes(userRole)) {
+    if (([USER_ROLES.FARMER, USER_ROLES.BUYER, USER_ROLES.EMPLOYEE] as string[]).includes(userRole)) {
       const user = await User.findByPk(userId, { attributes: ['shop_id'] });
       return user?.shop_id === targetShopId;
     }
@@ -339,7 +341,8 @@ export class PermissionService {
   }
   
   static async getUserShopId(userId: number, userRole: string): Promise<number | null> {
-    if (userRole === 'owner') {
+    const { USER_ROLES } = await import('../shared/constants');
+    if (userRole === USER_ROLES.OWNER) {
       const shop = await Shop.findOne({ 
         where: { owner_id: userId },
         attributes: ['id'] 

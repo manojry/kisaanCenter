@@ -16,6 +16,9 @@ function expandToFullDay(dateStr: string, isEnd: boolean): string {
   return dateStr;
 }
 
+// GET /api/settlements/farmer-net-payable?shop_id=...&farmer_id=... - Get net payable amount for farmer
+router.get('/farmer-net-payable', authenticateToken, settlementController.getFarmerNetPayableController.bind(settlementController));
+
 // POST /api/settlements/repay-fifo - Apply repayment FIFO for a user/shop
 router.post('/repay-fifo', authenticateToken, async (req, res) => {
   try {

@@ -51,6 +51,20 @@ export const createSettlement = async (data: {
     reason: data.type === 'overpayment' || data.type === 'underpayment' ? data.type : 'adjustment',
     status: 'pending'
   });
+
+  // NOTE: Expenses do NOT modify user balance directly
+  // Balance = Transaction earnings only
+  // Expenses = Separate debt tracking
+  // Frontend will show: Net Payable = Balance - Pending Expenses
+  
+  console.log('[SETTLEMENT] Settlement created', {
+    settlementId: settlement.id,
+    type: data.type,
+    userId: parseInt(data.user_id),
+    amount: data.amount,
+    status: 'pending'
+  });
+
   return settlement;
 };
 
@@ -85,6 +99,45 @@ export const getSettlements = async (filters: {
     ]
   });
   return settlements;
+};
+
+/**
+ * Calculate net payable amount for a farmer
+ * Net Payable = Balance (from transactions) - Pending Expenses (advances)
+ */
+export const getFarmerNetPayable = async (shop_id: number, farmer_id: number) => {
+  // Get farmer's current balance (from transaction earnings)
+  const farmer = await User.findByPk(farmer_id);
+  const currentBalance = Number(farmer?.balance || 0);
+
+  // Get pending expenses for this farmer in this shop
+  const pendingExpenses = await Settlement.findAll({
+    where: {
+      shop_id,
+      user_id: farmer_id,
+      status: 'pending',
+      reason: 'adjustment' // This covers expenses
+    }
+  });
+
+  const totalPendingExpenses = pendingExpenses.reduce((sum, settlement) => {
+    return sum + Number(settlement.amount || 0);
+  }, 0);
+
+  const netPayable = currentBalance - totalPendingExpenses;
+
+  return {
+    farmer_id,
+    current_balance: currentBalance,
+    pending_expenses: totalPendingExpenses,
+    net_payable: Math.max(0, netPayable), // Don't show negative
+    expenses_breakdown: pendingExpenses.map(exp => ({
+      id: exp.id,
+      amount: exp.amount,
+      created_at: exp.created_at,
+      description: 'Farmer advance/expense'
+    }))
+  };
 };
 
 export const getSettlementSummary = async (shop_id: string) => {

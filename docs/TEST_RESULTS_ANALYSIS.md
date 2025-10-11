@@ -85,7 +85,7 @@ Some APIs work but return unexpected response formats.
 ### Priority 1: Fix Database Connection Issues
 ```bash
 # Check if API can connect to database
-python debug_api_errors.py
+npm --prefix kisaan-backend-node run debug:api-errors
 ```
 
 ### Priority 2: Align Models with Database Schema
@@ -128,7 +128,7 @@ After fixing the identified issues:
 
 ## 🚀 **Next Steps**
 
-1. **Run debug script**: `python debug_api_errors.py` to see detailed error messages
+1. **Run debug script**: `npm --prefix kisaan-backend-node run debug:api-errors` to see detailed error messages
 2. **Check API server logs** for specific error details
 3. **Fix database connection issues** in the API layer
 4. **Update SQLAlchemy models** to match database schema

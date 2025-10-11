@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TransactionService } from '../services/transactionService';
+import { USER_ROLES } from '../shared/constants/index';
 import { success, created as createdResp, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { buildPaginationMeta } from '../middleware/pagination';
@@ -47,11 +48,15 @@ export class TransactionController {
   // Debug: Log the raw user object from request
   console.log('[DEBUG] Controller - Raw req.user:', user);
   
-  const userId = user?.id ?? 1;
-  // Ensure requestingUser always has concrete types (no undefined fields)
-  const requestingUser = user
-    ? { id: Number(user.id ?? userId), role: String(user.role ?? 'superadmin') }
-    : { id: userId, role: 'superadmin' };
+  // Authentication is required - no fallback defaults
+  if (!user || !user.id || !user.role) {
+    return failureCode(res, 401, ErrorCodes.AUTH_TOKEN_REQUIRED, undefined, 'Authentication required to create transactions');
+  }
+  
+  const requestingUser = { 
+    id: Number(user.id), 
+    role: String(user.role) 
+  };
     
   console.log('[DEBUG] Controller - Final requestingUser:', requestingUser);
       
@@ -59,8 +64,8 @@ export class TransactionController {
       const { PaymentService } = await import('../services/paymentService');
   const _paymentService = new PaymentService();
 
-  // Extract transaction data (remove payments array)
-  const { payments: _payments, ...transactionData } = req.body;
+  // Extract transaction data (keep payments array if provided)
+  const { payments, ...transactionData } = req.body;
       
       const serviceData = {
         shop_id: transactionData.shop_id,
@@ -73,7 +78,8 @@ export class TransactionController {
         unit_price: transactionData.unit_price,
         commission_rate: transactionData.commission_rate,
         transaction_date: new Date(),
-        notes: transactionData.notes
+        notes: transactionData.notes,
+        payments: payments
       };
 
       // Create the transaction
@@ -104,6 +110,20 @@ export class TransactionController {
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
       const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
       return failureCode(res, statusCode || 500, ErrorCodes.NOT_FOUND, undefined, message || 'Failed to fetch transaction');
+    }
+  }
+
+  async confirmCommission(req: Request, res: Response) {
+    try {
+      const id = parseId(req.params.id, 'transaction');
+      // Delegate to service which will set metadata.commission_confirmed = true and recompute status
+      const result = await this.transactionService.confirmCommission(id, (req as Request & { user?: { id?: number } }).user?.id ?? 0);
+      return success(res, result, { message: 'Commission confirmed and transaction status updated' });
+    } catch (error: unknown) {
+      req.log?.error({ err: error }, 'transaction:confirmCommission failed');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.TRANSACTION_UPDATE_FAILED, undefined, message || 'Failed to confirm commission');
     }
   }
 

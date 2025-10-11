@@ -20,7 +20,7 @@ This document summarizes the main weaknesses and actionable improvements identif
 
 ## 4. Test Setup
 - **Problem:** Test setup manipulates sys.path and lacks teardown logic. Hardcoded test data.
-- **Improvement:** Use pytest fixtures for setup/teardown and config for test data.
+- **Improvement:** Use the project's test framework (Jest) fixtures/setup and config for test data.
 
 ## 5. Documentation Structure
 - **Problem:** Documentation files are very long and cover too many topics.

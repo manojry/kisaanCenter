@@ -238,8 +238,8 @@ GET    /api/v1/subscriptions/admin/renewals/upcoming       # Upcoming renewals
 
 ### 1. Run Database Migration
 ```bash
-cd backend
-python migrate_subscription.py
+# Apply subscription-related DB migrations using backend npm scripts
+npm --prefix kisaan-backend-node run db:migrate
 ```
 
 ### 2. Start the API Server
@@ -260,7 +260,8 @@ uvicorn src.main:app --reload --port 8000
 ### Run Subscription Tests
 ```bash
 cd backend
-python -m pytest tests/test_subscription_management.py -v
+# Run subscription tests with the project's Node test runner (Jest) or the provided test scripts
+npm --prefix kisaan-backend-node run test:integration
 ```
 
 ### Test Coverage

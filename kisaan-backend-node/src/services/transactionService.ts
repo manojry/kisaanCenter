@@ -17,16 +17,17 @@ import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRe
 import { UserEntity } from '../entities/UserEntity';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
 
-import { USER_ROLES, TRANSACTION_STATUS } from '../shared/constants';
+import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus, PAYMENT_STATUS } from '../shared/constants/index';
+import { PARTY_TYPE } from '../shared/partyTypes';
 
 export class TransactionService {
-  private transactionRepository: TransactionRepository;
-  private userRepository: UserRepository;
-  private shopRepository: ShopRepository;
-  private productRepository: ProductRepository;
-  private ledgerRepository: TransactionLedgerRepository;
-  private farmerProductRepo: FarmerProductAssignmentRepository;
-  private idempotencyRepo: TransactionIdempotencyRepository;
+  private readonly transactionRepository: TransactionRepository;
+  private readonly userRepository: UserRepository;
+  private readonly shopRepository: ShopRepository;
+  private readonly productRepository: ProductRepository;
+  private readonly ledgerRepository: TransactionLedgerRepository;
+  private readonly farmerProductRepo: FarmerProductAssignmentRepository;
+  private readonly idempotencyRepo: TransactionIdempotencyRepository;
 
   constructor() {
     this.transactionRepository = new TransactionRepository();
@@ -37,7 +38,6 @@ export class TransactionService {
   this.farmerProductRepo = new FarmerProductAssignmentRepository();
     this.idempotencyRepo = new TransactionIdempotencyRepository();
   }
-
   private resolveCommissionRate(
     dataRate: number | undefined,
     farmer: { custom_commission_rate?: number | null } | null,
@@ -48,58 +48,85 @@ export class TransactionService {
     // 2. Farmer custom override (farmer.custom_commission_rate) – user-level rate
     // 3. Shop default commission_rate
     // 4. Fallback constant (10%) if nothing configured (legacy safety)
-    try {
-      console.debug('[transaction:commission:inputs]', {
-        provided: dataRate,
-        farmerCustom: farmer?.custom_commission_rate,
-        shopCommission: shop?.commission_rate
-      });
-    } catch (err) {
-      /* intentionally ignore debug errors */
-    }
+    console.debug('[transaction:commission:inputs]', {
+      provided: dataRate,
+      farmerCustom: farmer?.custom_commission_rate,
+      shopCommission: shop?.commission_rate
+    });
     if (typeof dataRate === 'number' && !isNaN(dataRate)) return dataRate;
     if (farmer?.custom_commission_rate != null) return Number(farmer.custom_commission_rate);
     if (shop?.commission_rate != null) return Number(shop.commission_rate);
     return 10;
   }
 
-  private async resolveProductIdAndName(input: { product_id?: number | null; product_name?: string; farmer_id: number }) {
-  let assignments: import('../repositories/FarmerProductAssignmentRepository').FarmerProductAssignmentEntity[] = [];
-    try {
-      assignments = await this.farmerProductRepo.findByFarmer(input.farmer_id);
-  } catch (e: unknown) {
-      // Extra safety (should already be handled in repository)
-      let msg = '';
-      let code = '';
-      if (typeof e === 'object' && e !== null) {
-        if ('message' in e && typeof (e as { message?: unknown }).message === 'string') {
-          msg = (e as { message?: string }).message as string;
+  private calculateTransactionAmounts(data: {
+    quantity: number;
+    unit_price: number;
+    commission_rate: number;
+    payments?: Array<{
+      payer_type: 'BUYER' | 'SHOP';
+      payee_type: 'SHOP' | 'FARMER';
+      amount: number;
+    }>;
+  }): { totalAmount: number; commissionAmount: number; farmerEarning: number } {
+    // If payments are provided, use them to derive amounts
+    if (data.payments && data.payments.length > 0) {
+      const buyerToShopPayment = data.payments.find(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+      const shopToFarmerPayment = data.payments.find(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+
+      if (buyerToShopPayment && shopToFarmerPayment) {
+        const totalAmount = Number(buyerToShopPayment.amount);
+        const farmerEarning = Number(shopToFarmerPayment.amount);
+        const commissionAmount = totalAmount - farmerEarning;
+
+        // Validate that commission makes sense
+        if (commissionAmount < 0) {
+          throw new ValidationError('Invalid payment amounts - commission cannot be negative');
         }
-        if ('original' in e && typeof (e as { original?: { code?: unknown } }).original === 'object' && (e as { original?: { code?: unknown } }).original !== null) {
-          const orig = (e as { original?: { code?: unknown } }).original;
-          if (orig && typeof orig.code === 'string') {
-            code = orig.code;
-          }
-        }
-      }
-      if (msg.includes('farmer_product_assignments') || code === '42P01') {
-        console.warn('[transactionService] Missing farmer_product_assignments table – using empty assignment list fallback');
-        assignments = [];
-      } else {
-        throw e;
+
+        // Log for debugging
+        console.debug('[transaction:amounts:from-payments]', {
+          totalAmount,
+          farmerEarning,
+          commissionAmount,
+          calculatedRate: totalAmount > 0 ? (commissionAmount / totalAmount) * 100 : 0
+        });
+
+        return { totalAmount, commissionAmount, farmerEarning };
       }
     }
-  const assignedIds = new Set(assignments.map(a => Number(a.product_id)));
-  try { console.debug('[transaction:resolveProduct] assignments', { farmer: input.farmer_id, assignments, input }); } catch (err) { /* ignore debug errors */ }
+
+    // Fallback to traditional calculation
+    const totalAmount = data.quantity * data.unit_price;
+    const commissionAmount = (totalAmount * data.commission_rate) / 100;
+    const farmerEarning = totalAmount - commissionAmount;
+
+    console.debug('[transaction:amounts:calculated]', {
+      quantity: data.quantity,
+      unit_price: data.unit_price,
+      commission_rate: data.commission_rate,
+      totalAmount,
+      commissionAmount,
+      farmerEarning
+    });
+
+    return { totalAmount, commissionAmount, farmerEarning };
+  }
+
+  private async resolveProductIdAndName(input: { product_id?: number | null; product_name?: string; farmer_id: number }) {
+    let assignments: import('../repositories/FarmerProductAssignmentRepository').FarmerProductAssignmentEntity[] = [];
+    assignments = await this.farmerProductRepo.findByFarmer(input.farmer_id);
+    const assignedIds = new Set(assignments.map(a => Number(a.product_id)));
+    console.debug('[transaction:resolveProduct] assignments', { farmer: input.farmer_id, assignments, input });
     let resolvedProductId: number | undefined;
-  const normalizedName = input.product_name?.trim();
-    if (input.product_id) {
-      if (assignments.length && !assignedIds.has(Number(input.product_id))) {
-  try { console.warn('[transaction:resolveProduct] Provided product_id not in assignedIds', { provided: input.product_id, assignedIds: Array.from(assignedIds) }); } catch (err) { /* ignore warn errors */ }
-        throw new BusinessRuleError('Product not assigned to farmer');
-      }
+    const normalizedName = input.product_name?.trim();
+
+    // 1. Always use provided product_id if present and valid
+    if (input.product_id && typeof input.product_id === 'number' && input.product_id > 0) {
       resolvedProductId = Number(input.product_id);
+      console.info('[transaction:resolveProduct] Using product_id from payload:', resolvedProductId);
     } else if (normalizedName) {
+      // 2. Try to resolve by product_name from assignments
       const lowered = normalizedName.toLowerCase();
       if (assignments.length) {
         const ids = Array.from(assignedIds);
@@ -110,26 +137,54 @@ export class TransactionService {
             const match = (rows as Array<{ id: number; name: string }>).find((r) => (r.name || '').toLowerCase() === lowered);
             if (match) {
               resolvedProductId = match.id;
+              console.info('[transaction:resolveProduct] Resolved product_id from assignments by name:', resolvedProductId);
             }
           }
         }
       }
+      // 3. If still not resolved, fallback to single assignment
       if (!resolvedProductId && assignments.length === 1) {
         resolvedProductId = assignments[0].product_id;
+        console.info('[transaction:resolveProduct] Fallback to single assignment product_id:', resolvedProductId);
       }
     } else {
+      // 4. If no product_name, fallback to single assignment if available
       if (assignments.length === 1) {
         resolvedProductId = assignments[0].product_id;
+        console.info('[transaction:resolveProduct] Fallback to single assignment product_id (no name):', resolvedProductId);
       } else {
         throw new ValidationError('product_id or product_name required');
       }
     }
+
+    // 5. Final fallback: allow provided product_id if no assignments exist
     if (!resolvedProductId) {
-      // Fallback: allow provided product_id when no assignments exist OR when assignments feature is disabled
-      if (!assignments.length && input.product_id) {
+      if (!assignments.length && input.product_id && typeof input.product_id === 'number' && input.product_id > 0) {
         resolvedProductId = Number(input.product_id);
+        console.warn('[transaction:resolveProduct] No assignments, using provided product_id:', resolvedProductId);
+      } else if (!assignments.length) {
+        // For development/testing: create a virtual product ID when no assignments exist
+        resolvedProductId = 1; // Default fallback product ID
+        console.warn('[transaction:resolveProduct] No assignments found, using fallback product ID:', resolvedProductId);
       } else {
         throw new BusinessRuleError('Unable to resolve product within farmer assignments');
+      }
+    }
+
+    // 6. Logging for robustness
+    if (!resolvedProductId) {
+      console.error('[transaction:resolveProduct] Failed to resolve product_id');
+    }
+
+    // 7. Environment-based strictness: In production, enforce stricter validation
+    const env = process.env.NODE_ENV || 'development';
+    if (env === 'production') {
+      if (!resolvedProductId || typeof resolvedProductId !== 'number' || resolvedProductId <= 0) {
+        throw new ValidationError('Unable to resolve product_id in production environment');
+      }
+    } else {
+      if (!resolvedProductId || typeof resolvedProductId !== 'number' || resolvedProductId <= 0) {
+        console.warn('[transaction:resolveProduct] Development fallback: product_id may be invalid:', resolvedProductId);
       }
     }
     return { productId: resolvedProductId, name: normalizedName || '' };
@@ -150,45 +205,78 @@ export class TransactionService {
     commission_rate?: number;
     transaction_date?: Date;
     notes?: string;
+    payments?: Array<{
+      payer_type: 'BUYER' | 'SHOP';
+      payee_type: 'SHOP' | 'FARMER';
+      amount: number;
+      method: string;
+      status?: string;
+      payment_date?: string;
+      notes?: string;
+    }>;
   }, requestingUser?: { role: string; id: number }, options?: { tx?: import('sequelize').Transaction, idempotencyKey?: string }): Promise<TransactionEntity> {
     try {
+      // Standardize error context
+      const errorContext = {
+        shop_id: data.shop_id,
+        farmer_id: data.farmer_id,
+        buyer_id: data.buyer_id,
+        category_id: data.category_id,
+        product_id: data.product_id,
+        product_name: data.product_name,
+        quantity: data.quantity,
+        unit_price: data.unit_price,
+        payments: data.payments,
+        requestingUser: requestingUser?.id,
+        requestingUserRole: requestingUser?.role
+      };
       // Validate required fields
       if (!data.shop_id || !data.farmer_id || !data.buyer_id) {
+        console.error('[transaction:error:missing-required]', { code: 'ERR_MISSING_REQUIRED', ...errorContext });
         throw new ValidationError('Shop ID, Farmer ID, and Buyer ID are required');
       }
       if (!data.category_id) {
+        console.error('[transaction:error:missing-category]', { code: 'ERR_MISSING_CATEGORY', ...errorContext });
         throw new ValidationError('Category ID is required');
       }
       // product_name may be omitted if farmer has exactly one assigned/default product
       const rawProductName = data.product_name?.trim();
       if (!rawProductName) {
-        // Peek assignments early (cheap fetch) to decide if omission is acceptable
         try {
           const assignmentsQuick = await this.farmerProductRepo.findByFarmer(data.farmer_id);
           if (!assignmentsQuick.length) {
+            console.error('[transaction:error:missing-product-name]', { code: 'ERR_MISSING_PRODUCT_NAME', ...errorContext });
             throw new ValidationError('Product name required (no assignments)');
           }
           if (assignmentsQuick.length > 1 && !assignmentsQuick.some(a => a.is_default)) {
+            console.error('[transaction:error:ambiguous-products]', { code: 'ERR_AMBIGUOUS_PRODUCTS', ...errorContext });
             throw new ValidationError('Ambiguous products: provide product_name or set a default');
           }
-          // We will resolve canonical product name later; temporarily set placeholder to pass downstream logic
           (data as Record<string, unknown>).product_name = '__AUTO_RESOLVE__';
         } catch (e) {
           if (e instanceof ValidationError) throw e;
-          // Fallback to strict requirement if repo fails
+          console.error('[transaction:error:product-name-repo-fail]', { code: 'ERR_PRODUCT_NAME_REPO_FAIL', error: e, ...errorContext });
           throw new ValidationError('Product name is required');
         }
       }
       if (!data.quantity || data.quantity <= 0) {
+        console.error('[transaction:error:invalid-quantity]', { code: 'ERR_INVALID_QUANTITY', ...errorContext });
         throw new ValidationError('Valid quantity is required');
       }
       if (!data.unit_price || data.unit_price <= 0) {
+        console.error('[transaction:error:invalid-unit-price]', { code: 'ERR_INVALID_UNIT_PRICE', ...errorContext });
         throw new ValidationError('Valid unit price is required');
       }
 
       // Upper bounds to catch accidental gigantic values
-      if (data.quantity > 1_000_000) throw new ValidationError('Quantity too large');
-      if (data.unit_price > 100_000_000) throw new ValidationError('Unit price too large');
+      if (data.quantity > 1_000_000) {
+        console.error('[transaction:error:quantity-too-large]', { code: 'ERR_QUANTITY_TOO_LARGE', ...errorContext });
+        throw new ValidationError('Quantity too large');
+      }
+      if (data.unit_price > 100_000_000) {
+        console.error('[transaction:error:unit-price-too-large]', { code: 'ERR_UNIT_PRICE_TOO_LARGE', ...errorContext });
+        throw new ValidationError('Unit price too large');
+      }
 
       // Parallel entity fetch (shop, farmer, buyer, assignments for product resolution)
       const [shop, farmer, buyer, assignments] = await Promise.all([
@@ -199,29 +287,70 @@ export class TransactionService {
       ]);
 
       if (!shop) {
+        console.error('[transaction:error:shop-not-found]', { code: 'ERR_SHOP_NOT_FOUND', ...errorContext });
         throw new NotFoundError('Shop not found');
       }
       if (!farmer || farmer.role !== USER_ROLES.FARMER) {
+        console.error('[transaction:error:farmer-not-found]', { code: 'ERR_FARMER_NOT_FOUND', ...errorContext });
         throw new NotFoundError('Farmer not found or invalid role');
       }
       if (!buyer || buyer.role !== USER_ROLES.BUYER) {
+        console.error('[transaction:error:buyer-not-found]', { code: 'ERR_BUYER_NOT_FOUND', ...errorContext });
         throw new NotFoundError('Buyer not found or invalid role');
       }
 
       if (farmer.id === buyer.id) {
+        console.error('[transaction:error:same-user]', { code: 'ERR_SAME_USER', ...errorContext });
         throw new BusinessRuleError('Farmer and buyer cannot be the same user');
       }
 
-      // Authorization check
+      // Authorization check - Only owners and farmers can create transactions
+      console.log('[AUTHORIZATION] Checking user authorization:', { 
+        requestingUser, 
+        userRole: requestingUser?.role,
+        shopId: data.shop_id,
+        shopOwnerId: shop.owner_id 
+      });
       
-      // Fix type comparison issues by converting to numbers
-      if (requestingUser?.role === USER_ROLES.OWNER && Number(shop.owner_id) !== Number(requestingUser.id)) {
-        throw new AuthorizationError('Cannot create transaction for another owner\'s shop');
+      if (!requestingUser) {
+        console.error('[transaction:error:no-requesting-user]', { code: 'ERR_NO_REQUESTING_USER', ...errorContext });
+        throw new AuthorizationError('Authentication required to create transactions');
+      }
+
+      // Superadmin cannot create transactions - business rule violation
+      if (requestingUser.role === USER_ROLES.SUPERADMIN) {
+        console.error('[transaction:error:superadmin-blocked]', { code: 'ERR_SUPERADMIN_BLOCKED', ...errorContext });
+        throw new AuthorizationError('Superadmin cannot create transactions. Only shop owners and farmers can create transactions.');
+      }
+
+      // Buyers cannot create transactions - they are passive participants
+      if (requestingUser.role === USER_ROLES.BUYER) {
+        console.error('[transaction:error:buyer-blocked]', { code: 'ERR_BUYER_BLOCKED', ...errorContext });
+        throw new AuthorizationError('Buyers cannot create transactions. Only shop owners and farmers can create transactions.');
       }
       
-      // Allow farmers to create transactions only for the shop they belong to
-      if (requestingUser?.role === USER_ROLES.FARMER && Number(farmer.shop_id) !== Number(shop.id)) {
-        throw new AuthorizationError('Cannot create transaction for a shop you do not belong to');
+      // Owner can only create transactions for their own shop
+      if (requestingUser.role === USER_ROLES.OWNER) {
+        if (!shop.owner_id) {
+          console.error('[transaction:error:shop-no-owner]', { code: 'ERR_SHOP_NO_OWNER', ...errorContext });
+          throw new BusinessRuleError('Shop has no owner assigned');
+        }
+        if (Number(shop.owner_id) !== Number(requestingUser.id)) {
+          console.error('[transaction:error:owner-shop-mismatch]', { code: 'ERR_OWNER_SHOP_MISMATCH', ...errorContext });
+          throw new AuthorizationError('Cannot create transaction for another owner\'s shop');
+        }
+      }
+      
+      // Farmer can only create transactions for their assigned shop
+      if (requestingUser.role === USER_ROLES.FARMER) {
+        if (!farmer.shop_id) {
+          console.error('[transaction:error:farmer-no-shop]', { code: 'ERR_FARMER_NO_SHOP', ...errorContext });
+          throw new BusinessRuleError('Farmer is not assigned to any shop');
+        }
+        if (Number(farmer.shop_id) !== Number(shop.id)) {
+          console.error('[transaction:error:farmer-shop-mismatch]', { code: 'ERR_FARMER_SHOP_MISMATCH', ...errorContext });
+          throw new AuthorizationError('Cannot create transaction for a shop you do not belong to');
+        }
       }
       // Product resolution leveraging existing assignments
       const { productId: resolvedProductId } = await this.resolveProductIdAndName({
@@ -229,18 +358,14 @@ export class TransactionService {
         product_name: data.product_name,
         farmer_id: data.farmer_id
       });
-      try {
         const assignmentCount = assignments?.length || 0;
         console.debug('[transaction:product:resolution]', {
           farmer: data.farmer_id,
-            requestedName: data.product_name,
+          requestedName: data.product_name,
           providedProductId: data.product_id,
-            resolvedProductId,
+          resolvedProductId,
           assignmentCount
         });
-      } catch (err) {
-        /* intentionally ignore debug errors */
-      }
 
       // Canonical product name fetch
       // Preserve explicit user-provided product_name. We only replace when:
@@ -248,26 +373,19 @@ export class TransactionService {
       // 2. No product_name provided at all (empty) and we successfully resolved productId.
       const originalProvidedName = (data.product_name || '').trim();
       let canonicalProductName = originalProvidedName;
-      try {
         if (resolvedProductId) {
-          // ...existing code...
           const [prodRows] = await sequelize.query('SELECT name FROM kisaan_products WHERE id = ? LIMIT 1', { replacements: [resolvedProductId] });
           if (Array.isArray(prodRows) && prodRows[0] && typeof prodRows[0] === 'object' && 'name' in prodRows[0]) {
             const catalogName = String((prodRows[0] as { name: string }).name);
             if (!originalProvidedName || originalProvidedName === '__AUTO_RESOLVE__') {
-              // Safe to adopt catalog canonical name when user did not explicitly choose a name
               canonicalProductName = catalogName;
             } else {
-              // Keep the user provided name but we could log divergence for future normalization
               if (originalProvidedName.toLowerCase() !== catalogName.toLowerCase()) {
-                try { console.debug('[transaction:product:name-preserve]', { provided: originalProvidedName, catalog: catalogName }); } catch (err) { /* ignore debug errors */ }
+                console.debug('[transaction:product:name-preserve]', { provided: originalProvidedName, catalog: catalogName });
               }
             }
           }
         }
-      } catch (err) {
-        /* fallback silently; can log later if needed */
-      }
       if (canonicalProductName === '__AUTO_RESOLVE__') {
         // Should have been replaced by product catalog lookup; if still placeholder, reject
         throw new ValidationError('Unable to auto-resolve product name');
@@ -279,14 +397,68 @@ export class TransactionService {
         throw new ValidationError('Invalid commission rate');
       }
       const normalizedCommissionRate = Number((commissionRate).toFixed(2));
-      // Calculate transaction amounts
-      const totalAmount = data.quantity * data.unit_price;
-      const commissionAmount = (totalAmount * commissionRate) / 100;
-      const farmerEarning = totalAmount - commissionAmount;
+      
+      // Calculate transaction amounts (supports both payment-based and traditional calculation)
+      const { totalAmount, commissionAmount, farmerEarning } = this.calculateTransactionAmounts({
+        quantity: data.quantity,
+        unit_price: data.unit_price,
+        commission_rate: commissionRate,
+        payments: data.payments
+      });
 
-      // Invariant check
+      // CRITICAL: Validate basic calculation consistency
+      const expectedTotalFromCalculation = data.quantity * data.unit_price;
+      // Only validate against calculated total if no payments are provided (traditional mode)
+      // If payments are provided, allow partial payments and pending balances
+      if (!data.payments && Math.abs(expectedTotalFromCalculation - totalAmount) > 0.01) {
+        console.error('[transaction:error:calculation-mismatch]', { 
+          code: 'ERR_CALCULATION_MISMATCH', 
+          ...errorContext, 
+          quantity: data.quantity,
+          unitPrice: data.unit_price,
+          expectedTotal: expectedTotalFromCalculation,
+          calculatedTotal: totalAmount,
+          difference: Math.abs(expectedTotalFromCalculation - totalAmount)
+        });
+        throw new ValidationError(`Calculation error: ${data.quantity} × ${data.unit_price} = ${expectedTotalFromCalculation}, but calculated total is ${totalAmount}`);
+      }
+      
+      // For payment-based transactions, log the difference as informational
+      if (data.payments && Math.abs(expectedTotalFromCalculation - totalAmount) > 0.01) {
+        console.info('[transaction:partial-payment]', {
+          expectedTotal: expectedTotalFromCalculation,
+          paidTotal: totalAmount,
+          pendingAmount: expectedTotalFromCalculation - totalAmount,
+          message: 'Partial payment detected - pending amount will be added to user balances'
+        });
+      }
+
+      // Financial invariant check - all amounts must balance
       if (Math.abs((commissionAmount + farmerEarning) - totalAmount) > 0.01) {
-        throw new BusinessRuleError('Computed financial fields inconsistent');
+        console.error('[transaction:error:financial-invariant]', { 
+          code: 'ERR_FINANCIAL_INVARIANT', 
+          ...errorContext, 
+          totalAmount,
+          commissionAmount, 
+          farmerEarning,
+          sum: commissionAmount + farmerEarning,
+          difference: Math.abs((commissionAmount + farmerEarning) - totalAmount)
+        });
+        throw new BusinessRuleError(`Financial amounts don't balance: Commission (${commissionAmount}) + Farmer Earning (${farmerEarning}) = ${commissionAmount + farmerEarning}, but Total Amount is ${totalAmount}`);
+      }
+
+      // Validate reasonable values
+      if (totalAmount <= 0) {
+        throw new ValidationError('Total amount must be positive');
+      }
+      if (farmerEarning < 0) {
+        throw new ValidationError('Farmer earning cannot be negative');
+      }
+      if (commissionAmount < 0) {
+        throw new ValidationError('Commission amount cannot be negative');
+      }
+      if (farmerEarning > totalAmount) {
+        throw new ValidationError('Farmer earning cannot exceed total amount');
       }
 
       // Idempotency early return
@@ -294,16 +466,27 @@ export class TransactionService {
         const existingKey = await this.idempotencyRepo.findByKey(options.idempotencyKey);
         if (existingKey?.transaction_id) {
           const existing = await this.transactionRepository.findById(existingKey.transaction_id);
-          if (existing) return existing;
+          if (existing) {
+            console.info('[transaction:idempotency:hit]', { code: 'IDEMPOTENCY_HIT', ...errorContext, transaction_id: existingKey.transaction_id });
+            return existing;
+          }
         }
       }
 
       // Construct entity (canonical fields only)
       // Set status: COMPLETED if payment is already made, else PENDING
-  let txnStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
+  let txnStatus: TransactionStatus = TRANSACTION_STATUS.PENDING;
       if ('payment_cleared' in data && data.payment_cleared === true) {
-        txnStatus = TRANSACTION_STATUS.COMPLETED;
+    txnStatus = TRANSACTION_STATUS.COMPLETED;
       }
+      // For transactions with payments, store calculated amounts (not payment amounts) 
+      // so that balance calculations work correctly for pending amounts
+      const recordTotalAmount = data.payments ? expectedTotalFromCalculation : totalAmount;
+      const recordCommissionAmount = data.payments ? 
+        (expectedTotalFromCalculation * commissionRate / 100) : commissionAmount;
+      const recordFarmerEarning = data.payments ? 
+        (expectedTotalFromCalculation - recordCommissionAmount) : farmerEarning;
+
       const transactionEntity = new TransactionEntity({
         shop_id: data.shop_id,
         farmer_id: data.farmer_id,
@@ -313,10 +496,10 @@ export class TransactionService {
         product_id: resolvedProductId,
         quantity: data.quantity,
         unit_price: data.unit_price,
-        total_amount: totalAmount,
+        total_amount: recordTotalAmount,
         commission_rate: normalizedCommissionRate,
-        commission_amount: commissionAmount,
-        farmer_earning: farmerEarning,
+        commission_amount: recordCommissionAmount,
+        farmer_earning: recordFarmerEarning,
         status: txnStatus,
         transaction_date: data.transaction_date || new Date(),
         notes: data.notes?.trim() || null
@@ -340,7 +523,6 @@ export class TransactionService {
           }
         }
         // Debug: log raw transaction entity values before persistence
-        try {
           console.debug('[transaction:debug:persist-payload]', {
             shop_id: transactionEntity.shop_id,
             farmer_id: transactionEntity.farmer_id,
@@ -358,30 +540,26 @@ export class TransactionService {
             status: transactionEntity.status,
             transaction_date: transactionEntity.transaction_date
           });
-        } catch (err) {
-          /* intentionally ignore debug errors */
-        }
         createdTransaction = await this.transactionRepository.create(transactionEntity, { tx });
-        await this.updateUserBalances(farmer, buyer, farmerEarning, totalAmount, transactionEntity.status ?? 'pending', tx);
+        await this.updateUserBalances(farmer, buyer, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TRANSACTION_STATUS.PENDING, tx);
         // Ledger entries - ensure numeric conversion to prevent string concatenation
-        const farmerBalanceBefore = Number(farmer.balance || 0);
         const buyerBalanceBefore = Number(buyer.balance || 0);
         await this.ledgerRepository.create({
           transaction_id: (createdTransaction as { id: number }).id,
           user_id: farmer.id!,
-          role: 'farmer',
-          delta_amount: Number(farmerEarning),
-          balance_before: farmerBalanceBefore,
-          balance_after: farmerBalanceBefore + Number(farmerEarning),
+          role: USER_ROLES.FARMER,
+          delta_amount: Number(recordFarmerEarning),
+          balance_before: Number(farmer.balance || 0),
+          balance_after: Number(farmer.balance || 0) + Number(recordFarmerEarning),
           reason_code: 'TXN_POST'
         }, { tx });
         await this.ledgerRepository.create({
           transaction_id: (createdTransaction as { id: number }).id,
           user_id: buyer.id!,
-          role: 'buyer',
-          delta_amount: Number(totalAmount),
+          role: USER_ROLES.BUYER,
+          delta_amount: Number(recordTotalAmount),
           balance_before: buyerBalanceBefore,
-          balance_after: buyerBalanceBefore + Number(totalAmount),
+          balance_after: buyerBalanceBefore + Number(recordTotalAmount),
           reason_code: 'TXN_POST'
         }, { tx });
         if (options?.idempotencyKey) {
@@ -396,70 +574,87 @@ export class TransactionService {
           await run(t);
         });
       } else {
+        console.error('[transaction:error:no-tx-context]', { code: 'ERR_NO_TX_CONTEXT', ...errorContext });
         throw new DatabaseError('No transaction context available for creating transaction');
       }
 
       if (!createdTransaction) {
+        console.error('[transaction:error:no-created-transaction]', { code: 'ERR_NO_CREATED_TRANSACTION', ...errorContext });
         throw new DatabaseError('Transaction creation failed (no result)');
       }
 
       // Now create payments after transaction is committed
-      try {
-        // Use dynamic import for PaymentService
-        const { PaymentService } = await import('./paymentService');
-        const paymentService = new PaymentService();
-        // Buyer pays shop
-        const buyerPayment = await paymentService.createPayment({
-          transaction_id: (createdTransaction as { id: number }).id,
-          payer_type: 'BUYER',
-          payee_type: 'SHOP',
-          amount: totalAmount,
-          method: 'CASH',
-          status: 'PAID',
-          notes: ''
-  }, buyer.id!);
-        // Shop pays farmer
-        const farmerPayment = await paymentService.createPayment({
-          transaction_id: (createdTransaction as { id: number }).id,
-          payer_type: 'SHOP',
-          payee_type: 'FARMER',
-          amount: farmerEarning,
-          method: 'CASH',
-          status: 'PAID',
-          notes: ''
-  }, farmer.id!);
-        createdPayments = [buyerPayment, farmerPayment];
-      } catch (err) {
-        console.error('[transaction:create:payment-error]', err);
-        throw new DatabaseError('Failed to create payments for transaction', err instanceof Error ? { message: err.message, stack: err.stack } : undefined);
+      // Use dynamic import for PaymentService
+      const { PaymentService } = await import('./paymentService');
+      const paymentService = new PaymentService();
+      if (data.payments && data.payments.length > 0) {
+        // Create payments from the provided payload
+        for (const paymentData of data.payments) {
+          const payment = await paymentService.createPayment({
+            transaction_id: (createdTransaction as { id: number }).id,
+            payer_type: paymentData.payer_type as 'BUYER' | 'SHOP',
+            payee_type: paymentData.payee_type as 'SHOP' | 'FARMER',
+            amount: paymentData.amount,
+            method: (paymentData.method as 'CASH' | 'BANK' | 'UPI' | 'OTHER') || 'CASH',
+            status: (paymentData.status as 'PENDING' | 'PAID' | 'FAILED') || 'PAID',
+            notes: paymentData.notes || ''
+          }, buyer.id!);
+          createdPayments.push(payment);
+        }
+      } else {
+        // Default payment creation (existing logic)
+        const defaultPayments = [
+          {
+            payer_type: 'BUYER' as const,
+            payee_type: 'SHOP' as const,
+            amount: recordTotalAmount,
+            method: 'CASH' as const,
+            status: 'PAID' as const,
+            notes: ''
+          },
+          {
+            payer_type: 'SHOP' as const,
+            payee_type: 'FARMER' as const,
+            amount: recordFarmerEarning,
+            method: 'CASH' as const,
+            status: 'PAID' as const,
+            notes: ''
+          }
+        ];
+        for (const paymentData of defaultPayments) {
+          const payment = await paymentService.createPayment({
+            transaction_id: (createdTransaction as { id: number }).id,
+            ...paymentData
+          }, buyer.id!);
+          createdPayments.push(payment);
+        }
       }
 
-      try {
-        console.info('[transaction:create]', {
-          id: (createdTransaction as { id: number }).id,
-          shop: data.shop_id,
-          farmer: data.farmer_id,
-          buyer: data.buyer_id,
-          totalAmount,
-          commissionAmount,
-          commissionRate: transactionEntity.commission_rate,
-          commissionSource: (typeof data.commission_rate === 'number'
-            ? 'payload'
-            : (((farmer as { custom_commission_rate?: number | null })?.custom_commission_rate != null)
-              ? 'farmer_custom'
-              : (((shop as { commission_rate?: number | null })?.commission_rate != null) ? 'shop_default' : 'fallback'))),
-          idem: options?.idempotencyKey || null
-        });
-      } catch (err) {
-        /* intentionally ignore debug errors */
-      }
+      console.info('[transaction:create]', {
+        id: (createdTransaction as { id: number }).id,
+        shop: data.shop_id,
+        farmer: data.farmer_id,
+        buyer: data.buyer_id,
+        recordedTotalAmount: recordTotalAmount,
+        paymentTotalAmount: totalAmount,
+        recordedCommissionAmount: recordCommissionAmount,
+        paymentCommissionAmount: commissionAmount,
+        recordedFarmerEarning: recordFarmerEarning,
+        paymentFarmerEarning: farmerEarning,
+        commissionRate: transactionEntity.commission_rate,
+        // Refactored nested ternary to independent statement (S3358)
+        commissionSource: (() => {
+          if (typeof data.commission_rate === 'number') return 'payload';
+          if ((farmer as { custom_commission_rate?: number | null })?.custom_commission_rate != null) return 'farmer_custom';
+          if ((shop as { commission_rate?: number | null })?.commission_rate != null) return 'shop_default';
+          return 'fallback';
+        })(),
+        isPartialPayment: !!data.payments,
+        idem: options?.idempotencyKey || null
+      });
       // Status update is handled by PaymentService.createPayment() calls above
       // Refetch transaction to get latest status after payments
-      try {
-        createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
-      } catch (err) {
-        /* intentionally ignore refetch errors */
-      }
+      createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
       // Attach payments to transaction response
       if (createdTransaction) {
         (createdTransaction as unknown as { payments?: unknown[] }).payments = createdPayments;
@@ -470,12 +665,8 @@ export class TransactionService {
           error instanceof BusinessRuleError || error instanceof AuthorizationError) {
         throw error;
       }
-      try {
-        console.error('[transaction:create:raw-error]', error);
-      } catch (err) {
-        /* intentionally ignore debug errors */
-      }
-  throw new DatabaseError('Failed to create transaction', error instanceof Error ? { message: error.message, stack: (error as Error).stack } : undefined);
+      console.error('[transaction:create:raw-error]', error);
+      throw new DatabaseError('Failed to create transaction', error instanceof Error ? { message: error.message, stack: (error as Error).stack } : undefined);
     }
   }
 
@@ -518,7 +709,7 @@ export class TransactionService {
   }, requestingUser?: { role: string; id: number }): Promise<TransactionEntity[]> {
     try {
       // Authorization check
-      if (requestingUser?.role === USER_ROLES.BUYER && requestingUser.id !== buyerId) {
+  if (requestingUser && requestingUser.role === USER_ROLES.BUYER && requestingUser.id !== buyerId) {
         throw new AuthorizationError('Cannot view another buyer\'s transactions');
       }
 
@@ -544,7 +735,7 @@ export class TransactionService {
   }, requestingUser?: { role: string; id: number }): Promise<TransactionEntity[]> {
     try {
       // Authorization check
-      if (requestingUser?.role === USER_ROLES.FARMER && requestingUser.id !== farmerId) {
+  if (requestingUser && requestingUser.role === USER_ROLES.FARMER && requestingUser.id !== farmerId) {
         throw new AuthorizationError('Cannot view another farmer\'s transactions');
       }
 
@@ -572,7 +763,7 @@ export class TransactionService {
   }, requestingUser?: { role: string; id: number }): Promise<TransactionEntity[]> {
     try {
       // Authorization check for shop access
-      if (requestingUser?.role === USER_ROLES.OWNER) {
+  if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
         const shop = await this.shopRepository.findById(shopId);
         if (!shop || shop.owner_id !== requestingUser.id) {
           throw new AuthorizationError('Cannot view another owner\'s shop transactions');
@@ -620,13 +811,13 @@ export class TransactionService {
       }
 
       // Authorization check
-      if (requestingUser?.role === USER_ROLES.FARMER && transaction.farmer_id !== requestingUser.id) {
+  if (requestingUser && requestingUser.role === USER_ROLES.FARMER && transaction.farmer_id !== requestingUser.id) {
         throw new AuthorizationError('Cannot view this transaction');
       }
-      if (requestingUser?.role === USER_ROLES.BUYER && transaction.buyer_id !== requestingUser.id) {
+  if (requestingUser && requestingUser.role === USER_ROLES.BUYER && transaction.buyer_id !== requestingUser.id) {
         throw new AuthorizationError('Cannot view this transaction');
       }
-      if (requestingUser?.role === USER_ROLES.OWNER) {
+  if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
         const shop = await this.shopRepository.findById(transaction.shop_id!);
         if (!shop || shop.owner_id !== requestingUser.id) {
           throw new AuthorizationError('Cannot view this transaction');
@@ -643,50 +834,176 @@ export class TransactionService {
   }
 
   /**
-   * Update transaction status
+   * Update transaction status - Comprehensive logic for ALL transaction states
+   * 
+   * Transaction States:
+   * - PENDING: Transaction created, awaiting payments
+   * - PARTIALLY_PAID: Some payments received but not complete
+   * - PAID: All payments received but commission not confirmed
+   * - COMPLETED: All payments received and commission confirmed
+   * - CANCELLED: Transaction cancelled
+   * 
+   * Payment Validation Rules:
+   * 1. Buyer must pay total_amount to shop
+   * 2. Shop must pay farmer_earning to farmer
+   * 3. Commission = total_amount - farmer_earning must be reasonable
+   * 4. All amounts must balance and be consistent
    */
   async updateTransactionStatus(id: number, status?: string, requestingUser?: { role: string; id: number }): Promise<TransactionEntity> {
     try {
       const transaction = await this.getTransactionById(id, requestingUser);
 
-      // Calculate total paid to farmer for this transaction
+      // Get all payments for this transaction
       const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
-      console.log('[TXN STATUS] Payments for transaction', { transactionId: id, payments });
-      // If allocations exist, use allocation logic; else, check payments directly
-      let isBuyerPaid = false;
-      let isFarmerPaid = false;
-      if (payments.length > 0) {
-        // Check if all payments to SHOP from BUYER are PAID and match total_amount
-        const buyerPayments = payments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
-        const buyerPaidAmount = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount), 0);
-        isBuyerPaid = Math.abs(Number(transaction.total_amount || 0) - buyerPaidAmount) < 0.01;
-        // Check if all payments to FARMER from SHOP are PAID and match farmer_earning
-        const farmerPayments = payments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
-        const farmerPaidAmount = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount), 0);
-        isFarmerPaid = Math.abs(Number(transaction.farmer_earning || 0) - farmerPaidAmount) < 0.01;
-        console.log('[TXN STATUS] Buyer paid?', { transactionId: id, buyerPaidAmount, expected: transaction.total_amount, isBuyerPaid });
-        console.log('[TXN STATUS] Farmer paid?', { transactionId: id, farmerPaidAmount, expected: transaction.farmer_earning, isFarmerPaid });
+      
+      // Comprehensive transaction validation
+      const totalAmount = Number(transaction.total_amount || 0);
+      const farmerEarning = Number(transaction.farmer_earning || 0);
+      const commissionAmount = Number(transaction.commission_amount || 0);
+      const quantity = Number(transaction.quantity || 0);
+      const unitPrice = Number(transaction.unit_price || 0);
+      
+      // CRITICAL: Validate basic calculation (quantity × unit_price = total_amount)
+      const expectedTotalFromCalculation = quantity * unitPrice;
+      if (Math.abs(expectedTotalFromCalculation - totalAmount) > 0.01) {
+        console.error('[TXN STATUS] CRITICAL: Basic calculation error detected', {
+          transactionId: id,
+          quantity,
+          unitPrice,
+          expectedTotal: expectedTotalFromCalculation,
+          actualTotal: totalAmount,
+          difference: Math.abs(expectedTotalFromCalculation - totalAmount)
+        });
+        throw new ValidationError(`CRITICAL ERROR: Basic calculation mismatch. ${quantity} × ${unitPrice} = ${expectedTotalFromCalculation}, but total_amount is ${totalAmount}. This transaction has corrupted data.`);
       }
-      // Commission confirmation logic: auto-set to true if both payments are made
-      let commissionConfirmed = false;
-  const newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
-      if (isBuyerPaid && isFarmerPaid) {
+      
+      // Financial validation - amounts must balance (commission + farmer_earning = total_amount)
+      const expectedCommission = totalAmount - farmerEarning;
+      if (Math.abs(expectedCommission - commissionAmount) > 0.01) {
+        console.error('[TXN STATUS] Financial inconsistency detected', {
+          transactionId: id,
+          totalAmount,
+          farmerEarning,
+          commissionAmount,
+          expectedCommission,
+          difference: Math.abs(expectedCommission - commissionAmount)
+        });
+        throw new ValidationError(`Financial inconsistency: Commission should be ${expectedCommission} but is ${commissionAmount}. Total amount breakdown is incorrect.`);
+      }
+
+      // Analyze payments
+      const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+      const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+      
+      // Calculate actual paid amounts (only PAID status counts)
+      const buyerPaidAmount = buyerPayments
+        .filter(p => p.status === PAYMENT_STATUS.PAID)
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      
+      const farmerPaidAmount = farmerPayments
+        .filter(p => p.status === PAYMENT_STATUS.PAID)
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      // Calculate pending amounts
+      const buyerPendingAmount = buyerPayments
+        .filter(p => p.status === PAYMENT_STATUS.PENDING)
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      
+      const farmerPendingAmount = farmerPayments
+        .filter(p => p.status === PAYMENT_STATUS.PENDING)
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+
+      // Determine payment status with tolerance for floating point precision
+      const tolerance = 0.01;
+      const isBuyerFullyPaid = Math.abs(totalAmount - buyerPaidAmount) < tolerance;
+      const isFarmerFullyPaid = Math.abs(farmerEarning - farmerPaidAmount) < tolerance;
+      const isBuyerPartiallyPaid = buyerPaidAmount > tolerance && !isBuyerFullyPaid;
+      const isFarmerPartiallyPaid = farmerPaidAmount > tolerance && !isFarmerFullyPaid;
+
+      // Check for overpayments (potential error)
+      const buyerOverpaid = buyerPaidAmount > (totalAmount + tolerance);
+      const farmerOverpaid = farmerPaidAmount > (farmerEarning + tolerance);
+
+      if (buyerOverpaid || farmerOverpaid) {
+        console.warn('[TXN STATUS] Overpayment detected', {
+          transactionId: id,
+          buyerOverpaid,
+          farmerOverpaid,
+          buyerPaidAmount,
+          farmerPaidAmount,
+          expectedBuyer: totalAmount,
+          expectedFarmer: farmerEarning
+        });
+      }
+
+      // Handle metadata and commission confirmation
+      const newMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? { ...transaction.metadata } : {};
+      let commissionConfirmed = Boolean(newMetadata.commission_confirmed);
+
+      // Auto-confirm commission when both parties are fully paid (unless manually overridden)
+      if (isBuyerFullyPaid && isFarmerFullyPaid && !('commission_confirmed' in newMetadata)) {
         commissionConfirmed = true;
         newMetadata.commission_confirmed = true;
-      } else if ('commission_confirmed' in newMetadata) {
-        commissionConfirmed = Boolean(newMetadata.commission_confirmed);
       }
-      let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
-      if (isBuyerPaid && isFarmerPaid && commissionConfirmed) {
-        newStatus = TRANSACTION_STATUS.COMPLETED;
-      }
-      console.log('[TXN STATUS] Final status decision', { transactionId: id, newStatus, commissionConfirmed });
 
-        const updatedEntity = new TransactionEntity({
-          ...transaction,
-          status: newStatus,
-          metadata: newMetadata
-        });
+      // Determine new transaction status based on comprehensive rules
+      // Available statuses: PENDING, COMPLETED, CANCELLED, SETTLED
+      let newStatus: TransactionStatus;
+
+      if (status === 'CANCELLED' || status === 'cancelled') {
+        // Manual cancellation
+        newStatus = TRANSACTION_STATUS.CANCELLED;
+      } else if (isBuyerFullyPaid && isFarmerFullyPaid && commissionConfirmed) {
+        // Fully completed transaction - all payments made and commission confirmed
+        newStatus = TRANSACTION_STATUS.COMPLETED;
+      } else if (isBuyerFullyPaid && isFarmerFullyPaid && !commissionConfirmed) {
+        // All payments made but commission not confirmed - use SETTLED
+        newStatus = TRANSACTION_STATUS.SETTLED;
+      } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid || 
+                 (buyerPendingAmount > tolerance) || (farmerPendingAmount > tolerance)) {
+        // Some payments made or pending - use SETTLED for intermediate state
+        newStatus = TRANSACTION_STATUS.SETTLED;
+      } else {
+        // No significant payments made
+        newStatus = TRANSACTION_STATUS.PENDING;
+      }
+
+      // Comprehensive logging for audit trail
+      console.info('[TXN STATUS] Status calculation complete', {
+        transactionId: id,
+        oldStatus: transaction.status,
+        newStatus,
+        financials: {
+          totalAmount,
+          farmerEarning,
+          commissionAmount,
+          expectedCommission
+        },
+        payments: {
+          buyerPaidAmount,
+          farmerPaidAmount,
+          buyerPendingAmount,
+          farmerPendingAmount,
+          isBuyerFullyPaid,
+          isFarmerFullyPaid,
+          isBuyerPartiallyPaid,
+          isFarmerPartiallyPaid
+        },
+        commission: {
+          confirmed: commissionConfirmed,
+          autoConfirmed: isBuyerFullyPaid && isFarmerFullyPaid && !('commission_confirmed' in newMetadata)
+        },
+        warnings: {
+          buyerOverpaid,
+          farmerOverpaid
+        }
+      });
+
+      const updatedEntity = new TransactionEntity({
+        ...transaction,
+        status: newStatus,
+        metadata: newMetadata
+      });
 
       const updatedTransaction = await this.transactionRepository.update(id, updatedEntity);
       if (!updatedTransaction) {
@@ -699,6 +1016,372 @@ export class TransactionService {
       }
       throw new DatabaseError('Failed to update transaction status', error instanceof Error ? { message: error.message } : undefined);
     }
+  }
+
+  /**
+   * Get detailed transaction status information including payment breakdown
+   */
+  async getTransactionStatusDetails(id: number): Promise<{
+    transaction: TransactionEntity;
+    paymentAnalysis: {
+      buyerPayments: {
+        total: number;
+        paid: number;
+        pending: number;
+        failed: number;
+        isFullyPaid: boolean;
+        isPartiallyPaid: boolean;
+        isOverpaid: boolean;
+      };
+      farmerPayments: {
+        total: number;
+        paid: number;
+        pending: number;
+        failed: number;
+        isFullyPaid: boolean;
+        isPartiallyPaid: boolean;
+        isOverpaid: boolean;
+      };
+    };
+    financialValidation: {
+      isBalanced: boolean;
+      expectedCommission: number;
+      actualCommission: number;
+      discrepancy: number;
+    };
+    statusRecommendation: TransactionStatus;
+    commissionConfirmed: boolean;
+  }> {
+    const transaction = await this.getTransactionById(id);
+    const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+    
+    const totalAmount = Number(transaction.total_amount || 0);
+    const farmerEarning = Number(transaction.farmer_earning || 0);
+    const commissionAmount = Number(transaction.commission_amount || 0);
+    const expectedCommission = totalAmount - farmerEarning;
+    const tolerance = 0.01;
+
+    // Analyze buyer payments
+    const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+    const buyerPaid = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount), 0);
+    const buyerPending = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PENDING).reduce((sum, p) => sum + Number(p.amount), 0);
+    const buyerFailed = buyerPayments.filter(p => p.status === PAYMENT_STATUS.FAILED).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Analyze farmer payments
+    const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+    const farmerPaid = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount), 0);
+    const farmerPending = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PENDING).reduce((sum, p) => sum + Number(p.amount), 0);
+    const farmerFailed = farmerPayments.filter(p => p.status === PAYMENT_STATUS.FAILED).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Payment status analysis
+    const isBuyerFullyPaid = Math.abs(totalAmount - buyerPaid) < tolerance;
+    const isFarmerFullyPaid = Math.abs(farmerEarning - farmerPaid) < tolerance;
+    const isBuyerPartiallyPaid = buyerPaid > tolerance && !isBuyerFullyPaid;
+    const isFarmerPartiallyPaid = farmerPaid > tolerance && !isFarmerFullyPaid;
+    const isBuyerOverpaid = buyerPaid > (totalAmount + tolerance);
+    const isFarmerOverpaid = farmerPaid > (farmerEarning + tolerance);
+
+    // Determine recommended status
+    const metadata = transaction.metadata && typeof transaction.metadata === 'object' ? transaction.metadata : {};
+    const commissionConfirmed = Boolean(metadata.commission_confirmed);
+    
+    let statusRecommendation: TransactionStatus;
+    if (isBuyerFullyPaid && isFarmerFullyPaid && commissionConfirmed) {
+      statusRecommendation = TRANSACTION_STATUS.COMPLETED;
+    } else if (isBuyerFullyPaid && isFarmerFullyPaid) {
+      statusRecommendation = TRANSACTION_STATUS.SETTLED;
+    } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid || buyerPending > tolerance || farmerPending > tolerance) {
+      statusRecommendation = TRANSACTION_STATUS.SETTLED;
+    } else {
+      statusRecommendation = TRANSACTION_STATUS.PENDING;
+    }
+
+    return {
+      transaction,
+      paymentAnalysis: {
+        buyerPayments: {
+          total: buyerPayments.reduce((sum, p) => sum + Number(p.amount), 0),
+          paid: buyerPaid,
+          pending: buyerPending,
+          failed: buyerFailed,
+          isFullyPaid: isBuyerFullyPaid,
+          isPartiallyPaid: isBuyerPartiallyPaid,
+          isOverpaid: isBuyerOverpaid
+        },
+        farmerPayments: {
+          total: farmerPayments.reduce((sum, p) => sum + Number(p.amount), 0),
+          paid: farmerPaid,
+          pending: farmerPending,
+          failed: farmerFailed,
+          isFullyPaid: isFarmerFullyPaid,
+          isPartiallyPaid: isFarmerPartiallyPaid,
+          isOverpaid: isFarmerOverpaid
+        }
+      },
+      financialValidation: {
+        isBalanced: Math.abs(expectedCommission - commissionAmount) < tolerance,
+        expectedCommission,
+        actualCommission: commissionAmount,
+        discrepancy: Math.abs(expectedCommission - commissionAmount)
+      },
+      statusRecommendation,
+      commissionConfirmed
+    };
+  }
+
+  /**
+   * Validate and fix transaction financial inconsistencies
+   * This method detects and corrects common financial calculation errors
+   */
+  async validateAndFixTransactionFinancials(id: number, options?: {
+    autoFix?: boolean;
+    recalculateFromPayments?: boolean;
+  }): Promise<{
+    wasFixed: boolean;
+    issues: string[];
+    corrections: Record<string, { old: number; new: number }>;
+    transaction: TransactionEntity;
+  }> {
+    const transaction = await this.getTransactionById(id);
+    const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+    
+    const issues: string[] = [];
+    const corrections: Record<string, { old: number; new: number }> = {};
+    let wasFixed = false;
+
+    const totalAmount = Number(transaction.total_amount || 0);
+    const farmerEarning = Number(transaction.farmer_earning || 0);
+    const commissionAmount = Number(transaction.commission_amount || 0);
+    const quantity = Number(transaction.quantity || 0);
+    const unitPrice = Number(transaction.unit_price || 0);
+
+    // Validate basic calculation: quantity × unit_price should equal total_amount
+    const expectedTotal = quantity * unitPrice;
+    if (Math.abs(expectedTotal - totalAmount) > 0.01) {
+      issues.push(`Total amount mismatch: ${quantity} × ${unitPrice} = ${expectedTotal}, but total_amount is ${totalAmount}`);
+      if (options?.autoFix) {
+        corrections.total_amount = { old: totalAmount, new: expectedTotal };
+      }
+    }
+
+    // Validate commission calculation
+    const expectedCommission = totalAmount - farmerEarning;
+    if (Math.abs(expectedCommission - commissionAmount) > 0.01) {
+      issues.push(`Commission calculation error: ${totalAmount} - ${farmerEarning} = ${expectedCommission}, but commission_amount is ${commissionAmount}`);
+      if (options?.autoFix) {
+        corrections.commission_amount = { old: commissionAmount, new: expectedCommission };
+      }
+    }
+
+    // Check if payments match transaction amounts
+    if (options?.recalculateFromPayments && payments.length > 0) {
+      const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+      const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+      
+      const buyerTotalPayment = buyerPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const farmerTotalPayment = farmerPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+      if (buyerTotalPayment > 0 && Math.abs(buyerTotalPayment - totalAmount) > 0.01) {
+        issues.push(`Buyer payment total (${buyerTotalPayment}) doesn't match transaction total (${totalAmount})`);
+        if (options?.autoFix) {
+          corrections.total_amount = { old: totalAmount, new: buyerTotalPayment };
+        }
+      }
+
+      if (farmerTotalPayment > 0 && Math.abs(farmerTotalPayment - farmerEarning) > 0.01) {
+        issues.push(`Farmer payment total (${farmerTotalPayment}) doesn't match farmer earning (${farmerEarning})`);
+        if (options?.autoFix) {
+          corrections.farmer_earning = { old: farmerEarning, new: farmerTotalPayment };
+        }
+      }
+    }
+
+    // Apply corrections if autoFix is enabled
+    let updatedTransaction = transaction;
+    if (options?.autoFix && Object.keys(corrections).length > 0) {
+      const updates: Partial<TransactionEntity> = {};
+      
+      if (corrections.total_amount) {
+        updates.total_amount = corrections.total_amount.new;
+      }
+      if (corrections.farmer_earning) {
+        updates.farmer_earning = corrections.farmer_earning.new;
+      }
+      if (corrections.commission_amount) {
+        updates.commission_amount = corrections.commission_amount.new;
+      }
+
+      const updatedEntity = new TransactionEntity({ ...transaction, ...updates });
+      const result = await this.transactionRepository.update(id, updatedEntity);
+      if (result) {
+        updatedTransaction = result;
+        wasFixed = true;
+      }
+    }
+
+    return {
+      wasFixed,
+      issues,
+      corrections,
+      transaction: updatedTransaction
+    };
+  }
+
+  /**
+   * Confirm commission for a transaction: mark metadata.commission_confirmed = true
+   * and re-run status computation.
+   */
+  async confirmCommission(id: number, userId?: number): Promise<TransactionEntity> {
+    try {
+      const txn = await this.getTransactionById(id);
+      if (!txn) throw new NotFoundError('Transaction not found');
+
+      const newMetadata = txn.metadata && typeof txn.metadata === 'object' ? { ...txn.metadata } : {};
+      newMetadata.commission_confirmed = true;
+
+      // Update transaction record metadata
+      const updatedEntity = new TransactionEntity({ ...txn, metadata: newMetadata });
+      const persisted = await this.transactionRepository.update(id, updatedEntity);
+      if (!persisted) throw new DatabaseError('Failed to persist commission confirmation');
+
+      // Recompute status based on payments + confirmed commission
+      return await this.updateTransactionStatus(id);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw new DatabaseError('Failed to confirm commission', error instanceof Error ? { message: error.message } : undefined);
+    }
+  }
+
+  /**
+   * Emergency method to fix corrupted transactions with calculation errors
+   * Use this method to repair transactions that have basic math errors
+   * 
+   * WARNING: This method should only be used to fix obvious data corruption
+   */
+  async fixCorruptedTransaction(id: number, options?: {
+    recalculateFromQuantityAndPrice?: boolean;
+    recalculateFromPayments?: boolean;
+    confirmFix?: boolean;
+  }): Promise<{
+    wasCorrupted: boolean;
+    fixes: string[];
+    oldValues: Record<string, number>;
+    newValues: Record<string, number>;
+    transaction: TransactionEntity;
+  }> {
+    const transaction = await this.getTransactionById(id);
+    const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+    
+    const fixes: string[] = [];
+    const oldValues: Record<string, number> = {};
+    const newValues: Record<string, number> = {};
+    let wasCorrupted = false;
+
+    const quantity = Number(transaction.quantity || 0);
+    const unitPrice = Number(transaction.unit_price || 0);
+    const currentTotal = Number(transaction.total_amount || 0);
+    const currentFarmerEarning = Number(transaction.farmer_earning || 0);
+    const currentCommission = Number(transaction.commission_amount || 0);
+    const commissionRate = Number(transaction.commission_rate || 10);
+
+    // Check for basic calculation error (quantity × unit_price ≠ total_amount)
+    const expectedTotal = quantity * unitPrice;
+    if (Math.abs(expectedTotal - currentTotal) > 0.01) {
+      wasCorrupted = true;
+      fixes.push(`Fixed basic calculation: ${quantity} × ${unitPrice} = ${expectedTotal} (was ${currentTotal})`);
+      oldValues.total_amount = currentTotal;
+      newValues.total_amount = expectedTotal;
+    }
+
+    // Recalculate commission and farmer earning based on corrected total
+    let correctedTotal = newValues.total_amount || currentTotal;
+    let correctedFarmerEarning = currentFarmerEarning;
+    let correctedCommission = currentCommission;
+
+    if (options?.recalculateFromQuantityAndPrice || wasCorrupted) {
+      correctedTotal = expectedTotal;
+      correctedCommission = (correctedTotal * commissionRate) / 100;
+      correctedFarmerEarning = correctedTotal - correctedCommission;
+      
+      if (Math.abs(correctedFarmerEarning - currentFarmerEarning) > 0.01) {
+        fixes.push(`Recalculated farmer earning: ${correctedFarmerEarning} (was ${currentFarmerEarning})`);
+        oldValues.farmer_earning = currentFarmerEarning;
+        newValues.farmer_earning = correctedFarmerEarning;
+      }
+      
+      if (Math.abs(correctedCommission - currentCommission) > 0.01) {
+        fixes.push(`Recalculated commission: ${correctedCommission} (was ${currentCommission})`);
+        oldValues.commission_amount = currentCommission;
+        newValues.commission_amount = correctedCommission;
+      }
+    }
+
+    // Alternative: recalculate from payments if they exist and are more reliable
+    if (options?.recalculateFromPayments && payments.length > 0) {
+      const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+      const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+      
+      const totalFromBuyerPayments = buyerPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const totalFromFarmerPayments = farmerPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      
+      if (totalFromBuyerPayments > 0 && Math.abs(totalFromBuyerPayments - correctedTotal) > 0.01) {
+        fixes.push(`Corrected total from buyer payments: ${totalFromBuyerPayments} (was ${correctedTotal})`);
+        oldValues.total_amount = correctedTotal;
+        newValues.total_amount = totalFromBuyerPayments;
+        correctedTotal = totalFromBuyerPayments;
+      }
+      
+      if (totalFromFarmerPayments > 0 && Math.abs(totalFromFarmerPayments - correctedFarmerEarning) > 0.01) {
+        fixes.push(`Corrected farmer earning from payments: ${totalFromFarmerPayments} (was ${correctedFarmerEarning})`);
+        oldValues.farmer_earning = correctedFarmerEarning;
+        newValues.farmer_earning = totalFromFarmerPayments;
+        correctedFarmerEarning = totalFromFarmerPayments;
+      }
+      
+      // Recalculate commission based on the difference
+      const recalculatedCommission = correctedTotal - correctedFarmerEarning;
+      if (Math.abs(recalculatedCommission - correctedCommission) > 0.01) {
+        fixes.push(`Recalculated commission from payments: ${recalculatedCommission} (was ${correctedCommission})`);
+        oldValues.commission_amount = correctedCommission;
+        newValues.commission_amount = recalculatedCommission;
+      }
+    }
+
+    // Apply fixes if confirmed
+    let updatedTransaction = transaction;
+    if (fixes.length > 0 && options?.confirmFix) {
+      const updates: Partial<TransactionEntity> = {};
+      
+      if ('total_amount' in newValues) {
+        updates.total_amount = newValues.total_amount;
+      }
+      if ('farmer_earning' in newValues) {
+        updates.farmer_earning = newValues.farmer_earning;
+      }
+      if ('commission_amount' in newValues) {
+        updates.commission_amount = newValues.commission_amount;
+      }
+
+      const updatedEntity = new TransactionEntity({ ...transaction, ...updates });
+      const result = await this.transactionRepository.update(id, updatedEntity);
+      if (result) {
+        updatedTransaction = result;
+        console.info('[transaction:corruption:fixed]', {
+          transactionId: id,
+          fixes,
+          oldValues,
+          newValues
+        });
+      }
+    }
+
+    return {
+      wasCorrupted,
+      fixes,
+      oldValues,
+      newValues,
+      transaction: updatedTransaction
+    };
   }
 
   /**
@@ -775,7 +1458,7 @@ export class TransactionService {
           .filter(a => a.transaction_id === t.id)
           .map(a => {
             const payment = payments.find(p => p.id === a.payment_id);
-            if (payment && payment.payee_type === 'FARMER' && payment.status === 'PAID') {
+  if (payment && payment.payee_type === PARTY_TYPE.FARMER && payment.status === PAYMENT_STATUS.PAID) {
               return Number(a.allocated_amount || 0);
             }
             return 0;
@@ -902,27 +1585,25 @@ export class TransactionService {
     let farmer_payments_due = 0;
 
     // Debug logging
-    try {
-      console.log('[getDashboardSummary] Debug info:', {
-        filteredTxns: filteredTxns.length,
-        txnIds,
-        paymentsFound: payments.length,
-        samplePayment: payments[0]
-      });
-    } catch (e) { /* ignore */ }
+    console.log('[getDashboardSummary] Debug info:', {
+      filteredTxns: filteredTxns.length,
+      txnIds,
+      paymentsFound: payments.length,
+      samplePayment: payments[0]
+    });
 
     for (const txn of filteredTxns) {
       // Buyer payments (to shop)
-      const buyerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
-      const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const buyerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+  const buyerPaid = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       // buyer_total_spent should be total transaction amount (what buyer is responsible for)
       buyer_total_spent += Number(txn.total_amount || 0);
       buyer_payments_due += Math.max(Number(txn.total_amount || 0) - buyerPaid, 0);
 
       // Farmer payments (from shop)
-      const farmerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
-      const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const farmerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+  const farmerPaid = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       // farmer_total_earned should be what they actually received
       farmer_total_earned += farmerPaid;

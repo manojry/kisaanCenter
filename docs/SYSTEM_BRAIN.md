@@ -37,7 +37,7 @@ This document serves as the **central brain** that defines:
 - `.env` and `.env.example` for secrets and connection info
 
 ### Setup & Run
-- Backend: `python -m uvicorn src.main:app --host 0.0.0.0 --port 8000`
+-- Backend: `npm --prefix kisaan-backend-node run dev` (Start Node backend as per backend README)
 - Frontend: `npm run dev`
 - Database migration: `alembic upgrade head`
 

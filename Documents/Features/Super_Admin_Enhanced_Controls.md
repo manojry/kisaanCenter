@@ -490,7 +490,7 @@ class ComplianceAutomation:
 setup_and_run.bat [port] [dev]
 
 # Cross-platform Python
-python setup_and_run.py --port 8000 --dev
+npm --prefix kisaan-backend-node run dev -- --port 8000
 ```
 
 **Features:**

@@ -130,7 +130,7 @@ Your `backend/src/models.py` needs to be updated to match the new schema. The cu
 ### **2. Create Sample Data**
 ```python
 # Example: Create a sample shop and users
-python create_sample_data.py
+npm --prefix kisaan-backend-node run db:seed
 ```
 
 ### **3. Test API Endpoints**

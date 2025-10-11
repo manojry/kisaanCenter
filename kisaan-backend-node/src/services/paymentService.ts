@@ -7,6 +7,7 @@ import { AuditLog } from '../models/auditLog';
 import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '../dtos';
 import { Op } from 'sequelize';
 import { PARTY_TYPE } from '../shared/partyTypes';
+import { PAYMENT_STATUS, BALANCE_TYPE } from '../shared/constants/index';
 import BalanceSnapshot from '../models/balanceSnapshot';
 import { TransactionService } from './transactionService';
 
@@ -15,14 +16,35 @@ import { TransactionService } from './transactionService';
 export class PaymentService {
   async createPayment(data: CreatePaymentDTO, userId: number): Promise<PaymentResponseDTO> {
     // Reject shop-to-shop payments (commission should not be a payment)
-    if (data.payer_type === 'SHOP' && data.payee_type === 'SHOP') {
+    if (data.payer_type === PARTY_TYPE.SHOP && data.payee_type === PARTY_TYPE.SHOP) {
       throw new Error('Shop-to-shop payments (commission) are not allowed. Do not include commission as a payment.');
     }
 
-    // Create payment record first
-    const paymentData: CreatePaymentDTO = { ...data, status: 'PAID' };
+    // Create payment record first - ensure counterparty_id is set correctly
+    const paymentData: CreatePaymentDTO = { ...data, status: PAYMENT_STATUS.PAID };
     if (data.transaction_id !== undefined) paymentData.transaction_id = data.transaction_id;
     else delete paymentData.transaction_id;
+
+    // Set counterparty_id and shop_id based on payment type and transaction details
+    if (data.transaction_id && (!data.counterparty_id || !data.shop_id)) {
+      const transaction = await (await import('../models/transaction')).Transaction.findByPk(data.transaction_id);
+      if (transaction) {
+        // Always set shop_id from transaction if not provided
+        if (!data.shop_id) {
+          paymentData.shop_id = transaction.shop_id;
+        }
+        
+        if (!data.counterparty_id) {
+          if (data.payer_type === PARTY_TYPE.BUYER && data.payee_type === PARTY_TYPE.SHOP) {
+            // Buyer pays shop - counterparty is the buyer
+            paymentData.counterparty_id = transaction.buyer_id;
+          } else if (data.payer_type === PARTY_TYPE.SHOP && data.payee_type === PARTY_TYPE.FARMER) {
+            // Shop pays farmer - counterparty is the farmer
+            paymentData.counterparty_id = transaction.farmer_id;
+          }
+        }
+      }
+    }
     console.log('[PAYMENT] Creating payment', paymentData);
     const payment = await Payment.create(paymentData);
     if (!payment || !payment.id) {
@@ -80,8 +102,8 @@ export class PaymentService {
   }
 
   private async updateUserBalancesAfterPayment(payment: Payment): Promise<void> {
-  let userIdToUpdate: number | null = null;
-  let userRole: typeof PARTY_TYPE.BUYER | typeof PARTY_TYPE.FARMER | null = null;
+    let userIdToUpdate: number | null = null;
+    let userRole: string | null = null;
 
     if (payment.payer_type === PARTY_TYPE.BUYER && payment.payee_type === PARTY_TYPE.SHOP) {
       // Buyer pays shop: reduce buyer's balance (buyer owes less)
@@ -89,8 +111,83 @@ export class PaymentService {
       userRole = PARTY_TYPE.BUYER;
     } else if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
       // Shop pays farmer: reduce farmer's balance (farmer is owed less)
+      // CRITICAL: Apply FIFO settlement logic first for farmers
       userIdToUpdate = payment.counterparty_id;
       userRole = PARTY_TYPE.FARMER;
+      
+      // For SHOP->FARMER payments, handle the payment correctly:
+      // 1. First settle pending expenses (FIFO)
+      // 2. Then reduce balance with remaining amount
+      if (userIdToUpdate && payment.shop_id) {
+        const { applyRepaymentFIFO } = await import('../services/settlementService');
+        const paymentAmount = Number(payment.amount);
+        
+        try {
+          // Apply FIFO settlement to clear expenses first
+          const fifoResult = await applyRepaymentFIFO(payment.shop_id, userIdToUpdate, paymentAmount);
+          const amountUsedForExpenses = paymentAmount - (fifoResult.remaining || 0);
+          const remainingForBalance = fifoResult.remaining || 0;
+          
+          console.log('[PAYMENT] FIFO settlement applied for farmer payment', {
+            farmerId: userIdToUpdate,
+            shopId: payment.shop_id,
+            totalPayment: paymentAmount,
+            usedForExpenses: amountUsedForExpenses,
+            remainingForBalance: remainingForBalance,
+            fifoResult
+          });
+          
+          // Override the balance update to only use remaining amount
+          if (remainingForBalance > 0) {
+            const user = await User.findByPk(userIdToUpdate);
+            if (user) {
+              const previousBalance = Number(user.balance || 0);
+              const newBalance = Math.max(0, previousBalance - remainingForBalance);
+              await user.update({ balance: newBalance });
+              
+              console.log('[FARMER BALANCE] Updated after expense settlement', {
+                farmerId: userIdToUpdate,
+                previousBalance,
+                amountAppliedToBalance: remainingForBalance,
+                newBalance
+              });
+              
+              // Create balance snapshot for the balance portion only
+              try {
+                const amountChange = newBalance - previousBalance;
+                if (amountChange !== 0) {
+                  await BalanceSnapshot.create({
+                    user_id: userIdToUpdate,
+                    balance_type: BALANCE_TYPE.FARMER,
+                    previous_balance: previousBalance,
+                    amount_change: amountChange,
+                    new_balance: newBalance,
+                    transaction_type: 'payment',
+                    reference_id: payment.id,
+                    reference_type: 'payment',
+                    description: `Payment balance update (after expense settlement): ${remainingForBalance}`
+                  });
+                }
+              } catch (snapshotError: unknown) {
+                const error = snapshotError as Error;
+                console.warn(`[BALANCE SNAPSHOT WARNING] Could not create balance snapshot for user ${userIdToUpdate}:`, error?.message || 'Unknown error');
+              }
+            }
+          }
+          
+          // Skip the regular balance update since we handled it above
+          return;
+          
+        } catch (fifoError: unknown) {
+          const error = fifoError as Error;
+          console.warn('[PAYMENT] FIFO settlement failed, proceeding with regular balance update', {
+            error: error?.message || 'Unknown error',
+            farmerId: userIdToUpdate,
+            paymentAmount
+          });
+          // Fall through to regular balance update if FIFO fails
+        }
+      }
     }
 
     if (userIdToUpdate && userRole) {
@@ -123,7 +220,7 @@ export class PaymentService {
         if (amountChange !== 0 && (userRole === PARTY_TYPE.BUYER || userRole === PARTY_TYPE.FARMER)) {
           await BalanceSnapshot.create({
             user_id: userIdToUpdate,
-            balance_type: userRole === PARTY_TYPE.BUYER ? 'buyer' : 'farmer',
+            balance_type: userRole === PARTY_TYPE.BUYER ? BALANCE_TYPE.BUYER : BALANCE_TYPE.FARMER,
             previous_balance: previousBalance,
             amount_change: amountChange,
             new_balance: newBalance,
@@ -144,7 +241,7 @@ export class PaymentService {
 
   private async allocatePaymentToTransactions(payment: Payment): Promise<void> {
     // Only allocate buyer payments to shop (these fund commission realization)
-    if (payment.payer_type !== PARTY_TYPE.BUYER || payment.payee_type !== PARTY_TYPE.SHOP) {
+      if (payment.payer_type !== PARTY_TYPE.BUYER || payment.payee_type !== PARTY_TYPE.SHOP) {
       return;
     }
 
@@ -230,7 +327,7 @@ export class PaymentService {
     });
 
     // If payment is now PAID and linked to a transaction, update transaction status
-    if (payment.status === 'PAID' && payment.transaction_id) {
+  if (payment.status === PAYMENT_STATUS.PAID && payment.transaction_id) {
       const txnService = new TransactionService();
       await txnService.updateTransactionStatus(payment.transaction_id);
     }
@@ -257,7 +354,7 @@ export class PaymentService {
     }
     const payments = await Payment.findAll({
       where: {
-        status: 'PENDING',
+        status: PAYMENT_STATUS.PENDING,
       },
       include: [transactionInclude],
       order: [['created_at', 'ASC']]
@@ -271,10 +368,10 @@ export class PaymentService {
     farmerId: number,
     options?: { startDate?: Date; endDate?: Date }
   ): Promise<{ totalPayments: number; totalPaid: number; payments: PaymentResponseDTO[] }> {
-    const where: Record<string, unknown> = {
-      payee_type: 'FARMER',
-      status: { [Op.not]: 'FAILED' }
-    };
+      const where: Record<string, unknown> = {
+        payee_type: PARTY_TYPE.FARMER,
+    status: { [Op.not]: PAYMENT_STATUS.FAILED }
+      };
     if (options?.startDate && options?.endDate) {
       where.created_at = { [Op.between]: [options.startDate, options.endDate] };
     }
@@ -305,7 +402,7 @@ export class PaymentService {
   ): Promise<{ totalPayments: number; totalPaid: number; payments: PaymentResponseDTO[] }> {
     const where: Record<string, unknown> = {
       payer_type: PARTY_TYPE.BUYER,
-      status: { [Op.not]: 'FAILED' }
+  status: { [Op.not]: PAYMENT_STATUS.FAILED }
     };
     if (options?.startDate && options?.endDate) {
       where.created_at = { [Op.between]: [options.startDate, options.endDate] };

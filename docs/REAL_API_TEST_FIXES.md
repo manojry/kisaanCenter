@@ -29,7 +29,7 @@ cls.test_data['category_id'] = 4    # Real category in database
 
 ### 3. **SILENT TEST FAILURES** ✅ FIXED
 **Before**: Tests used `return` statements masking failures
-**After**: Proper pytest assertions and skip handling
+**After**: Proper test assertions and skip handling (migrated to project's test framework)
 ```python
 # Fixed error handling
 def assert_success_response(self, response, expected_status=200):
@@ -171,17 +171,23 @@ assert db_user is not None, "User not found in database"
 
 ### 1. Setup and Run All Tests
 ```bash
-python run_real_tests.py
+# Run the project's integration test runner using the Node test harness
+# (legacy Python test runner removed — use the backend Node test task)
+npm --prefix kisaan-backend-node run test:integration
 ```
 
 ### 2. Setup Database Only
 ```bash
-python setup_test_database.py
+# Set up test database using the project's backend scripts or CI tooling.
+# If a database bootstrap is required, use the Node-based setup tasks in
+# `kisaan-backend-node/scripts` or consult the backend README for instructions.
+npm --prefix kisaan-backend-node run setup:test-db
 ```
 
 ### 3. Run Tests Only (after DB setup)
 ```bash
-python -c "from tests.test_real_api_endpoints import run_real_api_tests; run_real_api_tests()"
+# Run integration tests directly via the Node test runner (Jest).
+npm --prefix kisaan-backend-node run test:integration
 ```
 
 ## 📊 Expected Results

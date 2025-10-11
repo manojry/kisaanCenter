@@ -10,7 +10,8 @@ export const USER_ROLES = {
   SUPERADMIN: 'superadmin',
   OWNER: 'owner',
   FARMER: 'farmer',
-  BUYER: 'buyer'
+  BUYER: 'buyer',
+  EMPLOYEE: 'employee'
 } as const;
 
 export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
@@ -36,6 +37,27 @@ export const TRANSACTION_STATUS = {
 } as const;
 
 export type TransactionStatus = typeof TRANSACTION_STATUS[keyof typeof TRANSACTION_STATUS];
+
+/**
+ * Payment Status
+ */
+export const PAYMENT_STATUS = {
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  FAILED: 'FAILED'
+} as const;
+
+export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
+
+/**
+ * Balance Snapshot types
+ */
+export const BALANCE_TYPE = {
+  FARMER: 'farmer',
+  BUYER: 'buyer'
+} as const;
+
+export type BalanceType = typeof BALANCE_TYPE[keyof typeof BALANCE_TYPE];
 
 /**
  * Product Status
@@ -126,6 +148,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     PERMISSIONS.PRODUCT_READ,
     PERMISSIONS.TRANSACTION_READ,
     PERMISSIONS.REPORT_READ
+  ]
+  ,
+  [USER_ROLES.EMPLOYEE]: [
+    PERMISSIONS.PRODUCT_READ,
+    PERMISSIONS.TRANSACTION_READ
   ]
 };
 
