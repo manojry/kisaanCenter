@@ -71,11 +71,12 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
    * Find users by shop
    */
   async findByShop(shopId: number): Promise<UserEntity[]> {
+    console.log('[USER_REPO] findByShop', { shopId });
     const models = await this.model.findAll({
       where: { shop_id: shopId }
     });
-
-  return models.map((model: User) => this.toDomainEntity(model));
+    console.log('[USER_REPO] findByShop results', { count: models.length, ids: models.map(m => m.id) });
+    return models.map((model: User) => this.toDomainEntity(model));
   }
 
   /**

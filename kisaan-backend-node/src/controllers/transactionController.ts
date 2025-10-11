@@ -46,7 +46,7 @@ export class TransactionController {
   const user = (req as Request & { user?: { id?: number; role?: string } }).user;
   
   // Debug: Log the raw user object from request
-  console.log('[DEBUG] Controller - Raw req.user:', user);
+  console.log('[DEBUG] Controller - Raw (req as any).user:', user);
   
   // Authentication is required - no fallback defaults
   if (!user || !user.id || !user.role) {

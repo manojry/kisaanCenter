@@ -13,23 +13,22 @@ type ShopProductMapped = {
   record_status?: string;
 };
 
-export function useFarmerProductAssignment(shopId?: number, _farmerId?: number, onAssigned?: () => void) {
+
+export function useFarmerProductAssignment(shopId?: number, farmerId?: number, onAssigned?: () => void) {
   const [shopProducts, setShopProducts] = useState<ShopProductMapped[]>([]);
-  const [assignedProductIds, setAssignedProductIds] = useState<number[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
 
+  // Fetch only assignable products for the farmer (active shop products not assigned to farmer)
   const fetchProductsForFarmer = useCallback(async (farmerIdParam?: number) => {
     if (!shopId || !farmerIdParam) return;
     try {
-      const shopRes = await shopProductsApi.getShopProducts(shopId);
-      setShopProducts(shopRes);
-      const farmerRes = await farmerProductApi.getFarmerProducts(farmerIdParam);
-  setAssignedProductIds((farmerRes.data || []).map((p: { id: number }) => p.id));
+      // New API: returns only assignable products
+      const assignable = await shopProductsApi.getAssignableProducts(shopId, farmerIdParam);
+      setShopProducts(assignable);
       setSelectedProductIds([]);
     } catch {
       setShopProducts([]);
-      setAssignedProductIds([]);
       setSelectedProductIds([]);
     }
   }, [shopId]);
@@ -51,7 +50,6 @@ export function useFarmerProductAssignment(shopId?: number, _farmerId?: number, 
 
   return {
     shopProducts,
-    assignedProductIds,
     selectedProductIds,
     setSelectedProductIds,
     assignLoading,

@@ -1,3 +1,12 @@
+// Type for requestingUser used in getAllUsers
+export interface RequestingUser {
+  id: number | string;
+  role: string;
+  owner_id?: string | number | null;
+  shop_id?: string | number | null;
+  username?: string;
+  [key: string]: any;
+}
 // User service for business logic related to users
 import { USER_ROLES } from '../shared/constants/index';
 
@@ -103,29 +112,45 @@ export const createUser = async (
 
 export const getAllUsers = async (
   searchParams: UserSearch,
-  requestingUser: { id: number; role: UserRole; owner_id?: string | null }
+  requestingUser: RequestingUser
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   const userRepo = new UserRepository();
   let users: UserDTO[] = [];
   let total = 0;
   // Role-based filtering
-  if (requestingUser.role === USER_ROLES.OWNER) {
-    const ownerUsers = await userRepo.findByShop(requestingUser.owner_id ? Number(requestingUser.owner_id) : requestingUser.id);
-    users = await Promise.all(ownerUsers.map(async (entity) => await toUserDTO(entity)));
-    total = users.length;
+    if (requestingUser.role === USER_ROLES.OWNER) {
+      // Use shop_id for owner, not id or owner_id
+      const shopId = requestingUser.shop_id ? Number(requestingUser.shop_id) : undefined;
+      if (!shopId) {
+        console.warn('[USER_SERVICE] Owner user missing shop_id:', requestingUser);
+        users = [];
+        total = 0;
+      } else {
+        const ownerUsers = await userRepo.findByShop(shopId);
+        users = await Promise.all(ownerUsers.map(async (entity) => await toUserDTO(entity)));
+        total = users.length;
+      }
   } else if (requestingUser.role === USER_ROLES.FARMER || requestingUser.role === USER_ROLES.BUYER) {
-  const user = await userRepo.findById(requestingUser.id);
+  const userId = typeof requestingUser.id === 'string' ? Number(requestingUser.id) : requestingUser.id;
+  const user = await userRepo.findById(userId);
     users = user ? [await toUserDTO(user)] : [];
     total = users.length;
   } else {
     // Superadmin sees all users
     // For pagination, you may want to implement a repository method for paginated fetch
     // For now, fetch all and slice manually
-  const allUsers = await userRepo.findAll();
+    const allUsers = await userRepo.findAll();
     total = allUsers.length;
     const paged = allUsers.slice((searchParams.page - 1) * searchParams.limit, searchParams.page * searchParams.limit);
-  users = await Promise.all(paged.map(async (entity: typeof allUsers[0]) => await toUserDTO(entity)));
+    users = await Promise.all(paged.map(async (entity: typeof allUsers[0]) => await toUserDTO(entity)));
   }
+  // Backend log for debugging empty results
+  console.log('[USER_SERVICE] getAllUsers', {
+    query: searchParams,
+    requestingUser,
+    totalFound: total,
+    usersPreview: users.slice(0, 3)
+  });
   return { users, total, page: searchParams.page, limit: searchParams.limit };
 };
 

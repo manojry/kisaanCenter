@@ -67,7 +67,6 @@ const OwnerUsersPageInner: React.FC = () => {
   const [assignProductsUser, setAssignProductsUser] = useState<User | null>(null);
   const {
     shopProducts,
-    assignedProductIds,
     selectedProductIds,
     setSelectedProductIds,
     assignLoading,
@@ -398,7 +397,6 @@ const OwnerUsersPageInner: React.FC = () => {
                     <label key={prod.id} className="flex items-center gap-2 mb-1">
                       <input
                         type="checkbox"
-                        disabled={assignedProductIds.includes(prod.id)}
                         checked={selectedProductIds.includes(prod.id)}
                         onChange={e => {
                           if (e.target.checked) {
@@ -408,9 +406,8 @@ const OwnerUsersPageInner: React.FC = () => {
                           }
                         }}
                       />
-                      <span className={assignedProductIds.includes(prod.id) ? 'line-through text-gray-400' : ''}>
+                      <span>
                         {prod.product_name || prod.name || ''}
-                        {assignedProductIds.includes(prod.id) && ' (Already assigned)'}
                       </span>
                     </label>
                   ))

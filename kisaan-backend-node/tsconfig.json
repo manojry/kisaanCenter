@@ -25,7 +25,8 @@
   "include": [
     "src/**/*",
     "seed/**/*",
-    "scripts/**/*"
+    "scripts/**/*",
+    "types/**/*"
   ],
   "exclude": [
     "node_modules",
