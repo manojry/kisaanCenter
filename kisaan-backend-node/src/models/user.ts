@@ -48,8 +48,9 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public cumulative_value!: number | null;
   public created_by!: number | null;
   public custom_commission_rate!: number | null;
-  public created_at!: Date;
-  public updated_at!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 User.init(
@@ -130,6 +131,7 @@ User.init(
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
+      // Composite index for fast queries by shop, role, and status
       { fields: ['shop_id', 'role', 'status'] },
     ],
   }

@@ -57,6 +57,7 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
   public metadata?: object | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 Transaction.init(
@@ -90,18 +91,29 @@ Transaction.init(
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
+      // Index for queries by shop
       { fields: ['shop_id'] },
+      // Index for queries by farmer
       { fields: ['farmer_id'] },
+      // Index for queries by buyer
       { fields: ['buyer_id'] },
+      // Index for queries by category
       { fields: ['category_id'] },
+      // Index for queries by created_at
       { fields: ['created_at'] },
+      // Index for queries by product
       { fields: ['product_id'] },
-      // Composite indexes for common query patterns
+      // Composite index for shop and created_at
       { fields: ['shop_id', 'created_at'] },
+      // Composite index for farmer and created_at
       { fields: ['farmer_id', 'created_at'] },
+      // Composite index for buyer and created_at
       { fields: ['buyer_id', 'created_at'] },
+      // Composite index for shop and farmer
       { fields: ['shop_id', 'farmer_id'] },
+      // Composite index for shop and buyer
       { fields: ['shop_id', 'buyer_id'] },
+      // Composite index for shop, farmer, buyer, and status
       { fields: ['shop_id', 'farmer_id', 'buyer_id', 'status'] },
     ],
   }

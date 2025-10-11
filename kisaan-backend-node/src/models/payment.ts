@@ -24,17 +24,18 @@ export interface PaymentAttributes {
   id: number;
   transaction_id?: number | null;
   shop_id?: number | null;
-  payer_type: PaymentParty;
-  payee_type: PaymentParty;
+  payer_type: PaymentParty; // Future-proof: add new parties here
+  payee_type: PaymentParty; // Future-proof: add new parties here
   amount: number;
-  status: PaymentStatus;
+  status: PaymentStatus; // Future-proof: add new statuses here
   payment_date?: Date;
-  method: PaymentMethod;
+  method: PaymentMethod; // Future-proof: add new methods here
   notes?: string;
   counterparty_id?: number | null;
-  created_at?: Date;
-  updated_at?: Date;
+  readonly created_at?: Date;
+  readonly updated_at?: Date;
 }
+
 
 interface PaymentCreationAttributes extends Optional<PaymentAttributes, 'id' | 'status' | 'payment_date' | 'notes' | 'counterparty_id' | 'shop_id' | 'transaction_id' | 'created_at' | 'updated_at'> {}
 
@@ -52,6 +53,7 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
   public counterparty_id!: number | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 Payment.init(
@@ -77,14 +79,23 @@ Payment.init(
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
+      // Index for queries by transaction
       { fields: ['transaction_id'] },
+      // Index for queries by shop
       { fields: ['shop_id'] },
+      // Index for queries by payer type
       { fields: ['payer_type'] },
+      // Index for queries by payee type
       { fields: ['payee_type'] },
+      // Index for queries by status
       { fields: ['status'] },
+      // Index for queries by payment date
       { fields: ['payment_date'] },
+      // Index for queries by counterparty
       { fields: ['counterparty_id'] },
+      // Composite index for transaction and status
       { fields: ['transaction_id', 'status'] },
+      // Composite index for transaction, shop, status, and created_at
       { fields: ['transaction_id', 'shop_id', 'status', 'created_at'] },
     ],
   }
