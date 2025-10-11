@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getSettlements, getSettlementSummary, settleAmount, createSettlement, getFarmerNetPayable } from '../services/settlementService';
+import { getSettlements, getSettlementSummary, settleAmount, createSettlement, getFarmerNetPayable, settlementService } from '../services/settlementService';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { parseId } from '../shared/utils/parse';
@@ -29,7 +29,7 @@ export class SettlementController {
         return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, errObj.message ?? 'Failed to fetch settlements');
       }
       const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlements';
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, message);
+      return failureCode(res, 500, 'GET_SETTLEMENTS_FAILED', { error: String(error) });
     }
   }
 
@@ -117,32 +117,12 @@ export class SettlementController {
 
   async getFarmerNetPayableController(req: Request, res: Response) {
     try {
-      const { shop_id, farmer_id } = req.query;
-      if (!shop_id || typeof shop_id !== 'string') {
-        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required');
-      }
-      if (!farmer_id || typeof farmer_id !== 'string') {
-        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'farmer_id' }, 'farmer_id is required');
-      }
-
-      const shopId = parseId(shop_id, 'shop id');
-      const farmerIdParsed = parseId(farmer_id, 'farmer id');
-      
-      const netPayableData = await getFarmerNetPayable(shopId, farmerIdParsed);
-      return success(res, netPayableData, { 
-        message: 'Farmer net payable amount calculated',
-        meta: {
-          calculation: `Balance (${netPayableData.current_balance}) - Expenses (${netPayableData.pending_expenses}) = Net Payable (${netPayableData.net_payable})`
-        }
-      });
-    } catch (error: unknown) {
-      req.log?.error({ err: error }, 'settlement:net-payable failed');
-      if (typeof error === 'object' && error !== null && 'status' in error && 'message' in error) {
-        const errObj = error as { status?: number; message?: string };
-        return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, errObj.message ?? 'Failed to calculate net payable');
-      }
-      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to calculate net payable';
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, message);
+      const shopId = parseInt(req.query.shop_id as string);
+      const farmerId = parseInt(req.query.farmer_id as string);
+      const result = await settlementService.getFarmerNetPayable(shopId, farmerId);
+      return success(res, result);
+    } catch (error) {
+  return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, { error: String(error) });
     }
   }
 }

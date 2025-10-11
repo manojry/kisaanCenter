@@ -5,6 +5,7 @@ import { authenticateToken } from '../middlewares/auth';
 
 const router = Router();
 const settlementController = new SettlementController();
+const controller = new SettlementController();
 
 // Utility: expand YYYY-MM-DD to full day ISO string
 function expandToFullDay(dateStr: string, isEnd: boolean): string {
@@ -17,7 +18,7 @@ function expandToFullDay(dateStr: string, isEnd: boolean): string {
 }
 
 // GET /api/settlements/farmer-net-payable?shop_id=...&farmer_id=... - Get net payable amount for farmer
-router.get('/farmer-net-payable', authenticateToken, settlementController.getFarmerNetPayableController.bind(settlementController));
+router.get('/farmer-net-payable', authenticateToken, controller.getFarmerNetPayableController.bind(controller));
 
 // POST /api/settlements/repay-fifo - Apply repayment FIFO for a user/shop
 router.post('/repay-fifo', authenticateToken, async (req, res) => {

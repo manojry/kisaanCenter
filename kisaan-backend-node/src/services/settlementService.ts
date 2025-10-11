@@ -1,6 +1,7 @@
-import { Settlement } from '../models/settlement';
+import { Settlement, SettlementStatus, SettlementReason } from '../models/settlement';
 import { User } from '../models/user';
 import { Op } from 'sequelize';
+import { SettlementRepository } from '../repositories/SettlementRepository';
 
 // FIFO repayment logic: When a payment is made, settle oldest pending settlements first
 export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repaymentAmount: number) => {
@@ -9,7 +10,7 @@ export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repay
     where: {
       shop_id,
       user_id,
-      status: 'pending'
+      status: SettlementStatus.Pending
     },
     order: [['created_at', 'ASC']]
   });
@@ -22,7 +23,7 @@ export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repay
     const settleAmt = Math.min(remaining, originalAmount);
     // If full amount is settled, mark as settled
     if (settleAmt === originalAmount) {
-      await settlement.update({ status: 'settled', settlement_date: new Date() });
+  await settlement.update({ status: SettlementStatus.Settled, settlement_date: new Date() });
       updates.push({ id: settlement.id, settled: settleAmt });
     } else {
       // Partial settlement: reduce amount, keep status pending
@@ -44,12 +45,31 @@ export const createSettlement = async (data: {
   type: 'overpayment' | 'underpayment' | 'settlement' | 'expense' | 'payment_received' | 'payment_made';
   description: string;
 }) => {
+  let reason: SettlementReason;
+  switch (data.type) {
+    case 'overpayment':
+      reason = SettlementReason.Overpayment;
+      break;
+    case 'underpayment':
+      reason = SettlementReason.Underpayment;
+      break;
+    case 'expense':
+      reason = SettlementReason.Expense;
+      break;
+    case 'payment_received':
+    case 'payment_made':
+    case 'settlement':
+      reason = SettlementReason.Adjustment;
+      break;
+    default:
+      reason = SettlementReason.Adjustment;
+  }
   const settlement = await Settlement.create({
     shop_id: data.shop_id,
     user_id: parseInt(data.user_id),
     amount: data.amount,
-    reason: data.type === 'overpayment' || data.type === 'underpayment' ? data.type : 'adjustment',
-    status: 'pending'
+    reason,
+    status: SettlementStatus.Pending
   });
 
   // NOTE: Expenses do NOT modify user balance directly
@@ -79,7 +99,7 @@ export const getSettlements = async (filters: {
   const where: Record<string, unknown> = { shop_id: parseInt(filters.shop_id) };
   if (filters.user_id) where.user_id = filters.user_id;
   if (filters.user_type) where.user_type = filters.user_type;
-  if (filters.status) where.status = filters.status;
+  if (filters.status) where.status = filters.status as SettlementStatus;
   if (filters.from_date || filters.to_date) {
   const dateRange: { [key: string | symbol]: unknown } = {};
     if (filters.from_date) dateRange[Op.gte] = new Date(filters.from_date);
@@ -115,8 +135,8 @@ export const getFarmerNetPayable = async (shop_id: number, farmer_id: number) =>
     where: {
       shop_id,
       user_id: farmer_id,
-      status: 'pending',
-      reason: 'adjustment' // This covers expenses
+      status: SettlementStatus.Pending,
+      reason: SettlementReason.Adjustment // This covers expenses
     }
   });
 
@@ -182,7 +202,7 @@ export const getSettlementSummary = async (shop_id: string) => {
         pending_count: 0
       };
     }
-    if (settlement.status === 'pending') {
+    if (settlement.status === SettlementStatus.Pending) {
       acc[key].total_balance += typeof settlement.balance === 'string' ? parseFloat(settlement.balance) : settlement.balance;
       acc[key].pending_count += 1;
     }
@@ -197,9 +217,26 @@ export const settleAmount = async (settlement_id: number, _amount: number) => {
   if (!settlement) throw new Error('Settlement not found');
 
   await settlement.update({
-    status: 'settled',
+    status: SettlementStatus.Settled,
     settlement_date: new Date()
   });
 
   return settlement.reload();
 };
+
+export class SettlementService {
+  private settlementRepo = new SettlementRepository();
+
+  async getFarmerNetPayable(shopId: number, farmerId: number) {
+    const farmer = await User.findByPk(farmerId);
+    const balance = Number(farmer?.balance || 0);
+    const expenses = await this.settlementRepo.getPendingExpenses(shopId, farmerId);
+    return {
+      balance,
+      expenses,
+      net_payable: balance - expenses
+    };
+  }
+}
+
+export const settlementService = new SettlementService();
