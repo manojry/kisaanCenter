@@ -1,5 +1,5 @@
 
-import { Payment, PaymentStatus, PaymentParty, PaymentMethod } from '../models/payment';
+import { Payment, PaymentStatus, PaymentParty, PaymentMethod, PaymentCreationAttributes } from '../models/payment';
 import { Op } from 'sequelize';
 import { DomainError } from '../errors/DomainError';
 
@@ -46,7 +46,7 @@ export class PaymentRepository {
   async create(paymentData: Partial<Payment>) {
     try {
   // Use PaymentCreationAttributes for type safety
-  return await Payment.create(paymentData as any);
+  return await Payment.create(paymentData as PaymentCreationAttributes);
     } catch (err) {
   throw new DomainError(`Failed to create payment: ${err instanceof Error ? err.message : String(err)}`);
     }

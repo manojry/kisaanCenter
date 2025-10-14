@@ -1,5 +1,6 @@
 
 import express, { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../middlewares/auth';
 import { ShopProductService } from '../services/shopProductService';
 import { ControllerUtils, ResponseUtils } from '../utils/routeUtils';
 import { FarmerProductAssignmentRepository } from '../repositories/FarmerProductAssignmentRepository';
@@ -12,7 +13,7 @@ router.get('/shops/:shopId/assignable-products', ControllerUtils.asyncHandler(as
   const shopId = Number(req.params.shopId);
   const farmerId = Number(req.query.farmerId);
   // Get user's shop from auth/session (use type casting for now)
-  const userShop = (req as any).user && typeof (req as any).user.shop_id !== 'undefined' ? Number((req as any).user.shop_id) : undefined;
+  const userShop = typeof (req as AuthenticatedRequest).user?.shop_id !== 'undefined' ? Number((req as AuthenticatedRequest).user?.shop_id) : undefined;
   if (!shopId || !farmerId) return res.status(400).json({ success: false, message: 'shopId and farmerId required' });
   if (typeof userShop !== 'undefined' && shopId !== userShop) {
     return res.status(403).json({

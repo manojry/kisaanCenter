@@ -28,9 +28,9 @@ export class BalanceController {
   async addPaymentToFarmer(req: AuthenticatedRequest, res: Response) {
   try {
     const { farmer_id, amount, description } = req.body;
-    let userShopId = (req as any).user?.shop_id;
-    if (!userShopId && (req as any).user?.id) {
-      userShopId = await getUserShopId((req as any).user.id);
+    let userShopId = (req as AuthenticatedRequest).user?.shop_id;
+    if (!userShopId && (req as AuthenticatedRequest).user?.id) {
+      userShopId = await getUserShopId((req as AuthenticatedRequest).user!.id);
     }
     if (!userShopId) {
   return failureCode(res, 400, ErrorCodes.SHOP_NOT_FOUND, undefined, 'User shop not found');
@@ -46,7 +46,7 @@ export class BalanceController {
       counterparty_id: Number(farmer_id),
       shop_id: userShopId,
     };
-    const paymentResult = await paymentService.createPayment(paymentData, (req as any).user?.id || 0);
+  const paymentResult = await paymentService.createPayment(paymentData, (req as AuthenticatedRequest).user?.id || 0);
     // Optionally create settlement record as before
     await createSettlement({
       shop_id: userShopId,
@@ -67,9 +67,9 @@ export class BalanceController {
   async addPaymentFromBuyer(req: AuthenticatedRequest, res: Response) {
   try {
     const { buyer_id, amount, description } = req.body;
-    let userShopId = (req as any).user?.shop_id;
-    if (!userShopId && (req as any).user?.id) {
-      userShopId = await getUserShopId((req as any).user.id);
+    let userShopId = (req as AuthenticatedRequest).user?.shop_id;
+    if (!userShopId && (req as AuthenticatedRequest).user?.id) {
+      userShopId = await getUserShopId((req as AuthenticatedRequest).user!.id);
     }
     if (!userShopId) {
   return failureCode(res, 400, ErrorCodes.SHOP_NOT_FOUND, undefined, 'User shop not found');
@@ -85,7 +85,7 @@ export class BalanceController {
       counterparty_id: Number(buyer_id),
       shop_id: userShopId,
     };
-    const paymentResult = await paymentService.createPayment(paymentData, (req as any).user?.id || 0);
+  const paymentResult = await paymentService.createPayment(paymentData, (req as AuthenticatedRequest).user?.id || 0);
     // Optionally create settlement record as before
     await createSettlement({
       shop_id: userShopId,

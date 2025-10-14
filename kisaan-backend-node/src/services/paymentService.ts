@@ -25,7 +25,7 @@ export class PaymentService {
     }
 
     // Create payment record first - ensure counterparty_id is set correctly
-    const paymentData: any = {
+  const paymentData: Record<string, unknown> = {
       ...data,
       status: PaymentStatus.Paid,
       payer_type: PaymentParty[data.payer_type as keyof typeof PaymentParty],
@@ -285,7 +285,7 @@ export class PaymentService {
     const results: PaymentResponseDTO[] = [];
     for (const item of data.payments) {
       // Map DTO values to enums for bulk
-      const paymentData: any = {
+  const paymentData: Record<string, unknown> = {
         transaction_id: item.transaction_id,
         payer_type: PaymentParty[data.payer_type as keyof typeof PaymentParty],
         payee_type: PaymentParty[data.payee_type as keyof typeof PaymentParty],

@@ -31,7 +31,7 @@ import { UserFilters } from '../types/user';
  */
 export const getAllUsersOptimized = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     
     const filters: UserFilters = {
       role: req.query.role as string,
@@ -70,7 +70,7 @@ export const getAllUsersOptimized = async (req: AuthRequest, res: Response) => {
  */
 export const getUsersByShopOptimized = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     const shopId = parseInt(req.params.shopId);
     const forceRefresh = req.query.refresh === 'true';
 
@@ -114,7 +114,7 @@ export const getUsersByShopOptimized = async (req: AuthRequest, res: Response) =
  */
 export const getUsersWithBalanceOptimized = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     const shopId = parseInt(req.params.shopId);
 
     if (isNaN(shopId)) {
@@ -167,7 +167,7 @@ export const getUsersWithBalanceOptimized = async (req: AuthRequest, res: Respon
  */
 export const createUserOptimizedController = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     const userData = req.body;
 
     // Validation
@@ -235,7 +235,7 @@ export const createUserOptimizedController = async (req: AuthRequest, res: Respo
  */
 export const updateUserOptimizedController = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     const userId = parseInt(req.params.id);
     const updateData = req.body;
 
@@ -285,7 +285,7 @@ export const updateUserOptimizedController = async (req: AuthRequest, res: Respo
  */
 export const clearUserCacheController = async (req: AuthRequest, res: Response) => {
   try {
-    const requestingUser = (req as any).user!;
+  const requestingUser = req.user!;
     const shopId = parseInt(req.params.shopId);
 
     if (isNaN(shopId)) {

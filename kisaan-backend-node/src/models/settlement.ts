@@ -27,7 +27,7 @@ interface SettlementAttributes {
 }
 
 
-interface SettlementCreationAttributes extends Optional<SettlementAttributes, 'id' | 'settlement_date' | 'created_at' | 'updated_at'> {}
+export interface SettlementCreationAttributes extends Optional<SettlementAttributes, 'id' | 'settlement_date' | 'created_at' | 'updated_at'> {}
 
 export class Settlement extends Model<SettlementAttributes, SettlementCreationAttributes> implements SettlementAttributes {
   public id!: number;

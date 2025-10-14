@@ -39,7 +39,7 @@ export class SettlementRepository {
 
   async create(settlementData: Partial<Settlement>) {
     try {
-      return await Settlement.create(settlementData as any);
+      return await Settlement.create(settlementData as SettlementCreationAttributes);
     } catch (err) {
       throw new DomainError(`Failed to create settlement: ${err instanceof Error ? err.message : String(err)}`);
     }
