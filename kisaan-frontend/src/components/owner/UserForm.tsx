@@ -114,14 +114,24 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     try {
       let response;
       if (editUser) {
-        // Update existing user
-        const updateData: UserCreate = {
-          ...formData,
-          role: formData.role,
-          password: formData.password,
-          email: formData.email
-        };
-        response = await usersApi.update(editUser.id, updateData);
+        // Only update if something changed
+        const changedFields: Partial<UserCreate> = {};
+        Object.keys(formData).forEach(key => {
+          // @ts-ignore
+          if (formData[key] !== undefined && formData[key] !== editUser[key]) {
+            // @ts-ignore
+            changedFields[key] = formData[key];
+          }
+        });
+        // Prevent role change
+        if ('role' in changedFields) {
+          delete changedFields.role;
+        }
+        if (Object.keys(changedFields).length === 0) {
+          setFormError('No changes detected. User not updated.');
+          return;
+        }
+        response = await usersApi.update(editUser.id, changedFields);
       } else {
         // Create new user
   const createData: UserCreate & { status?: 'active' | 'inactive' } = {

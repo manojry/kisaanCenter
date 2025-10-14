@@ -130,16 +130,31 @@ export class UserController {
     try {
       const id = parseId(req.params.id, 'user');
       // Remove password if it's an empty string so validation doesn't fail
-  const reqBody = { ...req.body };
+      const reqBody = { ...req.body };
       if (typeof reqBody.password === 'string' && reqBody.password.trim() === '') {
         delete reqBody.password;
       }
+      // Prevent role change
+      if ('role' in reqBody) {
+        delete reqBody.role;
+      }
       const data = validate(UserUpdateSchema, reqBody);
-  if (!(req as AuthenticatedRequest).user) {
-      failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
+      if (!(req as AuthenticatedRequest).user) {
+        failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-  const user: UserDTO | null = await userService.updateUser(id, data, (req as AuthenticatedRequest).user!);
+      // Fetch current user data for comparison
+      const currentUserData = await userService.getUserById(id, (req as AuthenticatedRequest).user!);
+      // Only update if something changed
+      const hasChanges = Object.keys(data).some(key => {
+        // @ts-ignore
+        return data[key] !== undefined && data[key] !== currentUserData?.[key];
+      });
+      if (!hasChanges) {
+  success(res, currentUserData, { message: 'No changes detected, user not updated.' });
+  return;
+      }
+      const user: UserDTO | null = await userService.updateUser(id, data, (req as AuthenticatedRequest).user!);
       success(res, user, { message: 'User updated successfully' });
     } catch (err) {
       req.log?.error({ err }, 'updateUser failed');
