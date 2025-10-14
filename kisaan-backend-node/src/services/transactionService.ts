@@ -1543,6 +1543,9 @@ export class TransactionService {
     period?: { start: Date; end: Date }
   ): Promise<Record<string, unknown>> {
     try {
+      // Get farmer user data first
+      const farmer = await this.userRepository.findById(farmerId);
+      
       const transactions = await this.transactionRepository.findByFarmer(farmerId);
       
       let filteredTransactions = transactions;
@@ -1556,11 +1559,47 @@ export class TransactionService {
           t.created_at && t.created_at >= period.start && t.created_at <= period.end
         );
       }
+
+      // Calculate analytics
+      const allTimeTransactions = transactions.filter(t => (t.farmer_earning || 0) > 0);
+      const periodEarnings = filteredTransactions.reduce((sum, t) => sum + (t.farmer_earning || 0), 0);
+      const lifetimeEarnings = allTimeTransactions.reduce((sum, t) => sum + (t.farmer_earning || 0), 0);
+      const completedCount = filteredTransactions.filter(t => t.status === 'completed').length;
+      const pendingAmount = filteredTransactions
+        .filter(t => t.status !== 'completed')
+        .reduce((sum, t) => sum + (t.farmer_earning || 0), 0);
       
       return {
-        totalTransactions: filteredTransactions.length,
-        totalEarnings: filteredTransactions.reduce((sum, t) => sum + (t.farmer_earning || 0), 0),
-        transactions: filteredTransactions
+        // User info
+        farmer_info: {
+          id: farmer?.id,
+          username: farmer?.username,
+          firstname: farmer?.firstname,
+          contact: farmer?.contact,
+          balance: farmer?.balance || 0,
+          cumulative_value: farmer?.cumulative_value || lifetimeEarnings
+        },
+        // Period analytics
+        period_summary: {
+          total_transactions: filteredTransactions.length,
+          total_value: periodEarnings,
+          completed_transactions: completedCount,
+          pending_amount: pendingAmount,
+          average_transaction_value: filteredTransactions.length > 0 ? periodEarnings / filteredTransactions.length : 0
+        },
+        // Lifetime analytics
+        lifetime_summary: {
+          total_transactions: allTimeTransactions.length,
+          total_earnings: lifetimeEarnings,
+          success_rate: allTimeTransactions.length > 0 ? (allTimeTransactions.filter(t => t.status === 'completed').length / allTimeTransactions.length) * 100 : 0
+        },
+        // Standard fields for backward compatibility
+        total_transactions: filteredTransactions.length,
+        total_value: periodEarnings,
+        total_commission: 0, // Not relevant for farmers
+        pending_count: filteredTransactions.filter(t => t.status === 'pending').length,
+        completed_count: completedCount,
+        average_transaction_value: filteredTransactions.length > 0 ? periodEarnings / filteredTransactions.length : 0
       };
     } catch (error) {
       throw new DatabaseError('Failed to retrieve farmer earnings', error instanceof Error ? { message: error.message } : undefined);

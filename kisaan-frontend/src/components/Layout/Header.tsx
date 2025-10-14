@@ -8,6 +8,7 @@ import { Logo } from '../ui/logo';
 import { Badge } from '../ui/badge';
 import { NotificationDropdown } from '../ui/NotificationDropdown';
 import { SearchDropdown } from '../ui/SearchDropdown';
+import { MobileNav } from './MobileNav';
 
 const Header = () => {
   const location = useLocation();
@@ -15,6 +16,8 @@ const Header = () => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { setIsMobileOpen } = useSidebar();
+
+  const isFarmer = user?.role === 'farmer';
 
   const handleNav = (e: React.MouseEvent<HTMLAnchorElement>, section: string) => {
     e.preventDefault();
@@ -40,44 +43,50 @@ const Header = () => {
         
         <div className="flex items-center space-x-3">
           {user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex flex-col items-end">
-                <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  <span className="font-semibold">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
-                </span>
-                <Badge variant="secondary" className="text-xs capitalize">
-                    {user.role}
-                  </Badge>
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="Online" />
+            isFarmer ? (
+              <div className="w-full md:hidden">
+                <MobileNav />
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="hidden md:flex flex-col items-end">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      <span className="font-semibold">{user.firstname && user.firstname.trim() ? user.firstname : user.username}</span>
+                    </span>
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {user.role}
+                    </Badge>
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="Online" />
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="md:hidden"
+                  onClick={() => setIsMobileOpen(true)}
+                  aria-label="Open mobile menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+
+                <div className="hidden md:flex items-center gap-2">
+                  <NotificationDropdown />
+                  <SearchDropdown />
+                  
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Toggle theme"
+                    onClick={toggleTheme}
+                    title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                  >
+                    {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="md:hidden"
-                onClick={() => setIsMobileOpen(true)}
-                aria-label="Open mobile menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-
-              <div className="hidden md:flex items-center gap-2">
-                <NotificationDropdown />
-                <SearchDropdown />
-                
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Toggle theme"
-                  onClick={toggleTheme}
-                  title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-                >
-                  {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
+            )
           ) : (
             <>
               <nav className="hidden lg:flex items-center space-x-8 text-sm font-medium">

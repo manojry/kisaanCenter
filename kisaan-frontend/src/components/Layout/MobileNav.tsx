@@ -21,6 +21,10 @@ export function MobileNav() {
   const visibleNavItems = getVisibleNavItems(role, { includeQuick: true }).filter(i => !i.desktopOnly);
   const quick = getQuickActions(role);
 
+  // If farmer, always show only logout button
+  const isFarmer = role === 'farmer';
+  const showOnlyLogout = isFarmer;
+
   const handleLogout = () => {
     logout();
     setIsOpen(false);
@@ -28,15 +32,29 @@ export function MobileNav() {
 
   if (!user) return null;
 
+  if (showOnlyLogout) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="w-10 h-10 flex items-center justify-center"
+        onClick={handleLogout}
+        aria-label="Logout"
+      >
+        <LogOut className="h-6 w-6 text-destructive" />
+      </Button>
+    );
+  }
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-  <Button variant="ghost" size="icon" className="block sm:block md:hidden lg:hidden xl:hidden">
+        <Button variant="ghost" size="icon" className="block sm:block md:hidden lg:hidden xl:hidden">
           <Menu className="h-6 w-6" />
           <span className="sr-only">Toggle navigation menu</span>
         </Button>
       </SheetTrigger>
-  <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-80 p-0">
   <div className="flex flex-col h-full relative p-1">
           {/* Header */}
           <div className="p-3 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">

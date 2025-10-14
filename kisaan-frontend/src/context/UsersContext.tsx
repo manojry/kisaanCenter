@@ -81,10 +81,20 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children }) => {
     setUsers(filtered.slice(start, start + pageSize));
   }, [allUsers, page, pageSize]);
 
-  // Fetch all users on mount or auth change
+  // Fetch all users on mount or auth change, but skip for farmer role
   useEffect(() => {
     if (isAuthenticated) {
-      refreshUsers(true);
+      // Get user from AuthContext
+      const authUser = (typeof window !== 'undefined' && window.localStorage.getItem('auth_user')) ? JSON.parse(window.localStorage.getItem('auth_user')!) : null;
+      if (authUser?.role !== 'farmer') {
+        refreshUsers(true);
+      } else {
+        setAllUsers([]);
+        setUsers([]);
+        setIsLoading(false);
+        setTotal(0);
+        setAllUsersFetched(false);
+      }
     } else {
       setAllUsers([]);
       setUsers([]);
