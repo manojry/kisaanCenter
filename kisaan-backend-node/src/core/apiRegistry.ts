@@ -1,6 +1,11 @@
 ﻿// API Registry - Simple Implementation
 import express, { Application, Request, Response } from 'express';
 import { authenticateToken } from '../middlewares/auth';
+import { loadFeatures, requireFeature } from '../middlewares/features';
+import { success } from '../shared/http/respond';
+import { Transaction } from '../models/transaction';
+import { logger } from '../shared/logging/logger';
+
 export interface ApiModule {
   name: string;
   prefix: string;
@@ -35,11 +40,12 @@ export class ApiRegistry {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const routes = require('../routes');
       // Helper to register and collect endpoints
-      const register = (path: string, router: any) => {
-        app.use(path, router);
-        if (router && router.stack) {
-          for (const layer of router.stack) {
-            if (layer.route && layer.route.path && layer.route.methods) {
+      const register = (path: string, router: unknown) => {
+        app.use(path, router as express.Router);
+        if (router && (router as express.Router).stack) {
+          for (const layer of (router as express.Router).stack) {
+            if (layer.route && layer.route.path) {
+              // @ts-expect-error Express types do not expose 'methods' property
               for (const method of Object.keys(layer.route.methods)) {
                 this._endpoints.push({
                   method: method.toUpperCase(),
@@ -92,31 +98,24 @@ export class ApiRegistry {
       }
       // Diagnostics routes (commission integrity)
       try {
-        // ...existing code...
-  const { loadFeatures, requireFeature } = require('../middlewares/features');
-  // Use standardized success responder from shared/http/respond
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { success } = require('../shared/http/respond');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { Transaction } = require('../models/transaction');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { logger } = require('../shared/logging/logger');
-  const diagnostics = express.Router();
+        // Remove require statements here, use imported modules above
+        const diagnostics = express.Router();
         diagnostics.get('/commission-integrity', authenticateToken, loadFeatures, requireFeature('diagnostics.integrity'), async (req: Request, res: Response) => {
           try {
             const started = Date.now();
             const txns = await Transaction.findAll();
             let raw = 0; let recomputed = 0; let mismatches = 0; const samples: Array<Record<string, unknown>> = [];
             for (const t of txns) {
-              const qty = Number((t as Record<string, unknown>).quantity || 0);
-              const up = Number((t as Record<string, unknown>).unit_price || 0);
-              const rate = Number((t as Record<string, unknown>).commission_rate || 0);
-              const stored = Number((t as Record<string, unknown>).commission_amount || 0);
+              const qty = Number(((t as unknown as Record<string, unknown>).quantity) || 0);
+              const up = Number(((t as unknown as Record<string, unknown>).unit_price) || 0);
+              const rate = Number(((t as unknown as Record<string, unknown>).commission_rate) || 0);
+              const stored = Number(((t as unknown as Record<string, unknown>).commission_amount) || 0);
               raw += stored;
               const rc = Number(((qty * up * rate) / 100).toFixed(2));
               recomputed += rc;
               if (Math.abs(stored - rc) > 0.01) {
-                mismatches++; if (samples.length < 10) samples.push({ id: (t as Record<string, unknown>).id, stored, rc, rate, qty, up });
+                mismatches++;
+                if (samples.length < 10) samples.push({ id: ((t as unknown as Record<string, unknown>).id), stored, rc, rate, qty, up });
               }
             }
             const payload = {

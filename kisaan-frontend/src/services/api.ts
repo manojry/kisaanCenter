@@ -91,9 +91,22 @@ export const shopProductsApi = {
   },
   getAssignableProducts: async (shopId: number, farmerId: number) => {
     // Backend should support: /shops/:shopId/assignable-products?farmerId=123
-    const resp = await apiClient.get<ApiResponse<any[]>>(`/shops/${shopId}/assignable-products?farmerId=${farmerId}`);
+    const resp = await apiClient.get<ApiResponse<unknown[]>>(`/shops/${shopId}/assignable-products?farmerId=${farmerId}`);
+    // Type guard for ShopProductMapped
+    const isShopProductMapped = (p: unknown): p is {
+      id: number;
+      shop_id: number;
+      product_id: number;
+      product_name?: string;
+      name?: string;
+      category?: string;
+      category_name?: string;
+      is_active?: boolean;
+      category_id?: number;
+      record_status?: string;
+    } => typeof p === 'object' && p !== null && 'id' in p && 'shop_id' in p && 'product_id' in p;
     // Map to ShopProductMapped type for frontend compatibility
-    return (resp.data || []).map((p: any) => ({
+    return (resp.data || []).filter(isShopProductMapped).map((p) => ({
       id: p.id,
       shop_id: p.shop_id,
       product_id: p.product_id,

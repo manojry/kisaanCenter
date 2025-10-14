@@ -1,6 +1,5 @@
-
 import { getUserDisplayName } from '../utils/userDisplayName';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { FarmerDashboard } from '../components/FarmerDashboard';
@@ -33,28 +32,6 @@ export default function Dashboard() {
 
   // For farmer role, show FarmerDashboard
   if (user.role === 'farmer') {
-    // Use direct import for FarmerDashboard
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    // import at top: import { FarmerDashboard } from '../components/FarmerDashboard';
-    // But for now, use dynamic import fallback if needed
-    // Static import is preferred for React/Vite
-    // @ts-ignore
-    // eslint-disable-next-line import/no-unresolved
-    // import { FarmerDashboard } from '../components/FarmerDashboard';
-    // Instead, move import to top:
-    // import { FarmerDashboard } from '../components/FarmerDashboard';
-    // So, just use:
-    // @ts-ignore
-    // eslint-disable-next-line import/no-unresolved
-    // import { FarmerDashboard } from '../components/FarmerDashboard';
-    // And render:
-    // return <FarmerDashboard farmerId={user.id} />;
-    // But since this is a patch, just use the static import at the top and render:
-    // ...existing code...
-    // So, move import to top and render:
-    // return <FarmerDashboard farmerId={user.id} />;
-    // ...existing code...
-    // For this patch, just render:
     return <FarmerDashboard farmerId={user.id} />;
   }
   // For other non-owner roles, show simple message

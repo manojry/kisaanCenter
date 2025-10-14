@@ -67,11 +67,15 @@ export default function PDFReportGenerator({ shopId, users = [] }: PDFReportGene
   };
 
   // Helper to sum paid amounts for multi-party payments
+  const isPayment = (p: unknown): p is { status: string; amount: number|string } => {
+    return typeof p === 'object' && p !== null && 'status' in p && 'amount' in p;
+  };
   const getPaidAmount = (row: ReportRow): number => {
     if (Array.isArray(row.payments)) {
       return row.payments
-        .filter((p: any) => p.status === 'PAID')
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        .filter(isPayment)
+        .filter(p => p.status === 'PAID')
+        .reduce((sum: number, p) => sum + Number(p.amount), 0);
     }
     return typeof row.paid_amount === 'number' ? row.paid_amount : Number(row.paid_amount) || 0;
   };

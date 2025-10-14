@@ -17,35 +17,30 @@ interface UserFormProps {
   editUser?: User | null;
 }
 
-
 export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUser }) => {
-  // Validation state
   const [contactError, setContactError] = useState<string | null>(null);
   const { user: currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-    const [formData, setFormData] = useState<UserCreate & { status?: 'active' | 'inactive' }>({
-      role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
-      shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
-  contact: typeof editUser?.contact === 'string' ? editUser.contact : '',
-      firstname: editUser?.firstname || '',
-      password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
-      email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
-      username: editUser?.username || '',
-      balance: editUser?.balance || 0,
-      custom_commission_rate: editUser?.custom_commission_rate || undefined,
-      status: editUser?.status || 'active',
-    });
+  const [formData, setFormData] = useState<UserCreate & { status?: 'active' | 'inactive' }>({
+    role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
+    shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
+    contact: typeof editUser?.contact === 'string' ? editUser.contact : '',
+    firstname: editUser?.firstname || '',
+    password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
+    email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
+    username: editUser?.username || '',
+    balance: editUser?.balance || 0,
+    custom_commission_rate: editUser?.custom_commission_rate || undefined,
+    status: editUser?.status || 'active',
+  });
 
-  // Set commission rate logic for new user creation
   useEffect(() => {
-    // Only run for new user creation, not editing
     if (!editUser && formData.shop_id && (formData.custom_commission_rate === undefined || formData.custom_commission_rate === null)) {
       let isMounted = true;
       const fetchCommission = async () => {
         if (!formData.shop_id) return;
         if (formData.role === 'farmer') {
-          // Try to fetch commission from commissions table
           try {
             const commissions = await commissionsApi.getByShopId(formData.shop_id);
             if (isMounted && Array.isArray(commissions) && commissions.length > 0) {
@@ -56,10 +51,9 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
               }
             }
           } catch {
-            // ignore error, fallback to shop
+            // ignore error
           }
         }
-        // Fallback to shop commission_rate
         try {
           if (!formData.shop_id) return;
           const resp = await shopsApi.getById(formData.shop_id);
@@ -79,7 +73,6 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
   }, [editUser, formData.role, formData.shop_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    // Validate contact (if provided)
     if (formData.contact && formData.contact.length > 0 && formData.contact.length < 10) {
       setContactError('Contact number must be at least 10 digits');
       return;
@@ -93,7 +86,6 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
       return;
     }
 
-    // Additional validation for superadmin
     if (currentUser?.role === 'superadmin') {
       if (!formData.email) {
         setFormError('Email is required for superadmin user creation');
@@ -114,61 +106,50 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     try {
       let response;
       if (editUser) {
-        // Only update if something changed
         const changedFields: Partial<UserCreate> = {};
-        Object.keys(formData).forEach(key => {
-          // @ts-ignore
-          if (formData[key] !== undefined && formData[key] !== editUser[key]) {
-            // @ts-ignore
-            changedFields[key] = formData[key];
+        (Object.keys(formData) as Array<keyof UserCreate>).forEach(key => {
+          const value = formData[key];
+          if (value !== undefined && (!editUser || value !== editUser[key])) {
+            (changedFields as Record<string, unknown>)[key] = value;
           }
         });
-        // Prevent role change
         if ('role' in changedFields) {
           delete changedFields.role;
         }
         if (Object.keys(changedFields).length === 0) {
           setFormError('No changes detected. User not updated.');
+          setIsLoading(false);
           return;
         }
         response = await usersApi.update(editUser.id, changedFields);
       } else {
-        // Create new user
-  const createData: UserCreate & { status?: 'active' | 'inactive' } = {
+        const createData: UserCreate & { status?: 'active' | 'inactive' } = {
           ...formData,
-          // Handle defaults based on current user role
           password: currentUser?.role === 'superadmin' ? formData.password : 'kisaan@123',
           email: currentUser?.role === 'superadmin' ? formData.email : 'contact@kisaancenter.com',
           balance: formData.balance || 0,
           shop_id: formData.role === 'owner' ? formData.shop_id : (currentUser?.shop_id || undefined)
         };
-        // Only include status if superadmin
         if (currentUser?.role !== 'superadmin') {
           delete createData.status;
         }
-        // Remove empty username to let backend auto-generate
         if (!createData.username || createData.username.trim() === '') {
           delete createData.username;
         }
-        // Always include contact field, default to empty string if not provided
         if (!createData.contact) {
           createData.contact = '';
         }
         response = await usersApi.create(createData);
       }
       if (response.success && response.data) {
-        // Show success toast with user details
         const userDetails = response.data;
         const successMessage = editUser 
           ? `User "${userDetails.firstname && userDetails.firstname.trim() ? userDetails.firstname : userDetails.username}" updated successfully`
           : `User "${userDetails.firstname && userDetails.firstname.trim() ? userDetails.firstname : userDetails.username}" created successfully`;
-        
         toastService.success(successMessage, {
           title: editUser ? 'User Updated' : 'User Created',
           description: `Role: ${userDetails.role}${userDetails.shop_id ? ` | Shop ID: ${userDetails.shop_id}` : ''}`
         });
-
-        // Additional info for owner without shop
         if (!editUser && userDetails.role === 'owner' && !userDetails.shop_id) {
           setTimeout(() => {
             toastService.info('Remember to create a shop for this owner to manage products and transactions.', {
@@ -177,19 +158,18 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             });
           }, 2000);
         }
-        
         onSuccess?.(response.data);
       } else {
-        // Handle case where response doesn't have expected data
         setFormError('User operation completed but response was unexpected. Please refresh the page.');
         toastService.warning('User operation may have completed but response was unexpected. Please refresh the page.');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving user:', error);
       let errorMessage = 'Failed to save user. Please check your input.';
-      if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
-          errorMessage = (error.response.data as { message?: string }).message || errorMessage;
+      if (typeof error === 'object' && error !== null) {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+          const data = (error.response as { data?: { message?: string } }).data;
+          errorMessage = (data && data.message) || errorMessage;
         } else if ('message' in error) {
           errorMessage = (error as { message?: string }).message || errorMessage;
         }
@@ -213,8 +193,6 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-
-
           {/* First Name (for auto-generating username) */}
           <div className="space-y-2">
             <Label htmlFor="firstname">First Name *</Label>
@@ -398,7 +376,6 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             </div>
           )}
 
-          {/* Status - Only for superadmin */}
           {/* Status - Only for superadmin */}
           {currentUser?.role === 'superadmin' && (
             <div className="space-y-2">

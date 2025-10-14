@@ -147,7 +147,7 @@ export class UserController {
       const currentUserData = await userService.getUserById(id, (req as AuthenticatedRequest).user!);
       // Only update if something changed
       const hasChanges = Object.keys(data).some(key => {
-        // @ts-ignore
+        // @ts-expect-error: Required to suppress type error for legacy code
         return data[key] !== undefined && data[key] !== currentUserData?.[key];
       });
       if (!hasChanges) {
