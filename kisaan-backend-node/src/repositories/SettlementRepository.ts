@@ -1,5 +1,4 @@
-import { Settlement, SettlementStatus, SettlementReason } from '../models/settlement';
-import { Op } from 'sequelize';
+import { Settlement, SettlementStatus, SettlementReason, SettlementCreationAttributes } from '../models/settlement';
 import { DomainError } from '../errors/DomainError';
 
 export class SettlementRepository {

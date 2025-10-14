@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getSettlements, getSettlementSummary, settleAmount, createSettlement, getFarmerNetPayable, settlementService } from '../services/settlementService';
+import { getSettlements, getSettlementSummary, settleAmount, createSettlement, /* getFarmerNetPayable, */ settlementService } from '../services/settlementService';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { parseId } from '../shared/utils/parse';
@@ -28,8 +28,8 @@ export class SettlementController {
         const errObj = error as { status?: number; message?: string };
         return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, errObj.message ?? 'Failed to fetch settlements');
       }
-      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlements';
-      return failureCode(res, 500, 'GET_SETTLEMENTS_FAILED', { error: String(error) });
+  const _message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlements';
+  return failureCode(res, 500, 'GET_SETTLEMENTS_FAILED', { error: String(error) });
     }
   }
 

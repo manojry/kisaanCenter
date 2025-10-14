@@ -3,7 +3,7 @@ import { Transaction, TransactionStatus } from '../models/transaction';
 import { Settlement, SettlementStatus, SettlementReason } from '../models/settlement';
 import { Payment, PaymentParty, PaymentMethod, PaymentStatus } from '../models/payment';
 // import sequelize from '../config/database';
-import { TRANSACTION_STATUS } from '../shared/constants/index';
+import { TRANSACTION_STATUS as _TRANSACTION_STATUS } from '../shared/constants/index';
 
 /**
  * SIMPLIFIED TRANSACTION & BALANCE SERVICE

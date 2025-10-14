@@ -281,7 +281,7 @@ export class PaymentService {
     }
   }
 
-  async createBulkPayments(data: import('../dtos/PaymentDTO').BulkPaymentDTO, userId: number): Promise<PaymentResponseDTO[]> {
+  async createBulkPayments(data: import('../dtos/PaymentDTO').BulkPaymentDTO, _userId: number): Promise<PaymentResponseDTO[]> {
     const results: PaymentResponseDTO[] = [];
     for (const item of data.payments) {
       // Map DTO values to enums for bulk

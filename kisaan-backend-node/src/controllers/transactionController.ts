@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { TransactionService } from '../services/transactionService';
-import { USER_ROLES } from '../shared/constants/index';
+import { USER_ROLES as _USER_ROLES } from '../shared/constants/index';
 import { success, created as createdResp, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { buildPaginationMeta } from '../middleware/pagination';

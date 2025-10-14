@@ -22,6 +22,7 @@ interface SettlementAttributes {
   reason: SettlementReason; // Future-proof: add new reasons here
   status: SettlementStatus; // Future-proof: add new statuses here
   settlement_date?: Date;
+  transaction_id?: number | null;
   readonly created_at?: Date;
   readonly updated_at?: Date;
 }
@@ -37,6 +38,7 @@ export class Settlement extends Model<SettlementAttributes, SettlementCreationAt
   public reason!: SettlementReason;
   public status!: SettlementStatus;
   public settlement_date?: Date;
+  public transaction_id?: number | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   // Add hooks for audit fields if custom logic is needed
@@ -50,7 +52,8 @@ Settlement.init(
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
     reason: { type: DataTypes.ENUM(...Object.values(SettlementReason)), allowNull: false },
     status: { type: DataTypes.ENUM(...Object.values(SettlementStatus)), allowNull: false, defaultValue: SettlementStatus.Pending },
-    settlement_date: { type: DataTypes.DATE, allowNull: true },
+  settlement_date: { type: DataTypes.DATE, allowNull: true },
+  transaction_id: { type: DataTypes.BIGINT, allowNull: true },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },

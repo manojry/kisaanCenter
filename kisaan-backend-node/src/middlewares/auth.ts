@@ -48,12 +48,12 @@ export const authenticateToken = async (
 
     // User existence check only (status field removed in simplified model)
     if (!user) {
-      (req as any).user = undefined;
+      req.user = undefined;
       failureCode(res, 401, ErrorCodes.INVALID_USER, undefined, 'Invalid user');
       return;
     }
 
-    (req as any).user = {
+    req.user = {
       id: user.id,
       username: user.username,
       role: user.role as UserRole,
@@ -62,7 +62,7 @@ export const authenticateToken = async (
 
     next();
   } catch (error) {
-  (req as any).user = undefined;
+  req.user = undefined;
   failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
   }
 };
@@ -73,13 +73,13 @@ export const authenticateToken = async (
  */
 export const requireRole = (allowedRoles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!(req as any).user) {
+    if (!req.user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
-    if (!allowedRoles.includes((req as any).user.role)) {
-      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { required: allowedRoles, actual: (req as any).user.role }, `Required role: ${allowedRoles.join(' or ')}. Your role: ${(req as any).user.role}`);
+    if (!allowedRoles.includes(req.user.role)) {
+      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { required: allowedRoles, actual: req.user.role }, `Required role: ${allowedRoles.join(' or ')}. Your role: ${req.user.role}`);
       return;
     }
 
@@ -93,7 +93,7 @@ export const requireRole = (allowedRoles: UserRole[]) => {
  */
 export const requireShopAccess = (getShopId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!(req as any).user) {
+    if (!req.user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }

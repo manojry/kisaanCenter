@@ -81,7 +81,7 @@ export class UserController {
   ): Promise<void> {
     try {
       const query = validate(UserSearchSchema, req.query);
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
@@ -106,7 +106,7 @@ export class UserController {
   ): Promise<void> {
     try {
       const id = parseId(req.params.id, 'user');
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
@@ -135,7 +135,7 @@ export class UserController {
         delete reqBody.password;
       }
       const data = validate(UserUpdateSchema, reqBody);
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
@@ -175,7 +175,7 @@ export class UserController {
         failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'New password must be at least 6 characters');
         return;
       }
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
@@ -194,7 +194,7 @@ export class UserController {
   ): Promise<void> {
     try {
       const id = parseId(req.params.id, 'user');
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
@@ -213,7 +213,7 @@ export class UserController {
     next: NextFunction
   ): Promise<void> {
     try {
-      if (!(req as any).user) {
+  if (!(req as AuthenticatedRequest).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }

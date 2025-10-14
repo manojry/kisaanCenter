@@ -1,6 +1,13 @@
-import { Settlement, SettlementStatus, SettlementReason } from '../models/settlement';
+export interface SettlementUserSummary {
+  user_id: number;
+  username: string;
+  role: string;
+  balance: number;
+  total_settlement_amount: number;
+  pending_count: number;
+}
+import { SettlementStatus, SettlementReason } from '../models/settlement';
 import { User } from '../models/user';
-import { Op } from 'sequelize';
 import { SettlementRepository } from '../repositories/SettlementRepository';
 
 // FIFO repayment logic: When a payment is made, settle oldest pending settlements first
@@ -138,33 +145,25 @@ export const getFarmerNetPayable = async (shop_id: number, farmer_id: number) =>
 export const getSettlementSummary = async (shop_id: string) => {
   const repo = new SettlementRepository();
   const settlements = await repo.findAllByShop(parseInt(shop_id));
-  type SettlementSummary = {
-    user_id: string;
-    user_type: string;
-    username: string;
-    total_balance: number;
-    pending_count: number;
-  };
-  type Summary = {
-    [key: string]: SettlementSummary;
-  };
-  const summary = settlements.reduce((acc: Summary, s: any) => {
-    const key = `${s.user_type}_${s.user_id}`;
-    if (!acc[key]) {
-      acc[key] = {
-        user_id: String(s.user_id),
-        user_type: s.user_type,
-        username: s.username || 'Unknown',
-        total_balance: 0,
+  // Fetch all users for this shop
+  const users: import('../models/user').User[] = await import('../models/user').then(m => m.User.findAll({ where: { shop_id: shop_id } }));
+  const summary: { [userId: number]: SettlementUserSummary } = {};
+  for (const s of settlements) {
+    const user = users.find(u => u.id === s.user_id);
+    if (!user) continue;
+    if (!summary[s.user_id]) {
+      summary[s.user_id] = {
+        user_id: s.user_id,
+        username: user.username,
+        role: user.role,
+        balance: typeof user.balance === 'string' ? parseFloat(user.balance) : user.balance,
+        total_settlement_amount: 0,
         pending_count: 0
       };
     }
-    if (s.status === SettlementStatus.Pending) {
-      acc[key].total_balance += typeof s.balance === 'string' ? parseFloat(s.balance) : s.balance;
-      acc[key].pending_count += 1;
-    }
-    return acc;
-  }, {} as Summary);
+    summary[s.user_id].total_settlement_amount += typeof s.amount === 'string' ? parseFloat(s.amount) : s.amount;
+    if (s.status === SettlementStatus.Pending) summary[s.user_id].pending_count++;
+  }
   return Object.values(summary);
 };
 

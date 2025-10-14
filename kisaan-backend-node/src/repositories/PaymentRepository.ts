@@ -1,5 +1,5 @@
 
-import { Payment, PaymentStatus, PaymentParty, PaymentMethod, PaymentCreationAttributes } from '../models/payment';
+import { Payment, PaymentStatus, PaymentParty, PaymentCreationAttributes, PaymentMethod as _PaymentMethod } from '../models/payment';
 import { Op } from 'sequelize';
 import { DomainError } from '../errors/DomainError';
 

@@ -505,8 +505,8 @@ export class TransactionService {
         notes: data.notes?.trim() || null
       });
 
-      let createdTransaction: TransactionEntity | undefined;
-  let createdPayments: unknown[] = [];
+    let createdTransaction: TransactionEntity | undefined;
+  const createdPayments: unknown[] = [];
       const externalTx = options?.tx;
       const run = async (tx: import('sequelize').Transaction) => {
         if (options?.idempotencyKey) {
@@ -1231,7 +1231,7 @@ export class TransactionService {
    * Confirm commission for a transaction: mark metadata.commission_confirmed = true
    * and re-run status computation.
    */
-  async confirmCommission(id: number, userId?: number): Promise<TransactionEntity> {
+  async confirmCommission(id: number, _userId?: number): Promise<TransactionEntity> {
     try {
       const txn = await this.getTransactionById(id);
       if (!txn) throw new NotFoundError('Transaction not found');

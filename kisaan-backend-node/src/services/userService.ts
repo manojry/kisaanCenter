@@ -5,14 +5,14 @@ export interface RequestingUser {
   owner_id?: string | number | null;
   shop_id?: string | number | null;
   username?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 // User service for business logic related to users
 import { USER_ROLES } from '../shared/constants/index';
 
 import { UserRepository } from '../repositories/UserRepository';
 import { UserDTO } from '../dtos';
-import { toUserDTO, fromUserModel } from '../mappers/userMapper';
+import { toUserDTO, fromUserModel as _fromUserModel } from '../mappers/userMapper';
 import { 
   UserCreate, 
   UserUpdate, 
@@ -64,14 +64,14 @@ export const createUser = async (
   if (requestingUserRole && !validateRoleCreation(requestingUserRole, data.role)) {
     throw new AuthenticationError(`${requestingUserRole} cannot create ${data.role} users`);
   }
-  let userData = { ...data };
+  const userData = { ...data };
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
   if (userData.role === USER_ROLES.OWNER || userData.role === USER_ROLES.SUPERADMIN) {
     userData.shop_id = null;
   }
   // Auto-generate username if not provided
   if (!userData.username) {
-    let baseName = 'user';
+  const baseName = 'user';
     const shopIdPart = userData.shop_id ? userData.shop_id.toString() : '0';
     let uniqueNum = 1;
     let candidate = `${baseName}_${shopIdPart}_${uniqueNum}`;
