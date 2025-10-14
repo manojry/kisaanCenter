@@ -678,9 +678,11 @@ export class TransactionService {
       } else if ('commission_confirmed' in newMetadata) {
         commissionConfirmed = Boolean(newMetadata.commission_confirmed);
       }
-      let newStatus: 'pending' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
+      let newStatus: 'pending' | 'partial' | 'completed' | 'cancelled' | 'settled' = TRANSACTION_STATUS.PENDING;
       if (isBuyerPaid && isFarmerPaid && commissionConfirmed) {
         newStatus = TRANSACTION_STATUS.COMPLETED;
+      } else if (isBuyerPaid || isFarmerPaid || commissionConfirmed) {
+        newStatus = 'partial';
       }
       console.log('[TXN STATUS] Final status decision', { transactionId: id, newStatus, commissionConfirmed });
 
