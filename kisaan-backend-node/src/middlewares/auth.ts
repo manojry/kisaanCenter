@@ -1,5 +1,14 @@
 // Authentication and authorization middleware
 import { Request, Response, NextFunction } from 'express';
+
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: number;
+    username: string;
+    role: import('../schemas/user').UserRole;
+    shop_id?: number | null;
+  };
+}
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user';
 import { UserRole } from '../schemas/user';
@@ -22,7 +31,7 @@ export interface AuthenticatedRequest extends Request {
  * Middleware to verify JWT token and attach user to request
  */
 export const authenticateToken = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -91,7 +100,7 @@ export const requireRole = (allowedRoles: UserRole[]) => {
  * Middleware to check if user can access resource within their shop
  * @param getShopId - Function to extract shop_id from request params
  */
-export const requireShopAccess = (getShopId?: (req: Request) => number) => {
+export const requireShopAccess = (getShopId?: (req: AuthenticatedRequest) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
@@ -125,7 +134,7 @@ export const requireShopAccess = (getShopId?: (req: Request) => number) => {
  * Middleware to check if user can access their own resource or has admin privileges
  * @param getUserId - Function to extract user_id from request params
  */
-export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
+export const requireSelfOrAdmin = (getUserId?: (req: AuthenticatedRequest) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   if (!req.user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');

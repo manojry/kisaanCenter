@@ -252,8 +252,12 @@ export class TransactionController {
         }
       }
 
-      // Add backdated payments through service
-      const result = await this.transactionService.addBackdatedPayments(transactionId, payments, user.id);
+        // Validate user.id is present and a number
+        if (typeof user.id !== 'number' || isNaN(user.id)) {
+          return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'Authenticated user id is required');
+        }
+        // Add backdated payments through service
+        const result = await this.transactionService.addBackdatedPayments(transactionId, payments, user.id);
 
       req.log?.info({ transactionId, paymentCount: payments.length }, 'backdated payments added');
       return success(res, result, { message: 'Backdated payments added successfully' });

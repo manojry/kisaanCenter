@@ -344,7 +344,7 @@ import { requireRole } from '../middlewares/auth';
 import { z } from 'zod';
 
 // Backdated transaction schema
-const BackdatedTransactionSchema = CreateTransactionSchema.extend({
+const BackdatedTransactionSchema = CreateTransactionSchema.safeExtend({
   transaction_date: z.string().refine((date) => {
     const parsed = new Date(date);
     return !isNaN(parsed.getTime()) && parsed <= new Date();

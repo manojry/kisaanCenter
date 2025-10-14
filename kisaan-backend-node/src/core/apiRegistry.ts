@@ -1,5 +1,6 @@
 ﻿// API Registry - Simple Implementation
-import type { Application, Request, Response } from 'express';
+import express, { Application, Request, Response } from 'express';
+import { authenticateToken } from '../middlewares/auth';
 export interface ApiModule {
   name: string;
   prefix: string;
@@ -25,59 +26,73 @@ export class ApiRegistry {
     return Array.from(this.modules.values());
   }
 
+  _endpoints: Array<{ method: string; path: string }> = [];
+
   registerRoutes(app: Application): void {
     console.log('🔧 Registering API routes manually...');
     // Import routes dynamically to avoid circular dependencies
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const routes = require('../routes');
+      // Helper to register and collect endpoints
+      const register = (path: string, router: any) => {
+        app.use(path, router);
+        if (router && router.stack) {
+          for (const layer of router.stack) {
+            if (layer.route && layer.route.path && layer.route.methods) {
+              for (const method of Object.keys(layer.route.methods)) {
+                this._endpoints.push({
+                  method: method.toUpperCase(),
+                  path: path + (layer.route.path === '/' ? '' : layer.route.path)
+                });
+              }
+            }
+          }
+        }
+      };
       // Authentication routes
-      app.use('/api/auth', routes.authRoutes);
+      register('/api/auth', routes.authRoutes);
       // User management routes
-      app.use('/api/users', routes.userRoutes);
-      app.use('/api/superadmin', routes.superadminRoutes);
+      register('/api/users', routes.userRoutes);
+      register('/api/superadmin', routes.superadminRoutes);
       // Shop and category management
-      app.use('/api/shops', routes.shopRoutes);
-      app.use('/api/categories', routes.categoryRoutes);
-      app.use('/api/shop-categories', routes.shopCategoryRoutes);
-      app.use('/api/plans', routes.planRoutes);
+      register('/api/shops', routes.shopRoutes);
+      register('/api/categories', routes.categoryRoutes);
+      register('/api/shop-categories', routes.shopCategoryRoutes);
+      register('/api/plans', routes.planRoutes);
       // Product management
-      app.use('/api/products', routes.productRoutes);
-      app.use('/api/test-products', routes.testProductRoutes);
+      register('/api/products', routes.productRoutes);
+      register('/api/test-products', routes.testProductRoutes);
       // Farmer & shop product assignment
       if (routes.farmerProductRoutes) {
-        app.use('/api/farmer-products', routes.farmerProductRoutes);
+        register('/api/farmer-products', routes.farmerProductRoutes);
       }
       if (routes.shopProductRoutes) {
-        app.use('/api/shop-products', routes.shopProductRoutes);
+        register('/api/shop-products', routes.shopProductRoutes);
       }
       // Transaction and payment processing (enhanced with backdated support)
-      app.use('/api/transactions', routes.transactionRoutes);
-      app.use('/api/payments', routes.paymentRoutes);
-      app.use('/api/credit-advances', routes.creditAdvanceRoutes);
+      register('/api/transactions', routes.transactionRoutes);
+      register('/api/payments', routes.paymentRoutes);
+      register('/api/credit-advances', routes.creditAdvanceRoutes);
       // Financial management
-      app.use('/api/balances', routes.balanceRoutes);
-      app.use('/api/balance-snapshots', routes.balanceSnapshotRoutes);
-      app.use('/api/commissions', routes.commissionRoutes);
-      app.use('/api/settlements', routes.settlementRoutes);
+      register('/api/balances', routes.balanceRoutes);
+      register('/api/balance-snapshots', routes.balanceSnapshotRoutes);
+      register('/api/commissions', routes.commissionRoutes);
+      register('/api/settlements', routes.settlementRoutes);
       // Reporting and auditing
-      app.use('/api/reports', routes.reportRoutes);
-      app.use('/api/audit-logs', routes.auditLogRoutes);
-      app.use('/api/features-admin', routes.featureAdminRoutes);
+      register('/api/reports', routes.reportRoutes);
+      register('/api/audit-logs', routes.auditLogRoutes);
+      register('/api/features-admin', routes.featureAdminRoutes);
       // Dashboard routes
-      app.use('/api/owner-dashboard', routes.ownerDashboardRoute);
+      register('/api/owner-dashboard', routes.ownerDashboardRoute);
       // Simplified transaction system - clear user experience
       if (routes.simplifiedRoutes) {
-        app.use('/api/simple', routes.simplifiedRoutes);
+        register('/api/simple', routes.simplifiedRoutes);
         console.log('✅ Simplified transaction routes registered at /api/simple');
       }
       // Diagnostics routes (commission integrity)
       try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const express = require('express');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { authenticateToken } = require('../middlewares/auth');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // ...existing code...
   const { loadFeatures, requireFeature } = require('../middlewares/features');
   // Use standardized success responder from shared/http/respond
   // eslint-disable-next-line @typescript-eslint/no-var-requires
