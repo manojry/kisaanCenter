@@ -15,10 +15,10 @@
   - `financial_records` - Complete financial tracking
 
 ### 🚀 Backend Setup
-- **Python virtual environment** configured
-- **Core dependencies** installed (FastAPI, SQLAlchemy, psycopg2)
-- **FastAPI server** tested and running
-- **API documentation** available at http://localhost:8000/docs
+- **Node runtime & npm** configured for the backend
+- **Core dependencies** installed via `package.json`
+- **Node server** tested and running via backend npm scripts
+- **API documentation** available as configured by the backend (see backend README)
 
 ### 📊 Database Details
 - **Host**: xxxxx
@@ -29,35 +29,22 @@
 
 ## 🛠️ Available Scripts
 
-### `create_tables.py` 
-Complete database setup script that:
-- Tests connection to AWS RDS
-- Creates all tables with proper foreign keys
-- Adds performance indexes
-- Inserts sample crop data
-- Verifies table creation
+### Backend helper scripts
+Most runtime and database helper scripts have Node equivalents in the backend service. Example npm tasks might include:
 
-### `simple_test.py`
-Quick connection test script:
-- Validates AWS RDS connectivity
-- Shows database version and status
-- Perfect for troubleshooting
-
-### `test_connection.py`
-Comprehensive connection testing:
-- Tests both raw PostgreSQL and SQLAlchemy connections
-- Provides detailed diagnostics
-- Health checks and connection pooling info
+- `npm --prefix kisaan-backend-node run db:migrate` - Apply DB migrations
+- `npm --prefix kisaan-backend-node run db:seed` - Seed sample data
+- `npm --prefix kisaan-backend-node run test:connection` - Run DB connection checks
 
 ## 🎯 Next Steps
 
 ### 1. Start Development
 ```bash
-# Activate virtual environment (if not already active)
-source .venv/bin/activate
+# Install dependencies
+npm --prefix kisaan-backend-node install
 
-# Start the FastAPI server
-uvicorn backend.src.main:app --reload --host 0.0.0.0 --port 8000
+# Start the Node backend in dev mode
+npm --prefix kisaan-backend-node run dev
 ```
 
 ### 2. Access Your Application

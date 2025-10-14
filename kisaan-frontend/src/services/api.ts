@@ -89,9 +89,21 @@ export const shopProductsApi = {
   const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.AVAILABLE_PRODUCTS(shopId));
   return resp.data || [];
   },
-  getAssignableProducts: async (shopId: number) => {
-  const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.ASSIGNABLE_PRODUCTS(shopId));
-  return resp.data || [];
+  getAssignableProducts: async (shopId: number, farmerId: number) => {
+    // Backend should support: /shops/:shopId/assignable-products?farmerId=123
+    const resp = await apiClient.get<ApiResponse<any[]>>(`/shops/${shopId}/assignable-products?farmerId=${farmerId}`);
+    // Map to ShopProductMapped type for frontend compatibility
+    return (resp.data || []).map((p: any) => ({
+      id: p.id,
+      shop_id: p.shop_id,
+      product_id: p.product_id,
+      product_name: p.product_name || p.name,
+      category: p.category,
+      category_name: p.category_name,
+      is_active: p.is_active,
+      category_id: p.category_id,
+      record_status: p.record_status
+    }));
   },
   getTransactionProducts: async (shopId: number, farmerId?: number) => {
   const resp = await apiClient.get<ApiResponse<Product[]>>(SHOP_ENDPOINTS.TRANSACTION_PRODUCTS(shopId, farmerId));

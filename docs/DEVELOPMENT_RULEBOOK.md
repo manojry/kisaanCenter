@@ -30,7 +30,7 @@ backend/
 ├── tests/
 │   ├── unit/                  # Unit tests
 │   ├── integration/           # Integration tests
-│   └── conftest.py           # Pytest configuration
+│   └── test setup/fixtures    # Test framework setup (Jest configuration or project fixtures)
 └── docs/                      # Documentation
     ├── api/                   # API documentation
     ├── architecture/          # System architecture docs
@@ -99,35 +99,32 @@ API Endpoint → Service → CRUD → Database
 
 ## 🔧 Coding Standards
 
-### Python Style
-- **PEP 8** compliance mandatory
-- **Type hints** on all functions and methods
-- **Docstrings** for all public functions
-- **Maximum line length**: 88 characters (Black formatter)
+### Node / TypeScript Style
+- Use a consistent linter/formatter (ESLint + Prettier recommended)
+- TypeScript type annotations on public functions and interfaces
+- TSDoc comments for public functions where helpful
+- Maximum line length: follow project conventions (100-120 chars)
 
-### Example Function
-```python
-async def create_user(
-    user_data: UserCreate,
-    current_user_id: int,
-    db: Session
-) -> User:
-    """
-    Create a new user with role-based validation.
-    
-    Args:
-        user_data: User creation data
-        current_user_id: ID of user performing the operation
-        db: Database session
-        
-    Returns:
-        Created user object
-        
-    Raises:
-        ValidationError: If user data is invalid
-        AuthorizationError: If current user lacks permissions
-    """
-    # Implementation here
+### Example Function (TypeScript)
+```ts
+async function createUser(
+  userData: UserCreate,
+  currentUserId: number,
+  db: DbSession
+): Promise<User> {
+  /**
+   * Create a new user with role-based validation.
+   *
+   * Args:
+   *   userData: User creation data
+   *   currentUserId: ID of user performing the operation
+   *   db: Database session
+   *
+   * Returns:
+   *   Created user object
+   */
+  // Implementation here
+}
 ```
 
 ### Error Handling
@@ -396,7 +393,7 @@ Closes #123
 ```
 
 ### Pre-commit Checklist
-- [ ] Tests pass (`pytest`)
+- [ ] Tests pass (project test runner - `npm test` / `jest`)
 - [ ] Code formatted (`black .`)
 - [ ] Imports sorted (`isort .`)
 - [ ] Type checking passes (`mypy`)

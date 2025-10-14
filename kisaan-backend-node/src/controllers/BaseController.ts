@@ -245,7 +245,7 @@ export function createStandardController(serviceName: string) {
       try {
         // Generic implementation using service name
         const service = this.getService();
-        const result = await service.getAll(req.query, req.user);
+        const result = await service.getAll(req.query, (req as any).user);
         this.sendSuccess(res, result);
       } catch (error) {
         next(error);
@@ -256,7 +256,7 @@ export function createStandardController(serviceName: string) {
       try {
         const id = this.parseId(req.params.id);
         const service = this.getService();
-        const result = await service.getById(id, req.user);
+        const result = await service.getById(id, (req as any).user);
         this.sendSuccess(res, result);
       } catch (error) {
         next(error);
@@ -266,7 +266,7 @@ export function createStandardController(serviceName: string) {
     async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
       try {
         const service = this.getService();
-        const result = await service.create(req.body, req.user);
+        const result = await service.create(req.body, (req as any).user);
         this.sendSuccess(res, result, `${this.serviceName} created successfully`);
       } catch (error) {
         next(error);
@@ -277,7 +277,7 @@ export function createStandardController(serviceName: string) {
       try {
         const id = this.parseId(req.params.id);
         const service = this.getService();
-        const result = await service.update(id, req.body, req.user);
+        const result = await service.update(id, req.body, (req as any).user);
         this.sendSuccess(res, result, `${this.serviceName} updated successfully`);
       } catch (error) {
         next(error);
@@ -288,7 +288,7 @@ export function createStandardController(serviceName: string) {
       try {
         const id = this.parseId(req.params.id);
         const service = this.getService();
-        await service.delete(id, req.user);
+        await service.delete(id, (req as any).user);
         this.sendSuccess(res, { id }, `${this.serviceName} deleted successfully`);
       } catch (error) {
         next(error);

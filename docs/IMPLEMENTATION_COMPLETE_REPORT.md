@@ -172,7 +172,7 @@
 
 2. **Run comprehensive tests**:
    ```bash  
-   python test_complete_business_journey.py
+  npm --prefix kisaan-backend-node run test:integration
    ```
 
 3. **Test manually via API docs**:

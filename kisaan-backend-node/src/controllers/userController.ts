@@ -1,5 +1,4 @@
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middlewares/auth';
+import { Request, Response, NextFunction } from 'express';
 import {
   UserCreateSchema,
   UserUpdateSchema,
@@ -26,12 +25,12 @@ const parseId = (raw: string, resource: string): number => {
 
 export class UserController {
   async createUser(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
-      req.log?.info({ actor: req.user?.id }, 'createUser attempt');
+      req.log?.info({ actor: (req as any).user?.id }, 'createUser attempt');
       // Distinguish between missing username (auto-generate) and explicitly empty string (validation error)
   const reqBody = { ...req.body };
       if (reqBody.username === '') {
@@ -50,8 +49,8 @@ export class UserController {
         
         // Get owner ID from the current user or the shop owner
         let ownerIdPart = '0';
-        if (req.user?.role === 'owner') {
-          ownerIdPart = String(req.user.id);
+        if ((req as any).user?.role === 'owner') {
+          ownerIdPart = String((req as any).user.id);
         } else if (reqBody.shop_id) {
           // For users created under a shop, use shop_id as owner reference
           ownerIdPart = String(reqBody.shop_id);
@@ -64,10 +63,10 @@ export class UserController {
       const data = validate(UserCreateSchema, reqBody);
       const user: UserDTO = await userService.createUser(
         { ...data },
-        req.user?.id || 1,
-        req.user?.role
+        (req as any).user?.id || 1,
+        (req as any).user?.role
       );
-    created(res, user, { message: 'User created successfully' });
+      created(res, user, { message: 'User created successfully' });
     } catch (err: unknown) {
       req.log?.error({ err }, 'createUser failed');
       next(err);
@@ -75,56 +74,55 @@ export class UserController {
   }
 
   async getUsers(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
       const query = validate(UserSearchSchema, req.query);
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
   // include_balance is no longer accepted by service; keep parsing for backward compatibility but don't pass it
   const _includeBalance = req.query.include_balance === 'true';
-  const result = await userService.getAllUsers(query, req.user);
+  const result = await userService.getAllUsers(query, (req as any).user);
       const { users, total, page, limit } = result;
       success(res, users, {
         message: 'Users retrieved successfully',
         meta: { total, page, limit }
       });
-  } catch (err) {
+    } catch (err) {
       req.log?.error({ err }, 'getUsers failed');
       next(err);
     }
   }
 
   async getUserById(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
       const id = parseId(req.params.id, 'user');
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-      const user: UserDTO | null = await userService.getUserById(id, req.user);
+      const user: UserDTO | null = await userService.getUserById(id, (req as any).user);
       if (!user) {
         failureCode(res, 404, ErrorCodes.USER_NOT_FOUND);
         return;
       }
-  success(res, user, { message: 'User retrieved successfully' });
-  } catch (err) {
+      success(res, user, { message: 'User retrieved successfully' });
+    } catch (err) {
       req.log?.error({ err }, 'getUserById failed');
-
       next(err);
     }
   }
 
   async updateUser(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
@@ -136,20 +134,20 @@ export class UserController {
         delete reqBody.password;
       }
       const data = validate(UserUpdateSchema, reqBody);
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-      const user: UserDTO | null = await userService.updateUser(id, data, req.user);
+      const user: UserDTO | null = await userService.updateUser(id, data, (req as any).user);
       success(res, user, { message: 'User updated successfully' });
-  } catch (err) {
+    } catch (err) {
       req.log?.error({ err }, 'updateUser failed');
       next(err);
     }
   }
 
   async resetPassword(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
@@ -157,15 +155,15 @@ export class UserController {
       const id = parseId(req.params.id, 'user');
       const data = validate(UserPasswordResetSchema, req.body);
       await userService.resetPassword(id, data);
-  success(res, { }, { message: 'Password reset successfully' });
-  } catch (err) {
+      success(res, { }, { message: 'Password reset successfully' });
+    } catch (err) {
       req.log?.error({ err }, 'resetPassword failed');
       next(err);
     }
   }
 
   async adminResetPassword(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
@@ -176,51 +174,51 @@ export class UserController {
         failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'New password must be at least 6 characters');
         return;
       }
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-      await userService.adminResetPassword(id, newPassword, req.user);
-  success(res, { }, { message: 'Password reset successfully' });
-  } catch (err) {
+      await userService.adminResetPassword(id, newPassword, (req as any).user);
+      success(res, { }, { message: 'Password reset successfully' });
+    } catch (err) {
       req.log?.error({ err }, 'adminResetPassword failed');
       next(err);
     }
   }
 
   async deleteUser(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
       const id = parseId(req.params.id, 'user');
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-    await userService.deleteUser(id, req.user);
-    standardDelete(res, id, 'user');
-    return;
-  } catch (err) {
+      await userService.deleteUser(id, (req as any).user);
+      standardDelete(res, id, 'user');
+      return;
+    } catch (err) {
       req.log?.error({ err }, 'deleteUser failed');
       next(err);
     }
   }
 
   async getCurrentUser(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
-      if (!req.user) {
+      if (!(req as any).user) {
         failureCode(res, 401, ErrorCodes.AUTH_REQUIRED);
         return;
       }
-      const user: UserDTO | null = await userService.getUserById(req.user.id, req.user);
-  success(res, user, { message: 'Current user retrieved successfully' });
-  } catch (err) {
+      const user: UserDTO | null = await userService.getUserById((req as any).user.id, (req as any).user);
+      success(res, user, { message: 'Current user retrieved successfully' });
+    } catch (err) {
       req.log?.error({ err }, 'getCurrentUser failed');
       next(err);
     }

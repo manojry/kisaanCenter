@@ -8,7 +8,7 @@ import { ErrorCodes } from '../shared/errors/errorCodes';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
-// Extend Express Request type to include user
+// Use global Express Request type with user property
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: number;
@@ -22,7 +22,7 @@ export interface AuthenticatedRequest extends Request {
  * Middleware to verify JWT token and attach user to request
  */
 export const authenticateToken = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -48,12 +48,12 @@ export const authenticateToken = async (
 
     // User existence check only (status field removed in simplified model)
     if (!user) {
-      req.user = undefined;
+      (req as any).user = undefined;
       failureCode(res, 401, ErrorCodes.INVALID_USER, undefined, 'Invalid user');
       return;
     }
 
-    req.user = {
+    (req as any).user = {
       id: user.id,
       username: user.username,
       role: user.role as UserRole,
@@ -62,7 +62,7 @@ export const authenticateToken = async (
 
     next();
   } catch (error) {
-  req.user = undefined;
+  (req as any).user = undefined;
   failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
   }
 };
@@ -73,13 +73,13 @@ export const authenticateToken = async (
  */
 export const requireRole = (allowedRoles: UserRole[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!(req as any).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { required: allowedRoles, actual: req.user.role }, `Required role: ${allowedRoles.join(' or ')}. Your role: ${req.user.role}`);
+    if (!allowedRoles.includes((req as any).user.role)) {
+      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { required: allowedRoles, actual: (req as any).user.role }, `Required role: ${allowedRoles.join(' or ')}. Your role: ${(req as any).user.role}`);
       return;
     }
 
@@ -93,13 +93,13 @@ export const requireRole = (allowedRoles: UserRole[]) => {
  */
 export const requireShopAccess = (getShopId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!(req as any).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
 
     // Superadmin can access everything
-    if (req.user.role === 'superadmin') {
+    if ((req as any).user.role === 'superadmin') {
       next();
       return;
     }
@@ -109,10 +109,10 @@ export const requireShopAccess = (getShopId?: (req: Request) => number) => {
     
     if (requestedShopId) {
       // Users can only access their own shop - handle type coercion
-      const userShopId = req.user.shop_id ? Number(req.user.shop_id) : null;
+      const userShopId = (req as any).user.shop_id ? Number((req as any).user.shop_id) : null;
       if (userShopId !== requestedShopId) {
         failureCode(res, 403, ErrorCodes.SHOP_ACCESS_DENIED, undefined, 
-          `Access denied: User shop_id (${req.user.shop_id}) does not match requested shop (${requestedShopId})`);
+          `Access denied: User shop_id (${(req as any).user.shop_id}) does not match requested shop (${requestedShopId})`);
         return;
       }
     }
@@ -127,7 +127,7 @@ export const requireShopAccess = (getShopId?: (req: Request) => number) => {
  */
 export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!(req as any).user) {
       failureCode(res, 401, ErrorCodes.AUTH_REQUIRED, undefined, 'Authentication required');
       return;
     }
@@ -135,14 +135,14 @@ export const requireSelfOrAdmin = (getUserId?: (req: Request) => number) => {
     const requestedUserId = getUserId ? getUserId(req) : parseInt(req.params.id || req.params.userId);
     
     // Superadmin and owners can access any user
-    if (req.user.role === 'superadmin' || req.user.role === 'owner') {
+    if ((req as any).user.role === 'superadmin' || (req as any).user.role === 'owner') {
       next();
       return;
     }
 
     // Users can only access their own data
-    if (req.user.id !== requestedUserId) {
-      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { requiredUser: requestedUserId, actualUser: req.user.id }, 'Access denied');
+    if ((req as any).user.id !== requestedUserId) {
+      failureCode(res, 403, ErrorCodes.ACCESS_DENIED, { requiredUser: requestedUserId, actualUser: (req as any).user.id }, 'Access denied');
       return;
     }
 
@@ -166,7 +166,7 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
         role: UserRole; 
         shop_id?: number | null;
       };
-      req.user = {
+      (req as any).user = {
         id: decoded.id,
         username: decoded.username,
         role: decoded.role,
@@ -174,7 +174,7 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
       };
     } catch (error) {
       // Token is invalid, but we continue without user
-      req.user = undefined;
+      (req as any).user = undefined;
     }
   }
   

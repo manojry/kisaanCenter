@@ -1,37 +1,23 @@
-FROM python:3.11-slim
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+FROM node:18-alpine AS backend-build
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    gcc \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies and build backend
+COPY kisaan-backend-node/package*.json ./
+RUN npm ci --production=false
+COPY kisaan-backend-node/ .
+RUN npm run build
 
-# Copy requirements first for better caching
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+FROM node:18-alpine AS runtime
+WORKDIR /app
 
-# Copy application code
-COPY backend/ .
+# Copy built backend
+COPY --from=backend-build /app/dist ./
+COPY --from=backend-build /app/package.json ./
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+ENV NODE_ENV=production
 
-# Expose port
-EXPOSE 8000
+EXPOSE 3000
 
-# Health check endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the Node backend
+CMD ["node", "dist/src/server.js"]

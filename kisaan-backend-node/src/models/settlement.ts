@@ -1,17 +1,31 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+export enum SettlementReason {
+  Overpayment = 'overpayment',
+  Underpayment = 'underpayment',
+  Adjustment = 'adjustment',
+  Expense = 'expense',
+  Advance = 'advance',
+}
+
+export enum SettlementStatus {
+  Pending = 'pending',
+  Settled = 'settled',
+}
+
 interface SettlementAttributes {
   id: number;
   shop_id: number;
   user_id: number;
   amount: number;
-  reason: 'overpayment' | 'underpayment' | 'adjustment';
-  status: 'pending' | 'settled';
+  reason: SettlementReason; // Future-proof: add new reasons here
+  status: SettlementStatus; // Future-proof: add new statuses here
   settlement_date?: Date;
-  created_at?: Date;
-  updated_at?: Date;
+  readonly created_at?: Date;
+  readonly updated_at?: Date;
 }
+
 
 interface SettlementCreationAttributes extends Optional<SettlementAttributes, 'id' | 'settlement_date' | 'created_at' | 'updated_at'> {}
 
@@ -20,11 +34,12 @@ export class Settlement extends Model<SettlementAttributes, SettlementCreationAt
   public shop_id!: number;
   public user_id!: number;
   public amount!: number;
-  public reason!: 'overpayment' | 'underpayment' | 'adjustment';
-  public status!: 'pending' | 'settled';
+  public reason!: SettlementReason;
+  public status!: SettlementStatus;
   public settlement_date?: Date;
-  public created_at!: Date;
-  public updated_at!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 Settlement.init(
@@ -33,8 +48,8 @@ Settlement.init(
     shop_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_shops', key: 'id' } },
     user_id: { type: DataTypes.BIGINT, allowNull: false, references: { model: 'kisaan_users', key: 'id' } },
     amount: { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    reason: { type: DataTypes.ENUM('overpayment', 'underpayment', 'adjustment'), allowNull: false },
-    status: { type: DataTypes.ENUM('pending', 'settled'), allowNull: false, defaultValue: 'pending' },
+    reason: { type: DataTypes.ENUM(...Object.values(SettlementReason)), allowNull: false },
+    status: { type: DataTypes.ENUM(...Object.values(SettlementStatus)), allowNull: false, defaultValue: SettlementStatus.Pending },
     settlement_date: { type: DataTypes.DATE, allowNull: true },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
@@ -45,5 +60,9 @@ Settlement.init(
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+    indexes: [
+      // Composite index for fast queries by shop, user, reason, and status
+      { fields: ['shop_id', 'user_id', 'reason', 'status'] },
+    ],
   }
 );

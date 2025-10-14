@@ -1,18 +1,30 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
+export enum UserRole {
+  Superadmin = 'superadmin',
+  Owner = 'owner',
+  Farmer = 'farmer',
+  Buyer = 'buyer',
+}
+
+export enum UserStatus {
+  Active = 'active',
+  Inactive = 'inactive',
+  Suspended = 'suspended',
+}
 
 export interface UserAttributes {
   id: number;
   username: string;
   password: string;
-  role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  role: UserRole;
   shop_id?: number | null;
   email?: string | null;
   firstname?: string | null;
   contact?: string | null;
   balance: number;
-  status?: string | null;
+  status?: UserStatus | null;
   cumulative_value?: number | null;
   created_by?: number | null;
   custom_commission_rate?: number | null;
@@ -20,26 +32,25 @@ export interface UserAttributes {
   updated_at?: Date;
 }
 
-
 export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'shop_id' | 'email' | 'created_by' | 'created_at' | 'updated_at'> {}
-
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
   public username!: string;
   public password!: string;
-  public role!: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  public role!: UserRole;
   public shop_id!: number | null;
   public email!: string | null;
   public firstname!: string | null;
   public contact!: string | null;
   public balance!: number;
-  public status!: string | null;
+  public status!: UserStatus | null;
   public cumulative_value!: number | null;
   public created_by!: number | null;
   public custom_commission_rate!: number | null;
-  public created_at!: Date;
-  public updated_at!: Date;
+  public readonly created_at!: Date;
+  public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 User.init(
@@ -59,7 +70,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('superadmin', 'owner', 'farmer', 'buyer'),
+      type: DataTypes.ENUM(...Object.values(UserRole)),
       allowNull: false,
     },
     shop_id: {
@@ -80,59 +91,52 @@ User.init(
       allowNull: true,
     },
     balance: {
-      type: DataTypes.DECIMAL(12,2),
+      type: DataTypes.DECIMAL(10,2),
       allowNull: false,
-      defaultValue: 0.00,
+      defaultValue: 0,
     },
     status: {
-      type: DataTypes.ENUM('active', 'inactive', 'suspended'),
-      allowNull: false,
-      defaultValue: 'active',
+      type: DataTypes.ENUM(...Object.values(UserStatus)),
+      allowNull: true,
+      defaultValue: UserStatus.Active,
     },
     cumulative_value: {
-      type: DataTypes.DECIMAL(12,2),
-      allowNull: false,
-      defaultValue: 0.00,
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0,
     },
     created_by: {
       type: DataTypes.BIGINT,
       allowNull: true,
-      references: { model: 'kisaan_users', key: 'id' },
     },
     custom_commission_rate: {
-      type: DataTypes.DECIMAL(6,2),
+      type: DataTypes.DECIMAL(5,2),
       allowNull: true,
-      defaultValue: null,
     },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'created_at'
     },
     updated_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at'
     },
   },
   {
     sequelize,
     tableName: 'kisaan_users',
-  timestamps: false,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
-      { unique: true, fields: ['username'] },
-      { fields: ['shop_id'] },
-      { fields: ['role'] },
-      // Composite indexes for common queries
-      { fields: ['shop_id', 'role'] },
-      { fields: ['shop_id', 'created_at'] },
+      // Composite index for fast queries by shop, role, and status
+      { fields: ['shop_id', 'role', 'status'] },
     ],
   }
 );
 
-
-// ...existing code...
+// Only the new model definition should remain in this file. No legacy code below this line.
 
 

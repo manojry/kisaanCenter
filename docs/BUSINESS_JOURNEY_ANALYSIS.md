@@ -168,14 +168,11 @@ if current_user.role == 'owner' and shop_id != current_user.shop_id:
 
 ### Database Migration
 ```bash
-# Run the SQL schema
-cd backend
-python -c "
-import os
-os.environ['DATABASE_URL'] = 'sqlite:///test.db'
-from src.db.connection import get_db_session
-# Create tables and seed data
-"
+# Run database migrations and seed data using the backend service scripts
+cd kisaan-backend-node
+npm run db:migrate
+# Optionally run a seed task if provided:
+npm run db:seed
 ```
 
 ### API Testing Sequence

@@ -32,7 +32,7 @@ export class ShopController {
 
   async createShop(req: AuthenticatedRequest, res: Response) {
     try {
-  const shop = await this.shopService.createShop(req.body, req.user);
+  const shop = await this.shopService.createShop(req.body, (req as any).user);
 
       // Insert 10% percentage commission for the created shop
       try {
@@ -42,7 +42,7 @@ export class ShopController {
             shop_id: shop.id,
             rate: 10,
             type: 'percentage',
-          }, req.user?.id || 0);
+          }, (req as any).user?.id || 0);
         }
       } catch (commissionError: unknown) {
         // Log but do not fail the primary shop creation flow
@@ -85,7 +85,7 @@ export class ShopController {
 
   async getShops(req: AuthenticatedRequest, res: Response) {
     try {
-      const shops = await this.shopService.getAllShops(undefined, req.user);
+      const shops = await this.shopService.getAllShops(undefined, (req as any).user);
       return success(res, shops, { message: 'Shops retrieved successfully', meta: { count: shops.length } });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'shop:list failed');
@@ -110,7 +110,7 @@ export class ShopController {
     try {
       const { id } = req.params;
       const shopId = parseId(id, 'shop id');
-      const shop = await this.shopService.getShopById(shopId, req.user);
+      const shop = await this.shopService.getShopById(shopId, (req as any).user);
       
       if (!shop) {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
@@ -139,7 +139,7 @@ export class ShopController {
     try {
       const { id } = req.params;
       const shopId = parseId(id, 'shop id');
-      const shop = await this.shopService.updateShop(shopId, req.body, req.user);
+      const shop = await this.shopService.updateShop(shopId, req.body, (req as any).user);
       if (!shop) {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }
@@ -167,7 +167,7 @@ export class ShopController {
     try {
       const { id } = req.params;
       const shopId = parseId(id, 'shop id');
-      const deleted = await this.shopService.deleteShop(shopId, req.user);
+      const deleted = await this.shopService.deleteShop(shopId, (req as any).user);
       if (!deleted) {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }
@@ -203,7 +203,7 @@ export class ShopController {
       const shopId = parseId(id, 'shop id');
       
       // Update the shop's commission rate
-      const shop = await this.shopService.updateShop(shopId, { commission_rate }, req.user);
+      const shop = await this.shopService.updateShop(shopId, { commission_rate }, (req as any).user);
       if (!shop) {
         return failureCode(res, 404, ErrorCodes.SHOP_NOT_FOUND_ERROR, undefined, 'Shop not found');
       }

@@ -6,16 +6,18 @@ This document provides step-by-step instructions to set up, migrate, and validat
 
 ## 1. Environment Setup
 
-### 1.1. Activate Python Virtual Environment
-If not already activated, run:
+### 1.1. Prepare Node Development Environment
+Ensure Node and npm are installed. If using a local node version manager, activate the appropriate Node version.
+
 ```powershell
-& .\.venv\Scripts\Activate.ps1
+# Install Node dependencies for the backend service
+npm --prefix kisaan-backend-node install
 ```
 
 ### 1.2. Install Dependencies
-Install all required packages:
+Install Node dependencies for the backend:
 ```powershell
-pip install -r requirements.txt
+npm --prefix kisaan-backend-node install
 ```
 
 ---
@@ -38,16 +40,16 @@ alembic upgrade head
 ## 3. Validation & Testing
 
 ### 3.1. Validate Database Connection
-Run the test scripts to ensure the schema is correct:
+Run the backend's test or health scripts to ensure the schema and connections are correct. Example (may vary by project):
 ```powershell
-python test_connection.py
-python test_database_fix.py
+npm --prefix kisaan-backend-node run test:connection
+npm --prefix kisaan-backend-node run test:db-fix
 ```
 
 ### 3.2. Start Backend Server
-To launch the backend server:
+Start the Node backend as described in the backend README. Example:
 ```powershell
-python start_server.py
+npm --prefix kisaan-backend-node run dev
 ```
 
 ---

@@ -143,7 +143,10 @@
 
 ### 1. Complete Setup (Recommended)
 ```bash
-python run_complete_setup.py
+# Use the Node-based setup and test runner provided by the backend package.
+# The legacy Python runner has been removed. To run the complete setup and tests,
+# use the backend's npm scripts (or CI pipeline):
+npm --prefix kisaan-backend-node run setup-and-test
 ```
 This will:
 1. Set up PostgreSQL database schema
@@ -153,12 +156,15 @@ This will:
 
 ### 2. Database Setup Only
 ```bash
-python setup_postgres_schema.py
+# Use the database migration/seed scripts maintained in the backend service.
+# Example (if migration script exists as an npm task):
+npm --prefix kisaan-backend-node run db:migrate
 ```
 
 ### 3. API Tests Only
 ```bash
-python run_real_tests.py
+# Run the integration tests using the Node test harness (Jest)
+npm --prefix kisaan-backend-node run test:integration
 ```
 
 ## 📊 Expected Test Results

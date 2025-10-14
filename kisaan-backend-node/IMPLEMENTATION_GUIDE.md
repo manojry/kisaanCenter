@@ -200,7 +200,7 @@ See these files for full examples:
 
 ### Constants
 ```typescript
-import { USER_ROLES, USER_STATUS, API_CONFIG } from '../shared/constants';
+import { USER_ROLES, USER_STATUS, API_CONFIG } from '../shared/constants/index';
 
 // Use throughout the application
 if (user.role === USER_ROLES.OWNER) {
@@ -329,7 +329,7 @@ describe('UserController', () => {
 ### Environment Configuration
 ```typescript
 // Use configuration helpers
-import { CONFIG } from '../shared/constants';
+import { CONFIG } from '../shared/constants/index';
 
 const dbConfig = {
   host: CONFIG.DB.HOST,

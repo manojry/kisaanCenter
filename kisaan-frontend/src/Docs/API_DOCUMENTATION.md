@@ -1177,7 +1177,7 @@ cp .env.example .env
 alembic upgrade head
 
 # Seed initial data
-python seed_data.py
+npm --prefix kisaan-backend-node run db:seed
 ```
 
 ### **3. Run Application**

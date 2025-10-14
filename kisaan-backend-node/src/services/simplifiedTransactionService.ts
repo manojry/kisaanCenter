@@ -1,9 +1,9 @@
 import { User } from '../models/user';
-import { Transaction } from '../models/transaction';
-import { Settlement } from '../models/settlement';
-import { Payment } from '../models/payment';
+import { Transaction, TransactionStatus } from '../models/transaction';
+import { Settlement, SettlementStatus, SettlementReason } from '../models/settlement';
+import { Payment, PaymentParty, PaymentMethod, PaymentStatus } from '../models/payment';
 // import sequelize from '../config/database';
-import { TRANSACTION_STATUS } from '../shared/constants';
+import { TRANSACTION_STATUS } from '../shared/constants/index';
 
 /**
  * SIMPLIFIED TRANSACTION & BALANCE SERVICE
@@ -61,7 +61,7 @@ export class SimplifiedTransactionService {
       commission_amount,
       farmer_earning,
       commission_rate,
-      status: TRANSACTION_STATUS.PENDING,
+  status: TransactionStatus.Pending,
       transaction_date: data.transaction_date || new Date()
     });
     
@@ -78,11 +78,11 @@ export class SimplifiedTransactionService {
       for (const payment of data.payments) {
         const paymentRecord = await Payment.create({
           transaction_id: transaction.id,
-          payer_type: payment.payer_type,
-          payee_type: payment.payee_type,
+          payer_type: payment.payer_type === 'BUYER' ? PaymentParty.Buyer : PaymentParty.Shop,
+          payee_type: payment.payee_type === 'SHOP' ? PaymentParty.Shop : PaymentParty.Farmer,
           amount: payment.amount,
-          method: (payment.method as 'CASH' | 'BANK' | 'UPI' | 'OTHER') || 'CASH',
-          status: (payment.status as 'PAID' | 'PENDING' | 'FAILED') || 'PAID',
+          method: (payment.method === 'CASH' ? PaymentMethod.Cash : payment.method === 'BANK' ? PaymentMethod.Bank : payment.method === 'UPI' ? PaymentMethod.UPI : PaymentMethod.Other),
+          status: (payment.status === 'PAID' ? PaymentStatus.Paid : payment.status === 'PENDING' ? PaymentStatus.Pending : PaymentStatus.Failed),
           payment_date: payment.payment_date ? new Date(payment.payment_date) : new Date(),
           notes: payment.notes || '',
           counterparty_id: payment.payer_type === 'BUYER' ? data.buyer_id : data.farmer_id
@@ -113,11 +113,11 @@ export class SimplifiedTransactionService {
     // Create payment record
     const payment = await Payment.create({
       transaction_id: null, // Not tied to specific transaction
-      payer_type: data.payment_type === 'buyer_payment' ? 'BUYER' : 'SHOP',
-      payee_type: data.payment_type === 'buyer_payment' ? 'SHOP' : 'FARMER', 
-      amount: data.amount,
-      status: 'PAID',
-      method: 'CASH',
+  payer_type: data.payment_type === 'buyer_payment' ? PaymentParty.Buyer : PaymentParty.Shop,
+  payee_type: data.payment_type === 'buyer_payment' ? PaymentParty.Shop : PaymentParty.Farmer,
+  amount: data.amount,
+  status: PaymentStatus.Paid,
+  method: PaymentMethod.Cash,
       notes: data.notes || '',
       counterparty_id: data.user_id
     });
@@ -152,8 +152,8 @@ export class SimplifiedTransactionService {
         shop_id: data.shop_id,
         user_id: data.user_id, // Owner's ID
         amount: data.amount,
-        reason: 'adjustment',
-        status: 'settled' // Shop expenses are immediately settled
+  reason: SettlementReason.Adjustment,
+  status: SettlementStatus.Settled // Shop expenses are immediately settled
       });
       
     } else {
@@ -164,8 +164,8 @@ export class SimplifiedTransactionService {
         shop_id: data.shop_id,
         user_id: data.user_id,
         amount: data.amount,
-        reason: 'adjustment',
-        status: 'settled'
+        reason: SettlementReason.Adjustment,
+        status: SettlementStatus.Settled
       });
     }
   }

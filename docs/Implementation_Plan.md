@@ -16,7 +16,7 @@
 - Separate layers: models, services/business logic, API routes/controllers.
 - Use ORM to map models to DB; run migrations before starting backend server.
 - Define endpoints for each feature; document API using OpenAPI/Swagger.
-- Write unit/integration tests for endpoints (pytest, unittest, Postman).
+-- Write unit/integration tests for endpoints (Jest, Supertest, Postman).
 - Containerize backend (Docker); use environment variables for config.
 - Deploy using CI/CD (GitHub Actions, Azure DevOps, etc.).
 

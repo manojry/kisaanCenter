@@ -13,7 +13,7 @@ import { UserEntity } from '../entities/UserEntity';
 import { UserDTO } from '../dtos/UserDTO';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
 import { StringFormatter } from '../shared/utils/formatting';
-import { USER_ROLES, SHOP_STATUS } from '../shared/constants';
+import { USER_ROLES, SHOP_STATUS } from '../shared/constants/index';
 import { toUserDTO } from '../mappers/userMapper';
 
 export class ShopService {

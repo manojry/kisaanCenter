@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getSettlements, getSettlementSummary, settleAmount, createSettlement } from '../services/settlementService';
+import { getSettlements, getSettlementSummary, settleAmount, createSettlement, getFarmerNetPayable, settlementService } from '../services/settlementService';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { parseId } from '../shared/utils/parse';
@@ -29,7 +29,7 @@ export class SettlementController {
         return failureCode(res, errObj.status ?? 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, errObj.message ?? 'Failed to fetch settlements');
       }
       const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch settlements';
-      return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, undefined, message);
+      return failureCode(res, 500, 'GET_SETTLEMENTS_FAILED', { error: String(error) });
     }
   }
 
@@ -112,6 +112,17 @@ export class SettlementController {
       }
       const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to create expense';
       return failureCode(res, 500, ErrorCodes.CREATE_EXPENSE_FAILED, undefined, message);
+    }
+  }
+
+  async getFarmerNetPayableController(req: Request, res: Response) {
+    try {
+      const shopId = parseInt(req.query.shop_id as string);
+      const farmerId = parseInt(req.query.farmer_id as string);
+      const result = await settlementService.getFarmerNetPayable(shopId, farmerId);
+      return success(res, result);
+    } catch (error) {
+  return failureCode(res, 500, ErrorCodes.GET_SETTLEMENTS_FAILED, { error: String(error) });
     }
   }
 }

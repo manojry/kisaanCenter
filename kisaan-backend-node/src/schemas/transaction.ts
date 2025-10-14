@@ -14,7 +14,15 @@ export const CreateTransactionSchema = z.object({
   total_sale_value: z.number().optional(), // Ignored - calculated automatically
   shop_commission: z.number().optional(),  // Ignored - calculated automatically  
   farmer_earning: z.number().optional(),   // Ignored - calculated automatically
-  payments: z.array(z.any()).optional()    // Ignored - use /with-payments endpoint for this
+  payments: z.array(z.object({
+    payer_type: z.enum(['BUYER', 'SHOP']),
+    payee_type: z.enum(['SHOP', 'FARMER']),
+    amount: z.preprocess((val) => Number(val), z.number().positive()),
+    method: z.enum(['CASH', 'BANK', 'UPI', 'OTHER']).optional(),
+    status: z.enum(['PENDING', 'PAID', 'FAILED']).optional(),
+    payment_date: z.string().optional(),
+    notes: z.string().optional()
+  })).optional()    // Now supported directly in the main endpoint
 }).refine((data) => !!data.farmer_id || !!data.buyer_id, {
   message: 'At least one of farmer_id or buyer_id is required',
   path: ['participant']

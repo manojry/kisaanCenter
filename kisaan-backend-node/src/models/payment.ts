@@ -1,21 +1,41 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
 
-interface PaymentAttributes {
+export enum PaymentParty {
+  Buyer = 'BUYER',
+  Shop = 'SHOP',
+  Farmer = 'FARMER',
+}
+
+export enum PaymentStatus {
+  Pending = 'PENDING',
+  Paid = 'PAID',
+  Failed = 'FAILED',
+}
+
+export enum PaymentMethod {
+  Cash = 'CASH',
+  Bank = 'BANK',
+  UPI = 'UPI',
+  Other = 'OTHER',
+}
+
+export interface PaymentAttributes {
   id: number;
   transaction_id?: number | null;
   shop_id?: number | null;
-  payer_type: 'BUYER' | 'SHOP';
-  payee_type: 'SHOP' | 'FARMER';
+  payer_type: PaymentParty; // Future-proof: add new parties here
+  payee_type: PaymentParty; // Future-proof: add new parties here
   amount: number;
-  status: 'PENDING' | 'PAID' | 'FAILED';
+  status: PaymentStatus; // Future-proof: add new statuses here
   payment_date?: Date;
-  method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  method: PaymentMethod; // Future-proof: add new methods here
   notes?: string;
   counterparty_id?: number | null;
-  created_at?: Date;
-  updated_at?: Date;
+  readonly created_at?: Date;
+  readonly updated_at?: Date;
 }
+
 
 interface PaymentCreationAttributes extends Optional<PaymentAttributes, 'id' | 'status' | 'payment_date' | 'notes' | 'counterparty_id' | 'shop_id' | 'transaction_id' | 'created_at' | 'updated_at'> {}
 
@@ -23,16 +43,17 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
   public id!: number;
   public transaction_id!: number | null;
   public shop_id!: number | null;
-  public payer_type!: 'BUYER' | 'SHOP';
-  public payee_type!: 'SHOP' | 'FARMER';
+  public payer_type!: PaymentParty;
+  public payee_type!: PaymentParty;
   public amount!: number;
-  public status!: 'PENDING' | 'PAID' | 'FAILED';
+  public status!: PaymentStatus;
   public payment_date?: Date;
-  public method!: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  public method!: PaymentMethod;
   public notes?: string;
   public counterparty_id!: number | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
+  // Add hooks for audit fields if custom logic is needed
 }
 
 Payment.init(
@@ -40,12 +61,12 @@ Payment.init(
     id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
     transaction_id: { type: DataTypes.BIGINT, allowNull: true, references: { model: 'kisaan_transactions', key: 'id' } },
     shop_id: { type: DataTypes.BIGINT, allowNull: true, references: { model: 'kisaan_shops', key: 'id' } },
-    payer_type: { type: DataTypes.ENUM('BUYER', 'SHOP'), allowNull: false },
-    payee_type: { type: DataTypes.ENUM('SHOP', 'FARMER'), allowNull: false },
+    payer_type: { type: DataTypes.ENUM(...Object.values(PaymentParty)), allowNull: false },
+    payee_type: { type: DataTypes.ENUM(...Object.values(PaymentParty)), allowNull: false },
     amount: { type: DataTypes.DECIMAL(12,2), allowNull: false },
-    status: { type: DataTypes.ENUM('PENDING', 'PAID', 'FAILED'), allowNull: false, defaultValue: 'PENDING' },
+    status: { type: DataTypes.ENUM(...Object.values(PaymentStatus)), allowNull: false, defaultValue: PaymentStatus.Pending },
     payment_date: { type: DataTypes.DATE, allowNull: true },
-    method: { type: DataTypes.ENUM('CASH', 'BANK', 'UPI', 'OTHER'), allowNull: false },
+    method: { type: DataTypes.ENUM(...Object.values(PaymentMethod)), allowNull: false },
     notes: { type: DataTypes.TEXT, allowNull: true },
     counterparty_id: { type: DataTypes.BIGINT, allowNull: true, references: { model: 'kisaan_users', key: 'id' } },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
@@ -58,13 +79,24 @@ Payment.init(
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
+      // Index for queries by transaction
       { fields: ['transaction_id'] },
+      // Index for queries by shop
+      { fields: ['shop_id'] },
+      // Index for queries by payer type
       { fields: ['payer_type'] },
+      // Index for queries by payee type
       { fields: ['payee_type'] },
+      // Index for queries by status
       { fields: ['status'] },
+      // Index for queries by payment date
       { fields: ['payment_date'] },
+      // Index for queries by counterparty
       { fields: ['counterparty_id'] },
-      { fields: ['transaction_id', 'status'] }, // FIXED: composite index
-    ]
+      // Composite index for transaction and status
+      { fields: ['transaction_id', 'status'] },
+      // Composite index for transaction, shop, status, and created_at
+      { fields: ['transaction_id', 'shop_id', 'status', 'created_at'] },
+    ],
   }
 );

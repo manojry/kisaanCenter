@@ -247,6 +247,9 @@ router.get('/buyer/:buyerId/list', authenticateToken, loadFeatures, requireFeatu
 });
 
 router.get('/:id', transactionController.getTransactionById.bind(transactionController));
+// Confirm commission (support POST and PUT for compatibility)
+router.post('/:id/confirm-commission', authenticateToken, transactionController.confirmCommission.bind(transactionController));
+router.put('/:id/confirm-commission', authenticateToken, transactionController.confirmCommission.bind(transactionController));
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
