@@ -339,6 +339,47 @@ router.get('/farmers/:farmerId/payments', paymentController.getPaymentsToFarmer.
 router.get('/buyers/:buyerId/payments', paymentController.getPaymentsByBuyer.bind(paymentController));
 router.get('/buyers/:buyerId/purchases', transactionController.getPurchasesByBuyer.bind(transactionController));
 
+// Enhanced transaction routes with backdated support
+import { requireRole } from '../middlewares/auth';
+import { z } from 'zod';
+
+// Backdated transaction schema
+const BackdatedTransactionSchema = CreateTransactionSchema.extend({
+  transaction_date: z.string().refine((date) => {
+    const parsed = new Date(date);
+    return !isNaN(parsed.getTime()) && parsed <= new Date();
+  }, { message: "Transaction date must be valid and not in the future" })
+});
+
+const BackdatedPaymentSchema = z.object({
+  payments: z.array(z.object({
+    payer_type: z.enum(['BUYER', 'SHOP']),
+    payee_type: z.enum(['SHOP', 'FARMER']),
+    amount: z.number().positive(),
+    method: z.enum(['CASH', 'BANK', 'UPI', 'OTHER']).optional(),
+    payment_date: z.string().refine((date) => {
+      const parsed = new Date(date);
+      return !isNaN(parsed.getTime()) && parsed <= new Date();
+    }, { message: "Payment date must be valid and not in the future" }),
+    notes: z.string().optional()
+  }))
+});
+
+// Backdated transaction routes (owner only)
+router.post('/backdated', 
+  authenticateToken, 
+  requireRole(['owner']), 
+  validateSchema(BackdatedTransactionSchema), 
+  transactionController.createBackdatedTransaction.bind(transactionController)
+);
+
+router.post('/:id/payments/backdated', 
+  authenticateToken, 
+  requireRole(['owner']), 
+  validateSchema(BackdatedPaymentSchema), 
+  transactionController.addBackdatedPayments.bind(transactionController)
+);
+
 // Payment routes
 router.post('/payments', validateSchema(CreatePaymentSchema), paymentController.createPayment.bind(paymentController));
 router.put('/payments/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentController.updatePaymentStatus.bind(paymentController));

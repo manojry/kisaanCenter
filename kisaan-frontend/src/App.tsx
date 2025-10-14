@@ -13,7 +13,7 @@ import ReportsPage from './pages/Reports';
 import ExpensesPage from './pages/Expenses';
 import BalanceManagement from './pages/BalanceManagement';
 import PaymentManagement from './pages/PaymentManagement';
-import QuickSalePage from './pages/QuickSalePage';
+import { TransactionForm } from './components/owner/TransactionForm';
 import SuperadminDashboard from './pages/SuperadminDashboard';
 import SuperadminShops from './pages/SuperadminShops';
 import SuperadminUsers from './pages/SuperadminUsers';
@@ -133,7 +133,12 @@ const AppRoutes = () => {
         } />
         <Route path="/simple-transactions" element={
           <ProtectedRoute allowedRoles={['owner', 'employee']}>
-            <QuickSalePage />
+            <div className="min-h-screen bg-gray-50 p-4">
+              <div className="max-w-4xl mx-auto">
+                <h1 className="text-3xl font-bold mb-6">Quick Sale</h1>
+                <TransactionForm />
+              </div>
+            </div>
           </ProtectedRoute>
         } />
         

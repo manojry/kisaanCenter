@@ -44,12 +44,16 @@ export function useTransactionFormLogic({
   onCancel,
   initialValues = {},
   useSimplifiedApi = false,
+  isBackdated = false,
+  transactionDate = new Date(),
 }: {
   onSuccess?: (transaction: Transaction) => void;
   onCancel?: () => void;
   mode?: 'sale' | 'purchase';
   initialValues?: Partial<TransactionFormData>;
   useSimplifiedApi?: boolean;
+  isBackdated?: boolean;
+  transactionDate?: Date;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -218,6 +222,13 @@ export function useTransactionFormLogic({
       let response;
       if (useSimplifiedApi) {
         response = await simplifiedApi.createTransaction(transactionData);
+      } else if (isBackdated) {
+        // Enhanced: Use backdated transaction API for owner-created backdated transactions
+        const backdatedData = {
+          ...transactionData,
+          transaction_date: transactionDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        };
+        response = await transactionsApi.createBackdated(backdatedData);
       } else {
         response = await transactionsApi.create(transactionData);
       }
@@ -246,7 +257,7 @@ export function useTransactionFormLogic({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, commissionRate, buyerPaid, buyerPaymentMethod, farmerPaid, farmerPaymentMethod, calculations, onSuccess, toast, useSimplifiedApi]);
+  }, [formData, commissionRate, buyerPaid, buyerPaymentMethod, farmerPaid, farmerPaymentMethod, calculations, onSuccess, toast, useSimplifiedApi, isBackdated, transactionDate]);
 
   return {
     formData,

@@ -51,7 +51,7 @@ export class ApiRegistry {
       if (routes.shopProductRoutes) {
         app.use('/api/shop-products', routes.shopProductRoutes);
       }
-      // Transaction and payment processing
+      // Transaction and payment processing (enhanced with backdated support)
       app.use('/api/transactions', routes.transactionRoutes);
       app.use('/api/payments', routes.paymentRoutes);
       app.use('/api/credit-advances', routes.creditAdvanceRoutes);

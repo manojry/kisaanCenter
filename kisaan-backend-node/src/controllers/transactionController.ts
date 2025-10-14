@@ -186,4 +186,82 @@ export class TransactionController {
       return failureCode(res, statusCode || 500, ErrorCodes.ANALYTICS_FAILURE, undefined, message || 'Failed to fetch farmer earnings');
     }
   }
+
+  /**
+   * POST /transactions/backdated - Create a backdated transaction (owner only)
+   */
+  async createBackdatedTransaction(req: Request, res: Response) {
+    try {
+      const user = (req as Request & { user?: { id?: number; role?: string; shop_id?: number } }).user;
+      
+      // Authorization check - only owners can create backdated transactions
+      if (!user || user.role !== 'owner') {
+        return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, undefined, 'Only owners can create backdated transactions');
+      }
+
+      const { transaction_date, ...transactionData } = req.body;
+      
+      // Validate transaction date is not in the future
+      const parsedDate = new Date(transaction_date);
+      if (parsedDate > new Date()) {
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'Transaction date cannot be in the future');
+      }
+
+      // Create transaction with specified date
+      const transaction = await this.transactionService.createTransaction({
+        ...transactionData,
+        transaction_date: parsedDate,
+        created_by: user.id,
+        shop_id: user.shop_id || transactionData.shop_id
+      });
+
+      req.log?.info({ transactionId: transaction.id, date: transaction_date }, 'backdated transaction created');
+      return createdResp(res, transaction, { message: 'Backdated transaction created successfully' });
+    } catch (error: unknown) {
+      req.log?.error({ err: error }, 'transactions:createBackdated failed');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.TRANSACTION_CREATE_FAILED, undefined, message || 'Failed to create backdated transaction');
+    }
+  }
+
+  /**
+   * POST /transactions/:id/payments/backdated - Add backdated payments to transaction (owner only)
+   */
+  async addBackdatedPayments(req: Request, res: Response) {
+    try {
+      const user = (req as Request & { user?: { id?: number; role?: string } }).user;
+      
+      // Authorization check - only owners can add backdated payments
+      if (!user || user.role !== 'owner') {
+        return failureCode(res, 403, ErrorCodes.ACCESS_DENIED, undefined, 'Only owners can add backdated payments');
+      }
+
+      const transactionId = parseId(req.params.id, 'transaction');
+      const { payments } = req.body;
+
+      if (!payments || !Array.isArray(payments)) {
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'Payments array is required');
+      }
+
+      // Validate payment dates are not in the future
+      for (const payment of payments) {
+        const paymentDate = new Date(payment.payment_date);
+        if (paymentDate > new Date()) {
+          return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'Payment date cannot be in the future');
+        }
+      }
+
+      // Add backdated payments through service
+      const result = await this.transactionService.addBackdatedPayments(transactionId, payments, user.id);
+
+      req.log?.info({ transactionId, paymentCount: payments.length }, 'backdated payments added');
+      return success(res, result, { message: 'Backdated payments added successfully' });
+    } catch (error: unknown) {
+      req.log?.error({ err: error }, 'transactions:addBackdatedPayments failed');
+      const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
+      const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
+      return failureCode(res, statusCode || 500, ErrorCodes.CREATE_PAYMENT_FAILED, undefined, message || 'Failed to add backdated payments');
+    }
+  }
 }

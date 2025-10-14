@@ -436,6 +436,23 @@ export const transactionsApi = {
   create: (transaction: TransactionCreate): Promise<ApiResponse<Transaction>> =>
     apiClient.post(TRANSACTION_ENDPOINTS.BASE, transaction),
 
+  // Enhanced: Create backdated transaction (owner only)
+  createBackdated: (transaction: TransactionCreate & { transaction_date: string }): Promise<ApiResponse<Transaction>> =>
+    apiClient.post(`${TRANSACTION_ENDPOINTS.BASE}/backdated`, transaction),
+
+  // Enhanced: Add backdated payments to existing transaction (owner only)  
+  addBackdatedPayments: (transactionId: number, payments: {
+    payments: Array<{
+      payer_type: 'BUYER' | 'SHOP';
+      payee_type: 'SHOP' | 'FARMER';
+      amount: number;
+      method?: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+      payment_date: string;
+      notes?: string;
+    }>;
+  }): Promise<ApiResponse<Transaction>> =>
+    apiClient.post(`${TRANSACTION_ENDPOINTS.BASE}/${transactionId}/payments/backdated`, payments),
+
   // New helper: build payload from raw input using centralized builder
   createFromInput: (input: BuildTransactionInput): Promise<ApiResponse<Transaction>> => {
     const payload = buildTransactionPayload(input);

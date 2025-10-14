@@ -1656,4 +1656,66 @@ export class TransactionService {
       duration_ms: 0 // You can add timing if needed
     };
   }
+
+  /**
+   * Add backdated payments to an existing transaction
+   * Only owners can use this functionality
+   */
+  async addBackdatedPayments(
+    transactionId: number,
+    payments: Array<{
+      payer_type: 'BUYER' | 'SHOP';
+      payee_type: 'SHOP' | 'FARMER';
+      amount: number;
+      method?: string;
+      payment_date: string;
+      notes?: string;
+    }>,
+    userId: number
+  ): Promise<{ success: boolean; payments: any[]; message: string }> {
+    try {
+      // Validate transaction exists
+      const transaction = await this.getTransactionById(transactionId);
+      if (!transaction) {
+        throw new NotFoundError('Transaction not found');
+      }
+
+      const createdPayments: any[] = [];
+
+      await sequelize.transaction(async (tx) => {
+        for (const paymentData of payments) {
+          // Create payment record  
+          const { PaymentParty, PaymentStatus, PaymentMethod } = await import('../models/payment');
+          const payment = await Payment.create({
+            transaction_id: transactionId,
+            payer_type: PaymentParty[paymentData.payer_type as keyof typeof PaymentParty],
+            payee_type: PaymentParty[paymentData.payee_type as keyof typeof PaymentParty],
+            amount: paymentData.amount,
+            method: PaymentMethod[paymentData.method as keyof typeof PaymentMethod] || PaymentMethod.Cash,
+            status: PaymentStatus.Paid,
+            payment_date: new Date(paymentData.payment_date),
+            notes: paymentData.notes
+          }, { transaction: tx });
+
+          createdPayments.push(payment);
+
+          // Note: Balance updates and ledger entries are handled by existing payment processing logic
+          // This simplified version focuses on creating the backdated payment records
+        }
+      });
+
+      return {
+        success: true,
+        payments: createdPayments,
+        message: `Successfully added ${createdPayments.length} backdated payment(s)`
+      };
+
+    } catch (error) {
+      console.error('Error adding backdated payments:', error);
+      if (error instanceof NotFoundError || error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to add backdated payments');
+    }
+  }
 }
