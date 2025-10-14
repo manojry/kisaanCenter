@@ -18,8 +18,9 @@ import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRe
 import { UserEntity } from '../entities/UserEntity';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
 
-import { USER_ROLES, TRANSACTION_STATUS } from '../shared/constants';
-
+import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus } from '../shared/constants/index';
+import { PARTY_TYPE } from '../shared/partyTypes';
+import { PAYMENT_STATUS } from '../shared/constants/schema-aligned';
 import { TransactionStatusDetails } from './TransactionStatusDetails';
 
 export class TransactionService {
