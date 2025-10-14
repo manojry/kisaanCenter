@@ -1,3 +1,4 @@
+// ...existing imports...
 import { Payment } from '../models/payment';
 import { sequelize } from '../models/index';
 /**
@@ -19,7 +20,72 @@ import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, 
 
 import { USER_ROLES, TRANSACTION_STATUS } from '../shared/constants';
 
+import { TransactionStatusDetails } from './TransactionStatusDetails';
+
 export class TransactionService {
+  /**
+   * Get detailed status analysis for a transaction
+   */
+  async getTransactionStatusDetails(id: number, requestingUser?: { role: string; id: number }): Promise<TransactionStatusDetails> {
+    const transaction = await this.getTransactionById(id, requestingUser);
+    const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+    // Buyer payments analysis
+    const buyerPayments = payments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+    const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const buyerPending = buyerPayments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const buyerFailed = buyerPayments.filter(p => p.status === 'FAILED').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    // Farmer payments analysis
+    const farmerPayments = payments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+    const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const farmerPending = farmerPayments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const farmerFailed = farmerPayments.filter(p => p.status === 'FAILED').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    // Financial validation
+    const expectedCommission = Number(transaction.commission_amount || 0);
+    const actualCommission = Number(transaction.total_amount || 0) - Number(transaction.farmer_earning || 0);
+    const discrepancy = Math.abs(expectedCommission - actualCommission);
+    // Status recommendation logic
+  let statusRecommendation: import('../shared/constants/index').TransactionStatus = transaction.status as any;
+    let commissionConfirmed = false;
+    if (buyerPaid >= Number(transaction.total_amount || 0) && farmerPaid >= Number(transaction.farmer_earning || 0)) {
+      commissionConfirmed = true;
+      statusRecommendation = TRANSACTION_STATUS.COMPLETED;
+    } else if (buyerPaid > 0 || farmerPaid > 0) {
+      statusRecommendation = TRANSACTION_STATUS.PENDING; // No 'partial' in allowed values
+    } else {
+      statusRecommendation = TRANSACTION_STATUS.PENDING;
+    }
+    return {
+      transaction,
+      paymentAnalysis: {
+        buyerPayments: {
+          total: Number(transaction.total_amount || 0),
+          paid: buyerPaid,
+          pending: buyerPending,
+          failed: buyerFailed,
+          isFullyPaid: buyerPaid >= Number(transaction.total_amount || 0),
+          isPartiallyPaid: buyerPaid > 0 && buyerPaid < Number(transaction.total_amount || 0),
+          isOverpaid: buyerPaid > Number(transaction.total_amount || 0)
+        },
+        farmerPayments: {
+          total: Number(transaction.farmer_earning || 0),
+          paid: farmerPaid,
+          pending: farmerPending,
+          failed: farmerFailed,
+          isFullyPaid: farmerPaid >= Number(transaction.farmer_earning || 0),
+          isPartiallyPaid: farmerPaid > 0 && farmerPaid < Number(transaction.farmer_earning || 0),
+          isOverpaid: farmerPaid > Number(transaction.farmer_earning || 0)
+        }
+      },
+      financialValidation: {
+        isBalanced: discrepancy < 0.01,
+        expectedCommission,
+        actualCommission,
+        discrepancy
+      },
+      statusRecommendation,
+      commissionConfirmed
+    };
+  }
   private transactionRepository: TransactionRepository;
   private userRepository: UserRepository;
   private shopRepository: ShopRepository;
