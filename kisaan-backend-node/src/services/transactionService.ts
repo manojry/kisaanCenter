@@ -853,9 +853,25 @@ export class TransactionService {
     try {
       const transaction = await this.getTransactionById(id, requestingUser);
 
-      // Get all payments for this transaction
-      const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
-      
+      // Get all payments for this transaction (DB-backed)
+      const paymentsFromDb = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: id } });
+      // If DB payments are not present (e.g. newly created transaction returned with embedded payments),
+      // fall back to any payments attached on the transaction object.
+      type PaymentLike = {
+        payer_type?: string | null;
+        payee_type?: string | null;
+        status?: string | null;
+        amount?: number | string | null;
+        [key: string]: unknown;
+      };
+      let payments: PaymentLike[] = Array.isArray(paymentsFromDb) ? (paymentsFromDb as unknown as PaymentLike[]) : [];
+      const attachedPayments = (transaction as unknown as { payments?: PaymentLike[] }).payments;
+      if ((!payments || payments.length === 0) && Array.isArray(attachedPayments)) {
+        payments = attachedPayments;
+      }
+
+      // Helper to normalize values for robust comparisons (handles model instances and plain objects)
+      const norm = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
       // Comprehensive transaction validation
       const totalAmount = Number(transaction.total_amount || 0);
       const farmerEarning = Number(transaction.farmer_earning || 0);
@@ -892,26 +908,26 @@ export class TransactionService {
       }
 
       // Analyze payments
-      const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
-      const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+      const buyerPayments = payments.filter(p => norm(p?.payer_type) === PARTY_TYPE.BUYER && norm(p?.payee_type) === PARTY_TYPE.SHOP);
+      const farmerPayments = payments.filter(p => norm(p?.payer_type) === PARTY_TYPE.SHOP && norm(p?.payee_type) === PARTY_TYPE.FARMER);
       
       // Calculate actual paid amounts (only PAID status counts)
       const buyerPaidAmount = buyerPayments
-        .filter(p => p.status === PAYMENT_STATUS.PAID)
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+        .filter(p => norm(p?.status) === PAYMENT_STATUS.PAID)
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       const farmerPaidAmount = farmerPayments
-        .filter(p => p.status === PAYMENT_STATUS.PAID)
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+        .filter(p => norm(p?.status) === PAYMENT_STATUS.PAID)
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
       // Calculate pending amounts
       const buyerPendingAmount = buyerPayments
-        .filter(p => p.status === PAYMENT_STATUS.PENDING)
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+        .filter(p => norm(p?.status) === PAYMENT_STATUS.PENDING)
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       const farmerPendingAmount = farmerPayments
-        .filter(p => p.status === PAYMENT_STATUS.PENDING)
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+        .filter(p => norm(p?.status) === PAYMENT_STATUS.PENDING)
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
       // Determine payment status with tolerance for floating point precision
       const tolerance = 0.01;
