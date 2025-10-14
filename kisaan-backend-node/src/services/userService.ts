@@ -66,6 +66,8 @@ export const createUser = async (
   }
   const userData = { ...data };
   userData.balance = typeof userData.balance === 'number' ? userData.balance : 0;
+  // Always set contact field, default to empty string if not provided
+  userData.contact = typeof userData.contact === 'string' ? userData.contact : '';
   if (userData.role === USER_ROLES.OWNER || userData.role === USER_ROLES.SUPERADMIN) {
     userData.shop_id = null;
   }

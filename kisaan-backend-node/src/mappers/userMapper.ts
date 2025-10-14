@@ -30,10 +30,11 @@ export async function toUserDTO(entity: UserEntity): Promise<UserDTO> {
     role: entity.role!,
     shop_id: entity.shop_id,
     firstname: entity.firstname ?? '',
-  balance: normalizeBalance((entity as { balance?: string | number }).balance),
+    contact: entity.contact ?? '',
+    balance: normalizeBalance((entity as { balance?: string | number }).balance),
     created_at: entity.created_at,
     updated_at: entity.updated_at,
-  custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,
+    custom_commission_rate: (entity as { custom_commission_rate?: number | null }).custom_commission_rate ?? null,
     // Computed fields from analytics service
     status: analytics.status,
     cumulative_value: analytics.cumulative_value,

@@ -27,7 +27,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
     const [formData, setFormData] = useState<UserCreate & { status?: 'active' | 'inactive' }>({
       role: editUser?.role || (currentUser?.role === 'superadmin' ? 'owner' : 'farmer'),
       shop_id: editUser?.shop_id || (currentUser?.role === 'owner' ? currentUser?.shop_id : undefined),
-      contact: editUser?.contact || '',
+  contact: typeof editUser?.contact === 'string' ? editUser.contact : '',
       firstname: editUser?.firstname || '',
       password: editUser?.password || (currentUser?.role === 'superadmin' ? '' : 'kisaan@123'),
       email: editUser?.email || (currentUser?.role === 'superadmin' ? '' : 'contact@kisaancenter.com'),
@@ -139,6 +139,10 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
         // Remove empty username to let backend auto-generate
         if (!createData.username || createData.username.trim() === '') {
           delete createData.username;
+        }
+        // Always include contact field, default to empty string if not provided
+        if (!createData.contact) {
+          createData.contact = '';
         }
         response = await usersApi.create(createData);
       }
@@ -305,10 +309,10 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
             {contactError && <div className="text-xs text-red-600 mt-1">{contactError}</div>}
           </div>
 
-          {/* Password - Enhanced for superadmin (optional on edit) */}
-          {currentUser?.role === 'superadmin' && (
+          {/* Password - Optional for superadmin and owner when editing */}
+          {(currentUser?.role === 'superadmin' || (currentUser?.role === 'owner' && editUser)) && (
             <div className="space-y-2">
-              <Label htmlFor="password">Password {editUser ? '(leave blank to keep unchanged)' : '*'}</Label>
+              <Label htmlFor="password">Password {editUser ? '(leave blank to keep unchanged)' : '*'} </Label>
               <Input
                 id="password"
                 type="password"
@@ -317,7 +321,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
                   setFormData(prev => ({ ...prev, password: e.target.value }));
                 }}
                 placeholder={editUser ? "Leave blank to keep current password" : "Enter password"}
-                required={!editUser}
+                required={currentUser?.role === 'superadmin' && !editUser}
               />
               <div className="text-xs text-gray-500">{editUser ? "Password is optional. Only fill to change." : "Minimum 6 characters recommended"}</div>
             </div>

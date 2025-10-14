@@ -16,6 +16,7 @@ export const UserBaseSchema = z.object({
     z.number().int().optional().nullable()
   ),
   email: z.string().email().max(100).optional().nullable(),
+  contact: z.string().max(20).optional().nullable(),
   balance: z.number().optional(),
   custom_commission_rate: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),

@@ -9,6 +9,7 @@ export class UserEntity {
   shop_id?: number | null;
   email?: string | null;
   firstname?: string | null;
+  contact?: string | null;
   balance?: number;
   status?: string | null;
   cumulative_value?: number | null;
