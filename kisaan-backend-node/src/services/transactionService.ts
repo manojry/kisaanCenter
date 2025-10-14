@@ -1671,8 +1671,8 @@ export class TransactionService {
       payment_date: string;
       notes?: string;
     }>,
-    userId: number
-  ): Promise<{ success: boolean; payments: any[]; message: string }> {
+    _userId: number
+  ): Promise<{ success: boolean; payments: Payment[]; message: string }> {
     try {
       // Validate transaction exists
       const transaction = await this.getTransactionById(transactionId);
@@ -1680,7 +1680,7 @@ export class TransactionService {
         throw new NotFoundError('Transaction not found');
       }
 
-      const createdPayments: any[] = [];
+      const createdPayments: Payment[] = [];
 
       await sequelize.transaction(async (tx) => {
         for (const paymentData of payments) {
