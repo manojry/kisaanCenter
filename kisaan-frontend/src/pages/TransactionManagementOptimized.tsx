@@ -150,8 +150,8 @@ const TransactionManagement = (): React.ReactElement => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="w-full max-w-screen-xl mx-auto px-2 sm:px-6 space-y-6">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Transaction Management</h1>
           {ownerDisplayName && (
@@ -190,7 +190,7 @@ const TransactionManagement = (): React.ReactElement => {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label htmlFor="search-input" className="block text-sm font-medium mb-1">Search</label>
               <div className="relative">
@@ -259,7 +259,7 @@ const TransactionManagement = (): React.ReactElement => {
       </Card>
 
       {/* Results Summary */}
-      <div className="flex justify-between items-center">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <p className="text-sm text-gray-600">
           {isLoading ? (
             'Loading transactions...'
@@ -295,10 +295,10 @@ const TransactionManagement = (): React.ReactElement => {
       {/* Transactions Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between text-base sm:text-lg">
+          <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-base sm:text-lg gap-2">
             <span>Transactions ({filteredTransactions.length})</span>
             {totalPages > 1 && (
-              <div className="flex gap-2 items-center ml-4">
+              <div className="flex gap-2 items-center ml-0 sm:ml-4">
                 <Button size="sm" variant="outline" disabled={currentPage === 1} onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}>
                   Prev
                 </Button>
@@ -311,8 +311,8 @@ const TransactionManagement = (): React.ReactElement => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
+          <div className="w-full overflow-x-auto">
+            <Table className="min-w-[600px] w-full text-xs sm:text-sm">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16"></TableHead>
