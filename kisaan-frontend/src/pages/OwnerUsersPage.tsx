@@ -158,9 +158,9 @@ const OwnerUsersPageInner: React.FC = () => {
   }
   return (
     <>
-      <div className="p-2 sm:p-6 space-y-4 sm:space-y-6">
+  <div className="w-full max-w-screen-xl mx-auto px-2 sm:px-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-row w-full mb-2 items-center gap-2">
+  <div className="flex flex-col sm:flex-row w-full mb-2 items-start sm:items-center gap-2">
         <div className="flex flex-col flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight whitespace-nowrap overflow-hidden text-ellipsis">Users Management</h1>
           <p className="text-gray-600 text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis">Manage farmers, buyers and other users</p>
@@ -194,7 +194,7 @@ const OwnerUsersPageInner: React.FC = () => {
       {/* Filters */}
       <Card>
         <CardContent className="p-3 sm:p-4">
-          <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -237,7 +237,7 @@ const OwnerUsersPageInner: React.FC = () => {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between text-base sm:text-lg">
+          <CardTitle className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-base sm:text-lg gap-2">
             <span>Users ({total})</span>
             {isLoading && <RefreshCw className="w-4 h-4 animate-spin" />}
           </CardTitle>
@@ -257,7 +257,7 @@ const OwnerUsersPageInner: React.FC = () => {
             <>
               {/* Desktop Table */}
               <div className="hidden sm:block">
-                <Table className="w-full text-xs sm:text-sm whitespace-normal break-words">
+                <Table className="min-w-[600px] w-full text-xs sm:text-sm whitespace-normal break-words">
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID / Status</TableHead>

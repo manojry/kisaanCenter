@@ -218,28 +218,38 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
           {/* Role Selection - Based on current user role */}
           <div className="space-y-2">
             <Label htmlFor="role">Role *</Label>
-            <Select 
-              value={formData.role} 
-              onValueChange={(value: 'superadmin' | 'owner' | 'farmer' | 'buyer') => setFormData(prev => ({ ...prev, role: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                {currentUser?.role === 'superadmin' && (
-                  <>
-                    <SelectItem value="superadmin">Superadmin</SelectItem>
-                    <SelectItem value="owner">Owner</SelectItem>
-                  </>
-                )}
-                {currentUser?.role === 'owner' && (
-                  <>
-                    <SelectItem value="farmer">Farmer</SelectItem>
-                    <SelectItem value="buyer">Buyer</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+            {editUser ? (
+              <Input
+                id="role"
+                value={formData.role === 'owner' ? 'Owner' : formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}
+                disabled
+                readOnly
+                className="bg-gray-100 cursor-not-allowed"
+              />
+            ) : (
+              <Select 
+                value={formData.role} 
+                onValueChange={(value: 'superadmin' | 'owner' | 'farmer' | 'buyer') => setFormData(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentUser?.role === 'superadmin' && (
+                    <>
+                      <SelectItem value="superadmin">Superadmin</SelectItem>
+                      <SelectItem value="owner">Owner</SelectItem>
+                    </>
+                  )}
+                  {currentUser?.role === 'owner' && (
+                    <>
+                      <SelectItem value="farmer">Farmer</SelectItem>
+                      <SelectItem value="buyer">Buyer</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Username - Only for superadmin */}
