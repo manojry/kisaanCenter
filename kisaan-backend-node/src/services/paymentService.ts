@@ -25,12 +25,21 @@ export class PaymentService {
     }
 
     // Create payment record first - ensure counterparty_id is set correctly
-  const paymentData: Record<string, unknown> = {
+    // Map and validate enums, fallback if mapping fails
+    const mappedPayerType = PaymentParty[data.payer_type as keyof typeof PaymentParty] || PaymentParty.Buyer;
+    const mappedPayeeType = PaymentParty[data.payee_type as keyof typeof PaymentParty] || PaymentParty.Shop;
+    const mappedMethod = PaymentMethod[data.method as keyof typeof PaymentMethod] || PaymentMethod.Cash;
+
+    if (!mappedPayerType || !mappedPayeeType || !mappedMethod) {
+      throw new Error(`Invalid payment fields: payer_type=${data.payer_type}, payee_type=${data.payee_type}, method=${data.method}`);
+    }
+
+    const paymentData: Record<string, unknown> = {
       ...data,
       status: PaymentStatus.Paid,
-      payer_type: PaymentParty[data.payer_type as keyof typeof PaymentParty],
-      payee_type: PaymentParty[data.payee_type as keyof typeof PaymentParty],
-      method: PaymentMethod[data.method as keyof typeof PaymentMethod]
+      payer_type: mappedPayerType,
+      payee_type: mappedPayeeType,
+      method: mappedMethod
     };
     if (data.transaction_id !== undefined) paymentData.transaction_id = data.transaction_id;
     else delete paymentData.transaction_id;

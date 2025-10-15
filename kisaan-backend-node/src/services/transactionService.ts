@@ -590,13 +590,23 @@ export class TransactionService {
       if (data.payments && data.payments.length > 0) {
         // Create payments from the provided payload
         for (const paymentData of data.payments) {
+          // Validate and set defaults for required fields
+          const payerType = paymentData.payer_type || 'BUYER';
+          const payeeType = paymentData.payee_type || 'SHOP';
+          const method = paymentData.method || 'CASH';
+          const status = paymentData.status || 'PAID';
+
+          if (!payerType || !payeeType || !method) {
+            throw new Error('Missing required payment fields: payer_type, payee_type, or method');
+          }
+
           const payment = await paymentService.createPayment({
             transaction_id: (createdTransaction as { id: number }).id,
-            payer_type: paymentData.payer_type as 'BUYER' | 'SHOP',
-            payee_type: paymentData.payee_type as 'SHOP' | 'FARMER',
+            payer_type: payerType,
+            payee_type: payeeType,
             amount: paymentData.amount,
-            method: (paymentData.method as 'CASH' | 'BANK' | 'UPI' | 'OTHER') || 'CASH',
-            status: (paymentData.status as 'PENDING' | 'PAID' | 'FAILED') || 'PAID',
+            method: method as 'CASH' | 'BANK' | 'UPI' | 'OTHER',
+            status: status as 'PENDING' | 'PAID' | 'FAILED',
             notes: paymentData.notes || ''
           }, buyer.id!);
           createdPayments.push(payment);
