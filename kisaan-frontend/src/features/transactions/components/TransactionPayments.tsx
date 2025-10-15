@@ -1,6 +1,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/badge';
 
 interface PaymentState {
   buyerPaid: number;
@@ -15,18 +16,26 @@ interface Props extends PaymentState {
 }
 
 export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, commissionReceived, buyerPaymentMethod, farmerPaymentMethod, onChange }) => {
+  // Simulate payment status for UI (in real use, this should come from backend response)
+  const buyerPaymentStatus: 'PENDING' | 'PAID' | 'FAILED' = buyerPaid > 0 ? 'PAID' : 'PENDING';
+  const farmerPaymentStatus: 'PENDING' | 'PAID' | 'FAILED' = farmerPaid > 0 ? 'PAID' : 'PENDING';
+
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mt-4">
       <div>
         <Label>Buyer Paid (to Shop)</Label>
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={buyerPaid === 0 ? '' : buyerPaid}
-          onChange={e => onChange({ buyerPaid: e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2)) })}
-          className="text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={buyerPaid === 0 ? '' : buyerPaid}
+            onChange={e => onChange({ buyerPaid: e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2)) })}
+            className="text-sm"
+          />
+          <StatusBadge status={buyerPaymentStatus.toLowerCase() as any} />
+        </div>
         <Label className="mt-1">Buyer → Shop Payment Method</Label>
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
@@ -41,14 +50,17 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
       </div>
       <div>
         <Label>Farmer Paid (by Shop)</Label>
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={farmerPaid === 0 ? '' : farmerPaid}
-          onChange={e => onChange({ farmerPaid: e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2)) })}
-          className="text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={farmerPaid === 0 ? '' : farmerPaid}
+            onChange={e => onChange({ farmerPaid: e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2)) })}
+            className="text-sm"
+          />
+          <StatusBadge status={farmerPaymentStatus.toLowerCase() as any} />
+        </div>
         <Label className="mt-1">Shop → Farmer Payment Method</Label>
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"

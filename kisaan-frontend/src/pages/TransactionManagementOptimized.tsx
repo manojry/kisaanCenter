@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { StatusBadge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
@@ -369,22 +370,7 @@ const TransactionManagement = (): React.ReactElement => {
                             ₹{(transaction.total_sale_value ?? transaction.total_amount ?? 0).toFixed(2)}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                transaction.status === 'completed'
-                                  ? 'bg-green-100 text-green-800 border-green-300'
-                                  : transaction.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                                    : 'bg-gray-100 text-gray-800 border-gray-300'
-                              }
-                            >
-                              {transaction.status === 'completed'
-                                ? 'Completed'
-                                : transaction.status === 'pending'
-                                  ? 'Pending'
-                                  : transaction.status}
-                            </Badge>
+                            <StatusBadge status={transaction.status.toLowerCase() as any} />
                           </TableCell>
                         </TableRow>
                         {/* Expanded row details */}
@@ -401,7 +387,7 @@ const TransactionManagement = (): React.ReactElement => {
                                     <p><strong>Sale Value:</strong> ₹{transaction.total_sale_value ?? transaction.total_amount}</p>
                                     <p><strong>Farmer Earning:</strong> ₹{transaction.farmer_earning}</p>
                                     <p><strong>Commission:</strong> ₹{transaction.commission_amount} ({transaction.commission_rate}%)</p>
-                                    <p><strong>Status:</strong> {transaction.status}</p>
+                                    <p><strong>Status:</strong> <StatusBadge status={transaction.status.toLowerCase() as any} /></p>
                                     <p><strong>Buyer Paid:</strong> ₹{txnHelpers.getBuyerPaid(transaction)}</p>
                                     <p><strong>Farmer Paid:</strong> ₹{txnHelpers.getFarmerPaid(transaction)}</p>
                                     <p><strong>Farmer Due:</strong> ₹{txnHelpers.getFarmerDue(transaction)}</p>
