@@ -69,34 +69,8 @@ export class TransactionService {
       amount: number;
     }>;
   }): { totalAmount: number; commissionAmount: number; farmerEarning: number } {
-    // If payments are provided, use them to derive amounts
-    if (data.payments && data.payments.length > 0) {
-      const buyerToShopPayment = data.payments.find(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
-      const shopToFarmerPayment = data.payments.find(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
-
-      if (buyerToShopPayment && shopToFarmerPayment) {
-        const totalAmount = Number(buyerToShopPayment.amount);
-        const farmerEarning = Number(shopToFarmerPayment.amount);
-        const commissionAmount = totalAmount - farmerEarning;
-
-        // Validate that commission makes sense
-        if (commissionAmount < 0) {
-          throw new ValidationError('Invalid payment amounts - commission cannot be negative');
-        }
-
-        // Log for debugging
-        console.debug('[transaction:amounts:from-payments]', {
-          totalAmount,
-          farmerEarning,
-          commissionAmount,
-          calculatedRate: totalAmount > 0 ? (commissionAmount / totalAmount) * 100 : 0
-        });
-
-        return { totalAmount, commissionAmount, farmerEarning };
-      }
-    }
-
-    // Fallback to traditional calculation
+    // Always calculate based on the full transaction value (quantity × unit_price)
+    // Payments are tracked separately and can be partial
     const totalAmount = data.quantity * data.unit_price;
     const commissionAmount = (totalAmount * data.commission_rate) / 100;
     const farmerEarning = totalAmount - commissionAmount;
@@ -433,7 +407,9 @@ export class TransactionService {
         });
       }
 
-      // Financial invariant check - all amounts must balance
+      // Financial invariant check - transaction amounts must balance (based on full value)
+      // This validates the transaction record itself, not the payments
+      // Payments can be partial and are validated separately
       if (Math.abs((commissionAmount + farmerEarning) - totalAmount) > 0.01) {
         console.error('[transaction:error:financial-invariant]', { 
           code: 'ERR_FINANCIAL_INVARIANT', 
@@ -445,6 +421,26 @@ export class TransactionService {
           difference: Math.abs((commissionAmount + farmerEarning) - totalAmount)
         });
         throw new BusinessRuleError(`Financial amounts don't balance: Commission (${commissionAmount}) + Farmer Earning (${farmerEarning}) = ${commissionAmount + farmerEarning}, but Total Amount is ${totalAmount}`);
+      }
+      
+      // Validate payment amounts if provided
+      if (data.payments && data.payments.length > 0) {
+        const buyerToShopPayment = data.payments.find(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
+        const shopToFarmerPayment = data.payments.find(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
+        
+        if (buyerToShopPayment) {
+          const buyerPaid = Number(buyerToShopPayment.amount);
+          if (buyerPaid > totalAmount) {
+            throw new ValidationError(`Buyer payment (${buyerPaid}) cannot exceed total amount (${totalAmount})`);
+          }
+        }
+        
+        if (shopToFarmerPayment) {
+          const farmerPaid = Number(shopToFarmerPayment.amount);
+          if (farmerPaid > farmerEarning) {
+            throw new ValidationError(`Farmer payment (${farmerPaid}) cannot exceed farmer earning (${farmerEarning})`);
+          }
+        }
       }
 
       // Validate reasonable values
@@ -487,7 +483,11 @@ export class TransactionService {
       const recordFarmerEarning = data.payments ? 
         (expectedTotalFromCalculation - recordCommissionAmount) : farmerEarning;
 
-      const transactionEntity = new TransactionEntity({
+  // Debug: Log the transaction_date being set
+  console.log('[transaction:create] transaction_date input:', data.transaction_date, 'parsed:', data.transaction_date ? new Date(data.transaction_date) : new Date());
+
+  const transactionEntity = new TransactionEntity({
+  // Debug: Log the transaction_date being set
         shop_id: data.shop_id,
         farmer_id: data.farmer_id,
         buyer_id: data.buyer_id,
@@ -501,7 +501,22 @@ export class TransactionService {
         commission_amount: recordCommissionAmount,
         farmer_earning: recordFarmerEarning,
         status: txnStatus,
-        transaction_date: data.transaction_date || new Date(),
+  transaction_date: (() => {
+    if (typeof data.transaction_date === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(data.transaction_date)) {
+        // For YYYY-MM-DD format, preserve the date but use local timezone
+        return new Date(data.transaction_date + 'T12:00:00.000');
+      } else {
+        // For other string formats, parse as-is
+        return new Date(data.transaction_date);
+      }
+    } else if (data.transaction_date instanceof Date) {
+      return data.transaction_date;
+    } else {
+      // Default to current timestamp
+      return new Date();
+    }
+  })(),
         notes: data.notes?.trim() || null
       });
 
@@ -583,61 +598,62 @@ export class TransactionService {
         throw new DatabaseError('Transaction creation failed (no result)');
       }
 
-      // Now create payments after transaction is committed
-      // Use dynamic import for PaymentService
+      // Create payments after transaction is committed
       const { PaymentService } = await import('./paymentService');
       const paymentService = new PaymentService();
+      
+      // Helper function to create payment - DRY
+      const createPaymentRecord = async (paymentData: {
+        payer_type: 'BUYER' | 'SHOP';
+        payee_type: 'SHOP' | 'FARMER';
+        amount: number;
+        method: string;
+        status?: string;
+        notes?: string;
+      }) => {
+        const payment = await paymentService.createPayment({
+          transaction_id: (createdTransaction as { id: number }).id,
+          payer_type: paymentData.payer_type,
+          payee_type: paymentData.payee_type,
+          amount: paymentData.amount,
+          method: paymentData.method as 'CASH' | 'BANK' | 'UPI' | 'OTHER',
+          status: (paymentData.status || 'PAID') as 'PENDING' | 'PAID' | 'FAILED',
+          notes: paymentData.notes || '',
+          // Forward optional fields for backdated/direct payments
+          payment_date: (paymentData as any).payment_date,
+          counterparty_id: (paymentData as any).counterparty_id,
+          shop_id: (paymentData as any).shop_id
+        }, buyer.id!);
+        createdPayments.push(payment);
+      };
+      
       if (data.payments && data.payments.length > 0) {
-        // Create payments from the provided payload
+        // Create payments from payload - ensure correct flow
         for (const paymentData of data.payments) {
-          // Validate and set defaults for required fields
-          const payerType = paymentData.payer_type || 'BUYER';
-          const payeeType = paymentData.payee_type || 'SHOP';
-          const method = paymentData.method || 'CASH';
-          const status = paymentData.status || 'PAID';
-
-          if (!payerType || !payeeType || !method) {
-            throw new Error('Missing required payment fields: payer_type, payee_type, or method');
+          if (!paymentData.payer_type || !paymentData.payee_type || !paymentData.method) {
+            throw new ValidationError('Missing required payment fields: payer_type, payee_type, or method');
           }
-
-          const payment = await paymentService.createPayment({
-            transaction_id: (createdTransaction as { id: number }).id,
-            payer_type: payerType,
-            payee_type: payeeType,
-            amount: paymentData.amount,
-            method: method as 'CASH' | 'BANK' | 'UPI' | 'OTHER',
-            status: status as 'PENDING' | 'PAID' | 'FAILED',
-            notes: paymentData.notes || ''
-          }, buyer.id!);
-          createdPayments.push(payment);
+          await createPaymentRecord(paymentData);
         }
       } else {
-        // Default payment creation (existing logic)
-        const defaultPayments = [
-          {
-            payer_type: 'BUYER' as const,
-            payee_type: 'SHOP' as const,
-            amount: recordTotalAmount,
-            method: 'CASH' as const,
-            status: 'PAID' as const,
-            notes: ''
-          },
-          {
-            payer_type: 'SHOP' as const,
-            payee_type: 'FARMER' as const,
-            amount: recordFarmerEarning,
-            method: 'CASH' as const,
-            status: 'PAID' as const,
-            notes: ''
-          }
-        ];
-        for (const paymentData of defaultPayments) {
-          const payment = await paymentService.createPayment({
-            transaction_id: (createdTransaction as { id: number }).id,
-            ...paymentData
-          }, buyer.id!);
-          createdPayments.push(payment);
-        }
+        // Default: full payment flow (Buyer → Shop, Shop → Farmer)
+        await createPaymentRecord({
+          payer_type: 'BUYER',
+          payee_type: 'SHOP',
+          amount: recordTotalAmount,
+          method: 'CASH',
+          status: 'PAID',
+          notes: ''
+        });
+        
+        await createPaymentRecord({
+          payer_type: 'SHOP',
+          payee_type: 'FARMER',
+          amount: recordFarmerEarning,
+          method: 'CASH',
+          status: 'PAID',
+          notes: ''
+        });
       }
 
       console.info('[transaction:create]', {
@@ -781,6 +797,9 @@ export class TransactionService {
       }
 
       let transactions = await this.transactionRepository.findByShop(shopId);
+      // Debug: Log shop_id and transaction_date for each transaction
+      console.log('[DEBUG] getTransactionsByShop - Returned shop_ids:', transactions.map(t => ({ shop_id: t.shop_id, type: typeof t.shop_id })));
+      console.log('[DEBUG] getTransactionsByShop - Returned transaction_dates:', transactions.map(t => ({ transaction_date: t.transaction_date, type: typeof t.transaction_date })));
 
       // Apply filters
       if (filters?.farmerId) {
@@ -790,11 +809,19 @@ export class TransactionService {
         transactions = transactions.filter(t => t.buyer_id === filters.buyerId);
       }
       if (filters?.startDate && filters?.endDate) {
-        transactions = transactions.filter(t => 
-          t.transaction_date && 
-          t.transaction_date >= filters.startDate! && 
-          t.transaction_date <= filters.endDate!
-        );
+        transactions = transactions.filter(t => {
+          // Patch: Robust date parsing for transaction_date
+          let txnDate: any = t.transaction_date;
+          if (typeof txnDate === 'string') {
+            // Try to parse string to Date
+            let parsed = new Date((txnDate as string).replace(' ', 'T'));
+            if (isNaN(parsed.getTime())) {
+              parsed = new Date(txnDate);
+            }
+            txnDate = parsed;
+          }
+          return txnDate && txnDate >= filters.startDate! && txnDate <= filters.endDate!;
+        });
       }
 
       return transactions;
@@ -1107,17 +1134,22 @@ export class TransactionService {
     const isBuyerOverpaid = buyerPaid > (totalAmount + tolerance);
     const isFarmerOverpaid = farmerPaid > (farmerEarning + tolerance);
 
-    // Determine recommended status
+    // Determine status based on payment completion
     const metadata = transaction.metadata && typeof transaction.metadata === 'object' ? transaction.metadata : {};
     const commissionConfirmed = Boolean(metadata.commission_confirmed);
     
     let statusRecommendation: TransactionStatus;
+    
+    // Simple logic: settled only if both buyer and farmer payments are complete
     if (isBuyerFullyPaid && isFarmerFullyPaid && commissionConfirmed) {
       statusRecommendation = TRANSACTION_STATUS.COMPLETED;
     } else if (isBuyerFullyPaid && isFarmerFullyPaid) {
       statusRecommendation = TRANSACTION_STATUS.SETTLED;
-    } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid || buyerPending > tolerance || farmerPending > tolerance) {
-      statusRecommendation = TRANSACTION_STATUS.SETTLED;
+    } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid) {
+      // Partial payments = still pending
+      statusRecommendation = TRANSACTION_STATUS.PENDING;
+    } else if (buyerPending > tolerance || farmerPending > tolerance) {
+      statusRecommendation = TRANSACTION_STATUS.PENDING;
     } else {
       statusRecommendation = TRANSACTION_STATUS.PENDING;
     }

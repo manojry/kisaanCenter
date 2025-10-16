@@ -35,6 +35,7 @@ export class PaymentService {
     }
 
     const paymentData: Record<string, unknown> = {
+      // preserve explicit payload fields, but normalize enums and defaults
       ...data,
       status: PaymentStatus.Paid,
       payer_type: mappedPayerType,
@@ -48,12 +49,13 @@ export class PaymentService {
     if (data.transaction_id && (!data.counterparty_id || !data.shop_id)) {
       const transaction = await (await import('../models/transaction')).Transaction.findByPk(data.transaction_id);
       if (transaction) {
-        // Always set shop_id from transaction if not provided
-        if (!data.shop_id) {
+        // Always set shop_id from transaction if not explicitly provided
+        if (!data.shop_id && !paymentData.shop_id) {
           paymentData.shop_id = transaction.shop_id;
         }
-        
-        if (!data.counterparty_id) {
+
+        // Only set counterparty_id when not provided in payload; otherwise respect payload
+        if (!data.counterparty_id && !paymentData.counterparty_id) {
           if (data.payer_type === PARTY_TYPE.BUYER && data.payee_type === PARTY_TYPE.SHOP) {
             // Buyer pays shop - counterparty is the buyer
             paymentData.counterparty_id = transaction.buyer_id;
@@ -62,7 +64,19 @@ export class PaymentService {
             paymentData.counterparty_id = transaction.farmer_id;
           }
         }
+        
+        // Preserve incoming payment_date if provided in payload (backdated payments)
+        if (data.payment_date) {
+          // Try to parse and set a Date object; fallback to raw string if parse fails
+          const pd = new Date(data.payment_date as string);
+          paymentData.payment_date = isNaN(pd.getTime()) ? data.payment_date : pd;
+        }
       }
+    }
+    // Always attempt to normalize incoming payment_date (even if counterparty/shop were provided)
+    if (data.payment_date && !paymentData.payment_date) {
+      const pd = new Date(data.payment_date as string);
+      paymentData.payment_date = isNaN(pd.getTime()) ? data.payment_date : pd;
     }
   console.log('[PAYMENT] Creating payment', paymentData);
   const payment = await this.paymentRepository.create(paymentData);

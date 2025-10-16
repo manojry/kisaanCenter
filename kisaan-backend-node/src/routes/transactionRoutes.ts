@@ -52,17 +52,29 @@ router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.li
     if (!filters.shopId && !filters.farmerId && !filters.buyerId) {
   return failureCode(res, 400, ErrorCodes.TRANSACTION_CONTEXT_REQUIRED, undefined, 'Missing shop, farmer, or buyer context');
     }
-    const { rows, count } = await service['transactionRepository'].findByFilters({
-      shopId: filters.shopId,
-      farmerId: filters.farmerId,
-      buyerId: filters.buyerId,
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      limit: req.pagination?.limit,
-      offset: req.pagination?.offset,
-      orderBy: order_by as string | undefined,
-      orderDir: (order_dir as string | undefined)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
-    });
+    let rows: unknown[] = [];
+    let count = 0;
+    // If shop-scoped query, delegate to the shop service which applies robust date parsing and filters
+    if (filters.shopId) {
+      const txService = new TransactionService();
+      const txs = await txService.getTransactionsByShop(Number(filters.shopId), { startDate: filters.startDate as Date | undefined, endDate: filters.endDate as Date | undefined, farmerId: filters.farmerId as number | undefined, buyerId: filters.buyerId as number | undefined });
+      rows = txs;
+      count = txs.length;
+    } else {
+      const result = await service['transactionRepository'].findByFilters({
+        shopId: filters.shopId,
+        farmerId: filters.farmerId,
+        buyerId: filters.buyerId,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        limit: req.pagination?.limit,
+        offset: req.pagination?.offset,
+        orderBy: order_by as string | undefined,
+        orderDir: (order_dir as string | undefined)?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
+      });
+      rows = result.rows;
+      count = result.count;
+    }
   const meta = req.pagination ? buildPaginationMeta(count, req.pagination) : { total: count };
   return success(res, rows, { meta: meta as unknown as Record<string, unknown> });
   } catch (err) {

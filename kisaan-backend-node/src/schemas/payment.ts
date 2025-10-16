@@ -6,7 +6,8 @@ export const CreatePaymentSchema = z.object({
   payee_type: z.enum(['SHOP', 'FARMER']),
   amount: z.preprocess((val) => Number(val), z.number().positive()),
   method: z.enum(['CASH', 'BANK', 'UPI', 'OTHER']),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  payment_date: z.string().datetime().optional()
 });
 
 // Bulk payment schema

@@ -69,6 +69,7 @@ export function useTransactionFormLogic({
     product_name: '',
     quantity: 0,
     unit_price: 0,
+    transaction_date: initialValues.transaction_date || new Date().toISOString().split('T')[0],
     ...initialValues,
   });
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -158,9 +159,15 @@ export function useTransactionFormLogic({
 
   // Auto-set payment amounts based on calculations
   useEffect(() => {
-    setBuyerPaid(Number((calculations?.total_sale_value ?? 0).toFixed(2)));
-    setFarmerPaid(Number((calculations?.farmer_earning ?? 0).toFixed(2)));
-    setCommissionReceived(Number((calculations?.shop_commission ?? 0).toFixed(2)));
+    // Ensure commission is never negative
+    const total = Number((calculations?.total_sale_value ?? 0).toFixed(2));
+    let commission = Number((calculations?.shop_commission ?? 0).toFixed(2));
+    if (commission < 0) commission = 0;
+    let farmer = Number((calculations?.farmer_earning ?? 0).toFixed(2));
+    if (farmer < 0) farmer = 0;
+    setBuyerPaid(total);
+    setFarmerPaid(total - commission);
+    setCommissionReceived(commission);
   }, [calculations]);
 
   // Commission rate handling
@@ -200,6 +207,7 @@ export function useTransactionFormLogic({
         unit_price: formData.unit_price,
         commission_rate: commissionRate * 100,
         notes: '',
+        transaction_date: formData.transaction_date || new Date().toISOString().split('T')[0],
         payments: [
           {
             payer_type: 'BUYER' as const,
@@ -223,12 +231,7 @@ export function useTransactionFormLogic({
       if (useSimplifiedApi) {
         response = await simplifiedApi.createTransaction(transactionData);
       } else if (isBackdated) {
-        // Enhanced: Use backdated transaction API for owner-created backdated transactions
-        const backdatedData = {
-          ...transactionData,
-          transaction_date: transactionDate.toISOString().split('T')[0], // YYYY-MM-DD format
-        };
-        response = await transactionsApi.createBackdated(backdatedData);
+        response = await transactionsApi.createBackdated(transactionData);
       } else {
         response = await transactionsApi.create(transactionData);
       }
@@ -259,6 +262,26 @@ export function useTransactionFormLogic({
     }
   }, [formData, commissionRate, buyerPaid, buyerPaymentMethod, farmerPaid, farmerPaymentMethod, calculations, onSuccess, toast, useSimplifiedApi, isBackdated, transactionDate]);
 
+  // Add resetForm to clear all form state
+  const resetForm = () => {
+    setFormData({
+      shop_id: user?.shop_id || 0,
+      farmer_id: 0,
+      buyer_id: 0,
+      category_id: 0,
+      product_name: '',
+      quantity: 0,
+      unit_price: 0,
+      transaction_date: new Date().toISOString().split('T')[0],
+    });
+    setBuyerPaid(0);
+    setFarmerPaid(0);
+    setCommissionReceived(0);
+    setBuyerPaymentMethod('CASH');
+    setFarmerPaymentMethod('CASH');
+    setCommissionRate(0.1);
+    setValidationErrors({});
+  };
   return {
     formData,
     setFormData,
@@ -286,5 +309,6 @@ export function useTransactionFormLogic({
     setFarmerPaymentMethod,
     handleSubmit,
     onCancel,
+    resetForm,
   };
 }

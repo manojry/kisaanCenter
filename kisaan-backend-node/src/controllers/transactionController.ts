@@ -68,18 +68,18 @@ export class TransactionController {
   const { payments, ...transactionData } = req.body;
       
       const serviceData = {
-        shop_id: transactionData.shop_id,
-        farmer_id: transactionData.farmer_id,
-        buyer_id: transactionData.buyer_id,
-        product_id: transactionData.product_id ?? null,
-        category_id: transactionData.category_id,
-        product_name: transactionData.product_name,
-        quantity: transactionData.quantity,
-        unit_price: transactionData.unit_price,
-        commission_rate: transactionData.commission_rate,
-        transaction_date: new Date(),
-        notes: transactionData.notes,
-        payments: payments
+  shop_id: transactionData.shop_id,
+  farmer_id: transactionData.farmer_id,
+  buyer_id: transactionData.buyer_id,
+  product_id: transactionData.product_id ?? null,
+  category_id: transactionData.category_id,
+  product_name: transactionData.product_name,
+  quantity: transactionData.quantity,
+  unit_price: transactionData.unit_price,
+  commission_rate: transactionData.commission_rate,
+  transaction_date: transactionData.transaction_date,
+  notes: transactionData.notes,
+  payments: payments
       };
 
       // Create the transaction
@@ -130,10 +130,29 @@ export class TransactionController {
   async getTransactionsByShop(req: Request, res: Response) {
     try {
       const shopId = parseId(req.params.shopId, 'shop');
-      const { startDate, endDate, farmerId, buyerId } = req.query;
+      // Support both frontend (from_date/to_date) and backend (startDate/endDate) params
+      const { startDate, endDate, from_date, to_date, farmerId, buyerId } = req.query;
+      const dateStart = from_date || startDate;
+      const dateEnd = to_date || endDate;
+      // Patch: Robust date parsing for transaction_date filter
+      function parseDateFlexible(dateStr: string | undefined, isStart: boolean): Date | undefined {
+        if (!dateStr) return undefined;
+        // Try parsing as YYYY-MM-DD
+        let d = new Date(dateStr);
+        if (isNaN(d.getTime())) {
+          // Try parsing as YYYY-MM-DD HH:mm:ss or similar
+          const replaced = dateStr.replace(' ', 'T');
+          d = new Date(replaced);
+        }
+        if (isStart) d.setHours(0, 0, 0, 0);
+        else d.setHours(23, 59, 59, 999);
+        return d;
+      }
+      const startDateObj = parseDateFlexible(dateStart as string, true);
+      const endDateObj = parseDateFlexible(dateEnd as string, false);
       const filters = {
-        startDate: startDate ? new Date(startDate as string) : undefined,
-        endDate: endDate ? new Date(endDate as string) : undefined,
+        startDate: startDateObj,
+        endDate: endDateObj,
         farmerId: farmerId ? Number(farmerId) : undefined,
         buyerId: buyerId ? Number(buyerId) : undefined
       };
@@ -200,20 +219,24 @@ export class TransactionController {
       }
 
       const { transaction_date, ...transactionData } = req.body;
-      
+
+      // Debug: Log the incoming transaction_date from payload
+      console.log('[controller:createBackdated] Incoming transaction_date:', transaction_date);
+
       // Validate transaction date is not in the future
-      const parsedDate = new Date(transaction_date);
-      if (parsedDate > new Date()) {
+      if (transaction_date && new Date(transaction_date) > new Date()) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'Transaction date cannot be in the future');
       }
 
-      // Create transaction with specified date
+      // Create transaction with specified date (pass string, not Date object)
+      // Pass requesting user context so service-level authorization checks work
+      const requestingUser = { id: Number(user.id), role: String(user.role) };
       const transaction = await this.transactionService.createTransaction({
         ...transactionData,
-        transaction_date: parsedDate,
+        transaction_date,
         created_by: user.id,
         shop_id: user.shop_id || transactionData.shop_id
-      });
+      }, requestingUser);
 
       req.log?.info({ transactionId: transaction.id, date: transaction_date }, 'backdated transaction created');
       return createdResp(res, transaction, { message: 'Backdated transaction created successfully' });

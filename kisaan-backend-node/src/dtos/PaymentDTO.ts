@@ -8,6 +8,7 @@ export interface CreatePaymentDTO {
   notes?: string;
   counterparty_id?: number; // Required for direct/advance payments (farmer or buyer)
   shop_id?: number; // Optional, for direct/advance payments to associate with a shop
+  payment_date?: string | Date; // Allow backdated payment timestamps from payload
 }
 
 // For bulk payments

@@ -5,6 +5,7 @@ import { Transaction } from '../models/transaction';
 import { ModelStatic } from 'sequelize';
 import type { Payment } from '../models/payment';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
 import { TransactionEntity } from '../entities/TransactionEntity';
 
 /**
@@ -25,7 +26,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
   async findByDateRange(startDate: Date, endDate: Date): Promise<TransactionEntity[]> {
     const models = await this.model.findAll({
       where: {
-        created_at: {
+        transaction_date: {
           [Op.gte]: startDate,
           [Op.lte]: endDate
         }
@@ -45,15 +46,38 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     orderBy?: string;
     orderDir?: 'ASC' | 'DESC';
   }): Promise<{ rows: TransactionEntity[]; count: number }> {
-  const where: Record<string, unknown> = {};
-    if (params.shopId) where.shop_id = params.shopId;
-    if (params.farmerId) where.farmer_id = params.farmerId;
-    if (params.buyerId) where.buyer_id = params.buyerId;
+  // Build a robust where clause that matches IDs whether stored as number or string
+  const where: any = {};
+  const andClauses: any[] = [];
+  if (params.shopId) {
+    andClauses.push({ [Op.or]: [{ shop_id: params.shopId }, { shop_id: String(params.shopId) }] });
+  }
+  if (params.farmerId) {
+    andClauses.push({ [Op.or]: [{ farmer_id: params.farmerId }, { farmer_id: String(params.farmerId) }] });
+  }
+  if (params.buyerId) {
+    andClauses.push({ [Op.or]: [{ buyer_id: params.buyerId }, { buyer_id: String(params.buyerId) }] });
+  }
+  if (andClauses.length > 0) {
+    where[Op.and] = andClauses;
+  }
     // Always convert to Date objects before checking validity
     const startDate = params.startDate instanceof Date ? params.startDate : params.startDate ? new Date(params.startDate) : undefined;
     const endDate = params.endDate instanceof Date ? params.endDate : params.endDate ? new Date(params.endDate) : undefined;
+    
+
+    
     if (startDate && !isNaN(startDate.getTime()) && endDate && !isNaN(endDate.getTime())) {
-      where.transaction_date = { [Op.between]: [startDate, endDate] };
+      // Fix: Use proper date range comparison 
+      // Adjust the endDate to include the entire day
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+      
+      where.transaction_date = { 
+        [Op.gte]: startDate,
+        [Op.lte]: adjustedEndDate
+      };
+
     }
     // ...existing code...
     const limit = params.limit ?? 50;
@@ -65,6 +89,8 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     const { User } = await import('../models/user');
     const { Shop } = await import('../models/shop');
     const { Payment } = await import('../models/payment');
+    
+
     
     const { rows, count } = await this.model.findAndCountAll({ 
       where, 
@@ -93,12 +119,14 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
         {
           model: Payment,
           as: 'payments',
-          attributes: ['id', 'amount', 'method', 'status', 'payer_type', 'payee_type', 'created_at'],
+          attributes: ['id', 'amount', 'method', 'status', 'payer_type', 'payee_type', 'created_at', 'payment_date', 'counterparty_id'],
           required: false
         }
       ],
       distinct: true // Important for accurate count with JOINs
     });
+    
+
     
     // Convert to entities with all related data already loaded
     const rowsWithPayments = rows.map((m: Transaction & { payments?: Payment[] }) => {
@@ -112,6 +140,18 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
         payee_type: p.payee_type,
         created_at: p.created_at
       })) || [];
+
+      // Calculate payment sum and set status
+      const paymentsArr = entity.payments as Array<{ amount: number }>;
+      const paymentSum = paymentsArr.reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : 0), 0);
+      const totalAmount = typeof entity.total_amount === 'number' ? entity.total_amount : 0;
+      if (paymentSum === 0) {
+        entity.status = 'pending';
+      } else if (paymentSum < totalAmount) {
+        entity.status = 'partial';
+      } else if (paymentSum >= totalAmount && totalAmount > 0) {
+        entity.status = 'completed';
+      }
       return entity;
     });
     return { rows: rowsWithPayments, count };
@@ -197,11 +237,17 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
    * Find transactions by shop
    */
   async findByShop(shopId: number): Promise<TransactionEntity[]> {
+    const { Op } = await import('sequelize');
     const { User } = await import('../models/user');
     const { Shop } = await import('../models/shop');
-    
+    // Patch: Allow shop_id comparison as string or number
     const models = await this.model.findAll({
-      where: { shop_id: shopId },
+      where: {
+        [Op.or]: [
+          { shop_id: shopId },
+          { shop_id: String(shopId) }
+        ]
+      },
       include: [
         {
           model: User,
@@ -226,6 +272,43 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     });
 
     return models.map((model) => this.toDomainEntity(model));
+  }
+
+  /**
+   * Find transaction by ID with related payments included
+   */
+  async findById(id: number): Promise<TransactionEntity | null> {
+    const { User } = await import('../models/user');
+    const { Shop } = await import('../models/shop');
+    const { Payment } = await import('../models/payment');
+    const model = await this.model.findByPk(id, {
+      include: [
+        { model: User, as: 'farmer', attributes: ['id', 'username', 'firstname'], required: false },
+        { model: User, as: 'buyer', attributes: ['id', 'username', 'firstname'], required: false },
+        { model: Shop, as: 'transactionShop', attributes: ['id','name'], required: false },
+        { model: Payment, as: 'payments', attributes: ['id','amount','method','status','payer_type','payee_type','created_at','payment_date','counterparty_id'], required: false }
+      ]
+    });
+    if (!model) return null;
+    const entity = this.toDomainEntity(model);
+    // Attach payments if loaded
+    const mAny = model as unknown as { payments?: Payment[] };
+    if (Array.isArray(mAny.payments) && mAny.payments.length) {
+      (entity as any).payments = mAny.payments.map((p: Payment) => ({
+        id: p.id,
+        amount: Number(p.amount),
+        method: p.method,
+        status: p.status,
+        payer_type: p.payer_type,
+        payee_type: p.payee_type,
+        created_at: p.created_at,
+        payment_date: p.payment_date,
+        counterparty_id: p.counterparty_id
+      }));
+    } else {
+      (entity as any).payments = [];
+    }
+    return entity;
   }
 
   /**

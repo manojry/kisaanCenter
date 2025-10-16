@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { TransactionPartySelectors, TransactionQuantityPricing, TransactionSummary, TransactionPayments } from '@/features/transactions/components';
 import { useTransactionFormLogic } from '../../hooks/useTransactionFormLogic';
+import { useSharedShopProducts } from '../../hooks/useShopProductsCache';
 import type { Transaction } from '../../types/api';
 
 interface TransactionFormProps {
@@ -32,10 +33,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const {
     formData,
     setFormData,
-    products,
     farmers,
     buyers,
-    categories,
     isLoading,
     error,
     isSubmitting,
@@ -54,13 +53,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     farmerPaymentMethod,
     setFarmerPaymentMethod,
     handleSubmit,
+    resetForm,
   } = useTransactionFormLogic({
-    onSuccess,
+    onSuccess: (transaction) => {
+      if (resetForm) resetForm();
+      if (onSuccess) onSuccess(transaction);
+    },
     onCancel,
     useSimplifiedApi: false,
-    isBackdated,           // Enhanced: Pass backdated flag
-    transactionDate        // Enhanced: Pass transaction date
   });
+
+    // Shop-specific products and categories
+    const shopId = user?.shop_id;
+    const { products: shopProducts } = useSharedShopProducts(Number(shopId));
+    // Only use ShopProduct items with a category field
+    const shopCategories = Array.from(
+      new Map(
+        (shopProducts as any[])
+          .filter(p => p && typeof p === 'object' && 'category' in p && p.category && p.category.id)
+          .map(p => [p.category.id, p.category])
+      ).values()
+    );
 
   // Map ShopProduct[] to Product[] for TransactionPartySelectors
   type ShopProduct = {
@@ -72,7 +85,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     created_at?: string;
     updated_at?: string;
   };
-  const mappedProducts = (products || []).map((p: ShopProduct) => ({
+  const mappedProducts = (shopProducts || []).map((p: ShopProduct) => ({
     id: p.id,
     name: p.name || p.product_name || '',
     category_id: typeof p.category_id === 'number' ? p.category_id : 0,
@@ -149,6 +162,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                       onSelect={(date) => {
                         if (date) {
                           setTransactionDate(date);
+                          setFormData(prev => ({
+                            ...prev,
+                            transaction_date: date.toISOString().split('T')[0]
+                          }));
                           setCalendarOpen(false);
                         }
                       }}
@@ -170,7 +187,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
             <TransactionPartySelectors
               farmers={farmers}
               buyers={buyers}
-              categories={categories}
+              categories={shopCategories}
               products={formData.category_id ? mappedProducts.filter(p => p.category_id === formData.category_id) : mappedProducts}
               values={{
                 farmer_id: formData.farmer_id,
@@ -210,6 +227,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                     if (patch.commissionReceived !== undefined) setCommissionReceived(patch.commissionReceived);
                     if (patch.buyerPaymentMethod) setBuyerPaymentMethod(patch.buyerPaymentMethod);
                     if (patch.farmerPaymentMethod) setFarmerPaymentMethod(patch.farmerPaymentMethod);
+                  }}
+                  showValidationErrors={!!Object.keys(validationErrors).length}
+                  transactionSummary={{
+                    totalSaleValue: calculations.total_sale_value,
+                    shopCommission: calculations.shop_commission,
+                    farmerEarning: calculations.farmer_earning,
                   }}
                 />
               </>

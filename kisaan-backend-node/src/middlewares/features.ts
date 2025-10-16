@@ -45,6 +45,9 @@ export function requireFeature(code: string) {
 export function enforceRetention(paramFrom: string, paramTo: string) {
   return (req: Request, _res: Response, next: NextFunction) => {
     const eff = (req as { features?: { retentionDays?: number } }).features;
+    // Allow owners and superadmins to bypass retention clamping
+    const user = (req as unknown as { user?: { role?: string } }).user;
+    if (user && (user.role === 'owner' || user.role === 'superadmin')) return next();
     if (!eff) return next();
   const days = eff.retentionDays ?? 90;
   const now = new Date();

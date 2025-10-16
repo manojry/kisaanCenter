@@ -179,7 +179,10 @@ const TransactionManagement = (): React.ReactElement => {
               </Button>
             </div>
             <TransactionForm 
-              onSuccess={() => setShowCreateForm(false)}
+              onSuccess={() => {
+                setShowCreateForm(false);
+                refetchTransactions();
+              }}
             />
           </div>
         </div>
@@ -318,7 +321,7 @@ const TransactionManagement = (): React.ReactElement => {
                 <TableRow>
                   <TableHead className="w-16"></TableHead>
                   <TableHead>ID</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Date xx</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Buyer</TableHead>
                   <TableHead>Farmer</TableHead>
@@ -357,7 +360,7 @@ const TransactionManagement = (): React.ReactElement => {
                             {transaction.id}
                           </TableCell>
                           <TableCell>
-                            {formatDisplayDate(transaction.created_at)}
+                            {formatDisplayDate(transaction.transaction_date)}
                           </TableCell>
                           <TableCell>{
                             transaction.product_name && transaction.product_name !== 'undefined'
@@ -381,6 +384,7 @@ const TransactionManagement = (): React.ReactElement => {
                                 <div>
                                   <h4 className="font-semibold mb-2">Transaction Details</h4>
                                   <div className="space-y-1 text-sm">
+                                    <p><strong>Date:</strong> {formatDisplayDate(transaction.transaction_date)}</p>
                                     <p><strong>Product:</strong> {transaction.product_name && transaction.product_name !== 'undefined' ? transaction.product_name : (transaction.product_id || 'Unknown')}</p>
                                     <p><strong>Quantity:</strong> {transaction.quantity} kg</p>
                                     <p><strong>Unit Price:</strong> ₹{transaction.unit_price}</p>
