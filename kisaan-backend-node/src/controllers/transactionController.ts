@@ -135,7 +135,7 @@ export class TransactionController {
       const dateStart = from_date || startDate;
       const dateEnd = to_date || endDate;
       // Patch: Robust date parsing for transaction_date filter
-      function parseDateFlexible(dateStr: string | undefined, isStart: boolean): Date | undefined {
+      const parseDateFlexible = (dateStr: string | undefined, isStart: boolean): Date | undefined => {
         if (!dateStr) return undefined;
         // Try parsing as YYYY-MM-DD
         let d = new Date(dateStr);
@@ -147,7 +147,7 @@ export class TransactionController {
         if (isStart) d.setHours(0, 0, 0, 0);
         else d.setHours(23, 59, 59, 999);
         return d;
-      }
+      };
       const startDateObj = parseDateFlexible(dateStart as string, true);
       const endDateObj = parseDateFlexible(dateEnd as string, false);
       const filters = {

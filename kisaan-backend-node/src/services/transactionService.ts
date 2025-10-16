@@ -603,14 +603,19 @@ export class TransactionService {
       const paymentService = new PaymentService();
       
       // Helper function to create payment - DRY
-      const createPaymentRecord = async (paymentData: {
+      interface CreatePaymentInput {
         payer_type: 'BUYER' | 'SHOP';
         payee_type: 'SHOP' | 'FARMER';
         amount: number;
         method: string;
-        status?: string;
+        status?: 'PENDING' | 'PAID' | 'FAILED';
         notes?: string;
-      }) => {
+        payment_date?: string | Date;
+        counterparty_id?: number;
+        shop_id?: number;
+      }
+
+      const createPaymentRecord = async (paymentData: CreatePaymentInput) => {
         const payment = await paymentService.createPayment({
           transaction_id: (createdTransaction as { id: number }).id,
           payer_type: paymentData.payer_type,
@@ -620,20 +625,43 @@ export class TransactionService {
           status: (paymentData.status || 'PAID') as 'PENDING' | 'PAID' | 'FAILED',
           notes: paymentData.notes || '',
           // Forward optional fields for backdated/direct payments
-          payment_date: (paymentData as any).payment_date,
-          counterparty_id: (paymentData as any).counterparty_id,
-          shop_id: (paymentData as any).shop_id
+          payment_date: paymentData.payment_date,
+          counterparty_id: paymentData.counterparty_id,
+          shop_id: paymentData.shop_id
         }, buyer.id!);
         createdPayments.push(payment);
       };
       
       if (data.payments && data.payments.length > 0) {
         // Create payments from payload - ensure correct flow
-        for (const paymentData of data.payments) {
-          if (!paymentData.payer_type || !paymentData.payee_type || !paymentData.method) {
-            throw new ValidationError('Missing required payment fields: payer_type, payee_type, or method');
+        for (const rawPaymentData of data.payments) {
+          const pd = rawPaymentData as unknown as Record<string, unknown>;
+          const payer_type = pd.payer_type as 'BUYER' | 'SHOP' | undefined;
+          const payee_type = pd.payee_type as 'SHOP' | 'FARMER' | undefined;
+          const method = pd.method as string | undefined;
+          const amountVal = pd.amount !== undefined ? Number(pd.amount) : NaN;
+          if (!payer_type || !payee_type || !method || isNaN(amountVal)) {
+            throw new ValidationError('Missing or invalid payment fields: payer_type, payee_type, method or amount');
           }
-          await createPaymentRecord(paymentData);
+          const notes = (pd.notes as string | undefined) ?? '';
+          const payment_date = pd.payment_date as string | Date | undefined;
+          const counterparty_id = pd.counterparty_id !== undefined ? Number(pd.counterparty_id) : undefined;
+          const shop_id = pd.shop_id !== undefined ? Number(pd.shop_id) : undefined;
+          const statusCandidate = String(pd.status ?? '').toUpperCase();
+          const allowedStatuses = ['PENDING','PAID','FAILED'] as const;
+          const normalizedStatus = (allowedStatuses as ReadonlyArray<string>).includes(statusCandidate) ? statusCandidate as 'PENDING' | 'PAID' | 'FAILED' : undefined;
+
+          await createPaymentRecord({
+            payer_type,
+            payee_type,
+            amount: amountVal,
+            method,
+            status: normalizedStatus,
+            notes,
+            payment_date,
+            counterparty_id,
+            shop_id
+          });
         }
       } else {
         // Default: full payment flow (Buyer → Shop, Shop → Farmer)
@@ -811,7 +839,7 @@ export class TransactionService {
       if (filters?.startDate && filters?.endDate) {
         transactions = transactions.filter(t => {
           // Patch: Robust date parsing for transaction_date
-          let txnDate: any = t.transaction_date;
+          let txnDate: Date | string | undefined = t.transaction_date as Date | string | undefined;
           if (typeof txnDate === 'string') {
             // Try to parse string to Date
             let parsed = new Date((txnDate as string).replace(' ', 'T'));

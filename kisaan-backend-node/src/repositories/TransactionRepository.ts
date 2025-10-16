@@ -5,7 +5,9 @@ import { Transaction } from '../models/transaction';
 import { ModelStatic } from 'sequelize';
 import type { Payment } from '../models/payment';
 import { Op } from 'sequelize';
-import sequelize from '../config/database';
+// Note: we intentionally avoid importing the default sequelize instance here to prevent
+// accidental direct transaction usage in repositories. Use service layer transaction
+// management instead.
 import { TransactionEntity } from '../entities/TransactionEntity';
 
 /**
@@ -47,8 +49,8 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     orderDir?: 'ASC' | 'DESC';
   }): Promise<{ rows: TransactionEntity[]; count: number }> {
   // Build a robust where clause that matches IDs whether stored as number or string
-  const where: any = {};
-  const andClauses: any[] = [];
+  const where: Record<string, unknown> = {};
+  const andClauses: Array<Record<string, unknown>> = [];
   if (params.shopId) {
     andClauses.push({ [Op.or]: [{ shop_id: params.shopId }, { shop_id: String(params.shopId) }] });
   }
@@ -59,7 +61,8 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     andClauses.push({ [Op.or]: [{ buyer_id: params.buyerId }, { buyer_id: String(params.buyerId) }] });
   }
   if (andClauses.length > 0) {
-    where[Op.and] = andClauses;
+    // Op.and is a symbol; assign via Record<symbol, unknown> to satisfy TypeScript
+    (where as Record<symbol, unknown>)[Op.and as symbol] = andClauses;
   }
     // Always convert to Date objects before checking validity
     const startDate = params.startDate instanceof Date ? params.startDate : params.startDate ? new Date(params.startDate) : undefined;
@@ -292,22 +295,31 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     if (!model) return null;
     const entity = this.toDomainEntity(model);
     // Attach payments if loaded
-    const mAny = model as unknown as { payments?: Payment[] };
-    if (Array.isArray(mAny.payments) && mAny.payments.length) {
-      (entity as any).payments = mAny.payments.map((p: Payment) => ({
-        id: p.id,
-        amount: Number(p.amount),
-        method: p.method,
-        status: p.status,
-        payer_type: p.payer_type,
-        payee_type: p.payee_type,
-        created_at: p.created_at,
-        payment_date: p.payment_date,
-        counterparty_id: p.counterparty_id
-      }));
-    } else {
-      (entity as any).payments = [];
-    }
+    type PaymentShape = {
+      id: number;
+      amount: number;
+      method: string;
+      status: string;
+      payer_type?: string;
+      payee_type?: string;
+      created_at?: Date;
+      payment_date?: Date | null;
+      counterparty_id?: number | null;
+    };
+    const mTyped = model as unknown as { payments?: Payment[] };
+    const paymentsList: PaymentShape[] = Array.isArray(mTyped.payments) ? mTyped.payments.map((p: Payment) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      method: p.method,
+      status: p.status,
+      payer_type: p.payer_type,
+      payee_type: p.payee_type,
+      created_at: p.created_at,
+      payment_date: p.payment_date,
+      counterparty_id: p.counterparty_id
+    })) : [];
+    // Attach to entity via a safe cast: TransactionEntity has an optional payments property
+    (entity as TransactionEntity & { payments?: PaymentShape[] }).payments = paymentsList;
     return entity;
   }
 
