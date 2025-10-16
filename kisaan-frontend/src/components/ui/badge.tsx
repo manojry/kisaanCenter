@@ -11,6 +11,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 // Reusable status badge for transaction/payment status
 export type StatusType =
   | 'pending'
+  | 'partial'
   | 'completed'
   | 'cancelled'
   | 'settled'
@@ -28,8 +29,9 @@ export const StatusBadge: React.FC<{ status: StatusType; className?: string }> =
       label = status.charAt(0).toUpperCase() + status.slice(1);
       break;
     case 'pending':
+    case 'partial':
       color = 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      label = 'Pending';
+      label = status === 'partial' ? 'Partial' : 'Pending';
       break;
     case 'cancelled':
       color = 'bg-gray-200 text-gray-700 border-gray-300';

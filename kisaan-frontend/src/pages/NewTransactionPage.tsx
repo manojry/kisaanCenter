@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { CheckCircle } from 'lucide-react';
 import { TransactionForm } from '../components/owner/TransactionForm';
 
 export default function NewTransactionPage() {

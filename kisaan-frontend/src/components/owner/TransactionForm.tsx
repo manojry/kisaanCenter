@@ -66,12 +66,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     // Shop-specific products and categories
     const shopId = user?.shop_id;
     const { products: shopProducts } = useSharedShopProducts(Number(shopId));
+    const shopProductsArray = Array.isArray(shopProducts) ? shopProducts : [];
     // Only use ShopProduct items with a category field
+    type RawShopProduct = { category?: { id?: number } } & Record<string, unknown>;
     const shopCategories = Array.from(
       new Map(
-        (shopProducts as any[])
-          .filter(p => p && typeof p === 'object' && 'category' in p && p.category && p.category.id)
-          .map(p => [p.category.id, p.category])
+        (shopProductsArray as Array<RawShopProduct>)
+          .filter(p => p && typeof p === 'object' && 'category' in p && Number.isFinite((p as RawShopProduct).category?.id))
+          .map(p => {
+            const c = (p as RawShopProduct).category!;
+            const name = typeof (c as Record<string, unknown>).name === 'string' ? (c as Record<string, unknown>).name as string : 'Unknown';
+            return [Number(c.id), { id: Number(c.id), name }];
+          })
       ).values()
     );
 
@@ -85,14 +91,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     created_at?: string;
     updated_at?: string;
   };
-  const mappedProducts = (shopProducts || []).map((p: ShopProduct) => ({
-    id: p.id,
-    name: p.name || p.product_name || '',
-    category_id: typeof p.category_id === 'number' ? p.category_id : 0,
-    record_status: p.record_status,
-    created_at: p.created_at,
-    updated_at: p.updated_at,
-  }));
+  const mappedProducts = shopProductsArray.map((p) => {
+    const sp = p as unknown as ShopProduct;
+    return {
+      id: sp.id,
+      name: sp.name || sp.product_name || '',
+      category_id: typeof sp.category_id === 'number' ? sp.category_id : 0,
+      record_status: sp.record_status,
+      created_at: sp.created_at,
+      updated_at: sp.updated_at,
+    };
+  });
 
   if (error) {
     return (

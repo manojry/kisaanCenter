@@ -6,8 +6,8 @@ import { formatDisplayDate, getToday } from '../utils/dateUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { StatusBadge } from '../components/ui/badge';
+import type { StatusType } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Plus, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
@@ -128,6 +128,24 @@ const TransactionManagement = (): React.ReactElement => {
       },
       users
     );
+  };
+
+  const mapStatusToBadge = (s?: string): StatusType => {
+    const v = (s || '').toLowerCase();
+    switch (v) {
+      case 'paid':
+      case 'completed':
+      case 'settled':
+        return v as StatusType;
+      case 'cancelled':
+        return 'cancelled';
+      case 'failed':
+        return 'failed';
+      case 'pending':
+      case 'partial':
+      default:
+        return 'pending';
+    }
   };
 
   if (error) {
@@ -373,7 +391,7 @@ const TransactionManagement = (): React.ReactElement => {
                             ₹{(transaction.total_sale_value ?? transaction.total_amount ?? 0).toFixed(2)}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={transaction.status.toLowerCase() as any} />
+                            <StatusBadge status={mapStatusToBadge(transaction.status)} />
                           </TableCell>
                         </TableRow>
                         {/* Expanded row details */}
@@ -391,7 +409,7 @@ const TransactionManagement = (): React.ReactElement => {
                                     <p><strong>Sale Value:</strong> ₹{transaction.total_sale_value ?? transaction.total_amount}</p>
                                     <p><strong>Farmer Earning:</strong> ₹{transaction.farmer_earning}</p>
                                     <p><strong>Commission:</strong> ₹{transaction.commission_amount} ({transaction.commission_rate}%)</p>
-                                    <p><strong>Status:</strong> <StatusBadge status={transaction.status.toLowerCase() as any} /></p>
+                                    <p><strong>Status:</strong> <StatusBadge status={mapStatusToBadge(transaction.status)} /></p>
                                     <p><strong>Buyer Paid:</strong> ₹{txnHelpers.getBuyerPaid(transaction)}</p>
                                     <p><strong>Farmer Paid:</strong> ₹{txnHelpers.getFarmerPaid(transaction)}</p>
                                     <p><strong>Farmer Due:</strong> ₹{txnHelpers.getFarmerDue(transaction)}</p>

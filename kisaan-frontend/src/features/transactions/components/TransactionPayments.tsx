@@ -95,7 +95,7 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
             }}
             className="text-sm"
           />
-          <StatusBadge status={buyerPaymentStatus.toLowerCase() as any} />
+          <StatusBadge status={(buyerPaymentStatus.toLowerCase() as 'pending' | 'partial' | 'paid')} />
         </div>
         {showValidationErrors && buyerAmountError && (
           <span className="text-xs text-red-500">Buyer payment cannot exceed {totalSaleValue.toFixed(2)} (Total Sale Value)</span>
@@ -127,7 +127,7 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
             }}
             className="text-sm"
           />
-          <StatusBadge status={farmerPaymentStatus.toLowerCase() as any} />
+          <StatusBadge status={(farmerPaymentStatus.toLowerCase() as 'pending' | 'partial' | 'paid')} />
         </div>
         {showValidationErrors && farmerAmountError && (
           <span className="text-xs text-red-500">Farmer payment cannot exceed {maxFarmerPayment.toFixed(2)} (Farmer Earning)</span>
