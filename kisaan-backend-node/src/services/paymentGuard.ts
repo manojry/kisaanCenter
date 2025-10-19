@@ -16,7 +16,11 @@ export async function willShopToFarmerWorsenDebt(payment: { shop_id?: number; co
   const currentBalance = Number(farmer?.balance || 0);
   const simulatedNewBalance = currentBalance - remainingForBalance;
 
-  return { worsen: simulatedNewBalance < currentBalance, currentBalance, simulatedNewBalance, remainingForBalance };
+  // Only block if payment would make the balance more negative (i.e., increase debt)
+  // Allow if payment reduces negative balance (moves toward zero or positive)
+  // Example: currentBalance = -1000, simulatedNewBalance = -800 (allowed), -1200 (blocked)
+  const isWorsen = simulatedNewBalance < currentBalance && simulatedNewBalance < 0;
+  return { worsen: isWorsen, currentBalance, simulatedNewBalance, remainingForBalance };
 }
 
 export function throwIfWorsens(payment: any) {

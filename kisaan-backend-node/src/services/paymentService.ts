@@ -261,6 +261,36 @@ export class PaymentService {
       // Buyer pays shop: reduce buyer's balance (buyer owes less)
       userIdToUpdate = payment.counterparty_id;
       userRole = PARTY_TYPE.BUYER;
+      if (userIdToUpdate) {
+        const user = await User.findByPk(userIdToUpdate);
+        if (user) {
+          const previousBalance = Number(user.balance || 0);
+          // Subtract payment amount from buyer's balance (buyer owes less)
+          const paymentAmount = Number(payment.amount);
+          const newBalance = previousBalance - paymentAmount;
+          await user.update({ balance: newBalance });
+          // Create balance snapshot
+          try {
+            const amountChange = newBalance - previousBalance;
+            if (amountChange !== 0) {
+              await BalanceSnapshot.create({
+                user_id: userIdToUpdate,
+                balance_type: BALANCE_TYPE.BUYER,
+                previous_balance: previousBalance,
+                amount_change: amountChange,
+                new_balance: newBalance,
+                transaction_type: 'payment',
+                reference_id: payment.id,
+                reference_type: 'payment',
+                description: `Buyer->shop payment applied to balance ${paymentAmount}`
+              });
+            }
+          } catch (snapshotError: unknown) {
+            const error = snapshotError as Error;
+            console.warn(`[BALANCE SNAPSHOT WARNING] Could not create balance snapshot for buyer ${userIdToUpdate}:`, error?.message || 'Unknown error');
+          }
+        }
+      }
     } else if (payment.payer_type === PARTY_TYPE.FARMER && payment.payee_type === PARTY_TYPE.SHOP) {
       // Farmer pays shop: farmer pays down their debt (increase stored balance)
       userIdToUpdate = payment.counterparty_id;

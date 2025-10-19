@@ -1,11 +1,5 @@
-import { Payment, PaymentStatus as PaymentStatusEnum } from '../models/payment';
-import { sequelize } from '../models/index';
-/**
- * Transaction Service
- * Business logic layer for Transaction operations
- * Follows clean architecture: Controller -> Service -> Repository -> Database
- */
-
+import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus, PAYMENT_STATUS } from '../shared/constants/index';
+import { PARTY_TYPE } from '../shared/partyTypes';
 import { TransactionRepository } from '../repositories/TransactionRepository';
 import { TransactionIdempotencyRepository } from '../repositories/TransactionIdempotencyRepository';
 import { PaymentPayerType, PaymentPayeeType, PaymentMethod, PaymentStatus } from '../constants/payment';
@@ -18,13 +12,72 @@ import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRe
 import { UserEntity } from '../entities/UserEntity';
 import { Transaction } from '../models/transaction';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
-
-import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus, PAYMENT_STATUS } from '../shared/constants/index';
-import { PARTY_TYPE } from '../shared/partyTypes';
-import { expenseService } from './settlementService';
-import { PaymentService } from './paymentService';
+import { Payment, PaymentStatus as PaymentStatusEnum } from '../models/payment';
+import { sequelize } from '../models/index';
+// ...existing code...
 
 export class TransactionService {
+  // ...existing code...
+
+  /**
+   * Get sum of all buyers' balances (total due from all buyers) for a shop
+   */
+  async getAllBuyersBalance(shopId: number): Promise<number> {
+    const transactions = await this.transactionRepository.findByShop(shopId);
+    if (!transactions.length) return 0;
+    const txnIds = transactions.map((t: any) => t.id).filter((id: any): id is number => typeof id === 'number');
+    let payments: any[] = [];
+    if (txnIds.length > 0) {
+      const { Op } = await import('sequelize');
+      payments = await (await import('../models/payment')).Payment.findAll({
+        where: { transaction_id: { [Op.in]: txnIds } }
+      });
+    }
+    // Map: buyerId -> sum due
+    const buyerDueMap: Record<number, number> = {};
+    for (const txn of transactions) {
+      const buyerId = txn.buyer_id;
+      if (!buyerId) continue;
+      const buyerPayments = payments.filter((p: any) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID');
+      const buyerPaid = buyerPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const due = Math.max(Number(txn.total_amount || 0) - buyerPaid, 0);
+      if (!buyerDueMap[buyerId]) buyerDueMap[buyerId] = 0;
+      buyerDueMap[buyerId] += due;
+    }
+    // Sum all buyers' due
+    return Object.values(buyerDueMap).reduce((sum, v) => sum + v, 0);
+  }
+
+  /**
+   * Get sum of all farmers' balances (total due to all farmers) for a shop
+   */
+  async getAllFarmersBalance(shopId: number): Promise<number> {
+    const transactions = await this.transactionRepository.findByShop(shopId);
+    if (!transactions.length) return 0;
+    const txnIds = transactions.map((t: any) => t.id).filter((id: any): id is number => typeof id === 'number');
+    let payments: any[] = [];
+    if (txnIds.length > 0) {
+      const { Op } = await import('sequelize');
+      payments = await (await import('../models/payment')).Payment.findAll({
+        where: { transaction_id: { [Op.in]: txnIds } }
+      });
+    }
+    // Map: farmerId -> sum due
+    const farmerDueMap: Record<number, number> = {};
+    for (const txn of transactions) {
+      const farmerId = txn.farmer_id;
+      if (!farmerId) continue;
+      const farmerPayments = payments.filter((p: any) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID');
+      const farmerPaid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const due = Math.max(Number(txn.farmer_earning || 0) - farmerPaid, 0);
+      if (!farmerDueMap[farmerId]) farmerDueMap[farmerId] = 0;
+      farmerDueMap[farmerId] += due;
+    }
+    // Sum all farmers' due
+    return Object.values(farmerDueMap).reduce((sum, v) => sum + v, 0);
+  }
+
+  // ...existing code...
   private readonly transactionRepository: TransactionRepository;
   private readonly userRepository: UserRepository;
   private readonly shopRepository: ShopRepository;
@@ -919,13 +972,13 @@ export class TransactionService {
       }
 
       // Authorization check
-  if (requestingUser && requestingUser.role === USER_ROLES.FARMER && transaction.farmer_id !== requestingUser.id) {
+      if (requestingUser && requestingUser.role === USER_ROLES.FARMER && transaction.farmer_id !== requestingUser.id) {
         throw new AuthorizationError('Cannot view this transaction');
       }
-  if (requestingUser && requestingUser.role === USER_ROLES.BUYER && transaction.buyer_id !== requestingUser.id) {
+      if (requestingUser && requestingUser.role === USER_ROLES.BUYER && transaction.buyer_id !== requestingUser.id) {
         throw new AuthorizationError('Cannot view this transaction');
       }
-  if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
+      if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
         const shop = await this.shopRepository.findById(transaction.shop_id!);
         if (!shop || shop.owner_id !== requestingUser.id) {
           throw new AuthorizationError('Cannot view this transaction');
@@ -978,11 +1031,12 @@ export class TransactionService {
         payments = attachedPayments;
       }
 
-  // Helpers to normalize values for robust comparisons (handles model instances and plain objects)
-  // Use lower-case normalization for party types (they are stored as lower-case strings)
-  // Use upper-case normalization for statuses (some status constants are upper-case)
-  const normUpper = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
-  const normLower = (v: unknown) => (v == null ? '' : String(v).toLowerCase());
+      // Helpers to normalize values for robust comparisons (handles model instances and plain objects)
+      // Use lower-case normalization for party types (they are stored as lower-case strings)
+      // Use upper-case normalization for statuses (some status constants are upper-case)
+      const normUpper = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
+      const normLower = (v: unknown) => (v == null ? '' : String(v).toLowerCase());
+
       // Comprehensive transaction validation
       const totalAmount = Number(transaction.total_amount || 0);
       const farmerEarning = Number(transaction.farmer_earning || 0);
@@ -995,8 +1049,8 @@ export class TransactionService {
       if (Math.abs(expectedTotalFromCalculation - totalAmount) > 0.01) {
         console.error('[TXN STATUS] CRITICAL: Basic calculation error detected', {
           transactionId: id,
-          quantity,
-          unitPrice,
+          quantity: quantity,
+          unitPrice: unitPrice,
           expectedTotal: expectedTotalFromCalculation,
           actualTotal: totalAmount,
           difference: Math.abs(expectedTotalFromCalculation - totalAmount)
@@ -1009,10 +1063,10 @@ export class TransactionService {
       if (Math.abs(expectedCommission - commissionAmount) > 0.01) {
         console.error('[TXN STATUS] Financial inconsistency detected', {
           transactionId: id,
-          totalAmount,
-          farmerEarning,
-          commissionAmount,
-          expectedCommission,
+          totalAmount: totalAmount,
+          farmerEarning: farmerEarning,
+          commissionAmount: commissionAmount,
+          expectedCommission: expectedCommission,
           difference: Math.abs(expectedCommission - commissionAmount)
         });
         throw new ValidationError(`Financial inconsistency: Commission should be ${expectedCommission} but is ${commissionAmount}. Total amount breakdown is incorrect.`);
@@ -1592,25 +1646,21 @@ export class TransactionService {
           cumulative_value: Math.round(newFarmerCumulative * 100) / 100
         });
         await this.userRepository.update(farmer.id!, updatedFarmer, tx ? { tx } : undefined);
-
-        // Create snapshot if farmer balance changed
-        const farmerBalanceChange = (updatedFarmer.balance ?? 0) - _currentFarmerBalance;
-        if (farmerBalanceChange !== 0 && updatedFarmer.balance !== undefined) {
-          try {
-            const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
-            await BalanceSnapshot.create({
-              user_id: farmer.id!,
-              balance_type: 'farmer',
-              previous_balance: _currentFarmerBalance,
-              amount_change: farmerBalanceChange,
-              new_balance: updatedFarmer.balance,
-              transaction_type: 'transaction',
-              reference_type: 'transaction',
-              description: `Transaction balance update (delta path): farmer earning ${farmerGross}`
-            }, tx ? { transaction: tx } : undefined);
-          } catch (snapshotError) {
-            console.warn(`[BALANCE SNAPSHOT] Failed to create farmer snapshot (delta path):`, snapshotError);
-          }
+        // Always create a snapshot for traceability, even if balance didn't change
+        try {
+          const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+          await BalanceSnapshot.create({
+            user_id: farmer.id!,
+            balance_type: 'farmer',
+            previous_balance: _currentFarmerBalance,
+            amount_change: (updatedFarmer.balance ?? 0) - _currentFarmerBalance,
+            new_balance: updatedFarmer.balance ?? 0,
+            transaction_type: 'transaction',
+            reference_type: 'transaction',
+            description: `Transaction balance update (delta path): farmer earning ${farmerGross}`
+          }, tx ? { transaction: tx } : undefined);
+        } catch (snapshotError) {
+          console.warn(`[BALANCE SNAPSHOT] Failed to create farmer snapshot (delta path):`, snapshotError);
         }
 
         const updatedBuyer = new UserEntity({
@@ -1619,25 +1669,21 @@ export class TransactionService {
           cumulative_value: Math.round(newBuyerCumulative * 100) / 100
         });
         await this.userRepository.update(buyer.id!, updatedBuyer, tx ? { tx } : undefined);
-
-        // Create snapshot for buyer
-        const buyerBalanceChange = (updatedBuyer.balance ?? 0) - currentBuyerBalance;
-        if (buyerBalanceChange !== 0 && updatedBuyer.balance !== undefined) {
-          try {
-            const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
-            await BalanceSnapshot.create({
-              user_id: buyer.id!,
-              balance_type: 'buyer',
-              previous_balance: currentBuyerBalance,
-              amount_change: buyerBalanceChange,
-              new_balance: updatedBuyer.balance,
-              transaction_type: 'transaction',
-              reference_type: 'transaction',
-              description: `Transaction balance update (delta path): buyer total ${buyerGross}`
-            }, tx ? { transaction: tx } : undefined);
-          } catch (snapshotError) {
-            console.warn(`[BALANCE SNAPSHOT] Failed to create buyer snapshot (delta path):`, snapshotError);
-          }
+        // Always create a snapshot for traceability, even if balance didn't change
+        try {
+          const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+          await BalanceSnapshot.create({
+            user_id: buyer.id!,
+            balance_type: 'buyer',
+            previous_balance: currentBuyerBalance,
+            amount_change: (updatedBuyer.balance ?? 0) - currentBuyerBalance,
+            new_balance: updatedBuyer.balance ?? 0,
+            transaction_type: 'transaction',
+            reference_type: 'transaction',
+            description: `Transaction balance update (delta path): buyer total ${buyerGross}`
+          }, tx ? { transaction: tx } : undefined);
+        } catch (snapshotError) {
+          console.warn(`[BALANCE SNAPSHOT] Failed to create buyer snapshot (delta path):`, snapshotError);
         }
 
         // Fast-path applied; return early
@@ -2072,7 +2118,17 @@ export class TransactionService {
     shopPaysFarmer?: { amount: number; method?: string } | null;
   }, requestingUser?: { role?: string; id?: number }): Promise<any> {
     const txn = await sequelize.transaction();
+    const { PaymentService } = await import('./paymentService');
     const paymentService = new PaymentService();
+    // Dynamically import createExpense function
+    let createExpense: any = null;
+    try {
+      const mod = await import('./expenseService');
+      createExpense = mod.createExpense;
+    } catch (e: any) {
+      // If createExpense is not found, throw a clear error
+      throw new Error('createExpense could not be imported: ' + (e && e.message ? e.message : e));
+    }
     try {
       // 1) create transaction within tx
   const transactionEntity = await this.createTransaction(params.transaction, requestingUser as any, { tx: txn });
@@ -2080,7 +2136,7 @@ export class TransactionService {
       // 2) create expense rows (if any)
       if (Array.isArray(params.expenses) && params.expenses.length) {
         for (const e of params.expenses) {
-          await expenseService.createExpense({
+          await createExpense({
             shop_id: params.transaction.shop_id,
             user_id: String(params.transaction.farmer_id),
             transaction_id: (transactionEntity as any).id,
