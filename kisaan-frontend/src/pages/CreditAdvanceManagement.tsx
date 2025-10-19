@@ -62,7 +62,7 @@ const CreditAdvanceManagement: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await creditAdvanceApi.getAll();
+      const res = await creditAdvanceApi.getAll(shopId);
       setCredits(Array.isArray(res) ? (res as CreditAdvance[]) : []);
     } catch {
       setError('Failed to fetch credits');
@@ -128,7 +128,7 @@ const CreditAdvanceManagement: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold mb-4">Credit Advance Management</h1>
+  <h1 className="text-3xl font-bold mb-4">Advance Management</h1>
       <Card>
         <CardHeader>
           <CardTitle style={{whiteSpace: 'nowrap'}}>Select User</CardTitle>
@@ -150,7 +150,7 @@ const CreditAdvanceManagement: React.FC = () => {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Issue Credit Advance</CardTitle>
+          <CardTitle>Issue Advance</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-2">
@@ -167,7 +167,7 @@ const CreditAdvanceManagement: React.FC = () => {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Repay Credit Advance</CardTitle>
+          <CardTitle>Repay Advance</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-2">
@@ -192,7 +192,7 @@ const CreditAdvanceManagement: React.FC = () => {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Credit Advances for Selected User</CardTitle>
+          <CardTitle>Advances for Selected User</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? <div>Loading...</div> : (

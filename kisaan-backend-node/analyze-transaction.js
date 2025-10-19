@@ -11,8 +11,8 @@ let headers;
 
 async function login() {
   console.log('🔐 LOGGING IN...');
-  const username = process.env.TEST_USER || 'REDACTED_USER';
-  const password = process.env.TEST_PASSWORD || 'REDACTED_PASSWORD';
+  const username = process.env.DB_TEST_USER || 'REDACTED_USER';
+  const password = process.env.DB_TEST_PASSWORD || 'REDACTED_PASSWORD';
   const login = await axios.post('http://localhost:8000/api/auth/login', {
     username,
     password

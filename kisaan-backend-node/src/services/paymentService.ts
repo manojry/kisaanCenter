@@ -15,8 +15,16 @@ import { TransactionLedger } from '../models/transactionLedger';
 import { TransactionService } from './transactionService';
 import sequelize from '../config/database';
 
+// Result shape returned by balance update operations
+// appliedToExpenses: amount consumed by expense settlements
+// appliedToBalance: amount applied to user's stored balance
+// fifoResult: optional detailed FIFO settlement object returned by settlement service
+export type BalanceResult = { appliedToExpenses: number; appliedToBalance: number; fifoResult?: unknown };
+
 export class PaymentService {
   private readonly paymentRepository: PaymentRepository;
+
+  
 
   constructor() {
     this.paymentRepository = new PaymentRepository();
@@ -134,6 +142,14 @@ export class PaymentService {
     }
     logger.info({ payment: payment.toJSON() }, 'Created payment');
 
+    // Allocate payment to outstanding transactions (direct allocations or FIFO)
+    // Do this immediately so subsequent balance recalculation sees the allocation records.
+    try {
+      await this.allocatePaymentToTransactions(payment);
+    } catch (allocErr) {
+      console.warn('[ALLOCATE] Error allocating payment immediately after creation', { paymentId: payment.id, err: (allocErr as Error).message || allocErr });
+    }
+
     // Post-insert consistency check for NULL payment_date/counterparty_id        
     if (!payment.payment_date || !payment.counterparty_id) {
       logger.error({ payment: payment.toJSON() }, 'Payment created with NULL payment_date or counterparty_id');
@@ -142,7 +158,7 @@ export class PaymentService {
     // IMPORTANT: Skip balance updates for payments that are part of transaction creation
     // The transaction service's updateUserBalances already accounts for these payments
     // Only update balances for standalone settlement payments (no transaction_id)
-    let balanceResult;
+  let balanceResult: BalanceResult | undefined;
     if (!payment.transaction_id) {
       // This is a standalone settlement payment - update balances
       // We must compute the actual balance delta AFTER recalculation so the ledger reflects the true change
@@ -197,23 +213,8 @@ export class PaymentService {
       // The transaction's updateUserBalances method will handle this
       logger.info({ paymentId: payment.id, transactionId: payment.transaction_id }, 'Skipping balance update for transaction payment - handled by transaction service');
       balanceResult = { appliedToExpenses: 0, appliedToBalance: 0 };
-    }    // Always allocate payment to its transaction
-    if (payment.transaction_id) {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  // const { PaymentAllocation } = require('../models/paymentAllocation');
-  // Use import for PaymentAllocation
-  // import { PaymentAllocation } from '../models/paymentAllocation';
-  const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
-      await PaymentAllocation.create({
-        payment_id: payment.id,
-        transaction_id: payment.transaction_id,
-        allocated_amount: payment.amount
-      });
-      console.log('[PAYMENT] Allocated payment to transaction', { paymentId: payment.id, transactionId: payment.transaction_id, amount: payment.amount });
     }
-
-    // Allocate payment to outstanding transactions for commission tracking
-    await this.allocatePaymentToTransactions(payment);
+    // (Allocation now handled earlier immediately after payment creation)
 
     // Create audit log
     let shop_id: number | null = null;
@@ -249,7 +250,7 @@ export class PaymentService {
     };
   }
 
-  private async updateUserBalancesAfterPayment(payment: Payment, options?: { tx?: import('sequelize').Transaction }): Promise<{ appliedToExpenses: number; appliedToBalance: number; fifoResult?: unknown } | void> {
+  private async updateUserBalancesAfterPayment(payment: Payment, options?: { tx?: import('sequelize').Transaction }): Promise<BalanceResult | undefined> {
     let userIdToUpdate: number | null = null;
     let userRole: string | null = null;
     let appliedToExpenses = 0;
@@ -624,7 +625,41 @@ export class PaymentService {
             const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
             if (outstandingAmount > 0) {
               const allocationAmount = Math.min(paymentAmount, outstandingAmount);
-              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+                const alloc = await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+                // Realize owner's commission proportionally for this allocation
+                try {
+                  const txn = targetTx; // Transaction model instance
+                  const txnTotal = Number(txn.total_amount || 0);
+                  const txnCommission = Number(txn.commission_amount || 0);
+                  if (txnTotal > 0 && txnCommission > 0 && payment.shop_id) {
+                    const commissionShare = Number((allocationAmount * (txnCommission / txnTotal)).toFixed(2));
+                    if (commissionShare > 0) {
+                      // Find shop owner and increment their cumulative_value atomically
+                      const Shop = (await import('../models/shop')).Shop;
+                      const shop = await Shop.findByPk(Number(payment.shop_id));
+                      if (shop && shop.owner_id) {
+                        const ownerId = Number(shop.owner_id);
+                        try {
+                          // Use sequelize increment for atomic update
+                          await User.increment({ cumulative_value: commissionShare }, { where: { id: ownerId } });
+                          // Optionally create an audit log entry (reuse existing action enum)
+                          await AuditLog.create({
+                            shop_id: Number(payment.shop_id) || 1,
+                            user_id: 1,
+                            action: 'payment_recorded',
+                            entity_type: 'transaction',
+                            entity_id: txn.id,
+                            new_values: JSON.stringify({ allocated_amount: allocationAmount, commission_realized: commissionShare }),
+                          });
+                        } catch (incErr) {
+                          console.warn('[COMMISSION] Failed to increment owner cumulative_value', { ownerId, commissionShare, err: (incErr as Error).message || incErr });
+                        }
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn('[COMMISSION] Error computing commission share for allocation', { paymentId: payment.id, transactionId: targetTx.id, err: (err as Error).message || err });
+                }
               console.log('[ALLOCATE] Direct allocation via payment.transaction_id', { paymentId: payment.id, transactionId: targetTx.id, allocationAmount });
             } else {
               console.log('[ALLOCATE] Target transaction already fully allocated', { transactionId: targetTx.id, alreadyPaid, transactionTotal });
