@@ -9,9 +9,13 @@ interface Props {
   commissionRate: number; // decimal (0.10)
   onCommissionRateChange: (rateDecimal: number) => void;
   formatCurrency: (n: number) => string;
+  expenseAmount?: number;
+  expenseDescription?: string;
 }
 
-export const TransactionSummary: React.FC<Props> = ({ total_sale_value, shop_commission, farmer_earning, commissionRate, onCommissionRateChange, formatCurrency }) => {
+export const TransactionSummary: React.FC<Props> = ({ total_sale_value, shop_commission, farmer_earning, commissionRate, onCommissionRateChange, formatCurrency, expenseAmount = 0, expenseDescription }) => {
+  const netFarmerEarning = farmer_earning - expenseAmount;
+  
   return (
     <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
       <h4 className="font-medium text-gray-900">Transaction Summary</h4>
@@ -25,10 +29,27 @@ export const TransactionSummary: React.FC<Props> = ({ total_sale_value, shop_com
           <p className="font-semibold text-lg text-green-600">{formatCurrency(shop_commission)}</p>
         </div>
         <div>
-          <p className="text-gray-600">Farmer Earning</p>
+          <p className="text-gray-600">Farmer Earning (before expense)</p>
           <p className="font-semibold text-lg text-blue-600">{formatCurrency(farmer_earning)}</p>
         </div>
       </div>
+      
+      {expenseAmount > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 text-sm mt-2 pt-2 border-t border-gray-200">
+          <div>
+            <p className="text-gray-600">Expense Deduction</p>
+            <p className="font-semibold text-lg text-red-600">-{formatCurrency(expenseAmount)}</p>
+            {expenseDescription && (
+              <p className="text-xs text-gray-500 italic">{expenseDescription}</p>
+            )}
+          </div>
+          <div>
+            <p className="text-gray-600">Net Farmer Payment</p>
+            <p className="font-semibold text-lg text-blue-700">{formatCurrency(netFarmerEarning)}</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mt-2">
         <Label htmlFor="commissionRate">Shop Commission Rate (%)</Label>
         <Input

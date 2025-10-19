@@ -19,11 +19,11 @@ export interface BuildTransactionInput {
     farmer_earning: number;
   };
   payments: Array<{
-    payer_type: 'BUYER' | 'SHOP';
-    payee_type: 'SHOP' | 'FARMER';
+    payer_type: 'buyer' | 'shop';
+    payee_type: 'shop' | 'farmer';
     amount: number;
     status: 'PAID' | 'PENDING';
-    method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+    method: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
     payment_date: string;
   }>;
 }

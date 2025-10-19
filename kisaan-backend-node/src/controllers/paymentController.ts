@@ -5,6 +5,7 @@ import { success, created, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { z } from 'zod';
 import { CreatePaymentSchema, UpdatePaymentStatusSchema } from '../schemas/payment';
+import { PARTY_TYPE } from '../shared/partyTypes';
 
 // Schemas for route params & query validation (kept local to controller)
 const IdParamSchema = z.object({ id: z.string().regex(/^[0-9]+$/).transform(Number) });
@@ -35,15 +36,22 @@ export class PaymentController {
     try {
       const { farmerId } = FarmerIdParamSchema.parse(req.params);
       const { startDate, endDate } = DateRangeQuerySchema.parse(req.query);
-  const options: Record<string, unknown> = {};
+      
+      // Get farmer's shop_id for expense filtering
+      const { User } = await import('../models');
+      const farmer = await User.findByPk(farmerId);
+      
+      const options: Record<string, unknown> = {};
       if (startDate && endDate) {
         options.startDate = new Date(startDate);
         options.endDate = new Date(endDate);
       }
+      if (farmer?.shop_id) {
+        options.shopId = farmer.shop_id;
+      }
+      
       const result = await this.paymentService.getPaymentsToFarmer(farmerId, options);
-      success(res, result);
-
-  } catch (error) {
+      success(res, result);  } catch (error) {
       if (error instanceof z.ZodError) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
@@ -77,7 +85,8 @@ export class PaymentController {
   async createPayment(req: Request, res: Response) {
     try {
   (req as { log?: { info: (obj: unknown, msg: string) => void } }).log?.info({ body: req.body }, 'createPayment request');
-  const userId = (req as { user?: { id?: number } }).user?.id || 1; // Default to superadmin for testing
+  const reqUser = (req as { user?: { id?: number; role?: string; shop_id?: number } }).user;
+  const userId = reqUser?.id || 1; // Default to superadmin for testing
       // Body should already be validated by route middleware, but parse again for defense-in-depth
       let paymentData: CreatePaymentDTO;
       try {
@@ -88,6 +97,19 @@ export class PaymentController {
         }
         throw err;
       }
+      // Authorization: if a shop is paying a farmer, ensure requester is the shop owner or superadmin
+      if (paymentData.payer_type === PARTY_TYPE.SHOP && paymentData.payee_type === PARTY_TYPE.FARMER) {
+        // Resolve shop_id from body or transaction if available in service later; here, if shop_id in body check ownership
+        const shopId = (paymentData as any).shop_id || (reqUser ? reqUser.shop_id : undefined);
+        if (reqUser?.role === 'owner') {
+          if (!shopId || Number(shopId) !== Number(reqUser.shop_id) && reqUser.shop_id !== undefined) {
+            // If owner role but shopId doesn't match their shop, reject
+            return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Only the shop owner can make payments on behalf of the shop');
+          }
+        }
+        // If role is buyer/staff, they'll be rejected in deeper business logic; superadmin allowed
+      }
+
       const payment = await this.paymentService.createPayment(paymentData, userId);
       created(res, payment, { message: 'Payment recorded successfully' });
     } catch (error) {

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { CreditController } from '../controllers/creditController';
+// ...existing code...
 
 const router = Router();
-const controller = new CreditController();
+// ...existing code...
 
-router.post('/', (req,res) => controller.apply(req,res));
-router.get('/:userId', (req,res) => controller.list(req,res));
+// Credit routes removed: credits are now tracked as expenses/advances
 
 export const creditRoutes = router;

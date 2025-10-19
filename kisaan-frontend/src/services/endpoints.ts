@@ -60,7 +60,9 @@ export const TRANSACTION_ENDPOINTS = {
   SHOP_EARNINGS: (shopId: Id) => `/transactions/shop/${shopId}/earnings`,
   FARMER_EARNINGS: (farmerId: Id) => `/transactions/farmer/${farmerId}/earnings`,
   BUYER_PURCHASES: (buyerId: Id) => `/transactions/buyer/${buyerId}/purchases`,
-  QUICK: '/transactions/quick'
+  QUICK: '/transactions/quick',
+  SETTLEMENT: (id: Id) => `/transactions/${id}/settlement`,
+  OFFSET_EXPENSE: (id: Id) => `/transactions/${id}/offset-expense`
 } as const;
 
 export const PAYMENT_ENDPOINTS = {
@@ -112,9 +114,10 @@ export const FARMER_PRODUCT_ENDPOINTS = {
 } as const;
 
 export const EXPENSE_ENDPOINTS = {
-  BASE: '/settlements',
-  BY_ID: (id: Id) => `/settlements/${id}`,
-  BY_USER: (userId: Id) => `/settlements?settlementUser_id=${userId}`
+  BASE: '/expenses',
+  BY_ID: (id: Id) => `/expenses/${id}`,
+  BY_USER: (userId: Id) => `/expenses?user_id=${userId}`,
+  ALLOCATION: (id: Id) => `/expenses/${id}/allocation`
 } as const;
 
 export const DASHBOARD_ENDPOINTS = {

@@ -1,18 +1,19 @@
 // COMPREHENSIVE STEP-BY-STEP TRANSACTION FLOW TEST
 // This will create a real scenario and trace through every step
 
+require('dotenv').config();
 const axios = require('axios');
 const { Pool } = require('pg');
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api';
 let authToken = null;
 
 // Database connection
 const pool = new Pool({
-  host: 'xxxxxxx',
-  database: 'kisaan_dev',
-  user: 'postgres',
-  password: 'yyyyyyy',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'kisaan_dev',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'password',
   port: 5432,
   ssl: { rejectUnauthorized: false }
 });
@@ -63,14 +64,14 @@ async function checkUserBalance(userId, role) {
 
 async function checkTransactions() {
   const result = await queryDatabase(`
-    SELECT id, shop_id, farmer_id, buyer_id, total_sale_value, shop_commission, farmer_earning 
+    SELECT id, shop_id, farmer_id, buyer_id, total_amount, commission_amount, farmer_earning 
     FROM kisaan_transactions 
     ORDER BY created_at DESC 
     LIMIT 5
   `);
   console.log('  Recent Transactions:');
   result.forEach(tx => {
-    console.log(`    TX ${tx.id}: Sale=${tx.total_sale_value}, Commission=${tx.shop_commission}, FarmerEarning=${tx.farmer_earning}`);
+    console.log(`    TX ${tx.id}: Sale=${tx.total_amount}, Commission=${tx.commission_amount}, FarmerEarning=${tx.farmer_earning}`);
   });
   return result;
 }

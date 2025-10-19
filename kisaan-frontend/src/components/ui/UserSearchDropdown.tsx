@@ -9,9 +9,11 @@ import { getUserDisplayWithRoleAndId } from '../../utils/userDisplayName';
 interface UserSearchDropdownProps {
   onSelect: (user: User) => void;
   placeholder?: string;
+  // Optional role filter to limit results (e.g., 'buyer' or 'farmer')
+  roleFilter?: 'farmer' | 'buyer' | 'all';
 }
 
-export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect, placeholder }) => {
+export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect, placeholder, roleFilter = 'all' }) => {
   const { allUsers, isLoading } = useUsers();
   const [query, setQuery] = useState('');
   const [show, setShow] = useState(false);
@@ -23,14 +25,19 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
   if (allUsers.length === 0) {
     filtered = [];
   } else {
-    filtered = allUsers.filter(
-      u =>
-        (u.firstname && u.firstname.toLowerCase().includes(query.toLowerCase())) ||
-        (u.username && u.username.toLowerCase().includes(query.toLowerCase())) ||
-        (u.contact && u.contact.includes(query))
-    );
+    // apply role filter if provided
+    const roleFiltered = roleFilter === 'all' ? allUsers : allUsers.filter(u => u.role === roleFilter);
+    if (query.length === 0) {
+      filtered = roleFiltered.slice(0, 10); // Show first 10 users when no query
+    } else {
+      filtered = roleFiltered.filter(
+        u =>
+          (u.firstname && u.firstname.toLowerCase().includes(query.toLowerCase())) ||
+          (u.username && u.username.toLowerCase().includes(query.toLowerCase())) ||  
+          (u.contact && u.contact.includes(query))
+      );
+    }
   }
-
   useEffect(() => {
     if (!show || filtered.length === 0) return;
     setActiveIndex(0);
@@ -98,7 +105,7 @@ export const UserSearchDropdown: React.FC<UserSearchDropdownProps> = ({ onSelect
       {isLoading && (
         <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow p-2 text-gray-500 text-sm">Loading users...</div>
       )}
-      {show && query.length >= 2 && (
+      {show && (query.length >= 2 || (!selectedUser && allUsers.length > 0)) && (
         <div ref={listRef} className="absolute z-10 bg-white border w-full mt-1 rounded shadow max-h-60 overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="p-2 text-gray-500">No users found</div>

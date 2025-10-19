@@ -1,9 +1,10 @@
-import { Payment } from '../models/payment';
+import { Payment, PaymentStatus } from '../models/payment';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
 import { logger } from '../shared/logging/logger';
 import { PaymentAllocation } from '../models/paymentAllocation';
+import { PARTY_TYPE } from '../shared/partyTypes';
 
 export class OwnerDashboardService {
   // Returns dashboard stats for the owner (by ownerId)
@@ -87,13 +88,13 @@ export class OwnerDashboardService {
         const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
         
         // Buyer payments (what buyers actually paid)
-        const buyerPayments = transactionPayments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
-        const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const buyerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+        const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((sum, p) => sum + Number(p.amount || 0), 0);
         buyer_total_spent += buyerPaid;
         
         // Farmer payments (what farmers actually received)
-        const farmerPayments = transactionPayments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
-        const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const farmerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+        const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((sum, p) => sum + Number(p.amount || 0), 0);
         farmer_total_earned += farmerPaid;
       }
       
@@ -200,15 +201,15 @@ export class OwnerDashboardService {
         // Calculate buyer_payments_due: sum of (total_amount - paid) for all transactions
         buyer_payments_due: Number(transactions.reduce((sum, t) => {
           const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
-          const buyerPayments = transactionPayments.filter(p => p.payer_type === 'BUYER' && p.payee_type === 'SHOP');
-          const buyerPaid = buyerPayments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount || 0), 0);
+          const buyerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+          const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((s, p) => s + Number(p.amount || 0), 0);
           const totalAmount = Number((t as Transaction).total_amount || 0);
           return sum + Math.max(totalAmount - buyerPaid, 0);
         }, 0).toFixed(2)),
         farmer_payments_due: Number(transactions.reduce((sum, t) => {
           const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
-          const farmerPayments = transactionPayments.filter(p => p.payer_type === 'SHOP' && p.payee_type === 'FARMER');
-          const farmerPaid = farmerPayments.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount || 0), 0);
+          const farmerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+          const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((s, p) => s + Number(p.amount || 0), 0);
           const farmerEarning = Number((t as Transaction).farmer_earning || 0);
           return sum + Math.max(farmerEarning - farmerPaid, 0);
         }, 0).toFixed(2)),

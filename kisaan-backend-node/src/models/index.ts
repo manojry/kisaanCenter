@@ -7,7 +7,6 @@ import { Product } from './product';
 import { ShopCategory } from './shopCategory';
 import { Transaction } from './transaction';
 import { Payment } from './payment';
-import { CreditAdvance } from './creditAdvance';
 import { ShopProducts } from './shopProducts';
 import { Settlement } from './settlement';
 import { Commission } from './commission';
@@ -18,6 +17,8 @@ import { PaymentAllocation } from './paymentAllocation';
 import { TransactionIdempotency } from './transactionIdempotency';
 import { TransactionLedger } from './transactionLedger';
 import { Feature, PlanFeature, UserFeatureOverride } from './feature';
+import Expense from './expense';
+import ExpenseSettlement from './expenseSettlement';
 
 
 // Initialize all models
@@ -31,7 +32,6 @@ const models = {
   Transaction,
   ShopProducts,
   Payment,
-  CreditAdvance,
   Settlement,
   Commission,
   AuditLog,
@@ -43,6 +43,8 @@ const models = {
   Feature,
   PlanFeature,
   UserFeatureOverride,
+  Expense,
+  ExpenseSettlement,
 };
 
 // Set up associations
@@ -132,10 +134,7 @@ Payment.hasMany(PaymentAllocation, { foreignKey: 'payment_id', as: 'allocations'
 Transaction.hasMany(PaymentAllocation, { foreignKey: 'transaction_id', as: 'paymentAllocations' });
 
 // Credit Advance associations
-CreditAdvance.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-CreditAdvance.belongsTo(Shop, { foreignKey: 'shop_id', as: 'creditShop' });
-User.hasMany(CreditAdvance, { foreignKey: 'user_id', as: 'creditAdvances' });
-Shop.hasMany(CreditAdvance, { foreignKey: 'shop_id', as: 'creditAdvances' });
+// ...existing code...
 
 // Settlement associations
 Settlement.belongsTo(Shop, { foreignKey: 'shop_id', as: 'settlementShop' });
@@ -183,6 +182,12 @@ User.hasMany(TransactionLedger, { foreignKey: 'user_id', as: 'ledgerEntries' });
 BalanceSnapshot.belongsTo(User, { foreignKey: 'user_id', as: 'snapshotUser' });
 User.hasMany(BalanceSnapshot, { foreignKey: 'user_id', as: 'balanceSnapshots' });
 
+// ExpenseSettlement associations
+ExpenseSettlement.belongsTo(Expense, { foreignKey: 'expense_id', as: 'expense' });
+ExpenseSettlement.belongsTo(Payment, { foreignKey: 'payment_id', as: 'payment' });
+Expense.hasMany(ExpenseSettlement, { foreignKey: 'expense_id', as: 'settlements' });
+Payment.hasMany(ExpenseSettlement, { foreignKey: 'payment_id', as: 'expenseSettlements' });
+
 // Export sequelize instance and all models
 export { 
   sequelize, 
@@ -194,7 +199,7 @@ export {
   ShopCategory, 
   Transaction, 
   Payment, 
-  CreditAdvance, 
+// ...existing code...
   ShopProducts, 
   Settlement, 
   Commission,

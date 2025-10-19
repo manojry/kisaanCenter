@@ -178,7 +178,7 @@ After running the complete setup, you should see:
 ## 🔍 Test Data Created
 
 ### Authentication
-- **Superadmin**: username=`superadmin`, password=`admin123`
+- **Superadmin**: username=`superadmin`, password=`<REDACTED>`
 
 ### Users (6 total)
 - **owner1**: Shop owner

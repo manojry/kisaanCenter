@@ -29,6 +29,12 @@ export interface TransactionAttributes {
   settlement_date?: Date | null;
   notes?: string | null;
   metadata?: object | null;
+  
+  // Settlement tracking fields (added by migration 20251019_05)
+  settled_amount?: number;
+  pending_amount?: number;
+  settlement_status?: 'UNSETTLED' | 'PARTIALLY_SETTLED' | 'FULLY_SETTLED';
+  
   created_at?: Date;
   updated_at?: Date;
 }
@@ -55,6 +61,12 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
   public settlement_date?: Date | null;
   public notes?: string | null;
   public metadata?: object | null;
+  
+  // Settlement tracking fields
+  public settled_amount?: number;
+  public pending_amount?: number;
+  public settlement_status?: 'UNSETTLED' | 'PARTIALLY_SETTLED' | 'FULLY_SETTLED';
+  
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   // Add hooks for audit fields if custom logic is needed
@@ -81,6 +93,17 @@ Transaction.init(
     settlement_date: { type: DataTypes.DATE, allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },
     metadata: { type: DataTypes.JSONB, allowNull: true },
+    
+    // Settlement tracking fields (added by migration 20251019_05)
+    settled_amount: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0, validate: { min: 0 } },
+    pending_amount: { type: DataTypes.DECIMAL(12,2), allowNull: true },
+    settlement_status: { 
+      type: DataTypes.STRING(50), 
+      allowNull: true, 
+      defaultValue: 'UNSETTLED',
+      validate: { isIn: [['UNSETTLED', 'PARTIALLY_SETTLED', 'FULLY_SETTLED']] }
+    },
+    
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },

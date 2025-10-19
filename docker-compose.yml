@@ -7,7 +7,8 @@ services:
     environment:
       POSTGRES_DB: kisaan_center
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      # Use an env file or CI secrets to set the DB password in production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -22,8 +23,9 @@ services:
       - DB_PORT=5432
       - DB_NAME=kisaan_center
       - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - JWT_SECRET=kisaan-jwt-secret-key-2024-development
+      # Do NOT hard-code DB_PASSWORD or JWT_SECRET in source. Use env or secret management.
+      - DB_PASSWORD=${DB_PASSWORD:-change_me}
+      - JWT_SECRET=${JWT_SECRET:-change_me}
     depends_on:
       - db
     volumes:

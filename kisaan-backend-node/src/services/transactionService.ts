@@ -1,4 +1,4 @@
-import { Payment } from '../models/payment';
+import { Payment, PaymentStatus as PaymentStatusEnum } from '../models/payment';
 import { sequelize } from '../models/index';
 /**
  * Transaction Service
@@ -8,6 +8,7 @@ import { sequelize } from '../models/index';
 
 import { TransactionRepository } from '../repositories/TransactionRepository';
 import { TransactionIdempotencyRepository } from '../repositories/TransactionIdempotencyRepository';
+import { PaymentPayerType, PaymentPayeeType, PaymentMethod, PaymentStatus } from '../constants/payment';
 import { UserRepository } from '../repositories/UserRepository';
 import { ShopRepository } from '../repositories/ShopRepository';
 import { TransactionEntity } from '../entities/TransactionEntity';
@@ -15,10 +16,13 @@ import { ProductRepository } from '../repositories/ProductRepository';
 import { FarmerProductAssignmentRepository } from '../repositories/FarmerProductAssignmentRepository';
 import { TransactionLedgerRepository } from '../repositories/TransactionLedgerRepository';
 import { UserEntity } from '../entities/UserEntity';
+import { Transaction } from '../models/transaction';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
 
 import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus, PAYMENT_STATUS } from '../shared/constants/index';
 import { PARTY_TYPE } from '../shared/partyTypes';
+import { expenseService } from './settlementService';
+import { PaymentService } from './paymentService';
 
 export class TransactionService {
   private readonly transactionRepository: TransactionRepository;
@@ -556,29 +560,36 @@ export class TransactionService {
             transaction_date: transactionEntity.transaction_date
           });
         createdTransaction = await this.transactionRepository.create(transactionEntity, { tx });
-        await this.updateUserBalances(farmer, buyer, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TRANSACTION_STATUS.PENDING, tx);
+        
+        // NOTE: updateUserBalances() is called AFTER payments are created to ensure
+        // PaymentAllocation records exist before calculating balances
+        
         // Ledger entries - ensure numeric conversion to prevent string concatenation
-        const buyerBalanceBefore = Number(buyer.balance || 0);
+        // Capture balances before any changes so ledger deltas are accurate
+        // Use distinct variable names to avoid temporal-dead-zone collisions
+        // with variables declared later in the outer scope.
+        const farmerBalanceBeforeLedger = Number(farmer.balance || 0);
+        const buyerBalanceBeforeLedger = Number(buyer.balance || 0);
         await this.ledgerRepository.create({
           transaction_id: (createdTransaction as { id: number }).id,
           user_id: farmer.id!,
           role: USER_ROLES.FARMER,
-          delta_amount: Number(recordFarmerEarning),
-          balance_before: Number(farmer.balance || 0),
-          balance_after: Number(farmer.balance || 0) + Number(recordFarmerEarning),
+          delta_amount: Number(farmer.balance || 0) - farmerBalanceBeforeLedger,
+          balance_before: farmerBalanceBeforeLedger,
+          balance_after: Number(farmer.balance || 0),
           reason_code: 'TXN_POST'
         }, { tx });
         await this.ledgerRepository.create({
           transaction_id: (createdTransaction as { id: number }).id,
           user_id: buyer.id!,
           role: USER_ROLES.BUYER,
-          delta_amount: Number(recordTotalAmount),
-          balance_before: buyerBalanceBefore,
-          balance_after: buyerBalanceBefore + Number(recordTotalAmount),
+          delta_amount: Number(buyer.balance || 0) - buyerBalanceBeforeLedger,
+          balance_before: buyerBalanceBeforeLedger,
+          balance_after: Number(buyer.balance || 0),
           reason_code: 'TXN_POST'
         }, { tx });
         if (options?.idempotencyKey) {
-          await this.idempotencyRepo.attachTransaction(options.idempotencyKey, (createdTransaction as { id: number }).id, { tx });
+          await this.idempotencyRepo.attachTransaction(options.idempotencyKey, (createdTransaction as { id: number }).id, {});
         }
       };
 
@@ -604,11 +615,11 @@ export class TransactionService {
       
       // Helper function to create payment - DRY
       interface CreatePaymentInput {
-        payer_type: 'BUYER' | 'SHOP';
-        payee_type: 'SHOP' | 'FARMER';
+        payer_type: PaymentPayerType;
+        payee_type: PaymentPayeeType;
         amount: number;
-        method: string;
-        status?: 'PENDING' | 'PAID' | 'FAILED';
+        method: PaymentMethod;
+        status?: PaymentStatus;
         notes?: string;
         payment_date?: string | Date;
         counterparty_id?: number;
@@ -621,8 +632,8 @@ export class TransactionService {
           payer_type: paymentData.payer_type,
           payee_type: paymentData.payee_type,
           amount: paymentData.amount,
-          method: paymentData.method as 'CASH' | 'BANK' | 'UPI' | 'OTHER',
-          status: (paymentData.status || 'PAID') as 'PENDING' | 'PAID' | 'FAILED',
+          method: paymentData.method,
+          status: (paymentData.status || 'PAID') as PaymentStatus,
           notes: paymentData.notes || '',
           // Forward optional fields for backdated/direct payments
           payment_date: paymentData.payment_date,
@@ -636,26 +647,37 @@ export class TransactionService {
         // Create payments from payload - ensure correct flow
         for (const rawPaymentData of data.payments) {
           const pd = rawPaymentData as unknown as Record<string, unknown>;
-          const payer_type = pd.payer_type as 'BUYER' | 'SHOP' | undefined;
-          const payee_type = pd.payee_type as 'SHOP' | 'FARMER' | undefined;
-          const method = pd.method as string | undefined;
+          const payer_type = (pd.payer_type as string | undefined)?.toUpperCase() as PaymentPayerType | undefined;
+          const payee_type = (pd.payee_type as string | undefined)?.toUpperCase() as PaymentPayeeType | undefined;
+          const method = (pd.method as string | undefined)?.toUpperCase() as string | undefined;
           const amountVal = pd.amount !== undefined ? Number(pd.amount) : NaN;
           if (!payer_type || !payee_type || !method || isNaN(amountVal)) {
-            throw new ValidationError('Missing or invalid payment fields: payer_type, payee_type, method or amount');
+            // Provide context pointing to the offending payment payload for easier debugging on client
+            throw new ValidationError('Missing or invalid payment fields: payer_type, payee_type, method or amount', {
+              index: createdPayments.length,
+              payment: pd
+            });
           }
           const notes = (pd.notes as string | undefined) ?? '';
           const payment_date = pd.payment_date as string | Date | undefined;
           const counterparty_id = pd.counterparty_id !== undefined ? Number(pd.counterparty_id) : undefined;
           const shop_id = pd.shop_id !== undefined ? Number(pd.shop_id) : undefined;
           const statusCandidate = String(pd.status ?? '').toUpperCase();
-          const allowedStatuses = ['PENDING','PAID','FAILED'] as const;
-          const normalizedStatus = (allowedStatuses as ReadonlyArray<string>).includes(statusCandidate) ? statusCandidate as 'PENDING' | 'PAID' | 'FAILED' : undefined;
+          const allowedStatuses = ['PENDING','PAID','FAILED','CANCELLED'] as const;
+          let normalizedStatus: PaymentStatus | undefined;
+          if (statusCandidate === 'PAID' || statusCandidate === 'COMPLETED') {
+            normalizedStatus = 'PAID';
+          } else if ((allowedStatuses as ReadonlyArray<string>).includes(statusCandidate)) {
+            normalizedStatus = statusCandidate as PaymentStatus;
+          } else {
+            normalizedStatus = undefined;
+          }
 
           await createPaymentRecord({
             payer_type,
             payee_type,
             amount: amountVal,
-            method,
+            method: method.toUpperCase() as PaymentMethod,
             status: normalizedStatus,
             notes,
             payment_date,
@@ -671,7 +693,8 @@ export class TransactionService {
           amount: recordTotalAmount,
           method: 'CASH',
           status: 'PAID',
-          notes: ''
+          notes: '',
+          payment_date: new Date()
         });
         
         await createPaymentRecord({
@@ -680,7 +703,8 @@ export class TransactionService {
           amount: recordFarmerEarning,
           method: 'CASH',
           status: 'PAID',
-          notes: ''
+          notes: '',
+          payment_date: new Date()
         });
       }
 
@@ -707,7 +731,25 @@ export class TransactionService {
         idem: options?.idempotencyKey || null
       });
       // Status update is handled by PaymentService.createPayment() calls above
-      // Refetch transaction to get latest status after payments
+
+      // Calculate net deltas after payments using the actual createdPayments
+      // (data.payments may be undefined for default/full-payment flows)
+      const farmerPaid = Array.isArray(createdPayments) ? (createdPayments as any[])
+        .filter(p => String(p.payee_type || '').toUpperCase() === 'FARMER')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
+      const buyerPaid = Array.isArray(createdPayments) ? (createdPayments as any[])
+        .filter(p => String(p.payer_type || '').toUpperCase() === 'BUYER')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
+      const netFarmerDelta = recordFarmerEarning - farmerPaid;
+      const netBuyerDelta = recordTotalAmount - buyerPaid;
+
+      const farmerBalanceBefore = Number(farmer.balance || 0);
+      const buyerBalanceBefore = Number(buyer.balance || 0);
+
+      // NOW update user balances AFTER all payments and allocations are created
+      // This ensures the balance calculation can find the PaymentAllocation records
+      // NOTE: Not in a transaction since payments are created outside the DB transaction
+      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TRANSACTION_STATUS.PENDING, undefined);      // Refetch transaction to get latest status after payments
       createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
       // Attach payments to transaction response
       if (createdTransaction) {
@@ -722,6 +764,7 @@ export class TransactionService {
       console.error('[transaction:create:raw-error]', error);
       throw new DatabaseError('Failed to create transaction', error instanceof Error ? { message: error.message, stack: (error as Error).stack } : undefined);
     }
+
   }
 
   /**
@@ -935,8 +978,11 @@ export class TransactionService {
         payments = attachedPayments;
       }
 
-      // Helper to normalize values for robust comparisons (handles model instances and plain objects)
-      const norm = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
+  // Helpers to normalize values for robust comparisons (handles model instances and plain objects)
+  // Use lower-case normalization for party types (they are stored as lower-case strings)
+  // Use upper-case normalization for statuses (some status constants are upper-case)
+  const normUpper = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
+  const normLower = (v: unknown) => (v == null ? '' : String(v).toLowerCase());
       // Comprehensive transaction validation
       const totalAmount = Number(transaction.total_amount || 0);
       const farmerEarning = Number(transaction.farmer_earning || 0);
@@ -973,25 +1019,25 @@ export class TransactionService {
       }
 
       // Analyze payments
-      const buyerPayments = payments.filter(p => norm(p?.payer_type) === PARTY_TYPE.BUYER && norm(p?.payee_type) === PARTY_TYPE.SHOP);
-      const farmerPayments = payments.filter(p => norm(p?.payer_type) === PARTY_TYPE.SHOP && norm(p?.payee_type) === PARTY_TYPE.FARMER);
-      
+      const buyerPayments = payments.filter(p => p?.payer_type === PARTY_TYPE.BUYER && p?.payee_type === PARTY_TYPE.SHOP);
+      const farmerPayments = payments.filter(p => p?.payer_type === PARTY_TYPE.SHOP && p?.payee_type === PARTY_TYPE.FARMER);
+
       // Calculate actual paid amounts (only PAID status counts)
       const buyerPaidAmount = buyerPayments
-        .filter(p => norm(p?.status) === PAYMENT_STATUS.PAID)
+        .filter(p => normUpper(p?.status) === String(PAYMENT_STATUS.PAID))
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      
+
       const farmerPaidAmount = farmerPayments
-        .filter(p => norm(p?.status) === PAYMENT_STATUS.PAID)
+        .filter(p => normUpper(p?.status) === String(PAYMENT_STATUS.PAID))
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
       // Calculate pending amounts
       const buyerPendingAmount = buyerPayments
-        .filter(p => norm(p?.status) === PAYMENT_STATUS.PENDING)
+        .filter(p => normUpper(p?.status) === String(PAYMENT_STATUS.PENDING))
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      
+
       const farmerPendingAmount = farmerPayments
-        .filter(p => norm(p?.status) === PAYMENT_STATUS.PENDING)
+        .filter(p => normUpper(p?.status) === String(PAYMENT_STATUS.PENDING))
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
       // Determine payment status with tolerance for floating point precision
@@ -1042,8 +1088,8 @@ export class TransactionService {
         newStatus = TRANSACTION_STATUS.SETTLED;
       } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid || 
                  (buyerPendingAmount > tolerance) || (farmerPendingAmount > tolerance)) {
-        // Some payments made or pending - use SETTLED for intermediate state
-        newStatus = TRANSACTION_STATUS.SETTLED;
+        // Some payments made or pending - transaction is still pending completion
+        newStatus = TRANSACTION_STATUS.PENDING;
       } else {
         // No significant payments made
         newStatus = TRANSACTION_STATUS.PENDING;
@@ -1142,17 +1188,17 @@ export class TransactionService {
     const expectedCommission = totalAmount - farmerEarning;
     const tolerance = 0.01;
 
-    // Analyze buyer payments
-    const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
-    const buyerPaid = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount), 0);
-    const buyerPending = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PENDING).reduce((sum, p) => sum + Number(p.amount), 0);
-    const buyerFailed = buyerPayments.filter(p => p.status === PAYMENT_STATUS.FAILED).reduce((sum, p) => sum + Number(p.amount), 0);
+  // Analyze buyer payments (normalize party/status values)
+  const buyerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
+  const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatusEnum.Paid).reduce((sum, p) => sum + Number(p.amount), 0);
+  const buyerPending = buyerPayments.filter(p => p.status === PaymentStatusEnum.Pending).reduce((sum, p) => sum + Number(p.amount), 0);
+  const buyerFailed = buyerPayments.filter(p => p.status === PaymentStatusEnum.Failed).reduce((sum, p) => sum + Number(p.amount), 0);
 
-    // Analyze farmer payments
-    const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
-    const farmerPaid = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount), 0);
-    const farmerPending = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PENDING).reduce((sum, p) => sum + Number(p.amount), 0);
-    const farmerFailed = farmerPayments.filter(p => p.status === PAYMENT_STATUS.FAILED).reduce((sum, p) => sum + Number(p.amount), 0);
+  // Analyze farmer payments
+  const farmerPayments = payments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
+  const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatusEnum.Paid).reduce((sum, p) => sum + Number(p.amount), 0);
+  const farmerPending = farmerPayments.filter(p => p.status === PaymentStatusEnum.Pending).reduce((sum, p) => sum + Number(p.amount), 0);
+  const farmerFailed = farmerPayments.filter(p => p.status === PaymentStatusEnum.Failed).reduce((sum, p) => sum + Number(p.amount), 0);
 
     // Payment status analysis
     const isBuyerFullyPaid = Math.abs(totalAmount - buyerPaid) < tolerance;
@@ -1517,61 +1563,246 @@ export class TransactionService {
   private async updateUserBalances(
     farmer: UserEntity,
     buyer: UserEntity,
-    farmerEarning: number,
-    totalAmount: number,
+    farmerDelta: number,
+    buyerDelta: number,
+    farmerGross: number,
+    buyerGross: number,
     transactionStatus: string,
     tx?: import('sequelize').Transaction
   ): Promise<void> {
     try {
       // Ensure numeric conversion to prevent string concatenation issues
-  const _currentFarmerBalance = Number(farmer.balance || 0);
+      const _currentFarmerBalance = Number(farmer.balance || 0);
       const currentBuyerBalance = Number(buyer.balance || 0);
       const currentFarmerCumulative = Number(farmer.cumulative_value || 0);
       const currentBuyerCumulative = Number(buyer.cumulative_value || 0);
 
+      // Fast-path: when explicit deltas are provided (transaction creation path),
+      // apply them directly to avoid a full recomputation across all transactions.
+      // This prevents double-counting and keeps the balance change atomic with the
+      // transaction flow (payments are created separately and allocations recorded).
+      const deltaProvided = typeof farmerDelta === 'number' || typeof buyerDelta === 'number';
+      if (deltaProvided) {
+        const newFarmerCumulative = currentFarmerCumulative + Number(farmerGross);
+        const newBuyerCumulative = currentBuyerCumulative + Number(buyerGross);
+
+        const updatedFarmer = new UserEntity({
+          ...farmer,
+          balance: Math.round(((_currentFarmerBalance) + (Number(farmerDelta) || 0)) * 100) / 100,
+          cumulative_value: Math.round(newFarmerCumulative * 100) / 100
+        });
+        await this.userRepository.update(farmer.id!, updatedFarmer, tx ? { tx } : undefined);
+
+        // Create snapshot if farmer balance changed
+        const farmerBalanceChange = (updatedFarmer.balance ?? 0) - _currentFarmerBalance;
+        if (farmerBalanceChange !== 0 && updatedFarmer.balance !== undefined) {
+          try {
+            const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+            await BalanceSnapshot.create({
+              user_id: farmer.id!,
+              balance_type: 'farmer',
+              previous_balance: _currentFarmerBalance,
+              amount_change: farmerBalanceChange,
+              new_balance: updatedFarmer.balance,
+              transaction_type: 'transaction',
+              reference_type: 'transaction',
+              description: `Transaction balance update (delta path): farmer earning ${farmerGross}`
+            }, tx ? { transaction: tx } : undefined);
+          } catch (snapshotError) {
+            console.warn(`[BALANCE SNAPSHOT] Failed to create farmer snapshot (delta path):`, snapshotError);
+          }
+        }
+
+        const updatedBuyer = new UserEntity({
+          ...buyer,
+          balance: Math.round((currentBuyerBalance + (Number(buyerDelta) || 0)) * 100) / 100,
+          cumulative_value: Math.round(newBuyerCumulative * 100) / 100
+        });
+        await this.userRepository.update(buyer.id!, updatedBuyer, tx ? { tx } : undefined);
+
+        // Create snapshot for buyer
+        const buyerBalanceChange = (updatedBuyer.balance ?? 0) - currentBuyerBalance;
+        if (buyerBalanceChange !== 0 && updatedBuyer.balance !== undefined) {
+          try {
+            const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+            await BalanceSnapshot.create({
+              user_id: buyer.id!,
+              balance_type: 'buyer',
+              previous_balance: currentBuyerBalance,
+              amount_change: buyerBalanceChange,
+              new_balance: updatedBuyer.balance,
+              transaction_type: 'transaction',
+              reference_type: 'transaction',
+              description: `Transaction balance update (delta path): buyer total ${buyerGross}`
+            }, tx ? { transaction: tx } : undefined);
+          } catch (snapshotError) {
+            console.warn(`[BALANCE SNAPSHOT] Failed to create buyer snapshot (delta path):`, snapshotError);
+          }
+        }
+
+        // Fast-path applied; return early
+        return;
+      }
+
       // Always increment cumulative_value for total earned/spent
-      const newFarmerCumulative = currentFarmerCumulative + Number(farmerEarning);
-      const newBuyerCumulative = currentBuyerCumulative + Number(totalAmount);
+      const newFarmerCumulative = currentFarmerCumulative + Number(farmerGross);
+      const newBuyerCumulative = currentBuyerCumulative + Number(buyerGross);
 
       // Calculate new farmer balance: sum of unpaid earnings for all their transactions
-      const allFarmerTxns = await this.transactionRepository.findByFarmer(farmer.id!);
-  const { Op } = await import('sequelize');
+      // IMPORTANT: This calculation includes ALL payments (both transaction payments and settlement payments)
+      // via PaymentAllocation records. The PaymentService skips balance updates for transaction payments
+      // to avoid double-counting.
+      const allFarmerTxns = await Transaction.findAll({ where: { farmer_id: farmer.id }, transaction: tx });
+      const { Op } = await import('sequelize');
   const txnIds = allFarmerTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
-  const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: { [Op.in]: txnIds } } });
-  const payments = await (await import('../models/payment')).Payment.findAll({ where: { transaction_id: { [Op.in]: txnIds } } });
+      const allocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: { [Op.in]: txnIds } }, transaction: tx });
+      // CRITICAL FIX: Get ALL payments to farmer (both transaction-linked AND standalone settlement payments)
+      // Previous bug: only got payments with transaction_id, missing standalone payments
+      const PaymentModel = (await import('../models/payment')).Payment;
+      const payments = await PaymentModel.findAll({
+        where: {
+          payee_type: PARTY_TYPE.FARMER,
+          counterparty_id: farmer.id,
+          status: PaymentStatusEnum.Paid
+        },
+        transaction: tx
+      });
       const newFarmerBalance = allFarmerTxns.reduce((sum, t) => {
         const paidToFarmer = allocations
           .filter(a => a.transaction_id === t.id)
           .map(a => {
             const payment = payments.find(p => p.id === a.payment_id);
-  if (payment && payment.payee_type === PARTY_TYPE.FARMER && payment.status === PAYMENT_STATUS.PAID) {
+            if (payment && payment.payee_type === PARTY_TYPE.FARMER && payment.status === PaymentStatusEnum.Paid) {
+              console.log(`[BALANCE_CALC] Transaction ${t.id}: Found payment ${payment.id}, allocated ₹${a.allocated_amount}`);
               return Number(a.allocated_amount || 0);
+            }
+            if (payment) {
+              console.log(`[BALANCE_CALC] Transaction ${t.id}: Payment ${payment.id} SKIPPED - payee_type=${payment.payee_type}, status=${payment.status}`);
             }
             return 0;
           })
           .reduce((s, v) => s + v, 0);
         const unpaid = Math.max(Number(t.farmer_earning || 0) - paidToFarmer, 0);
+        console.log(`[BALANCE_CALC] Transaction ${t.id}: earning=₹${t.farmer_earning}, paid=₹${paidToFarmer}, unpaid=₹${unpaid}`);
         return sum + unpaid;
-      }, 0);
-
-      // Round to 2 decimal places to prevent floating point precision issues
-      const updatedFarmer = new UserEntity({ 
-        ...farmer, 
-        balance: Math.round(newFarmerBalance * 100) / 100,
+      }, 0);      // Round to 2 decimal places to prevent floating point precision issues
+      // Subtract UNSETTLED expenses from farmer balance
+      // Expenses represent money farmer owes to shop (advances, reimbursements, etc.)
+      const ExpenseSettlement = (await import('../models/expenseSettlement')).default;
+      const Expense = (await import('../models/expense')).default;
+      
+      // Get all expenses for this farmer
+      const farmerExpenses = await Expense.findAll({
+        where: {
+          user_id: farmer.id!,
+          shop_id: farmer.shop_id!
+        }
+      });
+      
+      // For each expense, calculate unsettled amount
+      let totalUnsettledExpenses = 0;
+      for (const expense of farmerExpenses) {
+        const expenseAmount = Number(expense.amount || 0);
+        
+        // Get sum of settled amounts for this expense
+        const settlements = await ExpenseSettlement.findAll({
+          where: { expense_id: expense.id }
+        });
+        const settledAmount = settlements.reduce((sum: number, s: any) => 
+          sum + Number(s.amount || 0), 0);
+        
+        // Unsettled portion = expense amount - settled amount
+        const unsettled = Math.max(0, expenseAmount - settledAmount);
+        totalUnsettledExpenses += unsettled;
+      }
+      
+      const adjustedFarmerBalance = newFarmerBalance - totalUnsettledExpenses;      const updatedFarmer = new UserEntity({
+        ...farmer,
+        balance: Math.round(adjustedFarmerBalance * 100) / 100,
         cumulative_value: Math.round(newFarmerCumulative * 100) / 100
       });
       await this.userRepository.update(farmer.id!, updatedFarmer, tx ? { tx } : undefined);
 
-      // Buyer balance logic unchanged
-      const newBuyerBalance = transactionStatus === TRANSACTION_STATUS.PENDING
-        ? currentBuyerBalance + Number(totalAmount)
-        : currentBuyerBalance;
-      const updatedBuyer = new UserEntity({ 
-        ...buyer, 
+      // Create balance snapshot for farmer
+      const farmerBalanceChange = (updatedFarmer.balance ?? 0) - _currentFarmerBalance;
+      if (farmerBalanceChange !== 0 && updatedFarmer.balance !== undefined) {
+        try {
+          const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+          await BalanceSnapshot.create({
+            user_id: farmer.id!,
+            balance_type: 'farmer',
+            previous_balance: _currentFarmerBalance,
+            amount_change: farmerBalanceChange,
+            new_balance: updatedFarmer.balance,
+            transaction_type: 'transaction',
+            reference_type: 'transaction',
+            description: `Transaction balance update: farmer earning ${farmerGross}, unsettled expenses deducted ${totalUnsettledExpenses}`
+          }, tx ? { transaction: tx } : undefined);
+        } catch (snapshotError) {
+          console.warn(`[BALANCE SNAPSHOT] Failed to create farmer snapshot:`, snapshotError);
+        }
+      }
+
+      // Calculate new buyer balance: sum of unpaid amounts for all their transactions
+      // IMPORTANT: Similar to farmer logic, this accounts for ALL payments via PaymentAllocation
+      const allBuyerTxns = await Transaction.findAll({ where: { buyer_id: buyer.id }, transaction: tx });
+      const buyerTxnIds = allBuyerTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
+      const buyerAllocations = await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ 
+        where: { transaction_id: { [Op.in]: buyerTxnIds } },
+        transaction: tx
+      });
+      // CRITICAL FIX: Get ALL payments from buyer (both transaction-linked AND standalone settlement payments)
+      // Previous bug: only got payments with transaction_id, missing standalone payments
+      const PaymentModel2 = (await import('../models/payment')).Payment;
+      const buyerPayments = await PaymentModel2.findAll({
+        where: {
+          payer_type: PARTY_TYPE.BUYER,
+          counterparty_id: buyer.id,
+          status: PaymentStatusEnum.Paid
+        },
+        transaction: tx
+      });      const newBuyerBalance = allBuyerTxns.reduce((sum, t) => {
+        const paidByBuyer = buyerAllocations
+          .filter(a => a.transaction_id === t.id)
+          .map(a => {
+            const payment = buyerPayments.find(p => p.id === a.payment_id);
+            // Only count completed payments from buyer to shop
+            if (payment && payment.payer_type === PARTY_TYPE.BUYER && payment.status === PaymentStatusEnum.Paid) {
+              return Number(a.allocated_amount || 0);
+            }
+            return 0;
+          })
+          .reduce((s, v) => s + v, 0);
+        const unpaid = Math.max(Number(t.total_amount || 0) - paidByBuyer, 0);
+        return sum + unpaid;
+      }, 0);
+      
+      const updatedBuyer = new UserEntity({
+        ...buyer,
         balance: Math.round(newBuyerBalance * 100) / 100,
         cumulative_value: Math.round(newBuyerCumulative * 100) / 100
       });
       await this.userRepository.update(buyer.id!, updatedBuyer, tx ? { tx } : undefined);
+
+      // Create balance snapshot for buyer
+      const buyerBalanceChange = (updatedBuyer.balance ?? 0) - currentBuyerBalance;
+      if (buyerBalanceChange !== 0 && updatedBuyer.balance !== undefined) {
+        try {
+          const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+          await BalanceSnapshot.create({
+            user_id: buyer.id!,
+            balance_type: 'buyer',
+            previous_balance: currentBuyerBalance,
+            amount_change: buyerBalanceChange,
+            new_balance: updatedBuyer.balance,
+            transaction_type: 'transaction',
+            reference_type: 'transaction',
+            description: `Transaction balance update: buyer total ${buyerGross}`
+          }, tx ? { transaction: tx } : undefined);
+        } catch (snapshotError) {
+          console.warn(`[BALANCE SNAPSHOT] Failed to create buyer snapshot:`, snapshotError);
+        }
+      }
     } catch (error) {
       throw new DatabaseError('Failed to update user balances', error instanceof Error ? { message: error.message } : undefined);
     }
@@ -1720,7 +1951,7 @@ export class TransactionService {
     for (const txn of filteredTxns) {
       // Buyer payments (to shop)
   const buyerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
-  const buyerPaid = buyerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatusEnum.Paid).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       // buyer_total_spent should be total transaction amount (what buyer is responsible for)
       buyer_total_spent += Number(txn.total_amount || 0);
@@ -1728,7 +1959,7 @@ export class TransactionService {
 
       // Farmer payments (from shop)
   const farmerPayments = payments.filter(p => Number(p.transaction_id) === Number(txn.id) && p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
-  const farmerPaid = farmerPayments.filter(p => p.status === PAYMENT_STATUS.PAID).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatusEnum.Paid).reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
       // farmer_total_earned should be what they actually received
       farmer_total_earned += farmerPaid;
@@ -1826,5 +2057,209 @@ export class TransactionService {
       }
       throw new DatabaseError('Failed to add backdated payments');
     }
+  }
+
+  /**
+   * Create a transaction and optionally create linked expenses and payments atomically
+   * - expenses: array of { amount, description, type }
+   * - buyerPayment: optional { amount, method }
+   * - shopPaysFarmer: optional { amount, method }
+   */
+  async createTransactionWithPayments(params: {
+    transaction: any;
+    expenses?: Array<{ amount: number; description?: string; type?: 'expense' | 'advance' }>;
+    buyerPayment?: { amount: number; method?: string } | null;
+    shopPaysFarmer?: { amount: number; method?: string } | null;
+  }, requestingUser?: { role?: string; id?: number }): Promise<any> {
+    const txn = await sequelize.transaction();
+    const paymentService = new PaymentService();
+    try {
+      // 1) create transaction within tx
+  const transactionEntity = await this.createTransaction(params.transaction, requestingUser as any, { tx: txn });
+
+      // 2) create expense rows (if any)
+      if (Array.isArray(params.expenses) && params.expenses.length) {
+        for (const e of params.expenses) {
+          await expenseService.createExpense({
+            shop_id: params.transaction.shop_id,
+            user_id: String(params.transaction.farmer_id),
+            transaction_id: (transactionEntity as any).id,
+            amount: e.amount,
+            type: e.type || 'expense',
+            description: e.description || ''
+          } as any, { tx: txn });
+        }
+      }
+
+      // 3) buyer payment (if provided)
+      if (params.buyerPayment && params.buyerPayment.amount > 0) {
+        await paymentService.createPayment({
+          payer_type: PARTY_TYPE.BUYER,
+          payee_type: PARTY_TYPE.SHOP,
+          amount: params.buyerPayment.amount,
+          transaction_id: (transactionEntity as any).id,
+          counterparty_id: params.transaction.buyer_id,
+          shop_id: params.transaction.shop_id,
+          method: params.buyerPayment.method || 'Cash',
+          payment_date: new Date()
+        } as any, requestingUser?.id || 0, { tx: txn });
+      }
+
+      // 4) shop pays farmer (if provided) — paymentService will apply FIFO on expenses
+      if (params.shopPaysFarmer && params.shopPaysFarmer.amount > 0) {
+        await paymentService.createPayment({
+          payer_type: PARTY_TYPE.SHOP,
+          payee_type: PARTY_TYPE.FARMER,
+          amount: params.shopPaysFarmer.amount,
+          counterparty_id: params.transaction.farmer_id,
+          shop_id: params.transaction.shop_id,
+          method: params.shopPaysFarmer.method || 'Cash',
+          payment_date: new Date()
+        } as any, requestingUser?.id || 0, { tx: txn });
+      }
+
+      await txn.commit();
+      return transactionEntity;
+    } catch (err) {
+      await txn.rollback();
+      throw err;
+    }
+  }
+
+  /**
+   * Validates that a transaction has complete and consistent payments
+   */
+  async validateTransactionPaymentCompleteness(transactionId: number): Promise<{
+    isComplete: boolean;
+    buyerPaid: number;
+    farmerPaid: number;
+    expectedBuyer: number;
+    expectedFarmer: number;
+    issues: string[];
+  }> {
+    const transaction = await this.transactionRepository.findById(transactionId);
+    if (!transaction) {
+      throw new NotFoundError(`Transaction ${transactionId} not found`);
+    }
+
+    const payments = await Payment.findAll({
+      where: { transaction_id: transactionId }
+    });
+
+    const buyerPayments = payments.filter(p =>
+      p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP
+    );
+    const farmerPayments = payments.filter(p =>
+      p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER
+    );
+
+    const buyerPaid = buyerPayments
+      .filter(p => p.status === PaymentStatusEnum.Paid)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const farmerPaid = farmerPayments
+      .filter(p => p.status === PaymentStatusEnum.Paid)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const expectedBuyer = Number(transaction.total_amount);
+    const expectedFarmer = Number(transaction.farmer_earning);
+
+    const issues: string[] = [];
+
+    if (buyerPaid < expectedBuyer) {
+      issues.push(`Buyer payment incomplete: ${buyerPaid} paid vs ${expectedBuyer} expected`);
+    }
+
+    if (farmerPaid < expectedFarmer) {
+      issues.push(`Farmer payment incomplete: ${farmerPaid} paid vs ${expectedFarmer} expected`);
+    }
+
+    if (buyerPayments.length === 0) {
+      issues.push('No buyer payments found');
+    }
+
+    if (farmerPayments.length === 0) {
+      issues.push('No farmer payments found');
+    }
+
+    return {
+      isComplete: issues.length === 0,
+      buyerPaid,
+      farmerPaid,
+      expectedBuyer,
+      expectedFarmer,
+      issues
+    };
+  }
+
+  /**
+   * Gets payment status summary for a transaction
+   */
+  async getTransactionPaymentSummary(transactionId: number): Promise<{
+    totalPayments: number;
+    buyerPayments: number;
+    farmerPayments: number;
+    pendingPayments: number;
+    completedPayments: number;
+    failedPayments: number;
+  }> {
+    const payments = await Payment.findAll({
+      where: { transaction_id: transactionId }
+    });
+
+    const buyerPayments = payments.filter(p =>
+      p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP
+    ).length;
+
+    const farmerPayments = payments.filter(p =>
+      p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER
+    ).length;
+
+    const pendingPayments = payments.filter(p => p.status === PaymentStatusEnum.Pending).length;
+    const completedPayments = payments.filter(p => p.status === PaymentStatusEnum.Paid).length;
+    const failedPayments = payments.filter(p => p.status === PaymentStatusEnum.Failed).length;
+
+    return {
+      totalPayments: payments.length,
+      buyerPayments,
+      farmerPayments,
+      pendingPayments,
+      completedPayments,
+      failedPayments
+    };
+  }
+
+  /**
+   * Finds transactions with incomplete payments
+   */
+  async findIncompleteTransactions(limit: number = 50): Promise<Array<{
+    transactionId: number;
+    issues: string[];
+    buyerPaid: number;
+    farmerPaid: number;
+  }>> {
+    const transactions = await this.transactionRepository.findAll({ limit });
+
+    const incomplete: Array<{
+      transactionId: number;
+      issues: string[];
+      buyerPaid: number;
+      farmerPaid: number;
+    }> = [];
+
+    for (const txn of transactions) {
+      if (!txn.id) continue;
+      const validation = await this.validateTransactionPaymentCompleteness(txn.id);
+      if (!validation.isComplete) {
+        incomplete.push({
+          transactionId: txn.id,
+          issues: validation.issues,
+          buyerPaid: validation.buyerPaid,
+          farmerPaid: validation.farmerPaid
+        });
+      }
+    }
+
+    return incomplete;
   }
 }

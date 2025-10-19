@@ -3,6 +3,7 @@ import { getSettlements, getSettlementSummary, settleAmount, createSettlement, /
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { parseId } from '../shared/utils/parse';
+import { Shop } from '../models/shop';
 
 // Standardized settlement controller using shared responders & parseId
 
@@ -86,14 +87,25 @@ export class SettlementController {
       if (!parsedAmount || parsedAmount <= 0) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'amount' }, 'Valid amount is required');
       }
-      // Use owner_id if provided, else fallback to shop owner lookup (could be improved)
+      // Use owner_id if provided; otherwise try to resolve the shop owner from DB
       let expenseUserId = owner_id;
       if (!expenseUserId) {
-        // TODO: Lookup shop owner from DB if not provided
-        expenseUserId = null;
+        const shop = await Shop.findByPk(shopId, { attributes: ['owner_id'] });
+        if (shop && shop.owner_id) {
+          expenseUserId = String(shop.owner_id);
+        }
       }
       if (!expenseUserId) {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'owner_id' }, 'owner_id (shop owner) is required for expense association');
+      }
+
+      // Authorization: only shop owner (or superadmin) may create shop-level expenses
+      const reqUser = (req as Request & { user?: { id?: number; role?: string } }).user;
+      if (reqUser && reqUser.role === 'owner') {
+        const shop = await Shop.findByPk(shopId, { attributes: ['owner_id'] });
+        if (!shop || Number(shop.owner_id) !== Number(reqUser.id)) {
+          return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Only the shop owner can create expenses for this shop');
+        }
       }
       const expense = await createSettlement({
         shop_id: shopId,

@@ -5,6 +5,7 @@ import { Transaction } from '../models/transaction';
 import { ModelStatic } from 'sequelize';
 import type { Payment } from '../models/payment';
 import { Op } from 'sequelize';
+import { PAYMENT_STATUS } from '../shared/constants/index';
 // Note: we intentionally avoid importing the default sequelize instance here to prevent
 // accidental direct transaction usage in repositories. Use service layer transaction
 // management instead.
@@ -145,8 +146,11 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
       })) || [];
 
       // Calculate payment sum and set status
-      const paymentsArr = entity.payments as Array<{ amount: number }>;
-      const paymentSum = paymentsArr.reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : 0), 0);
+      const paymentsArr = entity.payments as Array<{ amount: number; status?: string }>;
+      // Only count payments that are completed/paid when inferring transaction status
+      const paymentSum = paymentsArr
+        .filter(p => String(p.status || '').toUpperCase() === String(PAYMENT_STATUS.PAID))
+        .reduce((sum, p) => sum + (typeof p.amount === 'number' ? p.amount : 0), 0);
       const totalAmount = typeof entity.total_amount === 'number' ? entity.total_amount : 0;
       if (paymentSum === 0) {
         entity.status = 'pending';

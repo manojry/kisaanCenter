@@ -25,8 +25,8 @@ import { useToast } from '../hooks/use-toast';
 import { useSharedUsers } from '../hooks/useSharedUsers';
 import { useSharedCategories } from '../hooks/useSharedCategories';
 import { useSharedShopProducts } from '../hooks/useShopProductsCache';
-import { farmerProductApi, simplifiedApi, transactionsApi } from '../services/api';
-import { calculateTransactionAmounts } from '@/features/transactions/utils/transactionCalculations';
+import { farmerProductApi, simplifiedApi, transactionsApi, expenseApi } from '../services/api';
+import { calculateTransactionAmounts, roundCurrency } from '@/features/transactions/utils/transactionCalculations';
 
 import type { TransactionCreate, Transaction } from '../types/api';
 
@@ -46,6 +46,9 @@ export function useTransactionFormLogic({
   useSimplifiedApi = false,
   isBackdated = false,
   transactionDate = new Date(),
+  expenseAmount = 0,
+  expenseDescription = '',
+  includeExpense = false,
 }: {
   onSuccess?: (transaction: Transaction) => void;
   onCancel?: () => void;
@@ -54,6 +57,9 @@ export function useTransactionFormLogic({
   useSimplifiedApi?: boolean;
   isBackdated?: boolean;
   transactionDate?: Date;
+  expenseAmount?: number;
+  expenseDescription?: string;
+  includeExpense?: boolean;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -85,8 +91,8 @@ export function useTransactionFormLogic({
   const [buyerPaid, setBuyerPaid] = useState(0);
   const [farmerPaid, setFarmerPaid] = useState(0);
   const [commissionReceived, setCommissionReceived] = useState(0);
-  const [buyerPaymentMethod, setBuyerPaymentMethod] = useState<'CASH' | 'BANK' | 'UPI' | 'OTHER'>('CASH');
-  const [farmerPaymentMethod, setFarmerPaymentMethod] = useState<'CASH' | 'BANK' | 'UPI' | 'OTHER'>('CASH');
+  const [buyerPaymentMethod, setBuyerPaymentMethod] = useState<'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other'>('cash');
+  const [farmerPaymentMethod, setFarmerPaymentMethod] = useState<'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other'>('cash');
 
   // Loading/error state
   const isLoading = usersLoading || categoriesLoading || productsLoading;
@@ -165,12 +171,19 @@ export function useTransactionFormLogic({
     if (commission < 0) commission = 0;
     let farmer = Number((calculations?.farmer_earning ?? 0).toFixed(2));
     if (farmer < 0) farmer = 0;
-    setBuyerPaid(total);
-    setFarmerPaid(total - commission);
-    setCommissionReceived(commission);
-  }, [calculations]);
 
-  // Commission rate handling
+    // Deduct expense from farmer payment if expense is included
+    if (includeExpense && expenseAmount > 0) {
+      farmer = Math.max(0, farmer - expenseAmount);
+    }
+
+    // Always auto-update payment amounts to match calculations
+    // This ensures values stay synchronized when quantity/price/commission changes
+    // Users can still manually edit these values, but they'll reset when calculations change
+    setBuyerPaid(roundCurrency(total));
+    setFarmerPaid(roundCurrency(farmer));
+    setCommissionReceived(roundCurrency(commission));
+  }, [calculations, includeExpense, expenseAmount]);  // Commission rate handling
   const fetchCommissionRate = async () => {
     if (!user?.shop_id) return;
     // This would be an API call to get shop commission rate
@@ -196,7 +209,16 @@ export function useTransactionFormLogic({
     setValidationErrors({});
     try {
       const now = new Date().toISOString();
-      const transactionData = {
+      // derive expected payment amounts to decide canonical statuses
+      const expectedBuyerAmount = Number((calculations?.total_sale_value ?? 0).toFixed(2));
+      const expectedFarmerAmount = Number((calculations?.farmer_earning ?? 0).toFixed(2));
+      const adjustedExpectedFarmerAmount = includeExpense && expenseAmount > 0 ? Math.max(0, expectedFarmerAmount - expenseAmount) : expectedFarmerAmount;
+
+  // compute typed statuses
+    const buyerStatus: 'PENDING' | 'PAID' = Number(buyerPaid) >= expectedBuyerAmount ? 'PAID' : 'PENDING';
+    const farmerStatus: 'PENDING' | 'PAID' = Number(farmerPaid) >= adjustedExpectedFarmerAmount ? 'PAID' : 'PENDING';
+
+  const transactionData = {
         shop_id: formData.shop_id,
         farmer_id: formData.farmer_id,
         buyer_id: formData.buyer_id,
@@ -210,19 +232,22 @@ export function useTransactionFormLogic({
         transaction_date: formData.transaction_date || new Date().toISOString().split('T')[0],
         payments: [
           {
-            payer_type: 'BUYER' as const,
-            payee_type: 'SHOP' as const,
+            payer_type: 'buyer' as const,
+            payee_type: 'shop' as const,
             amount: buyerPaid,
             method: buyerPaymentMethod,
-            status: 'PAID',
+            // Only mark as COMPLETED when buyerPaid meets or exceeds expected buyer amount,
+            // otherwise send PENDING so backend treats it as an incomplete payment.
+            status: buyerStatus,
             payment_date: now,
           },
           {
-            payer_type: 'SHOP' as const,
-            payee_type: 'FARMER' as const,
+            payer_type: 'shop' as const,
+            payee_type: 'farmer' as const,
             amount: farmerPaid,
             method: farmerPaymentMethod,
-            status: 'PAID',
+            // Farmer payment is considered completed only when it meets adjusted expected farmer amount
+            status: farmerStatus,
             payment_date: now,
           },
         ],
@@ -236,12 +261,36 @@ export function useTransactionFormLogic({
         response = await transactionsApi.create(transactionData);
       }
       if (response.success) {
+        // Create expense if requested
+        if (includeExpense && expenseAmount > 0) {
+          try {
+            await expenseApi.addExpense({
+              shop_id: formData.shop_id,
+              user_id: formData.farmer_id,
+              amount: expenseAmount,
+              description: expenseDescription || 'Transaction expense',
+            });
+            toast({
+              title: '✅ Expense Recorded!',
+              description: `₹${expenseAmount.toFixed(2)} expense added to farmer's account`,
+              variant: 'success',
+            });
+          } catch (expenseError) {
+            console.error('Failed to create expense:', expenseError);
+            toast({
+              title: '⚠️ Transaction Created but Expense Failed',
+              description: 'Please record the expense manually',
+              variant: 'destructive',
+            });
+          }
+        }
+
         toast({
           title: '✅ Sale Created Successfully!',
-          description: `Total: ₹${(calculations?.total_sale_value ?? 0).toFixed(2)} | Payments recorded`,
+          description: `Total: ₹${(calculations?.total_sale_value ?? 0).toFixed(2)} | Payments recorded${includeExpense && expenseAmount > 0 ? ` | Expense: ₹${expenseAmount.toFixed(2)}` : ''}`,
           variant: 'success',
         });
-  if (onSuccess && response.data) onSuccess(response.data as Transaction);
+        if (onSuccess && response.data) onSuccess(response.data as Transaction);
       }
     } catch (error) {
       let message = 'Failed to create sale';
@@ -277,8 +326,8 @@ export function useTransactionFormLogic({
     setBuyerPaid(0);
     setFarmerPaid(0);
     setCommissionReceived(0);
-    setBuyerPaymentMethod('CASH');
-    setFarmerPaymentMethod('CASH');
+    setBuyerPaymentMethod('cash');
+    setFarmerPaymentMethod('cash');
     setCommissionRate(0.1);
     setValidationErrors({});
   };

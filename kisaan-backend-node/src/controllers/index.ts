@@ -9,7 +9,6 @@ export * from './transactionController';
 export * from './paymentController';
 export * from './balanceController';
 export * from './balanceSnapshotController';
-export * from './creditAdvanceController';
 export * from './settlementController';
 export * from './reportController';
 export * from './commissionController';

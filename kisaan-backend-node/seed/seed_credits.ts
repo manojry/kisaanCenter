@@ -1,16 +1,15 @@
-import { CreditAdvance } from '../src/models/index';
+
+import { createExpense } from '../src/services/settlementService';
 
 export async function seedCredits() {
-	await CreditAdvance.bulkCreate([
-		{
-			user_id: 1,
-			shop_id: 1,
-			amount: 1000.0,
-			issued_date: new Date('2025-09-01'),
-			due_date: new Date('2025-12-01'),
-			repaid_amount: 0,
-			status: 'active',
-		},
-	]);
-	console.log('Seeded credits');
+  // Create an 'advance' expense to represent credit advance
+  await createExpense({
+    shop_id: 1,
+    user_id: '1',
+    user_type: 'farmer',
+    amount: 1000.0,
+    type: 'advance',
+    description: 'Seeded credit advance'
+  });
+  console.log('Seeded credit advances as expenses');
 }

@@ -37,7 +37,34 @@ export class SimplifiedController {
       
       // Validate required fields
       if (!shop_id || !farmer_id || !buyer_id || !category_id || !product_name || !quantity || !unit_price) {
-        return failure(res, 400, 'VALIDATION_ERROR', {}, 'Missing required fields');
+        return failure(res, 400, 'VALIDATION_ERROR', {
+          missing_fields: {
+            shop_id: !shop_id,
+            farmer_id: !farmer_id,
+            buyer_id: !buyer_id,
+            category_id: !category_id,
+            product_name: !product_name,
+            quantity: !quantity,
+            unit_price: !unit_price
+          }
+        }, 'Missing required fields');
+      }
+
+      // Validate payments array if provided
+      if (payments && Array.isArray(payments)) {
+        for (let i = 0; i < payments.length; i++) {
+          const payment = payments[i];
+          if (!payment.payer_type || !payment.payee_type || payment.amount === undefined) {
+            return failure(res, 400, 'VALIDATION_ERROR', {
+              payment_index: i,
+              missing: {
+                payer_type: !payment.payer_type,
+                payee_type: !payment.payee_type,
+                amount: payment.amount === undefined
+              }
+            }, `Payment at index ${i} is missing required fields`);
+          }
+        }
       }
       
       const result = await this.service.createSimpleTransaction({

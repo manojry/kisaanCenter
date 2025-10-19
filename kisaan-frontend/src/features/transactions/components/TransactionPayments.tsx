@@ -7,14 +7,16 @@ interface PaymentState {
   buyerPaid: number;
   farmerPaid: number;
   commissionReceived: number;
-  buyerPaymentMethod: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
-  farmerPaymentMethod: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  commissionRate: number;
+  buyerPaymentMethod: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
+  farmerPaymentMethod: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
 }
 
 interface TransactionSummary {
   totalSaleValue: number;
   shopCommission: number;
   farmerEarning: number;
+  expenseAmount?: number;
 }
 
 interface Props extends PaymentState {
@@ -24,9 +26,16 @@ interface Props extends PaymentState {
 }
 
 export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, commissionReceived, buyerPaymentMethod, farmerPaymentMethod, onChange, showValidationErrors, transactionSummary }) => {
-  const safeSummary = transactionSummary || { totalSaleValue: 0, shopCommission: 0, farmerEarning: 0 };
+  // Handler for commission rate input (percent to decimal)
+  const handleCommissionRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const percent = Number(e.target.value);
+    const decimal = percent / 100;
+    onChange({ commissionRate: decimal });
+  };
+  const safeSummary = transactionSummary || { totalSaleValue: 0, shopCommission: 0, farmerEarning: 0, expenseAmount: 0 };
   const totalSaleValue = safeSummary.totalSaleValue;
-  const maxFarmerPayment = safeSummary.farmerEarning;
+  const expenseAmount = safeSummary.expenseAmount || 0;
+  const maxFarmerPayment = safeSummary.farmerEarning - expenseAmount; // Deduct expense from farmer earning
   const maxCommission = safeSummary.shopCommission;
   // Calculate pending balances
   const buyerPending = Math.max(0, totalSaleValue - buyerPaid);
@@ -104,12 +113,12 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
           value={buyerPaymentMethod}
-          onChange={e => onChange({ buyerPaymentMethod: e.target.value as 'CASH' | 'BANK' | 'UPI' | 'OTHER' })}
+          onChange={e => onChange({ buyerPaymentMethod: e.target.value as 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other' })}
         >
-          <option value="CASH">Cash</option>
-          <option value="UPI">UPI</option>
-          <option value="BANK">Bank</option>
-          <option value="OTHER">Other</option>
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="bank_transfer">Bank</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div>
@@ -136,15 +145,24 @@ export const TransactionPayments: React.FC<Props> = ({ buyerPaid, farmerPaid, co
         <select
           className="block w-full border rounded p-2 text-xs sm:text-sm mt-1"
           value={farmerPaymentMethod}
-          onChange={e => onChange({ farmerPaymentMethod: e.target.value as 'CASH' | 'BANK' | 'UPI' | 'OTHER' })}
+          onChange={e => onChange({ farmerPaymentMethod: e.target.value as 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other' })}
         >
-          <option value="CASH">Cash</option>
-          <option value="UPI">UPI</option>
-          <option value="BANK">Bank</option>
-          <option value="OTHER">Other</option>
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="bank_transfer">Bank</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div>
+        <Label>Shop Commission Rate (%)</Label>
+        <Input
+          type="number"
+          min="0"
+          step="0.01"
+          value={((transactionSummary.shopCommission / transactionSummary.totalSaleValue) * 100).toFixed(2)}
+          onChange={handleCommissionRateChange}
+          className="text-sm"
+        />
         <Label>Commission Received</Label>
         <Input
           type="number"

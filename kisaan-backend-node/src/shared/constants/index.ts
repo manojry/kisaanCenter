@@ -44,7 +44,8 @@ export type TransactionStatus = typeof TRANSACTION_STATUS[keyof typeof TRANSACTI
 export const PAYMENT_STATUS = {
   PENDING: 'PENDING',
   PAID: 'PAID',
-  FAILED: 'FAILED'
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
 } as const;
 
 export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];

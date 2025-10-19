@@ -7,59 +7,7 @@ export const commissionsApi = {
 };
 // (config import removed after refactor eliminating direct fetch usage)
 // Settlements API
-export const settlementsApi = {
-  getAll: (params?: {
-    shop_id?: number;
-    settlementUser_id?: number;
-    status?: string;
-    reason?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<PaginatedResponse<Settlement>> =>
-    // Using helper utilities for query + normalization
-    (async () => {
-      const qs = buildQueryString(params);
-      const raw = await apiClient.get<PaginatedResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}${qs}`);
-      return normalizeListResponse<Settlement>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
-    })(),
-
-  getById: (id: number): Promise<ApiResponse<Settlement>> =>
-    apiClient.get<ApiResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`),
-
-  create: (settlement: {
-    shop_id: number;
-    settlementUser_id: number;
-    owner_id?: number;
-    amount: number;
-    reason: 'overpayment' | 'underpayment' | 'adjustment';
-    notes?: string;
-  }): Promise<ApiResponse<Settlement>> =>
-    apiClient.post<ApiResponse<Settlement>>(SETTLEMENT_ENDPOINTS.BASE, settlement),
-
-
-  update: (id: number, update: {
-    status?: 'pending' | 'settled';
-    settlement_date?: string;
-    notes?: string;
-  }): Promise<ApiResponse<Settlement>> =>
-    apiClient.put<ApiResponse<Settlement>>(`${SETTLEMENT_ENDPOINTS.BASE}/${id}`, update),
-
-  settle: (id: number, payload: { amount?: number; notes?: string } = {}) =>
-    apiClient.post<ApiResponse<Settlement>>(`/settlements/settle/${id}`, payload),
-
-  getSummary: (): Promise<ApiResponse<{
-    total_pending: number;
-    total_settled: number;
-    count_pending: number;
-    count_settled: number;
-  }>> =>
-    apiClient.get<ApiResponse<{
-      total_pending: number;
-      total_settled: number;
-      count_pending: number;
-      count_settled: number;
-    }>>(SETTLEMENT_ENDPOINTS.SUMMARY),
-};
+// Removed settlementsApi - settlements functionality removed
 export const shopProductsApi = {
   getShops: async (user: User | null) => {
     if (user?.role === 'owner' && user?.shop_id) {
@@ -132,7 +80,19 @@ export const shopProductsApi = {
 // Balance Snapshots API
 export const balanceSnapshotsApi = {
   getByUserId: async (userId: number | string) => {
-    const resp = await apiClient.get<ApiResponse<{ id: number; user_id: number; previous_balance: number; new_balance: number; amount_change: number | string; created_at: string; }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
+    const resp = await apiClient.get<ApiResponse<{
+      id: number;
+      user_id: number;
+      balance_type: 'farmer' | 'buyer';
+      previous_balance: number;
+      amount_change: number | string;
+      new_balance: number;
+      transaction_type: string;
+      reference_id?: number;
+      reference_type?: string;
+      description?: string;
+      created_at: string;
+    }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
     // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
     const data = (resp.data || []).filter((s) =>
       parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
@@ -182,7 +142,7 @@ export const getTransactionFormData = async () => {
 };
 // Centralized API service layer
 import { apiClient } from './apiClient';
-import { TRANSACTION_ENDPOINTS, USER_ENDPOINTS, CATEGORY_ENDPOINTS, PRODUCT_ENDPOINTS, SETTLEMENT_ENDPOINTS, SHOP_ENDPOINTS, PAYMENT_ENDPOINTS, BALANCE_ENDPOINTS, REPORT_ENDPOINTS, EXPENSE_ENDPOINTS, DASHBOARD_ENDPOINTS, SIMPLIFIED_ENDPOINTS, FARMER_PRODUCT_ENDPOINTS } from './endpoints';
+import { TRANSACTION_ENDPOINTS, USER_ENDPOINTS, CATEGORY_ENDPOINTS, PRODUCT_ENDPOINTS, SHOP_ENDPOINTS, PAYMENT_ENDPOINTS, BALANCE_ENDPOINTS, REPORT_ENDPOINTS, EXPENSE_ENDPOINTS, DASHBOARD_ENDPOINTS, SIMPLIFIED_ENDPOINTS, FARMER_PRODUCT_ENDPOINTS } from './endpoints';
 // Helper utilities centralizing query string construction & list response normalization
 import { buildQueryString, normalizeListResponse, normalizeSingleItemResponse } from './serviceHelpers';
 /**
@@ -207,13 +167,17 @@ import type {
   Transaction,
   TransactionCreate,
   Payment,
-  Settlement,
+  Expense,
   ApiResponse,
   PaginatedResponse,
   BusinessSummary,
   TransactionSummary,
   LoginRequest,
-  LoginResponse
+  LoginResponse,
+  TransactionSettlement,
+  ExpenseAllocation,
+  TransactionSettlementDetail,
+  ExpenseAllocationDetail
 } from '../types/api';
 
 // Authentication API
@@ -456,10 +420,10 @@ export const transactionsApi = {
   // Enhanced: Add backdated payments to existing transaction (owner only)  
   addBackdatedPayments: (transactionId: number, payments: {
     payments: Array<{
-      payer_type: 'BUYER' | 'SHOP';
-      payee_type: 'SHOP' | 'FARMER';
+      payer_type: 'buyer' | 'shop';
+      payee_type: 'shop' | 'farmer';
       amount: number;
-      method?: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+      method?: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
       payment_date: string;
       notes?: string;
     }>;
@@ -482,15 +446,31 @@ export const transactionsApi = {
     apiClient.get(TRANSACTION_ENDPOINTS.FARMER_EARNINGS(farmerId)),
   
   getBuyerPurchases: (buyerId: number): Promise<PaginatedResponse<Transaction>> =>
-    apiClient.get(TRANSACTION_ENDPOINTS.BUYER_PURCHASES(buyerId))
+    apiClient.get(TRANSACTION_ENDPOINTS.BUYER_PURCHASES(buyerId)),
+  
+  // Settlement tracking methods
+  getSettlement: (id: number): Promise<ApiResponse<TransactionSettlementDetail>> =>
+    apiClient.get(TRANSACTION_ENDPOINTS.SETTLEMENT(id)),
+  
+  offsetExpense: (transactionId: number, payload: {
+    expense_id: number;
+    amount: number;
+    notes?: string;
+  }): Promise<ApiResponse<{
+    allocation: ExpenseAllocation;
+    settlement: TransactionSettlement;
+    transaction: Transaction;
+    expense: Expense;
+  }>> =>
+    apiClient.post(TRANSACTION_ENDPOINTS.OFFSET_EXPENSE(transactionId), payload)
 };
 
 // Payments API
 export const paymentsApi = {
   createBulk: (bulk: {
     payments: { transaction_id: number; amount: number }[];
-    payer_type: 'BUYER' | 'SHOP';
-    payee_type: 'SHOP' | 'FARMER';
+    payer_type: 'buyer' | 'shop' | 'farmer';
+    payee_type: 'shop' | 'farmer';
     method: string;
     status?: string;
     notes?: string;
@@ -515,8 +495,8 @@ export const paymentsApi = {
   
   create: (payment: {
     transaction_id?: number;
-    payer_type: 'BUYER' | 'SHOP';
-    payee_type: 'SHOP' | 'FARMER';
+    payer_type: 'buyer' | 'shop' | 'farmer';
+    payee_type: 'shop' | 'farmer';
     amount: number;
     method?: string;
     notes?: string;
@@ -525,7 +505,7 @@ export const paymentsApi = {
     apiClient.post(PAYMENT_ENDPOINTS.BASE, payment),
   
   updateStatus: (id: number, update: {
-    status: 'PENDING' | 'PAID' | 'FAILED';
+    status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
     payment_date?: string;
     notes?: string;
   }): Promise<ApiResponse<Payment>> =>
@@ -537,21 +517,55 @@ export const paymentsApi = {
   getOutstanding: (): Promise<PaginatedResponse<Payment>> =>
     apiClient.get(PAYMENT_ENDPOINTS.OUTSTANDING),
   
-  getFarmerPayments: async (farmerId: number): Promise<PaginatedResponse<Payment>> => {
-    const raw = await apiClient.get<ApiResponse<Payment[]>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
+  // Note: backend may return an enhanced payload { payments, expenses }.
+  // We return the raw payload when expenses are present so callers can access them.
+  getFarmerPayments: async (farmerId: number): Promise<any> => {
+    const raw = await apiClient.get<ApiResponse<any>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
+    // If backend returned the enhanced shape with expenses, return it directly
+    if (raw && raw.success && raw.data && typeof raw.data === 'object' && 'expenses' in raw.data) {
+      return raw;
+    }
+    // Legacy: { success: true, data: { payments: [...] } } or { success: true, data: [...] }
+    if (raw && raw.success && raw.data && Array.isArray(raw.data.payments)) {
+      return {
+        data: raw.data.payments,
+        page: 1,
+        limit: raw.data.payments.length,
+        total: raw.data.totalPayments,
+        totalPages: 1
+      } as PaginatedResponse<Payment>;
+    }
     return normalizeListResponse<Payment>(raw, { keys: ['data'] });
   },
   
-  getBuyerPayments: (buyerId: number): Promise<PaginatedResponse<Payment>> =>
-    apiClient.get(PAYMENT_ENDPOINTS.BUYER(buyerId))
+  getBuyerPayments: async (buyerId: number): Promise<PaginatedResponse<Payment>> => {
+    const raw = await apiClient.get<ApiResponse<{ payments: Payment[]; totalPayments: number; totalPaid: number }>>(PAYMENT_ENDPOINTS.BUYER(buyerId));
+    // Handle the specific response structure: { success: true, data: { payments: [...], totalPayments: ..., totalPaid: ... } }
+    if (raw.success && raw.data && Array.isArray(raw.data.payments)) {
+      return {
+        data: raw.data.payments,
+        page: 1,
+        limit: raw.data.payments.length,
+        total: raw.data.totalPayments,
+        totalPages: 1
+      };
+    }
+    return normalizeListResponse<Payment>(raw, { keys: ['data'] });
+  }
 };
 
 // Expense API
 export const expenseApi = {
   addExpense: (payload: { shop_id: number; user_id: number; amount: number; reason?: string; description?: string; }): Promise<ApiResponse> =>
     apiClient.post(EXPENSE_ENDPOINTS.BASE, payload),
-  getExpenses: (shop_id: number): Promise<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>> =>
-    apiClient.get<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; created_at: string; updated_at: string; }[]>>(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`)
+  getExpenses: (shop_id: number): Promise<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; status?: 'pending' | 'settled'; created_at: string; updated_at: string; }[]>> =>
+    apiClient.get<ApiResponse<{ id: number; shop_id: number; user_id: number; amount: number; reason?: string; description?: string; status?: 'pending' | 'settled'; created_at: string; updated_at: string; }[]>>(`${EXPENSE_ENDPOINTS.BASE}${buildQueryString({ shop_id })}`),
+  getExpenseSummary: (shop_id: number): Promise<ApiResponse<{ user_id: number; username: string; role: string; balance: number; total_expense_amount: number; pending_count: number; }[]>> =>
+    apiClient.get<ApiResponse<{ user_id: number; username: string; role: string; balance: number; total_expense_amount: number; pending_count: number; }[]>>(`${EXPENSE_ENDPOINTS.BASE}/summary${buildQueryString({ shop_id })}`),
+  
+  // Allocation tracking method
+  getAllocation: (id: number): Promise<ApiResponse<ExpenseAllocationDetail>> =>
+    apiClient.get(EXPENSE_ENDPOINTS.ALLOCATION(id))
 };
 
 // Dashboard API - using available endpoints
@@ -568,8 +582,7 @@ export const dashboardApi = {
         totalUsers: usersRes.data?.length || 0,
   totalTransactions: transactionsRes.data?.total_transactions || 0,
         totalPayments: 0,
-        totalSettlements: 0,
-  totalRevenue: transactionsRes.data?.total_value || 0,
+        totalRevenue: transactionsRes.data?.total_value || 0,
         activeShops: shopsRes.data?.filter((s: Shop) => s.status === 'active').length || 0,
         pendingPayments: 0
       }
@@ -582,7 +595,7 @@ export const dashboardApi = {
 
 // Balance API
 export const balanceApi = {
-  getUserBalance: (id: number): Promise<ApiResponse<{ balance: number; cumulative_value: number }>> =>
+  getUserBalance: (id: number): Promise<ApiResponse<{ user_id: number; username: string; role: string; current_balance: number; pending_expenses: number; effective_balance: number }>> =>
     apiClient.get(BALANCE_ENDPOINTS.USER(id)),
   
   getShopBalance: (id: number): Promise<ApiResponse<{ balance: number }>> =>
@@ -637,8 +650,8 @@ export const simplifiedApi = {
     transaction_date?: string;
     notes?: string;
     payments?: Array<{
-      payer_type: 'BUYER' | 'SHOP';
-      payee_type: 'SHOP' | 'FARMER';
+      payer_type: 'buyer' | 'shop';
+      payee_type: 'shop' | 'farmer';
       amount: number;
       method: string;
       status?: string;

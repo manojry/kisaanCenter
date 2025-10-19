@@ -51,7 +51,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
     <div>
       <Label htmlFor="expenseUser">User</Label>
       <UserSearchDropdown
-        onSelect={user => setExpenseForm(f => ({ ...f, userId: String(user.id) }))}
+        onSelect={user => {
+          if (user) {
+            setExpenseForm(f => ({ ...f, userId: String(user.id) }));
+          } else {
+            setExpenseForm(f => ({ ...f, userId: '' }));
+          }
+        }}
         placeholder="Search user..."
       />
     </div>

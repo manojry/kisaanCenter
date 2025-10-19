@@ -71,11 +71,14 @@ class ReportController {
           }, { message: 'Platform report generated' });
         }
   } else if (typeof userRole === 'string' && ['admin','staff','owner'].includes(userRole)) {
-        if (!shop_id) {
+        // Allow shop_id to be inferred from authenticated user's token if present
+        const reqUser = (req as Request & { user?: { shop_id?: number | string } }).user;
+        const resolvedShopId = shop_id ?? (reqUser?.shop_id ? String(reqUser.shop_id) : undefined);
+        if (!resolvedShopId) {
           return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         }
         const farmer_id = queryObj.farmer_id;
-  const txnWhere: Record<string, unknown> = { shop_id: String(shop_id) };
+  const txnWhere: Record<string, unknown> = { shop_id: String(resolvedShopId) };
         if (farmer_id) txnWhere.farmer_id = farmer_id;
         // Fix: Use Sequelize Op and Date objects for proper timestamp filtering
         if (date_from || date_to) {
@@ -167,9 +170,12 @@ class ReportController {
         // Placeholder for future platform-wide downloadable reports.
         return failureCode(res, 400, ErrorCodes.NOT_IMPLEMENTED, undefined, 'Platform download not implemented yet');
   } else if (typeof userRole === 'string' && ['admin','staff','owner'].includes(userRole)) {
-        if (!shop_id) return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
+  // Allow shop_id to be inferred from authenticated user's token if present
+  const reqUser2 = (req as Request & { user?: { shop_id?: number | string } }).user;
+  const resolvedShopId2 = shop_id ?? (reqUser2?.shop_id ? String(reqUser2.shop_id) : undefined);
+  if (!resolvedShopId2) return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required for this role');
         const farmer_id = queryObj.farmer_id;
-        const txnWhere: Record<string, string | number> = { shop_id };
+  const txnWhere: Record<string, string | number> = { shop_id: String(resolvedShopId2) };
         if (farmer_id) txnWhere.farmer_id = farmer_id;
         type TransactionRow = {
           id: number;
@@ -244,7 +250,7 @@ class ReportController {
           farmer_due: t.farmer_due !== undefined ? Number(t.farmer_due) : 0,
           created_at: t.created_at,
         }));
-        const shop = await Shop.findByPk(shop_id);
+  const shop = await Shop.findByPk(resolvedShopId2);
         const doc = new PDFDocument({ margin: 40, size: 'A4' });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="shop_report.pdf"');

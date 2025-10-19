@@ -20,7 +20,9 @@ dotenv.config({ path: envPath });
 console.log('[ENV] Loading from:', envPath);
 
 const dbDialect = process.env.DB_DIALECT || 'postgres';
-const dbName = process.env.DB_NAME || 'kisaan_dev';
+const dbName = process.env.NODE_ENV === 'test' 
+  ? (process.env.DB_NAME_TEST || 'kisaan_test')
+  : (process.env.DB_NAME || 'kisaan_dev');
 const dbUser = process.env.DB_USER || 'postgres';
 const dbPassword = process.env.DB_PASSWORD || '';
 const dbHost = process.env.DB_HOST || 'localhost';

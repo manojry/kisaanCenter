@@ -76,16 +76,33 @@ export class SimplifiedTransactionService {
   const createdPayments: Payment[] = [];
     if (data.payments && Array.isArray(data.payments)) {
       for (const payment of data.payments) {
+        // Normalize payer_type and payee_type (handle both uppercase and lowercase)
+        const payerType = (payment as any).payer_type?.toLowerCase();
+        const payeeType = (payment as any).payee_type?.toLowerCase();
+        
+        // Map to enum values
+        let payer: PaymentParty;
+        if (payerType === 'buyer') payer = PaymentParty.Buyer;
+        else if (payerType === 'shop') payer = PaymentParty.Shop;
+        else if (payerType === 'farmer') payer = PaymentParty.Farmer;
+        else throw new Error(`Invalid payer_type: ${payerType}`);
+        
+        let payee: PaymentParty;
+        if (payeeType === 'shop') payee = PaymentParty.Shop;
+        else if (payeeType === 'farmer') payee = PaymentParty.Farmer;
+        else if (payeeType === 'buyer') payee = PaymentParty.Buyer;
+        else throw new Error(`Invalid payee_type: ${payeeType}`);
+        
         const paymentRecord = await Payment.create({
           transaction_id: transaction.id,
-          payer_type: payment.payer_type === 'BUYER' ? PaymentParty.Buyer : PaymentParty.Shop,
-          payee_type: payment.payee_type === 'SHOP' ? PaymentParty.Shop : PaymentParty.Farmer,
+          payer_type: payer,
+          payee_type: payee,
           amount: payment.amount,
-          method: (payment.method === 'CASH' ? PaymentMethod.Cash : payment.method === 'BANK' ? PaymentMethod.Bank : payment.method === 'UPI' ? PaymentMethod.UPI : PaymentMethod.Other),
-          status: (payment.status === 'PAID' ? PaymentStatus.Paid : payment.status === 'PENDING' ? PaymentStatus.Pending : PaymentStatus.Failed),
+          method: (payment.method === 'cash' ? PaymentMethod.Cash : payment.method === 'bank_transfer' ? PaymentMethod.BankTransfer : payment.method === 'upi' ? PaymentMethod.Upi : PaymentMethod.Other),
+          status: (payment.status === 'COMPLETED' ? PaymentStatus.Paid : payment.status === 'PENDING' ? PaymentStatus.Pending : PaymentStatus.Failed),
           payment_date: payment.payment_date ? new Date(payment.payment_date) : new Date(),
           notes: payment.notes || '',
-          counterparty_id: payment.payer_type === 'BUYER' ? data.buyer_id : data.farmer_id
+          counterparty_id: payerType === 'buyer' ? data.buyer_id : data.farmer_id
         });
         createdPayments.push(paymentRecord);
       }
@@ -176,16 +193,34 @@ export class SimplifiedTransactionService {
   private async updateBalance(userId: number, amount: number, operation: 'add' | 'subtract'): Promise<void> {
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
-    
+
     const currentBalance = parseFloat(user.balance?.toString() || '0');
-    const newBalance = operation === 'add' 
-      ? currentBalance + amount 
+    const newBalance = operation === 'add'
+      ? currentBalance + amount
       : currentBalance - amount;
-    
+
     await user.update({ balance: newBalance });
-  }
-  
-  /**
+
+    // Create balance snapshot for expense/advance
+    const balanceChange = newBalance - currentBalance;
+    if (balanceChange !== 0) {
+      try {
+        const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
+        await BalanceSnapshot.create({
+          user_id: userId,
+          balance_type: 'farmer', // Assuming expenses are for farmers, but could be buyer too
+          previous_balance: currentBalance,
+          amount_change: balanceChange,
+          new_balance: newBalance,
+          transaction_type: 'expense',
+          reference_type: 'expense',
+          description: `Expense balance update: ${operation === 'add' ? 'added' : 'deducted'} ${amount}`
+        });
+      } catch (snapshotError) {
+        console.warn(`[BALANCE SNAPSHOT] Failed to create expense snapshot:`, snapshotError);
+      }
+    }
+  }  /**
    * Get user balance with clear explanation
    */
   async getUserBalanceInfo(userId: number): Promise<{

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TransactionService } from '../services/transactionService';
+import { ValidationError } from '../shared/utils/errors';
 import { USER_ROLES as _USER_ROLES } from '../shared/constants/index';
 import { success, created as createdResp, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
@@ -88,6 +89,18 @@ export class TransactionController {
   return createdResp(res, transaction, { message: 'Transaction created successfully' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction:create failed');
+      // If it's a ValidationError, include its context/details in the response to help clients debug
+      if (error instanceof ValidationError) {
+        // log full error for server-side debugging
+        console.error('[transactionController:createTransaction] ValidationError caught:', error);
+        // Build a robust details object that always contains a helpful message and any available context
+        const details = {
+          message: error.message,
+          ...(error.context ? { context: error.context } : {}),
+          payments_count: Array.isArray((req as any).body?.payments) ? (req as any).body.payments.length : 0
+        };
+        return failureCode(res, error.statusCode || 400, (error as any).errorCode || ErrorCodes.TRANSACTION_CREATE_FAILED, details, error.message);
+      }
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
       const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
       return failureCode(res, statusCode || 500, ErrorCodes.TRANSACTION_CREATE_FAILED, undefined, message || 'Failed to create transaction');
@@ -289,6 +302,75 @@ export class TransactionController {
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
       const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
       return failureCode(res, statusCode || 500, ErrorCodes.CREATE_PAYMENT_FAILED, undefined, message || 'Failed to add backdated payments');
+    }
+  }
+
+  /**
+   * GET /transactions/:id/settlement - Get settlement detail for a transaction
+   * 
+   * Returns comprehensive settlement breakdown including:
+   * - Total, settled, and pending amounts
+   * - Settlement status
+   * - Breakdown by settlement type (payments, expenses, credits)
+   */
+  async getTransactionSettlement(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const transactionId = parseId(id, 'transaction id');
+      
+      const { default: settlementTrackingService } = await import('../services/settlementTrackingService');
+      const settlementDetail = await settlementTrackingService.getTransactionSettlementDetail(transactionId);
+      
+      req.log?.info({ transactionId }, 'transaction settlement retrieved');
+      return success(res, settlementDetail, { message: 'Transaction settlement retrieved' });
+    } catch (error: unknown) {
+      req.log?.error({ err: error }, 'transaction:settlement:get failed');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to get settlement';
+      return failureCode(res, 500, ErrorCodes.TRANSACTION_SETTLEMENT_GET_FAILED, { error: message }, message);
+    }
+  }
+
+  /**
+   * POST /transactions/:id/offset-expense - Offset an expense against transaction
+   * 
+   * Body: { expense_id: number, amount: number, notes?: string }
+   * 
+   * Creates both:
+   * - ExpenseAllocation record (expense side)
+   * - TransactionSettlement record (transaction side)
+   * 
+   * Database triggers automatically update:
+   * - expense.allocated_amount, remaining_amount, allocation_status
+   * - transaction.settled_amount, pending_amount, settlement_status
+   */
+  async offsetExpenseAgainstTransaction(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const transactionId = parseId(id, 'transaction id');
+      const { expense_id, amount, notes } = req.body;
+      
+      if (!expense_id || !amount) {
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { required: ['expense_id', 'amount'] }, 'expense_id and amount are required');
+      }
+      
+      const user = (req as any).user;
+      const userId = user?.id || 1;
+      
+      const { default: settlementTrackingService } = await import('../services/settlementTrackingService');
+      const result = await settlementTrackingService.offsetExpenseAgainstTransaction({
+        transaction_id: transactionId,
+        expense_id: parseId(String(expense_id), 'expense id'),
+        amount: parseFloat(amount),
+        created_by: userId,
+        notes
+      });
+      
+      req.log?.info({ transactionId, expenseId: expense_id, amount }, 'expense offset against transaction');
+      return success(res, result, { message: 'Expense offset against transaction successfully' });
+    } catch (error: unknown) {
+      req.log?.error({ err: error }, 'transaction:offset-expense failed');
+      const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to offset expense';
+      return failureCode(res, 500, ErrorCodes.EXPENSE_OFFSET_FAILED, { error: message }, message);
     }
   }
 }

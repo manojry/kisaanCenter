@@ -5,6 +5,11 @@ import { AuthenticatedRequest } from '../middlewares/auth';
 import { paymentService } from '../services/paymentServiceInstance';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
+import { ExpenseRepository } from '../repositories/ExpenseRepository';
+import Expense from '../models/expense';
+import ExpenseSettlement from '../models/expenseSettlement';
+import { getSettledAmountsBatch } from '../services/settlementService';
+import { PARTY_TYPE } from '../shared/partyTypes';
 
 // Helper function to get user's shop_id
 const getUserShopId = async (userId: number): Promise<number | null> => {
@@ -37,14 +42,15 @@ export class BalanceController {
     }
     // Use PaymentService to create payment and update balances/snapshots
     const paymentData = {
-      payer_type: 'SHOP' as const,
-      payee_type: 'FARMER' as const,
+      payer_type: PARTY_TYPE.SHOP,
+      payee_type: PARTY_TYPE.FARMER,
       amount: Number(amount),
       method: 'CASH' as const, // or get from req.body if needed
       status: 'PAID' as const,
       notes: description || '',
       counterparty_id: Number(farmer_id),
       shop_id: userShopId,
+      payment_date: new Date()
     };
   const paymentResult = await paymentService.createPayment(paymentData, (req as AuthenticatedRequest).user?.id || 0);
     // Optionally create settlement record as before
@@ -53,7 +59,7 @@ export class BalanceController {
       user_id: farmer_id,
       user_type: 'farmer',
       amount: Number(amount),
-      type: 'payment_made',
+      type: 'adjustment',
       description: description || `Payment made to farmer ${farmer_id}`
     });
     success(res, { payment: paymentResult }, { message: 'Payment added successfully' });
@@ -76,14 +82,15 @@ export class BalanceController {
     }
     // Use PaymentService to create payment and update balances/snapshots
     const paymentData = {
-      payer_type: 'BUYER' as const,
-      payee_type: 'SHOP' as const,
+      payer_type: PARTY_TYPE.BUYER,
+      payee_type: PARTY_TYPE.SHOP,
       amount: Number(amount),
       method: 'CASH' as const, // or get from req.body if needed
       status: 'PAID' as const,
       notes: description || '',
       counterparty_id: Number(buyer_id),
       shop_id: userShopId,
+      payment_date: new Date()
     };
   const paymentResult = await paymentService.createPayment(paymentData, (req as AuthenticatedRequest).user?.id || 0);
     // Optionally create settlement record as before
@@ -92,7 +99,7 @@ export class BalanceController {
       user_id: buyer_id,
       user_type: 'buyer',
       amount: Number(amount),
-      type: 'payment_received',
+      type: 'adjustment',
       description: description || `Payment received from buyer ${buyer_id}`
     });
     success(res, { payment: paymentResult }, { message: 'Payment received successfully' });
@@ -107,16 +114,51 @@ export class BalanceController {
     try {
       const { userId } = req.params;
       const user = await User.findByPk(userId, {
-        attributes: ['id', 'username', 'role', 'balance']
+        attributes: ['id', 'username', 'role', 'balance', 'shop_id']
       });
       if (!user) {
         return failureCode(res, 404, ErrorCodes.USER_NOT_FOUND, undefined, 'User not found');
       }
+
+      // OPTIMIZATION: Get pending expenses and calculate unsettled amounts efficiently
+      const expenseRepo = new ExpenseRepository();
+      const pendingExpenses = await expenseRepo.findPendingByUser(user.shop_id || 0, user.id);
+
+      let pendingExpensesTotal = 0;
+      if (pendingExpenses.length > 0) {
+        // Batch load settled amounts for all pending expenses
+        const expenseIds = pendingExpenses.map(exp => exp.id);
+        const settledAmounts = await getSettledAmountsBatch(expenseIds);
+
+        pendingExpensesTotal = pendingExpenses.reduce((total, exp) => {
+          const expenseAmount = Number(exp.amount);
+          const settledAmount = settledAmounts[exp.id] || 0;
+          const remaining = Math.max(0, expenseAmount - settledAmount);
+          return total + remaining;
+        }, 0);
+      }
+
+      // NOTE: stored `user.balance` is maintained by transaction/payment services
+      // and already reflects transaction earnings and expense settlements in the system.
+      // Subtracting `pending_expenses` again here could double-count the deduction.
+      // Therefore we return the stored current balance as-is and expose pending_expenses
+      // separately so callers can decide how to interpret them.
+      const currentBalance = Number(user.balance || 0);
+
+      // Provide an explanatory field so UI can interpret sign correctly per role.
+      const balanceMeaning = user.role === 'farmer'
+        ? 'positive = shop owes farmer; negative = farmer owes shop'
+        : 'positive = user/buyer owes shop; negative = shop owes user/buyer';
+
       success(res, {
         user_id: user.id,
         username: user.username,
         role: user.role,
-        balance: user.balance || 0
+        current_balance: currentBalance,
+        pending_expenses: pendingExpensesTotal,
+        // Keep backward-compatible key name but do NOT subtract pending expenses
+        effective_balance: currentBalance,
+        balance_meaning: balanceMeaning
       });
     } catch (error) {
       (req as { log?: { error: (obj: unknown, msg: string) => void } }).log?.error({ err: error }, 'getUserBalance failed');

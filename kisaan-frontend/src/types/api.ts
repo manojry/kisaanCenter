@@ -16,14 +16,31 @@ export interface Plan {
 // Expense type for DRY usage across frontend
 export interface Expense {
   id: number;
+  shop_id: number;
   user_id: number;
-  user?: User;
   amount: number;
-  reason: string;
+  type?: string;
   description?: string;
+  status?: 'pending' | 'settled';
+  transaction_id?: number | null;
+  created_at: string;
+  updated_at: string;
+  user?: User;
   date?: string;
-  created_at?: string;
-  updated_at?: string;
+  // Settlement tracking fields
+  total_amount?: number;
+  allocated_amount?: number;
+  remaining_amount?: number;
+  allocation_status?: 'UNALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
+}
+// Expense User Summary type
+export interface ExpenseUserSummary {
+  user_id: number;
+  username: string;
+  role: string;
+  balance: number;
+  total_expense_amount: number;
+  pending_count: number;
 }
 // Category type for DRY usage across frontend
 export interface Category {
@@ -47,11 +64,17 @@ export type ShopProduct = {
 export type BalanceSnapshot = {
   id: number;
   user_id: number;
+  balance_type?: 'farmer' | 'buyer';
   previous_balance: number;
   new_balance: number;
   amount_change: number | string;
+  transaction_type?: string;
+  reference_id?: number;
+  reference_type?: string;
+  description?: string;
   created_at: string;
   createdAt?: string;
+  snapshot_date?: string;
 };
 // Bulk Payment Types
 export interface BulkPaymentItem {
@@ -61,8 +84,8 @@ export interface BulkPaymentItem {
 
 export interface BulkPaymentRequest {
   payments: BulkPaymentItem[];
-  payer_type: 'BUYER' | 'SHOP';
-  payee_type: 'SHOP' | 'FARMER';
+  payer_type: 'buyer' | 'shop';
+  payee_type: 'shop' | 'farmer';
   method: string;
   status?: string;
   notes?: string;
@@ -157,6 +180,10 @@ export interface Transaction {
   buyer_paid?: number;
   farmer_paid?: number;
   farmer_due?: number;
+  // Settlement tracking fields
+  settled_amount?: number;
+  pending_amount?: number;
+  settlement_status?: 'UNSETTLED' | 'PARTIALLY_SETTLED' | 'FULLY_SETTLED';
 }
 
 export interface TransactionCreate {
@@ -167,7 +194,19 @@ export interface TransactionCreate {
   product_name: string;
   quantity: number;
   unit_price: number;
+  product_id?: number;
+  commission_rate?: number;
+  notes?: string;
   transaction_date?: string;
+  payments?: Array<{
+    payer_type: 'buyer' | 'shop';
+    payee_type: 'shop' | 'farmer';
+    amount: number;
+    method?: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
+    status?: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
+    payment_date?: string;
+    notes?: string;
+  }>;
 }
 
 // Extended creation payload when frontend supplies derived values explicitly
@@ -177,11 +216,11 @@ export interface TransactionCreateExtended extends TransactionCreate {
   commission_amount?: number; // Updated to match backend (was shop_commission)
   farmer_earning?: number;
   payments?: Array<{
-    payer_type: 'BUYER' | 'SHOP';
-    payee_type: 'SHOP' | 'FARMER';
+    payer_type: 'buyer' | 'shop';
+    payee_type: 'shop' | 'farmer';
     amount: number;
     status: 'PAID' | 'PENDING';
-    method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+    method: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
     payment_date: string;
     notes?: string;
   }>;
@@ -190,28 +229,86 @@ export interface TransactionCreateExtended extends TransactionCreate {
 export interface Payment {
   id: number;
   transaction_id: number;
-  payer_type: 'BUYER' | 'SHOP';
-  payee_type: 'SHOP' | 'FARMER';
+  payer_type: 'buyer' | 'shop';
+  payee_type: 'shop' | 'farmer';
   amount: number;
-  status: 'PENDING' | 'PAID' | 'FAILED';
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
   payment_date?: string;
-  method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+  method: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
   notes?: string;
   created_at: string;
   updated_at?: string;
+  // Settlement breakdown fields returned by payment API
+  applied_to_expenses?: number;
+  applied_to_balance?: number;
+  fifo_result?: {
+    settlements?: {
+      expense_id: number;
+      amount_settled: number;
+      expense_date?: string;
+      reason?: string;
+    }[];
+    remaining?: number;
+  };
 }
 
-export interface Settlement {
+// Settlement Tracking Types
+export interface TransactionSettlement {
   id: number;
-  shop_id: number;
-  user_id: number;
+  transaction_id: number;
+  settlement_type: 'PAYMENT' | 'EXPENSE_OFFSET' | 'CREDIT_OFFSET' | 'ADJUSTMENT';
+  payment_id?: number;
+  expense_id?: number;
+  credit_id?: number;
   amount: number;
-  reason: 'overpayment' | 'underpayment' | 'adjustment';
-  status: 'pending' | 'settled';
-  settlement_date?: string;
+  settled_date: string;
   notes?: string;
+  created_by: number;
   created_at: string;
-  updated_at?: string;
+}
+
+export interface ExpenseAllocation {
+  id: number;
+  expense_id: number;
+  allocation_type: 'TRANSACTION_OFFSET' | 'BALANCE_SETTLEMENT' | 'ADVANCE_PAYMENT';
+  transaction_id?: number;
+  transaction_settlement_id?: number;
+  allocated_amount: number;
+  allocation_date: string;
+  notes?: string;
+  created_by: number;
+  created_at: string;
+}
+
+export interface TransactionSettlementDetail {
+  transaction_id: number;
+  total_amount: number;
+  settled_amount: number;
+  pending_amount: number;
+  settlement_status: 'UNSETTLED' | 'PARTIALLY_SETTLED' | 'FULLY_SETTLED';
+  settlements: Array<{
+    settlement_type: string;
+    amount: number;
+    settled_date: string;
+    payment_id?: number;
+    expense_id?: number;
+    notes?: string;
+  }>;
+}
+
+export interface ExpenseAllocationDetail {
+  expense_id: number;
+  total_amount: number;
+  allocated_amount: number;
+  remaining_amount: number;
+  allocation_status: 'UNALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
+  allocations: Array<{
+    allocation_type: string;
+    allocated_amount: number;
+    allocation_date: string;
+    transaction_id?: number;
+    notes?: string;
+  }>;
 }
 
 // API Response Types
@@ -240,7 +337,6 @@ export interface BusinessSummary {
   totalUsers: number;
   totalTransactions: number;
   totalPayments: number;
-  totalSettlements: number;
   totalRevenue: number;
   activeShops: number;
   pendingPayments: number;

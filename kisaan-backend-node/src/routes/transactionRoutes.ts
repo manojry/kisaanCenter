@@ -392,6 +392,10 @@ router.post('/:id/payments/backdated',
   transactionController.addBackdatedPayments.bind(transactionController)
 );
 
+// Settlement routes
+router.get('/:id/settlement', authenticateToken, transactionController.getTransactionSettlement.bind(transactionController));
+router.post('/:id/offset-expense', authenticateToken, transactionController.offsetExpenseAgainstTransaction.bind(transactionController));
+
 // Payment routes
 router.post('/payments', validateSchema(CreatePaymentSchema), paymentController.createPayment.bind(paymentController));
 router.put('/payments/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentController.updatePaymentStatus.bind(paymentController));

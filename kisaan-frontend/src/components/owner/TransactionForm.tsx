@@ -27,6 +27,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
   const [transactionDate, setTransactionDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   
+  // Enhanced: Add expense state
+  const [expenseAmount, setExpenseAmount] = useState<number>(0);
+  const [expenseDescription, setExpenseDescription] = useState<string>('');
+  const [includeExpense, setIncludeExpense] = useState<boolean>(false);
+  
   // Check if user is owner for backdated transaction permission
   const canCreateBackdated = user?.role === 'owner';
 
@@ -56,11 +61,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
     resetForm,
   } = useTransactionFormLogic({
     onSuccess: (transaction) => {
+      // Reset form and expense fields
       if (resetForm) resetForm();
+      setExpenseAmount(0);
+      setExpenseDescription('');
+      setIncludeExpense(false);
       if (onSuccess) onSuccess(transaction);
     },
     onCancel,
     useSimplifiedApi: false,
+    expenseAmount,
+    expenseDescription,
+    includeExpense,
   });
 
     // Shop-specific products and categories
@@ -193,6 +205,49 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
               </div>
             )}
 
+            {/* Enhanced: Expense section for transaction */}
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="include-expense"
+                  checked={includeExpense}
+                  onCheckedChange={setIncludeExpense}
+                />
+                <Label htmlFor="include-expense" className="text-sm font-medium">
+                  Include expense deduction from this transaction
+                </Label>
+              </div>
+              
+              {includeExpense && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-amount">Expense Amount (₹)</Label>
+                    <input
+                      id="expense-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={expenseAmount}
+                      onChange={(e) => setExpenseAmount(Number(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="expense-description">Expense Reason</Label>
+                    <input
+                      id="expense-description"
+                      type="text"
+                      value={expenseDescription}
+                      onChange={(e) => setExpenseDescription(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Transportation, Storage, etc."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <TransactionPartySelectors
               farmers={farmers}
               buyers={buyers}
@@ -223,6 +278,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                   commissionRate={commissionRate}
                   onCommissionRateChange={setCommissionRate}
                   formatCurrency={(amount: number) => `₹${amount.toLocaleString()}`}
+                  expenseAmount={includeExpense ? expenseAmount : 0}
+                  expenseDescription={includeExpense ? expenseDescription : undefined}
                 />
                 <TransactionPayments
                   buyerPaid={buyerPaid}
@@ -242,6 +299,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSuccess, onC
                     totalSaleValue: calculations.total_sale_value,
                     shopCommission: calculations.shop_commission,
                     farmerEarning: calculations.farmer_earning,
+                    expenseAmount: includeExpense ? expenseAmount : 0,
                   }}
                 />
               </>

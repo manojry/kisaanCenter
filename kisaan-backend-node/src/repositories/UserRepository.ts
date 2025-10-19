@@ -46,6 +46,7 @@ export class UserRepository extends BaseRepository<User, UserEntity> {
   protected toModelData(entity: Partial<UserEntity>): Record<string, unknown> {
     return {
       username: entity.username,
+      password: entity.password,
       email: entity.email,
       role: entity.role,
       shop_id: entity.shop_id,

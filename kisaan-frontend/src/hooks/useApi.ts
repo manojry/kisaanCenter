@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+import { useMemo, useCallback } from 'react';
 import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/context/AuthContext';
 import type { 
@@ -221,4 +222,72 @@ export function useDashboard(role: string, userId?: string) {
     [...QUERY_KEYS.DASHBOARD, role, userId],
     endpoint
   );
+}
+
+// =================== GLOBAL USER MAPPING HOOK ===================
+
+/**
+ * Global hook for mapping user IDs to user data and names
+ * Provides utilities to resolve user information across the application
+ */
+export function useUserMap() {
+  const { data: usersResponse, ...usersQuery } = useUsers();
+  const users = usersResponse?.data || [];
+
+  // Create a map of user ID to user object for fast lookups
+  const userMap = useMemo(() => {
+    const map = new Map<string | number, User>();
+    users.forEach(user => {
+      map.set(user.id, user);
+      map.set(String(user.id), user); // Also store string version for flexibility
+    });
+    return map;
+  }, [users]);
+
+  // Utility functions for getting user information
+  const getUserById = useCallback((id: string | number): User | undefined => {
+    return userMap.get(id) || userMap.get(String(id));
+  }, [userMap]);
+
+  const getUserName = useCallback((id: string | number): string => {
+    const user = getUserById(id);
+    return user?.username || user?.firstname || 'Unknown User';
+  }, [getUserById]);
+
+  const getUserFullName = useCallback((id: string | number): string => {
+    const user = getUserById(id);
+    if (!user) return 'Unknown User';
+    
+    const firstName = user.firstname || '';
+    const username = user.username;
+    
+    if (firstName && username) {
+      return `${firstName} (${username})`;
+    }
+    return firstName || username || 'Unknown User';
+  }, [getUserById]);
+
+  const getUserDisplayName = useCallback((id: string | number): string => {
+    const user = getUserById(id);
+    return user?.firstname || user?.username || 'Unknown';
+  }, [getUserById]);
+
+  return {
+    // Raw data
+    users,
+    userMap,
+    
+    // Query state
+    ...usersQuery,
+    
+    // Utility functions
+    getUserById,
+    getUserName,
+    getUserFullName,
+    getUserDisplayName,
+    
+    // Convenience getters
+    isLoading: usersQuery.isLoading,
+    error: usersQuery.error,
+  };
 }

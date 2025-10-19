@@ -43,12 +43,32 @@ export class PaymentRepository {
     }
   }
 
-  async create(paymentData: Partial<Payment>) {
+  async findByFilters(filters: Record<string, unknown>, options?: { order?: any[] }) {
     try {
-  // Use PaymentCreationAttributes for type safety
-  return await Payment.create(paymentData as PaymentCreationAttributes);
+      const where: Record<string, unknown> = {};
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          where[key] = value;
+        }
+      });
+
+      return await Payment.findAll({
+        where,
+        order: options?.order
+      });
     } catch (err) {
-  throw new DomainError(`Failed to create payment: ${err instanceof Error ? err.message : String(err)}`);
+  throw new DomainError(`Failed to fetch payments by filters: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async create(paymentData: Partial<Payment>, options?: { tx?: import('sequelize').Transaction }) {
+    try {
+      // Use PaymentCreationAttributes for type safety
+      const createOpts = options?.tx ? { transaction: options.tx } : undefined;
+      return await Payment.create(paymentData as PaymentCreationAttributes, createOpts as any);
+    } catch (err) {
+      throw new DomainError(`Failed to create payment: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

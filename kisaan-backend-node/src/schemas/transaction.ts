@@ -15,11 +15,37 @@ export const CreateTransactionSchema = z.object({
   shop_commission: z.number().optional(),  // Ignored - calculated automatically  
   farmer_earning: z.number().optional(),   // Ignored - calculated automatically
   payments: z.array(z.object({
-    payer_type: z.enum(['BUYER', 'SHOP']),
-    payee_type: z.enum(['SHOP', 'FARMER']),
+    payer_type: z.preprocess(
+      (val) => typeof val === 'string' ? val.toUpperCase() : val,
+      z.enum(['BUYER', 'SHOP'])
+    ),
+    payee_type: z.preprocess(
+      (val) => typeof val === 'string' ? val.toUpperCase() : val,
+      z.enum(['SHOP', 'FARMER'])
+    ),
     amount: z.preprocess((val) => Number(val), z.number().positive()),
-    method: z.enum(['CASH', 'BANK', 'UPI', 'OTHER']).optional(),
-    status: z.enum(['PENDING', 'PAID', 'FAILED']).optional(),
+    method: z.preprocess(
+      (val) => {
+        if (typeof val !== 'string') return val;
+        const normalized = val.toUpperCase();
+        // Map frontend payment methods to backend enum
+        if (normalized === 'BANK_TRANSFER') return 'BANK';
+        if (normalized === 'CARD') return 'OTHER';
+        if (normalized === 'CHEQUE') return 'OTHER';
+        return normalized;
+      },
+      z.enum(['CASH', 'BANK', 'UPI', 'OTHER'])
+    ).optional(),
+    status: z.preprocess(
+      (val) => {
+        if (typeof val !== 'string') return val;
+        const normalized = val.toUpperCase();
+        // Map frontend status values to backend enum
+        if (normalized === 'COMPLETED') return 'PAID';
+        return normalized;
+      },
+      z.enum(['PENDING', 'PAID', 'FAILED'])
+    ).optional(),
     payment_date: z.string().optional(),
     notes: z.string().optional()
   })).optional()    // Now supported directly in the main endpoint

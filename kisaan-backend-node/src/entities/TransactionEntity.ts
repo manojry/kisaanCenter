@@ -1,5 +1,6 @@
 /**
  * TransactionEntity - Domain Entity for Transaction
+ * Enhanced with comprehensive financial tracking
  */
 export class TransactionEntity {
   id?: number;
@@ -11,11 +12,20 @@ export class TransactionEntity {
   product_name?: string;
   quantity?: number;
   unit_price?: number;
-  total_amount?: number;
+  total_amount?: number; // Legacy field
+  
+  // Enhanced Financial Tracking (New)
+  total_sale_value?: number; // Total sale amount
   commission_rate?: number;
   commission_type?: string;
-  commission_amount?: number;
-  farmer_earning?: number;
+  commission_amount?: number; // Platform commission
+  user_share?: number; // User earnings (total_sale_value - commission_amount)
+  amount?: number; // Transaction-related expenses
+  net_user_earning?: number; // Computed: user_share - amount
+  
+  // Legacy fields (kept for backwards compatibility)
+  farmer_earning?: number; // Maps to user_share
+  
   status?: 'pending' | 'completed' | 'partial' | 'cancelled' | 'settled';
   transaction_date?: Date;
   settlement_date?: Date | null;

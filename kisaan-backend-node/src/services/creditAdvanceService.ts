@@ -1,64 +1,47 @@
-// CreditAdvance service class-based implementation
+// Legacy credit-advance API compatibility layer
+// Credits are now modelled as expenses of type 'advance'. To keep backward compatibility
+// with callers that use the creditAdvanceService API, we map issueCredit -> createExpense
+// and provide a minimal repayCredit that records a payment/settlement pathway.
 
-import { CreditAdvance, CreditAdvanceCreationAttributes } from '../models/creditAdvance';
-import { CreateCreditAdvanceSchema, RepayCreditAdvanceSchema } from '../schemas/creditAdvance';
+import { createExpense, settleAmount } from './settlementService';
 
 export class CreditAdvanceService {
-  
-  async issueCredit(data: unknown) {
-    const validated = CreateCreditAdvanceSchema.parse(data);
-    // Issue date = now, due date = +30 days (temporary business rule)
-    const issued = new Date();
-    const due = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const creditData: Record<string, unknown> = {
-      user_id: validated.user_id,
-      amount: validated.amount,
-      issued_date: issued,
-      due_date: due,
-      status: 'active',
-      repaid_amount: 0
+  async issueCredit(data: { user_id: number; shop_id?: number; amount: number; description?: string }) {
+    // Map to expense creation with type 'advance'
+    const payload = {
+      shop_id: data.shop_id || 1,
+      user_id: String(data.user_id),
+      user_type: 'farmer',
+      amount: Number(data.amount),
+      type: 'advance',
+      description: data.description || 'Credit advance issued'
     };
-    if ('shop_id' in validated && validated.shop_id !== undefined) {
-      creditData.shop_id = validated.shop_id;
-    } else {
-      creditData.shop_id = 1;
-    }
-  const credit = await CreditAdvance.create(creditData as CreditAdvanceCreationAttributes);
-    return credit;
+    const expense = await createExpense(payload as any);
+    return expense;
   }
 
-  async repayCredit(data: unknown) {
-    const validated = RepayCreditAdvanceSchema.parse(data);
-    const credit = await CreditAdvance.findByPk(validated.credit_id);
-    if (!credit) throw new Error('Credit record not found');
-    
-    // Use increment for atomic update
-    await credit.increment('repaid_amount', { by: validated.amount });
-    await credit.reload();
-    
-    // Check if fully repaid
-    const totalAmount = Number(credit.amount);
-    const newRepaidAmount = Number(credit.repaid_amount);
-    
-    if (newRepaidAmount >= totalAmount) {
-      credit.status = 'repaid';
-      await credit.save();
-    }
-    
-    return credit;
+  async repayCredit(data: { credit_id: number; amount: number }) {
+    // Minimal implementation: apply repayment to the underlying expense record.
+    // If fully repaid, mark settled.
+    // This function expects callers to pass expense id as credit_id.
+    const { credit_id, amount } = data;
+    // Use settleAmount which handles full/partial settle logic
+    const updated = await settleAmount(credit_id, Number(amount));
+    return updated;
   }
 
   async getAllCredits(shopId?: number) {
-    const whereClause = shopId ? { shop_id: shopId } : {};
-    return await CreditAdvance.findAll({ where: whereClause });
+    // For now, list expenses of type 'advance' via settlementService helpers
+    // settlementService.getExpenses exists as getExpenses in the module; import if needed.
+    const { getExpenses } = await import('./settlementService');
+    if (shopId) return getExpenses({ shop_id: String(shopId) });
+    // If no shop provided, return empty to avoid broad queries
+    return [];
   }
 }
 
-// Export class and instance for compatibility
 export const creditAdvanceService = new CreditAdvanceService();
-
-// Export function-style methods for backward compatibility
-export const issueCredit = (data: unknown) => creditAdvanceService.issueCredit(data);
-export const repayCredit = (data: unknown) => creditAdvanceService.repayCredit(data);
+export const issueCredit = (data: unknown) => creditAdvanceService.issueCredit(data as any);
+export const repayCredit = (data: unknown) => creditAdvanceService.repayCredit(data as any);
 
 

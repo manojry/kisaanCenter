@@ -1,198 +1,233 @@
-export interface SettlementUserSummary {
+export interface ExpenseUserSummary {
   user_id: number;
   username: string;
   role: string;
   balance: number;
-  total_settlement_amount: number;
+  total_amount: number;
   pending_count: number;
 }
-import { SettlementStatus, SettlementReason } from '../models/settlement';
+
 import { User } from '../models/user';
-import { SettlementRepository } from '../repositories/SettlementRepository';
+import ExpenseRepository from '../repositories/ExpenseRepository';
+import Expense, { ExpenseStatus } from '../models/expense';
+import ExpenseSettlement from '../models/expenseSettlement';
 
-// FIFO repayment logic: When a payment is made, settle oldest pending settlements first
-export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repaymentAmount: number) => {
-  const repo = new SettlementRepository();
-  // Fetch all pending settlements for this shop/user, oldest first
-  let pendingSettlements = await repo.findAllByUser(shop_id, user_id);
-  // Sort oldest first
-  pendingSettlements = pendingSettlements.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+// OPTIMIZATION: Batch load settled amounts for multiple expenses in one query
+export const getSettledAmountsBatch = async (expenseIds: number[], transaction?: import('sequelize').Transaction): Promise<Record<number, number>> => {
+  if (expenseIds.length === 0) return {};
 
-  let remaining = repaymentAmount;
-  const updates = [];
-  for (const settlement of pendingSettlements) {
-    if (remaining <= 0) break;
-    const originalAmount = typeof settlement.amount === 'string' ? parseFloat(settlement.amount) : settlement.amount;
-    const settleAmt = Math.min(remaining, originalAmount);
-    if (settleAmt === originalAmount) {
-  await repo.updateStatus(settlement.id, SettlementStatus.Settled);
-  settlement.settlement_date = new Date();
-  await settlement.save();
-      updates.push({ id: settlement.id, settled: settleAmt });
-    } else {
-      const newAmount = originalAmount - settleAmt;
-  settlement.amount = newAmount;
-  await settlement.save();
-      updates.push({ id: settlement.id, partial: settleAmt });
-    }
-    remaining -= settleAmt;
-  }
-  return { updates, remaining };
+  const settlements = await ExpenseSettlement.findAll({
+    where: { expense_id: expenseIds },
+    attributes: [
+      'expense_id',
+      [ExpenseSettlement.sequelize!.fn('SUM', ExpenseSettlement.sequelize!.col('amount')), 'total_settled']
+    ],
+    group: ['expense_id'],
+    raw: true,
+    transaction
+  } as any);
+
+  const result: Record<number, number> = {};
+  settlements.forEach((s: any) => {
+    result[s.expense_id] = parseFloat(s.total_settled || '0');
+  });
+
+  // Initialize missing expenses with 0
+  expenseIds.forEach(id => {
+    if (!(id in result)) result[id] = 0;
+  });
+
+  return result;
 };
 
-export interface CreateSettlementInput {
+// FIFO repayment logic: When a payment is made, settle oldest pending settlements first
+export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repaymentAmount: number, payment_id?: number, options?: { tx?: import('sequelize').Transaction, dryRun?: boolean }) => {
+  const expenseRepo = new ExpenseRepository();
+  const pendingExpenses = await expenseRepo.findPendingByUser(shop_id, user_id, options);
+
+  // OPTIMIZATION: Batch load settled amounts for all expenses in one query
+  const expenseIds = pendingExpenses.map(exp => exp.id);
+  const settledAmounts = await getSettledAmountsBatch(expenseIds, options?.tx);
+
+  let remaining = repaymentAmount;
+  const settlements: Array<{ expenseId: number; settledAmount: number; isFullySettled: boolean }> = [];
+
+  for (const exp of pendingExpenses) {
+    if (remaining <= 0) break;
+
+    const expenseAmount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : exp.amount;
+    // Use pre-loaded settled amount instead of separate query per expense
+    const settledAmount = settledAmounts[exp.id] || 0;
+    const remainingExpenseAmount = expenseAmount - settledAmount;
+
+    if (remainingExpenseAmount <= 0) continue; // Already fully settled
+
+    const settleAmt = Math.min(remaining, remainingExpenseAmount);
+
+    // Create settlement record unless this is a dry run
+    if (!options?.dryRun) {
+      await ExpenseSettlement.create({
+        expense_id: exp.id,
+        payment_id: payment_id,
+        amount: settleAmt,
+        settled_at: new Date(),
+        notes: `Settled via payment ${payment_id || 'unknown'}`
+      }, options?.tx ? { transaction: options.tx } : undefined);
+    }
+
+    // Check if expense is now fully settled
+    const newSettledAmount = settledAmount + settleAmt;
+    const isFullySettled = newSettledAmount >= expenseAmount;
+
+    if (isFullySettled && !options?.dryRun) {
+      await expenseRepo.markSettled(exp.id, options);
+    }
+
+    settlements.push({
+      expenseId: exp.id,
+      settledAmount: settleAmt,
+      isFullySettled
+    });
+
+    remaining -= settleAmt;
+  }
+
+  return { settlements, remaining };
+};
+
+export interface CreateExpenseInput {
   shop_id: number;
   user_id: string;
   user_type: 'farmer' | 'buyer';
   transaction_id?: number;
   amount: number;
-  type: 'overpayment' | 'underpayment' | 'settlement' | 'expense' | 'payment_received' | 'payment_made';
+  // Allow flexible types to preserve backward compatibility with legacy callers
+  type: string;
   description: string;
 }
 
-export const createSettlement = async (data: CreateSettlementInput) => {
-  let reason: SettlementReason;
-  switch (data.type) {
-    case 'overpayment':
-      reason = SettlementReason.Overpayment;
-      break;
-    case 'underpayment':
-      reason = SettlementReason.Underpayment;
-      break;
-    case 'expense':
-      reason = SettlementReason.Expense;
-      break;
-    case 'payment_received':
-    case 'payment_made':
-    case 'settlement':
-      reason = SettlementReason.Adjustment;
-      break;
-    default:
-      reason = SettlementReason.Adjustment;
-  }
-  const repo = new SettlementRepository();
-  const settlement = await repo.create({
+export const createExpense = async (data: CreateExpenseInput, options?: { tx?: import('sequelize').Transaction }) => {
+  const expenseRepo = new ExpenseRepository();
+  const expense = await expenseRepo.create({
     shop_id: data.shop_id,
     user_id: parseInt(data.user_id),
     amount: data.amount,
-    reason,
-    status: SettlementStatus.Pending
-  });
+    type: data.type,
+    description: data.description,
+    transaction_id: data.transaction_id || null,
+    status: ExpenseStatus.Pending
+  } as any, options);
 
-  console.log('[SETTLEMENT] Settlement created', {
-    settlementId: settlement.id,
+  console.log('[EXPENSE] Expense created', {
+    expenseId: (expense as any)?.id,
     type: data.type,
     userId: parseInt(data.user_id),
     amount: data.amount,
     status: 'pending'
   });
 
-  return settlement;
+  return expense;
 };
-
-  // ...existing code...
-export interface GetSettlementsFilters {
+// Expense-only APIs
+export interface GetExpensesFilters {
   shop_id: string;
   user_id?: string;
   user_type?: string;
-  status?: string;
+  status?: string; // unused for now, could be 'pending' or 'settled'
   from_date?: string;
   to_date?: string;
 }
 
-export const getSettlements = async (filters: GetSettlementsFilters) => {
-  const repo = new SettlementRepository();
+export const getExpenses = async (filters: GetExpensesFilters) => {
+  const repo = new ExpenseRepository();
   const shopId = parseInt(filters.shop_id);
-  let settlements;
+  const all = await repo.findAllByShop(shopId);
+  let result = all;
   if (filters.user_id) {
-    settlements = await repo.findAllByUser(shopId, parseInt(filters.user_id));
-  } else {
-    settlements = await repo.findAllByShop(shopId);
+    const uid = parseInt(filters.user_id);
+    result = result.filter(e => e.user_id === uid);
   }
-  // Additional filtering can be applied here if needed (status, date, etc.)
-  return settlements;
+  // filtering by status/dates can be added here
+  return result;
 };
 
-/**
- * Calculate net payable amount for a farmer
- * Net Payable = Balance (from transactions) - Pending Expenses (advances)
- */
 export const getFarmerNetPayable = async (shop_id: number, farmer_id: number) => {
   const farmer = await User.findByPk(farmer_id);
   const currentBalance = Number(farmer?.balance || 0);
-  const repo = new SettlementRepository();
-  const totalPendingExpenses = await repo.getPendingExpenses(shop_id, farmer_id);
-  const netPayable = currentBalance - totalPendingExpenses;
-  // If you need breakdown, fetch settlements
-  const pendingExpenseSettlements = await repo.findAllByUser(shop_id, farmer_id);
-  const expenses_breakdown = pendingExpenseSettlements
-    .filter(exp => exp.status === SettlementStatus.Pending && exp.reason === SettlementReason.Adjustment)
-    .map(exp => ({
-      id: exp.id,
-      amount: exp.amount,
-      created_at: exp.created_at,
-      description: 'Farmer advance/expense'
-    }));
+  const repo = new ExpenseRepository();
+  const totalPendingExpenses = await repo.getPendingTotal(shop_id, farmer_id);
+  const pendingExpenses = await repo.findPendingByUser(shop_id, farmer_id);
+  const expenses_breakdown = pendingExpenses.map(exp => ({ id: exp.id, amount: exp.amount, created_at: exp.created_at, description: exp.description }));
+  // NOTE: `currentBalance` is maintained by TransactionService/PaymentService as:
+  //    unpaidTransactionEarnings - totalUnsettledExpenses
+  // In other words, the stored user.balance already accounts for unsettled expenses.
+  // Subtracting `totalPendingExpenses` again would double-count expense deductions.
+  // Therefore return the stored balance as the net payable (clamped to >= 0).
   return {
     farmer_id,
     current_balance: currentBalance,
     pending_expenses: totalPendingExpenses,
-    net_payable: Math.max(0, netPayable),
+    net_payable: Math.max(0, currentBalance),
     expenses_breakdown
   };
 };
 
-export const getSettlementSummary = async (shop_id: string) => {
-  const repo = new SettlementRepository();
-  const settlements = await repo.findAllByShop(parseInt(shop_id));
-  // Fetch all users for this shop
+export const getExpenseSummary = async (shop_id: string) => {
+  const repo = new ExpenseRepository();
+  const expenses = await repo.findAllByShop(parseInt(shop_id));
   const users: import('../models/user').User[] = await import('../models/user').then(m => m.User.findAll({ where: { shop_id: shop_id } }));
-  const summary: { [userId: number]: SettlementUserSummary } = {};
-  for (const s of settlements) {
-    const user = users.find(u => u.id === s.user_id);
+  const summary: { [userId: number]: ExpenseUserSummary } = {};
+  for (const e of expenses) {
+    const user = users.find(u => u.id === e.user_id);
     if (!user) continue;
-    if (!summary[s.user_id]) {
-      summary[s.user_id] = {
-        user_id: s.user_id,
+    if (!summary[e.user_id]) {
+      summary[e.user_id] = {
+        user_id: e.user_id,
         username: user.username,
         role: user.role,
         balance: typeof user.balance === 'string' ? parseFloat(user.balance) : user.balance,
-        total_settlement_amount: 0,
+  total_amount: 0,
         pending_count: 0
       };
     }
-    summary[s.user_id].total_settlement_amount += typeof s.amount === 'string' ? parseFloat(s.amount) : s.amount;
-    if (s.status === SettlementStatus.Pending) summary[s.user_id].pending_count++;
+  summary[e.user_id].total_amount += typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
+    if (e.status === ExpenseStatus.Pending) summary[e.user_id].pending_count++;
   }
   return Object.values(summary);
 };
 
-export const settleAmount = async (settlement_id: number, _amount: number) => {
-  const repo = new SettlementRepository();
-  const settlement = await repo.findById(settlement_id);
-  if (!settlement) throw new Error('Settlement not found');
-  await repo.updateStatus(settlement_id, SettlementStatus.Settled);
-  const updated = await repo.findById(settlement_id);
-  if (updated) {
-    updated.settlement_date = new Date();
-    await updated.save();
-  }
-  return updated;
+export const settleExpense = async (expense_id: number) => {
+  const repo = new ExpenseRepository();
+  return await repo.markSettled(expense_id);
 };
 
-export class SettlementService {
-  private settlementRepo = new SettlementRepository();
-
-  async getFarmerNetPayable(shopId: number, farmerId: number) {
-    const farmer = await User.findByPk(farmerId);
-    const balance = Number(farmer?.balance || 0);
-    const expenses = await this.settlementRepo.getPendingExpenses(shopId, farmerId);
-    return {
-      balance,
-      expenses,
-      net_payable: balance - expenses
-    };
+export const settleAmount = async (expense_id: number, amount: number, options?: { tx?: import('sequelize').Transaction }) => {
+  const repo = new ExpenseRepository();
+  const e = await (await import('../models/expense')).default.findByPk(expense_id);
+  if (!e) throw new Error('Expense not found');
+  const originalAmount = typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
+  if (amount >= originalAmount) {
+    // fully settle
+    return await repo.markSettled(expense_id, options);
   }
-}
+  // partial settle: reduce amount and save
+  e.amount = originalAmount - amount;
+  await e.save(options?.tx ? { transaction: options.tx } as any : undefined);
+  return e;
+};
 
-export const settlementService = new SettlementService();
+// export a light service if other modules expect a service object
+export const expenseService = {
+  createExpense,
+  getExpenses,
+  applyRepaymentFIFO,
+  getFarmerNetPayable,
+  getExpenseSummary,
+  settleExpense
+};
+
+// Backwards-compatible aliases (legacy callers/controllers expect these names)
+export const getSettlements = getExpenses;
+export const getSettlementSummary = getExpenseSummary;
+export const createSettlement = createExpense;
+export const settlementService = expenseService;

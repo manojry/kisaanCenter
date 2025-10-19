@@ -4,6 +4,18 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
+// SAFETY CHECK: Prevent running on production and test databases
+const PROTECTED_DBS = ['kisaan_prod', 'kisaan_production', 'production', 'kisaan_test', 'test', 'kisaan_dev'];
+const currentDb = process.env.DB_NAME || 'kisaan_dev';
+if (PROTECTED_DBS.includes(currentDb.toLowerCase())) {
+  console.error('❌ SAFETY BLOCK: Cannot run integration test on protected database!');
+  console.error(`   Current DB: ${currentDb}`);
+    console.error('   Use a custom database name or set DB_NAME to a non-protected value.');
+  process.exit(1);
+}
+
+console.log(`🧪 Running integration test on database: ${currentDb}`);
+
 // Test scenario configuration
 const TEST_SCENARIO = {
   shopId: 1,
@@ -26,10 +38,41 @@ const pool = new Pool({
   ssl: process.env.DB_SSL_MODE === 'require' ? { rejectUnauthorized: false } : false
 });
 
+async function cleanupTestData(pool, transactionId, buyerPaymentId, farmerPaymentId) {
+  console.log('\n🧹 CLEANING UP TEST DATA...');
+  
+  try {
+    // Delete payment allocations
+    await pool.query('DELETE FROM kisaan_payment_allocations WHERE payment_id IN ($1, $2)', [buyerPaymentId, farmerPaymentId]);
+    console.log('  ✅ Deleted payment allocations');
+    
+    // Delete payments
+    await pool.query('DELETE FROM kisaan_payments WHERE id IN ($1, $2)', [buyerPaymentId, farmerPaymentId]);
+    console.log('  ✅ Deleted test payments');
+    
+    // Delete transaction
+    await pool.query('DELETE FROM kisaan_transactions WHERE id = $1', [transactionId]);
+    console.log('  ✅ Deleted test transaction');
+    
+    // Delete any additional payments created during test
+    await pool.query(`
+      DELETE FROM kisaan_payments 
+      WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' 
+      AND counterparty_id = $1 AND shop_id = $2 AND amount = 1000
+    `, [TEST_SCENARIO.farmerId, TEST_SCENARIO.shopId]);
+    console.log('  ✅ Deleted additional test payment');
+    
+    console.log('🧹 Cleanup completed successfully');
+  } catch (error) {
+    console.error('❌ Cleanup failed:', error.message);
+    throw error;
+  }
+}
+
 async function runIntegrationTest() {
   console.log('🧪 === INTEGRATION TEST: TRANSACTION FLOW WITH FIXED LOGIC ===\n');
   
-  try {
+  let transactionId, buyerPaymentId, farmerPaymentId;
     // Calculate expected values
     const totalSale = TEST_SCENARIO.quantity * TEST_SCENARIO.unitPrice;
     const commission = (totalSale * TEST_SCENARIO.commissionRate) / 100;
@@ -72,12 +115,12 @@ async function runIntegrationTest() {
     // Step 1: Create transaction record
     console.log('  Step 1: Creating transaction record...');
     const txResult = await pool.query(`
-      INSERT INTO kisaan_transactions (shop_id, farmer_id, buyer_id, category_id, product_name, quantity, unit_price, total_sale_value, shop_commission, farmer_earning)
+      INSERT INTO kisaan_transactions (shop_id, farmer_id, buyer_id, category_id, product_name, quantity, unit_price, total_amount, commission_amount, farmer_earning)
       VALUES ($1, $2, $3, 1, 'Test Roses', $4, $5, $6, $7, $8)
       RETURNING id
     `, [TEST_SCENARIO.shopId, TEST_SCENARIO.farmerId, TEST_SCENARIO.buyerId, TEST_SCENARIO.quantity, TEST_SCENARIO.unitPrice, totalSale, commission, farmerEarning]);
     
-    const transactionId = txResult.rows[0].id;
+    transactionId = txResult.rows[0].id;
     console.log(`    ✅ Transaction created with ID: ${transactionId}`);
     
     // Step 2: Create payment records
@@ -94,8 +137,8 @@ async function runIntegrationTest() {
       RETURNING id
     `, [transactionId, TEST_SCENARIO.farmerPayment, TEST_SCENARIO.farmerId]);
     
-    const buyerPaymentId = buyerPaymentResult.rows[0].id;
-    const farmerPaymentId = farmerPaymentResult.rows[0].id;
+    buyerPaymentId = buyerPaymentResult.rows[0].id;
+    farmerPaymentId = farmerPaymentResult.rows[0].id;
     
     console.log(`    ✅ Buyer payment created with ID: ${buyerPaymentId}`);
     console.log(`    ✅ Farmer payment created with ID: ${farmerPaymentId}`);
@@ -200,8 +243,21 @@ async function runIntegrationTest() {
     console.log('✅ Commission tracking is separate and consistent');
     console.log('✅ Additional payments update balances correctly');
     
+    // Clean up test data
+    if (transactionId && buyerPaymentId && farmerPaymentId) {
+      await cleanupTestData(pool, transactionId, buyerPaymentId, farmerPaymentId);
+    }
+    
   } catch (error) {
     console.error('\n❌ Integration test failed:', error.message);
+    // Still try to clean up even if test failed
+    if (transactionId && buyerPaymentId && farmerPaymentId) {
+      try {
+        await cleanupTestData(pool, transactionId, buyerPaymentId, farmerPaymentId);
+      } catch (cleanupError) {
+        console.error('❌ Cleanup also failed:', cleanupError.message);
+      }
+    }
   } finally {
     await pool.end();
   }
