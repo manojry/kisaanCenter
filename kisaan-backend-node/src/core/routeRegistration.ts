@@ -23,7 +23,8 @@ import {
   ownerDashboardRoute,
   superadminRoutes,
   testProductRoutes,
-  farmerProductRoutes
+  farmerProductRoutes,
+  balanceReconciliationRoutes
 } from '../routes';
 
 /**
@@ -60,6 +61,7 @@ export function registerAllRoutes(app: Express): void {
     // Financial management
     app.use('/api/balances', balanceRoutes);
     app.use('/api/balance-snapshots', balanceSnapshotRoutes);
+    app.use('/api/balance', balanceReconciliationRoutes);
     app.use('/api/commissions', commissionRoutes);
     app.use('/api/settlements', settlementRoutes);
     

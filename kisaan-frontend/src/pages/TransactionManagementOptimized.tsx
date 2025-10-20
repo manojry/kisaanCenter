@@ -339,7 +339,7 @@ const TransactionManagement = (): React.ReactElement => {
                 <TableRow>
                   <TableHead className="w-16"></TableHead>
                   <TableHead>ID</TableHead>
-                  <TableHead>Date xx</TableHead>
+                  <TableHead>Transaction Date</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Buyer</TableHead>
                   <TableHead>Farmer</TableHead>

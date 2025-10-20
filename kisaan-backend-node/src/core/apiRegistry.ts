@@ -83,6 +83,7 @@ export class ApiRegistry {
       // Financial management
       register('/api/balances', routes.balanceRoutes);
       register('/api/balance-snapshots', routes.balanceSnapshotRoutes);
+      register('/api/balance', routes.balanceReconciliationRoutes);
       register('/api/commissions', routes.commissionRoutes);
       register('/api/settlements', routes.settlementRoutes);
       register('/api/expenses', routes.expenseRoutes);

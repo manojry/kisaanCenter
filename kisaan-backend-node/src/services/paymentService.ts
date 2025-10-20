@@ -167,17 +167,7 @@ export class PaymentService {
       // SERVER-SIDE GUARD: Prevent unintentional SHOP->FARMER payments that worsen farmer debt
       // Extracted into a small helper for testability
       if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
-        try {
-          const { willShopToFarmerWorsenDebt } = await import('./paymentGuard');
-          const preview = await willShopToFarmerWorsenDebt({ shop_id: Number(payment.shop_id || 0) || undefined, counterparty_id: Number(payment.counterparty_id || 0) || undefined, amount: Number(payment.amount || 0), force_override: (payment as any).force_override });
-          if (preview && preview.worsen) {
-            logger.warn({ paymentId: payment.id, farmerId: payment.counterparty_id, currentBalance: preview.currentBalance, simulatedNewBalance: preview.simulatedNewBalance }, 'Rejected SHOP->FARMER payment that would worsen farmer debt without force_override');
-            throw new ValidationError('Payment would increase farmer debt. Include force_override=true to proceed if you understand the consequences.', { currentBalance: preview.currentBalance, simulatedNewBalance: preview.simulatedNewBalance });
-          }
-        } catch (err) {
-          if (err instanceof ValidationError) throw err;
-          logger.warn({ err, paymentId: payment.id }, 'Error during SHOP->FARMER dry-run validation; proceeding with normal processing');
-        }
+        // Removed force_override safety check: allow SHOP->FARMER payments even if they increase farmer debt
       }
 
       // Capture previous balance for ledger delta calculation
@@ -257,42 +247,21 @@ export class PaymentService {
     let appliedToBalance = 0;
     let fifoResult: unknown = undefined;
 
+    console.log('[PAYMENT BALANCE UPDATE] Processing payment', {
+      id: payment.id,
+      payer_type: payment.payer_type,
+      payee_type: payment.payee_type,
+      amount: payment.amount,
+      counterparty_id: payment.counterparty_id
+    });
+
     if (payment.payer_type === PARTY_TYPE.BUYER && payment.payee_type === PARTY_TYPE.SHOP) {
-      // Buyer pays shop: reduce buyer's balance (buyer owes less)
+  // Buyer pays shop: reduce buyer's positive balance (buyer owes less). Negative buyer balance means shop owes buyer (refund scenario).
       userIdToUpdate = payment.counterparty_id;
       userRole = PARTY_TYPE.BUYER;
-      if (userIdToUpdate) {
-        const user = await User.findByPk(userIdToUpdate);
-        if (user) {
-          const previousBalance = Number(user.balance || 0);
-          // Subtract payment amount from buyer's balance (buyer owes less)
-          const paymentAmount = Number(payment.amount);
-          const newBalance = previousBalance - paymentAmount;
-          await user.update({ balance: newBalance });
-          // Create balance snapshot
-          try {
-            const amountChange = newBalance - previousBalance;
-            if (amountChange !== 0) {
-              await BalanceSnapshot.create({
-                user_id: userIdToUpdate,
-                balance_type: BALANCE_TYPE.BUYER,
-                previous_balance: previousBalance,
-                amount_change: amountChange,
-                new_balance: newBalance,
-                transaction_type: 'payment',
-                reference_id: payment.id,
-                reference_type: 'payment',
-                description: `Buyer->shop payment applied to balance ${paymentAmount}`
-              });
-            }
-          } catch (snapshotError: unknown) {
-            const error = snapshotError as Error;
-            console.warn(`[BALANCE SNAPSHOT WARNING] Could not create balance snapshot for buyer ${userIdToUpdate}:`, error?.message || 'Unknown error');
-          }
-        }
-      }
+      // Defer balance mutation: unified recalculation later will update buyer balance based on unpaid amounts.
     } else if (payment.payer_type === PARTY_TYPE.FARMER && payment.payee_type === PARTY_TYPE.SHOP) {
-      // Farmer pays shop: farmer pays down their debt (increase stored balance)
+  // Farmer pays shop: if farmer balance is negative (farmer owes shop) this payment moves balance toward 0 (increase). If balance positive, this would be unusual (farmer paying while shop owes) but we still recalc.
       userIdToUpdate = payment.counterparty_id;
       userRole = PARTY_TYPE.FARMER;
 
@@ -368,14 +337,10 @@ export class PaymentService {
         }
       }
     } else if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
-      // Shop pays farmer: reduce farmer's balance (farmer is owed less)
-      // CRITICAL: Apply FIFO settlement logic first for farmers
+  // Shop pays farmer: reduce farmer's positive balance (shop settles earnings/expenses)
       userIdToUpdate = payment.counterparty_id;
       userRole = PARTY_TYPE.FARMER;
 
-      // For SHOP->FARMER payments, handle the payment correctly:
-      // 1. First settle pending expenses (FIFO)
-      // 2. Then reduce balance with remaining amount
       if (userIdToUpdate && payment.shop_id) {
         const { applyRepaymentFIFO } = await import('../services/settlementService');
         const paymentAmount = Number(payment.amount);
@@ -401,22 +366,36 @@ export class PaymentService {
           const user = await User.findByPk(userIdToUpdate);
           if (user) {
             const previousBalance = Number(user.balance || 0);
-            const amountAppliedToBalance = remainingForBalance;
-            let newBalance = previousBalance - amountAppliedToBalance;
-            // NOTE: Negative balances are ALLOWED per business logic
-            // Farmers can have negative balances (advances received)
-            await user.update({ balance: newBalance });
+            // When shop pays farmer, farmer's debt to shop decreases -> balance decreases
+            // This applies regardless of whether payment goes to expenses or balance
+            const newBalance = previousBalance - paymentAmount;
 
-            console.log('[FARMER BALANCE] Updated after expense settlement', {
-              farmerId: userIdToUpdate,
+            console.log('[FARMER BALANCE] About to update user balance', {
+              userId: userIdToUpdate,
               previousBalance,
               paymentAmount,
-              amountUsedForExpenses,
-              amountAppliedToBalance,
-              newBalance
+              newBalance,
+              paymentId: payment.id
             });
 
-            // Create balance snapshot for the balance portion only
+            try {
+              await user.update({ balance: newBalance });
+              console.log('[FARMER BALANCE] Successfully updated user balance', {
+                userId: userIdToUpdate,
+                previousBalance,
+                newBalance,
+                actualChange: newBalance - previousBalance
+              });
+            } catch (updateError: unknown) {
+              const error = updateError as Error;
+              console.error('[FARMER BALANCE] Failed to update user balance', {
+                userId: userIdToUpdate,
+                error: error?.message || 'Unknown error'
+              });
+              throw updateError; // Re-throw to prevent silent failure
+            }
+
+            // Create balance snapshot
             try {
               const amountChange = newBalance - previousBalance;
               if (amountChange !== 0) {
@@ -429,7 +408,7 @@ export class PaymentService {
                   transaction_type: 'payment',
                   reference_id: payment.id,
                   reference_type: 'payment',
-                  description: `Payment balance update (after expense settlement): applied to balance ${amountAppliedToBalance}`
+                  description: `Shop->Farmer payment: ₹${paymentAmount} (${amountUsedForExpenses} to expenses, ${remainingForBalance} to balance)`
                 });
               }
             } catch (snapshotError: unknown) {
@@ -451,6 +430,48 @@ export class PaymentService {
           // Fall through to regular balance update if FIFO fails
         }
       }
+    } else if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.BUYER) {
+      // Shop pays buyer: refund reduces buyer's positive balance (buyer owes less)
+      userIdToUpdate = payment.counterparty_id;
+      userRole = PARTY_TYPE.BUYER;
+      appliedToBalance = Number(payment.amount);
+
+      // Directly update buyer balance for refunds
+      if (userIdToUpdate) {
+        const user = await User.findByPk(userIdToUpdate);
+        if (user) {
+          const previousBalance = Number(user.balance || 0);
+          // When shop pays buyer (refund), buyer's debt to shop decreases -> balance decreases
+          const newBalance = previousBalance - Number(payment.amount);
+          await user.update({ balance: newBalance });
+
+          console.log('[BUYER REFUND] Updated balance after shop->buyer payment', {
+            buyerId: userIdToUpdate,
+            previousBalance,
+            refundAmount: Number(payment.amount),
+            newBalance
+          });
+
+          try {
+            await BalanceSnapshot.create({
+              user_id: userIdToUpdate,
+              balance_type: BALANCE_TYPE.BUYER,
+              previous_balance: previousBalance,
+              amount_change: newBalance - previousBalance,
+              new_balance: newBalance,
+              transaction_type: 'payment',
+              reference_id: payment.id,
+              reference_type: 'payment',
+              description: `Shop->Buyer refund: ${payment.amount}`
+            });
+          } catch (snapshotError: unknown) {
+            const error = snapshotError as Error;
+            console.warn(`[BALANCE SNAPSHOT WARNING] Could not create snapshot for buyer ${userIdToUpdate}:`, error?.message || 'Unknown error');
+          }
+        }
+      }
+
+      return { appliedToExpenses: 0, appliedToBalance: appliedToBalance, fifoResult: undefined };
     }
 
     if (userIdToUpdate && userRole) {
@@ -536,19 +557,20 @@ export class PaymentService {
         newBalance = Math.round((unpaidTransactionEarnings - totalUnsettledExpenses) * 100) / 100;
         
       } else if (userRole === PARTY_TYPE.BUYER) {
-        // Recalculate buyer balance: sum of unpaid transaction amounts
+        // Recalculate buyer balance: sum of unpaid transaction gross amounts minus PAID buyer allocations
+        // Business meaning: Positive buyer balance = buyer owes shop (unpaid purchases). Negative = shop owes buyer (overpayment/refund scenario).
         const { Op } = await import('sequelize');
         const Transaction = (await import('../models/transaction')).Transaction;
         const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
         const Payment = (await import('../models/payment')).Payment;
-        
+
         // Get all transactions for this buyer
         const allBuyerTxns = await Transaction.findAll({ 
           where: { buyer_id: userIdToUpdate } 
         });
-        
+
         const txnIds = allBuyerTxns.map(t => t.id).filter((id): id is number => typeof id === 'number');
-        
+
         // Get all payment allocations and payments for these transactions
         const buyerAllocations = await PaymentAllocation.findAll({ 
           where: { transaction_id: { [Op.in]: txnIds } } 
@@ -556,23 +578,49 @@ export class PaymentService {
         const buyerPayments = await Payment.findAll({ 
           where: { transaction_id: { [Op.in]: txnIds } } 
         });
-        
-        // Calculate unpaid amounts from transactions
+
+        // Instrumentation accumulator
+        let debugTotalGross = 0;
+        let debugTotalPaid = 0;
+        let debugUnpaid = 0;
+
         newBalance = allBuyerTxns.reduce((sum, t) => {
+          const gross = Number(t.total_amount || 0);
           const paidByBuyer = buyerAllocations
             .filter(a => a.transaction_id === t.id)
             .map(a => {
               const pmt = buyerPayments.find(p => p.id === a.payment_id);
+              // Only count actually PAID buyer-originated payments
               if (pmt && pmt.payer_type === PARTY_TYPE.BUYER && pmt.status === 'PAID') {
                 return Number(a.allocated_amount || 0);
               }
               return 0;
             })
             .reduce((s, v) => s + v, 0);
-          const unpaid = Math.max(Number(t.total_amount || 0) - paidByBuyer, 0);
+          const unpaid = Math.max(gross - paidByBuyer, 0);
+          debugTotalGross += gross;
+          debugTotalPaid += paidByBuyer;
+          debugUnpaid += unpaid;
           return sum + unpaid;
         }, 0);
-        
+
+        // If there are shop->buyer refund payments (payer=SHOP payee=BUYER) without allocations, treat them as overpayments reducing balance
+        const refundPayments = await Payment.findAll({ where: { payer_type: PARTY_TYPE.SHOP, payee_type: PARTY_TYPE.BUYER, counterparty_id: userIdToUpdate, status: 'PAID' } });
+        const refundTotal = refundPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+        if (refundTotal > 0) {
+          newBalance = newBalance - refundTotal; // subtract refunds
+        }
+
+        console.log('[BUYER BALANCE RECALC]', {
+          buyerId: userIdToUpdate,
+          transactions: allBuyerTxns.length,
+          grossTotal: debugTotalGross,
+          paidAllocations: debugTotalPaid,
+          unpaidPortion: debugUnpaid,
+          refundTotal,
+          recalculatedBalance: newBalance
+        });
+
         newBalance = Math.round(newBalance * 100) / 100;
       }
       
@@ -701,78 +749,149 @@ export class PaymentService {
           const error = directErr as Error;
           console.warn('[ALLOCATE] Direct allocation error', error?.message || directErr);
         }
+      } else if (payment.counterparty_id) {
+        // Standalone buyer payment (no specific transaction): apply FIFO to buyer's outstanding transactions
+        try {
+          const Transaction = (await import('../models/transaction')).Transaction;
+          const buyerTransactions = await Transaction.findAll({
+            where: { buyer_id: payment.counterparty_id },
+            order: [['transaction_date', 'ASC'], ['id', 'ASC']]
+          });
+          let remaining = paymentAmount;
+          for (const txn of buyerTransactions) {
+            if (remaining <= 0) break;
+            const totalAmount = Number(txn.total_amount || 0);
+            // Fetch existing allocations for this txn
+            const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: txn.id } });
+            // Link allocations to payments and sum only buyer payments that are PAID
+            const Payment = (await import('../models/payment')).Payment;
+            const paymentIds = existingAllocations.map(a => a.payment_id);
+            const relatedPayments = paymentIds.length ? await Payment.findAll({ where: { id: paymentIds } }) : [];
+            const alreadyPaidByBuyer = existingAllocations
+              .filter(a => {
+                const pmt = relatedPayments.find(p => p.id === a.payment_id);
+                return pmt && pmt.payer_type === PARTY_TYPE.BUYER && pmt.status === 'PAID';
+              })
+              .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
+            const outstandingForBuyer = Math.max(totalAmount - alreadyPaidByBuyer, 0);
+            if (outstandingForBuyer > 0) {
+              const allocationAmount = Math.min(remaining, outstandingForBuyer);
+              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: txn.id, allocated_amount: allocationAmount });
+              remaining -= allocationAmount;
+              console.log('[ALLOCATE] Standalone buyer payment allocated', { paymentId: payment.id, transactionId: txn.id, allocationAmount, remaining });
+            }
+          }
+          if (remaining > 0) {
+            console.log('[ALLOCATE] Buyer payment has unallocated remainder (overpayment)', { paymentId: payment.id, unallocatedAmount: remaining });
+          }
+        } catch (buyerErr) {
+          console.error('[ALLOCATE] Error allocating standalone buyer payment', buyerErr);
+        }
       }
-      return;
     }
     
-    // SHOP → FARMER standalone payments: Allocate to farmer's outstanding transactions in FIFO order
-    if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER && !payment.transaction_id && payment.counterparty_id) {
-      try {
-        const Transaction = (await import('../models/transaction')).Transaction;
-        const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
-        
-        // Get all farmer transactions ordered by date (FIFO)
-        const farmerTransactions = await Transaction.findAll({
-          where: { farmer_id: payment.counterparty_id },
-          order: [['transaction_date', 'ASC'], ['id', 'ASC']]
-        });
-        
-        let remainingAmount = paymentAmount;
-        
-        for (const txn of farmerTransactions) {
-          if (remainingAmount <= 0) break;
+    // SHOP → FARMER payments: Allocate to farmer's outstanding transactions
+    if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
+      if (payment.transaction_id) {
+        try {
+          const targetTx = await Transaction.findByPk(payment.transaction_id);
+          if (targetTx) {
+            const farmerEarning = Number(targetTx.farmer_earning || 0);
+            const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id } });
+            // Calculate how much has already been paid to farmer for this transaction
+            const Payment = (await import('../models/payment')).Payment;
+            const paymentIds = existingAllocations.map(a => a.payment_id);
+            const relatedPayments = paymentIds.length > 0 ? await Payment.findAll({ where: { id: paymentIds } }) : [];
+            const alreadyPaidToFarmer = existingAllocations
+              .filter(a => {
+                const pmt = relatedPayments.find(p => p.id === a.payment_id);
+                return pmt && pmt.payee_type === PARTY_TYPE.FARMER && pmt.status === 'PAID';
+              })
+              .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
+            const outstandingForFarmer = Math.max(farmerEarning - alreadyPaidToFarmer, 0);
+            if (outstandingForFarmer > 0) {
+              const allocationAmount = Math.min(paymentAmount, outstandingForFarmer);
+              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+              console.log('[ALLOCATE] Direct allocation for SHOP->FARMER payment', { paymentId: payment.id, transactionId: targetTx.id, allocationAmount });
+            } else {
+              console.log('[ALLOCATE] Target transaction already fully allocated for farmer', { transactionId: targetTx.id, alreadyPaidToFarmer, farmerEarning });
+            }
+          } else {
+            console.log('[ALLOCATE] Referenced transaction_id not found for SHOP->FARMER payment', { transaction_id: payment.transaction_id });
+          }
+        } catch (directErr: unknown) {
+          const error = directErr as Error;
+          console.warn('[ALLOCATE] Direct allocation error for SHOP->FARMER payment', error?.message || directErr);
+        }
+      } else if (payment.counterparty_id) {
+        // Standalone farmer payment (no specific transaction): apply FIFO to farmer's outstanding transactions
+        try {
+          const Transaction = (await import('../models/transaction')).Transaction;
+          const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
           
-          const farmerEarning = Number(txn.farmer_earning || 0);
-          
-          // Get existing allocations for this transaction
-          const existingAllocations = await PaymentAllocation.findAll({
-            where: { transaction_id: txn.id }
+          // Get all farmer transactions ordered by date (FIFO)
+          const farmerTransactions = await Transaction.findAll({
+            where: { farmer_id: payment.counterparty_id },
+            order: [['transaction_date', 'ASC'], ['id', 'ASC']]
           });
           
-          // Calculate how much has already been paid to farmer for this transaction
-          const Payment = (await import('../models/payment')).Payment;
-          const paymentIds = existingAllocations.map(a => a.payment_id);
-          const relatedPayments = paymentIds.length > 0 
-            ? await Payment.findAll({ where: { id: paymentIds } })
-            : [];
+          let remainingAmount = paymentAmount;
           
-          const alreadyPaidToFarmer = existingAllocations
-            .filter(a => {
-              const pmt = relatedPayments.find(p => p.id === a.payment_id);
-              return pmt && pmt.payee_type === PARTY_TYPE.FARMER && pmt.status === 'PAID';
-            })
-            .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
-          
-          const outstandingForFarmer = Math.max(farmerEarning - alreadyPaidToFarmer, 0);
-          
-          if (outstandingForFarmer > 0) {
-            const allocationAmount = Math.min(remainingAmount, outstandingForFarmer);
+          for (const txn of farmerTransactions) {
+            if (remainingAmount <= 0) break;
             
-            await PaymentAllocation.create({
-              payment_id: payment.id,
-              transaction_id: txn.id,
-              allocated_amount: allocationAmount
+            const farmerEarning = Number(txn.farmer_earning || 0);
+            
+            // Get existing allocations for this transaction
+            const existingAllocations = await PaymentAllocation.findAll({
+              where: { transaction_id: txn.id }
             });
             
-            remainingAmount -= allocationAmount;
+            // Calculate how much has already been paid to farmer for this transaction
+            const Payment = (await import('../models/payment')).Payment;
+            const paymentIds = existingAllocations.map(a => a.payment_id);
+            const relatedPayments = paymentIds.length > 0 
+              ? await Payment.findAll({ where: { id: paymentIds } })
+              : [];
             
-            console.log('[ALLOCATE] Standalone farmer payment allocated to transaction', {
+            const alreadyPaidToFarmer = existingAllocations
+              .filter(a => {
+                const pmt = relatedPayments.find(p => p.id === a.payment_id);
+                return pmt && pmt.payee_type === PARTY_TYPE.FARMER && pmt.status === 'PAID';
+              })
+              .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
+            
+            const outstandingForFarmer = Math.max(farmerEarning - alreadyPaidToFarmer, 0);
+            
+            if (outstandingForFarmer > 0) {
+              const allocationAmount = Math.min(remainingAmount, outstandingForFarmer);
+              
+              await PaymentAllocation.create({
+                payment_id: payment.id,
+                transaction_id: txn.id,
+                allocated_amount: allocationAmount
+              });
+              
+              remainingAmount -= allocationAmount;
+              
+              console.log('[ALLOCATE] Standalone farmer payment allocated to transaction', {
+                paymentId: payment.id,
+                transactionId: txn.id,
+                allocationAmount,
+                remainingAmount
+              });
+            }
+          }
+          
+          if (remainingAmount > 0) {
+            console.log('[ALLOCATE] Farmer payment has unallocated amount (advance payment)', {
               paymentId: payment.id,
-              transactionId: txn.id,
-              allocationAmount,
-              remainingAmount
+              unallocatedAmount: remainingAmount
             });
           }
+        } catch (error: unknown) {
+          console.error('[ALLOCATE] Error allocating standalone farmer payment', error);
         }
-        
-        if (remainingAmount > 0) {
-          console.log('[ALLOCATE] Farmer payment has unallocated amount (advance payment)', {
-            paymentId: payment.id,
-            unallocatedAmount: remainingAmount
-          });
-        }
-      } catch (error: unknown) {
-        console.error('[ALLOCATE] Error allocating standalone farmer payment', error);
       }
     }
   }

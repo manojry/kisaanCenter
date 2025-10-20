@@ -532,12 +532,12 @@ export class TransactionService {
       if ('payment_cleared' in data && data.payment_cleared === true) {
     txnStatus = TRANSACTION_STATUS.COMPLETED;
       }
-      // For transactions with payments, store calculated amounts (not payment amounts) 
+      // For transactions with payments, store calculated amounts (not payment amounts)
       // so that balance calculations work correctly for pending amounts
       const recordTotalAmount = data.payments ? expectedTotalFromCalculation : totalAmount;
-      const recordCommissionAmount = data.payments ? 
+      const recordCommissionAmount = data.payments ?
         (expectedTotalFromCalculation * commissionRate / 100) : commissionAmount;
-      const recordFarmerEarning = data.payments ? 
+      const recordFarmerEarning = data.payments ?
         (expectedTotalFromCalculation - recordCommissionAmount) : farmerEarning;
 
   // Debug: Log the transaction_date being set

@@ -12,6 +12,7 @@ import testProductRoutes from './testProductRoutes';
 import farmerProductRoutes from './farmerProductRoutes';
 import shopProductRoutes from './shopProductRoutes';
 import creditAdvanceRoutes from './creditAdvanceRoutes';
+import balanceReconciliationRoutes from './balanceReconciliationRoutes';
 
 import { shopRoutes } from './shopRoutes';
 import { planRoutes } from './planRoutes';
@@ -52,6 +53,7 @@ export {
   farmerProductRoutes,
   shopProductRoutes,
   creditAdvanceRoutes,
+  balanceReconciliationRoutes,
   simplifiedRoutes
 };
 
@@ -80,5 +82,6 @@ export default {
   farmerProductRoutes,
   shopProductRoutes,
   creditAdvanceRoutes,
+  balanceReconciliationRoutes,
   simplifiedRoutes
 };

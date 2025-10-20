@@ -47,7 +47,7 @@ const PaymentManagement: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   // direction chooser modal state (ask user whether this is a receive or pay)
-  const [showDirectionModal, setShowDirectionModal] = useState(false);
+  // Remove direction modal; payment direction is now explicit and inline
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [snapshots, setSnapshots] = useState<BalanceSnapshot[]>([]);
@@ -253,22 +253,22 @@ const PaymentManagement: React.FC = () => {
     }
   };
 
+  // Inline payment direction: for buyers, always receive; for farmers, always pay
   const onRecordClick = () => {
     if (!selectedUser) return;
-    // Ask the user whether this payment is Receive (user -> shop) or Pay (shop -> user)
-    setShowDirectionModal(true);
+    if (selectedUser.role === 'farmer') {
+      // If paying a farmer who currently has negative balance, show force modal
+      if (currentBalance < 0) {
+        setShowConfirmModal(true);
+        return;
+      }
+      handlePayment('pay', false);
+    } else if (selectedUser.role === 'buyer') {
+      handlePayment('receive', false);
+    }
   };
 
-  const confirmDirectionAndSend = async (chosen: 'pay' | 'receive') => {
-    setShowDirectionModal(false);
-    // If paying a farmer who currently has negative balance and chosen is pay, show force modal
-    if (chosen === 'pay' && selectedUser && selectedUser.role === 'farmer' && currentBalance < 0) {
-      setShowConfirmModal(true);
-      return;
-    }
-    // proceed without force override
-    await handlePayment(chosen, false);
-  };
+  // No longer needed: confirmDirectionAndSend (direction is explicit)
 
 
   return (
@@ -512,24 +512,24 @@ const PaymentManagement: React.FC = () => {
                           <option value="other">Other</option>
                         </select>
                       </div>
-                      <Button
-                        onClick={onRecordClick}
-                        disabled={loading || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                        className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-                        size="sm"
-                      >
-                        {loading ? (
-                          <span className="flex items-center">
-                            <span className="loader mr-1"></span>
-                            Processing...
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <CreditCard className="h-3 w-3" />
-                            Proceed
-                          </span>
-                        )}
-                      </Button>
+                        <Button
+                          onClick={onRecordClick}
+                          disabled={loading || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                          className={loading ? 'opacity-60 cursor-not-allowed' : ''}
+                          size="sm"
+                        >
+                          {loading ? (
+                            <span className="flex items-center">
+                              <span className="loader mr-1"></span>
+                              Processing...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <CreditCard className="h-3 w-3" />
+                              {selectedUser?.role === 'farmer' ? 'Pay Farmer' : 'Receive from Buyer'}
+                            </span>
+                          )}
+                        </Button>
                         {/* Confirmation Modal */}
                         {showConfirmModal && (
                           <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -552,20 +552,7 @@ const PaymentManagement: React.FC = () => {
                             </div>
                           </div>
                         )}
-                        {showDirectionModal && (
-                          <div className="fixed inset-0 flex items-center justify-center z-50">
-                            <div className="absolute inset-0 bg-black opacity-30" onClick={() => setShowDirectionModal(false)} />
-                            <div className="bg-white rounded-lg shadow-lg p-6 z-10 w-11/12 max-w-md">
-                              <h3 className="text-lg font-semibold mb-2">Record or Receive?</h3>
-                              <p className="text-sm text-gray-700 mb-4">Are you recording a payment made by the shop to this user (Pay), or recording a payment received from the user to the shop (Receive)?</p>
-                              <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setShowDirectionModal(false)}>Cancel</Button>
-                                <Button size="sm" onClick={() => confirmDirectionAndSend('receive')}>Receive</Button>
-                                <Button size="sm" onClick={() => confirmDirectionAndSend('pay')}>Pay</Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        {/* Direction modal removed: direction is now explicit and inline */}
                     </div>
                   </div>
                 </div>
