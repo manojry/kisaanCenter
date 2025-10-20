@@ -122,14 +122,14 @@ const PaymentManagement: React.FC = () => {
       let res;
       if (selectedUser.role === 'farmer') {
         res = await paymentsApi.getFarmerPayments(selectedUser.id);
-        const data: any = res.data || {};
+        const data = res.data || {};
         // API may return either an array (legacy) or an object { payments, expenses }
         if (Array.isArray(data)) {
           setPayments(data);
           setExpensesData(null);
         } else {
-          setPayments(data.payments || []);
-          setExpensesData(data.expenses || null);
+          setPayments((data as { payments?: Payment[] }).payments || []);
+          setExpensesData((data as { expenses?: unknown }).expenses || null);
         }
       } else if (selectedUser.role === 'buyer') {
         res = await paymentsApi.getBuyerPayments(selectedUser.id);
@@ -221,13 +221,13 @@ const PaymentManagement: React.FC = () => {
           if (selectedUser.role === 'farmer') {
             payRes = await paymentsApi.getFarmerPayments(selectedUser.id);
             // Handle API shapes like { payments, expenses } or legacy array
-            const refreshed: any = payRes.data || {};
+            const refreshed = payRes.data || {};
             if (Array.isArray(refreshed)) {
               setPayments(refreshed);
               setExpensesData(null);
             } else {
-              setPayments(refreshed.payments || []);
-              setExpensesData(refreshed.expenses || null);
+              setPayments((refreshed as { payments?: Payment[] }).payments || []);
+              setExpensesData((refreshed as { expenses?: unknown }).expenses || null);
             }
             } else if (selectedUser.role === 'buyer') {
               payRes = await paymentsApi.getBuyerPayments(selectedUser.id);
@@ -709,7 +709,14 @@ const PaymentManagement: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expensesData.expenses.map((e: any) => (
+                    {expensesData.expenses.map((e: {
+                      id: number;
+                      created_at: string;
+                      amount: number;
+                      settled: number;
+                      unsettled: number;
+                      status: string;
+                    }) => (
                       <TableRow key={e.id} className="h-8 hover:bg-gray-50">
                         <TableCell className="text-xs px-2 py-1">{formatDate(e.created_at)}</TableCell>
                         <TableCell className="text-xs px-2 py-1">₹{e.amount.toLocaleString()}</TableCell>

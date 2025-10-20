@@ -114,7 +114,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
     // Fetch API canonical balance for selected user (preferred source)
     balanceApi.getUserBalance(Number(selectedUser.id))
       .then((resp) => {
-        const d = (resp as any)?.data || resp;
+        const d = resp.data;
         if (d) {
           setSelectedUserBalance({
             current_balance: Number(d.current_balance || 0),

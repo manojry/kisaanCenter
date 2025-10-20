@@ -519,19 +519,25 @@ export const paymentsApi = {
   
   // Note: backend may return an enhanced payload { payments, expenses }.
   // We return the raw payload when expenses are present so callers can access them.
-  getFarmerPayments: async (farmerId: number): Promise<any> => {
-    const raw = await apiClient.get<ApiResponse<any>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
+  getFarmerPayments: async (farmerId: number): Promise<PaginatedResponse<Payment> | {
+    data: Payment[] | { payments: Payment[]; expenses: unknown };
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  }> => {
+    const raw = await apiClient.get<ApiResponse<Payment[] | { payments: Payment[]; expenses: unknown }>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
     // If backend returned the enhanced shape with expenses, return it directly
     if (raw && raw.success && raw.data && typeof raw.data === 'object' && 'expenses' in raw.data) {
       return raw;
     }
     // Legacy: { success: true, data: { payments: [...] } } or { success: true, data: [...] }
-    if (raw && raw.success && raw.data && Array.isArray(raw.data.payments)) {
+    if (raw && raw.success && raw.data && Array.isArray((raw.data as { payments?: Payment[] }).payments)) {
       return {
-        data: raw.data.payments,
+        data: (raw.data as { payments: Payment[] }).payments,
         page: 1,
-        limit: raw.data.payments.length,
-        total: raw.data.totalPayments,
+        limit: (raw.data as { payments: Payment[] }).payments.length,
+        total: (raw.data as { totalPayments?: number }).totalPayments || (raw.data as { payments: Payment[] }).payments.length,
         totalPages: 1
       } as PaginatedResponse<Payment>;
     }
