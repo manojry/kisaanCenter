@@ -97,9 +97,9 @@ export class TransactionController {
         const details = {
           message: error.message,
           ...(error.context ? { context: error.context } : {}),
-          payments_count: Array.isArray((req as any).body?.payments) ? (req as any).body.payments.length : 0
+          payments_count: Array.isArray((req as { body?: { payments?: unknown[] } }).body?.payments) ? ((req as { body?: { payments?: unknown[] } }).body?.payments?.length || 0) : 0
         };
-        return failureCode(res, error.statusCode || 400, (error as any).errorCode || ErrorCodes.TRANSACTION_CREATE_FAILED, details, error.message);
+        return failureCode(res, error.statusCode || 400, ErrorCodes.TRANSACTION_CREATE_FAILED, details, error.message);
       }
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
       const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
@@ -353,7 +353,7 @@ export class TransactionController {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { required: ['expense_id', 'amount'] }, 'expense_id and amount are required');
       }
       
-      const user = (req as any).user;
+      const user = (req as { user?: { id: number } }).user;
       const userId = user?.id || 1;
       
       const { default: settlementTrackingService } = await import('../services/settlementTrackingService');

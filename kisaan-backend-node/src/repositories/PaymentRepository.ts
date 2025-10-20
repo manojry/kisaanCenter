@@ -1,6 +1,6 @@
 
 import { Payment, PaymentStatus, PaymentParty, PaymentCreationAttributes, PaymentMethod as _PaymentMethod } from '../models/payment';
-import { Op } from 'sequelize';
+import { Op, FindOptions, Transaction, Order } from 'sequelize';
 import { DomainError } from '../errors/DomainError';
 
 export class PaymentRepository {
@@ -43,7 +43,7 @@ export class PaymentRepository {
     }
   }
 
-  async findByFilters(filters: Record<string, unknown>, options?: { order?: any[] }) {
+  async findByFilters(filters: Record<string, unknown>, options?: { order?: Order }) {
     try {
       const where: Record<string, unknown> = {};
       
@@ -53,20 +53,20 @@ export class PaymentRepository {
         }
       });
 
-      return await Payment.findAll({
-        where,
-        order: options?.order
-      });
+      const findOpts: FindOptions = { where };
+      if (options?.order) findOpts.order = options.order;
+
+      return await Payment.findAll(findOpts);
     } catch (err) {
   throw new DomainError(`Failed to fetch payments by filters: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  async create(paymentData: Partial<Payment>, options?: { tx?: import('sequelize').Transaction }) {
+  async create(paymentData: PaymentCreationAttributes, options?: { tx?: Transaction }) {
     try {
-      // Use PaymentCreationAttributes for type safety
-      const createOpts = options?.tx ? { transaction: options.tx } : undefined;
-      return await Payment.create(paymentData as PaymentCreationAttributes, createOpts as any);
+      const createOpts: { transaction?: Transaction } = {};
+      if (options?.tx) createOpts.transaction = options.tx;
+      return await Payment.create(paymentData, createOpts);
     } catch (err) {
       throw new DomainError(`Failed to create payment: ${err instanceof Error ? err.message : String(err)}`);
     }

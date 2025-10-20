@@ -3,12 +3,12 @@
 // with callers that use the creditAdvanceService API, we map issueCredit -> createExpense
 // and provide a minimal repayCredit that records a payment/settlement pathway.
 
-import { createExpense, settleAmount } from './settlementService';
+import { createExpense, settleAmount, CreateExpenseInput } from './settlementService';
 
 export class CreditAdvanceService {
   async issueCredit(data: { user_id: number; shop_id?: number; amount: number; description?: string }) {
     // Map to expense creation with type 'advance'
-    const payload = {
+    const payload: CreateExpenseInput = {
       shop_id: data.shop_id || 1,
       user_id: String(data.user_id),
       user_type: 'farmer',
@@ -16,7 +16,7 @@ export class CreditAdvanceService {
       type: 'advance',
       description: data.description || 'Credit advance issued'
     };
-    const expense = await createExpense(payload as any);
+    const expense = await createExpense(payload);
     return expense;
   }
 
@@ -41,7 +41,7 @@ export class CreditAdvanceService {
 }
 
 export const creditAdvanceService = new CreditAdvanceService();
-export const issueCredit = (data: unknown) => creditAdvanceService.issueCredit(data as any);
-export const repayCredit = (data: unknown) => creditAdvanceService.repayCredit(data as any);
+export const issueCredit = (data: { user_id: number; shop_id?: number; amount: number; description?: string }) => creditAdvanceService.issueCredit(data);
+export const repayCredit = (data: { credit_id: number; amount: number }) => creditAdvanceService.repayCredit(data);
 
 

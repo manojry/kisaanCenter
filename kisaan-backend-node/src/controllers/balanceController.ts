@@ -6,8 +6,6 @@ import { paymentService } from '../services/paymentServiceInstance';
 import { success, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
 import { ExpenseRepository } from '../repositories/ExpenseRepository';
-import Expense from '../models/expense';
-import ExpenseSettlement from '../models/expenseSettlement';
 import { getSettledAmountsBatch } from '../services/settlementService';
 import { PARTY_TYPE } from '../shared/partyTypes';
 

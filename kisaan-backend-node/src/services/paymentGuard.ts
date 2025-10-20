@@ -10,7 +10,7 @@ export async function willShopToFarmerWorsenDebt(payment: { shop_id?: number; co
   const paymentAmount = Number(payment.amount || 0);
   // Run a dry-run FIFO to estimate remaining amount applied to balance
   const fifoPreview = await applyRepaymentFIFO(payment.shop_id, payment.counterparty_id, paymentAmount, undefined, { dryRun: true });
-  const remainingForBalance = (fifoPreview as any)?.remaining || 0;
+  const remainingForBalance = fifoPreview.remaining;
 
   const farmer = await User.findByPk(payment.counterparty_id);
   const currentBalance = Number(farmer?.balance || 0);
@@ -23,7 +23,7 @@ export async function willShopToFarmerWorsenDebt(payment: { shop_id?: number; co
   return { worsen: isWorsen, currentBalance, simulatedNewBalance, remainingForBalance };
 }
 
-export function throwIfWorsens(payment: any) {
+export function throwIfWorsens(payment: { shop_id?: number; counterparty_id?: number; amount?: number; force_override?: boolean }) {
   throw new ValidationError('Payment would increase farmer debt. Include force_override=true to proceed if you understand the consequences.', { payment });
 }
 

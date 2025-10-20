@@ -10,7 +10,6 @@ import { TransactionLedger } from './models/transactionLedger';
 import BalanceSnapshot from './models/balanceSnapshot';
 import { PaymentAllocation } from './models/paymentAllocation';
 import { AuditLog } from './models/auditLog';
-import { Op } from 'sequelize';
 
 export class BalanceReconciliationService {
 
@@ -36,7 +35,7 @@ export class BalanceReconciliationService {
       attributes: ['delta_amount']
     });
 
-    const ledgerBalance = ledgerEntries.reduce((sum: number, entry: any) => 
+    const ledgerBalance = ledgerEntries.reduce((sum: number, entry: { delta_amount?: number | string }) => 
       sum + Number(entry.delta_amount || 0), 0
     );
 
@@ -72,7 +71,7 @@ export class BalanceReconciliationService {
       where: { payment_id: paymentId }
     });
 
-    const allocatedAmount = allocations.reduce((sum: number, alloc: any) => 
+    const allocatedAmount = allocations.reduce((sum: number, alloc: { allocated_amount?: number | string }) => 
       sum + Number(alloc.allocated_amount || 0), 0
     );
 
@@ -104,7 +103,7 @@ export class BalanceReconciliationService {
     const transaction = await Transaction.findByPk(transactionId);
     if (!transaction) throw new Error(`Transaction ${transactionId} not found`);
 
-    const totalAmount = Number((transaction as any).total_amount || 0);
+    const totalAmount = Number((transaction as { total_amount?: number | string }).total_amount || 0);
 
     // Calculate total payments allocated to this transaction
     const allocations = await PaymentAllocation.findAll({
@@ -115,7 +114,7 @@ export class BalanceReconciliationService {
       }]
     });
 
-    const totalPaid = allocations.reduce((sum: number, alloc: any) => 
+    const totalPaid = allocations.reduce((sum: number, alloc: { allocated_amount?: number | string }) => 
       sum + Number(alloc.allocated_amount || 0), 0
     );
 
@@ -129,7 +128,7 @@ export class BalanceReconciliationService {
       calculatedStatus = 'partial';
     }
 
-    const currentStatus = (transaction as any).payment_status || 'pending';
+    const currentStatus = (transaction as { payment_status?: string }).payment_status || 'pending';
     const statusMatches = calculatedStatus === currentStatus;
 
     return {
@@ -149,9 +148,29 @@ export class BalanceReconciliationService {
    */
   async auditShopBalances(shopId: number): Promise<{
     shopId: number;
-    userReconciliations: any[];
-    paymentReconciliations: any[];
-    transactionReconciliations: any[];
+    userReconciliations: Array<{
+      userId: number;
+      currentBalance: number;
+      ledgerBalance: number;
+      discrepancy: number;
+      isReconciled: boolean;
+    }>;
+    paymentReconciliations: Array<{
+      paymentId: number;
+      paymentAmount: number;
+      allocatedAmount: number;
+      unallocatedAmount: number;
+      isFullyAllocated: boolean;
+    }>;
+    transactionReconciliations: Array<{
+      transactionId: number;
+      totalAmount: number;
+      totalPaid: number;
+      outstandingAmount: number;
+      calculatedStatus: string;
+      currentStatus: string;
+      statusMatches: boolean;
+    }>;
     totalDiscrepancies: number;
     overallHealthy: boolean;
     recommendations: string[];
@@ -261,7 +280,47 @@ export class BalanceReconciliationService {
   /**
    * Generate comprehensive balance report
    */
-  async generateBalanceReport(shopId: number): Promise<any> {
+  async generateBalanceReport(shopId: number): Promise<{
+    shopId: number;
+    timestamp: Date;
+    summary: {
+      totalUsers: number;
+      totalPayments: number;
+      totalTransactions: number;
+      totalDiscrepancies: number;
+      isHealthy: boolean;
+    };
+    details: {
+      shopId: number;
+      userReconciliations: Array<{
+        userId: number;
+        currentBalance: number;
+        ledgerBalance: number;
+        discrepancy: number;
+        isReconciled: boolean;
+      }>;
+      paymentReconciliations: Array<{
+        paymentId: number;
+        paymentAmount: number;
+        allocatedAmount: number;
+        unallocatedAmount: number;
+        isFullyAllocated: boolean;
+      }>;
+      transactionReconciliations: Array<{
+        transactionId: number;
+        totalAmount: number;
+        totalPaid: number;
+        outstandingAmount: number;
+        calculatedStatus: string;
+        currentStatus: string;
+        statusMatches: boolean;
+      }>;
+      totalDiscrepancies: number;
+      overallHealthy: boolean;
+      recommendations: string[];
+    };
+    actionItems: string[];
+  }> {
     const audit = await this.auditShopBalances(shopId);
     
     const report = {

@@ -1,11 +1,9 @@
-import { Transaction as SequelizeTransaction } from 'sequelize';
 import sequelize from '../config/database';
 import { Transaction } from '../models/transaction';
 import { Payment } from '../models/payment';
 import { Expense } from '../models/expense';
 import TransactionSettlement from '../models/transactionSettlement';
 import ExpenseAllocation from '../models/expenseAllocation';
-import { TransactionLedger } from '../models/transactionLedger';
 
 /**
  * Settlement Tracking Service
@@ -26,6 +24,44 @@ import { TransactionLedger } from '../models/transactionLedger';
  * - transaction.settled_amount, pending_amount, settlement_status
  * - expense.allocated_amount, remaining_amount, allocation_status
  */
+
+interface TransactionSettlementDetail {
+  transaction_id: number;
+  total_amount: number;
+  settled_amount: number;
+  pending_amount: number;
+  settlement_status: string;
+  settled_via_payments: number;
+  payment_count: number;
+  settled_via_expenses: number;
+  expense_offset_count: number;
+  settled_via_credits: number;
+  credit_offset_count: number;
+  settled_via_adjustments: number;
+}
+
+interface ExpenseAllocationDetail {
+  expense_id: number;
+  total_amount: number;
+  allocated_amount: number;
+  remaining_amount: number;
+  allocation_status: string;
+  allocated_to_transactions: number;
+  transaction_offset_count: number;
+  allocated_to_balance: number;
+  balance_settlement_count: number;
+  allocated_as_advance: number;
+}
+
+interface UserFinancialPicture {
+  user_id: number;
+  current_balance: number;
+  pending_transaction_amounts: number;
+  unallocated_expense_amounts: number;
+  total_payments: number;
+  total_expenses: number;
+  net_position: number;
+}
 export class SettlementTrackingService {
   
   /**
@@ -230,7 +266,7 @@ export class SettlementTrackingService {
    * @param transaction_id - Transaction ID
    * @returns Settlement detail object
    */
-  async getTransactionSettlementDetail(transaction_id: number): Promise<any> {
+  async getTransactionSettlementDetail(transaction_id: number): Promise<TransactionSettlementDetail | null> {
     console.log('[SettlementService] Getting settlement detail for transaction:', transaction_id);
     
     const [results] = await sequelize.query(`
@@ -267,7 +303,7 @@ export class SettlementTrackingService {
     }
 
     console.log('[SettlementService] Settlement detail found:', results);
-    return results;
+    return results as unknown as TransactionSettlementDetail;
   }
 
   /**
@@ -282,7 +318,7 @@ export class SettlementTrackingService {
    * @param expense_id - Expense ID
    * @returns Allocation detail object
    */
-  async getExpenseAllocationDetail(expense_id: number): Promise<any> {
+  async getExpenseAllocationDetail(expense_id: number): Promise<ExpenseAllocationDetail | null> {
     console.log('[SettlementService] Getting allocation detail for expense:', expense_id);
     
     const [results] = await sequelize.query(`
@@ -317,7 +353,7 @@ export class SettlementTrackingService {
     }
 
     console.log('[SettlementService] Allocation detail found:', results);
-    return results;
+    return results as unknown as ExpenseAllocationDetail;
   }
 
   /**
@@ -333,7 +369,7 @@ export class SettlementTrackingService {
    * @param user_id - User ID
    * @returns Financial picture object
    */
-  async getUserFinancialPicture(user_id: number): Promise<any> {
+  async getUserFinancialPicture(user_id: number): Promise<UserFinancialPicture | null> {
     console.log('[SettlementService] Getting financial picture for user:', user_id);
     
     const [results] = await sequelize.query(`
@@ -349,7 +385,7 @@ export class SettlementTrackingService {
     }
 
     console.log('[SettlementService] Financial picture:', results[0]);
-    return results[0];
+    return results[0] as unknown as UserFinancialPicture;
   }
 
   /**

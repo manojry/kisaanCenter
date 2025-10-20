@@ -9,12 +9,17 @@ export interface ExpenseUserSummary {
 
 import { User } from '../models/user';
 import ExpenseRepository from '../repositories/ExpenseRepository';
-import Expense, { ExpenseStatus } from '../models/expense';
 import ExpenseSettlement from '../models/expenseSettlement';
+import { ExpenseStatus, ExpenseCreationAttributes } from '../models/expense';
 
 // OPTIMIZATION: Batch load settled amounts for multiple expenses in one query
 export const getSettledAmountsBatch = async (expenseIds: number[], transaction?: import('sequelize').Transaction): Promise<Record<number, number>> => {
   if (expenseIds.length === 0) return {};
+
+  interface SettlementResult {
+    expense_id: number;
+    total_settled: string;
+  }
 
   const settlements = await ExpenseSettlement.findAll({
     where: { expense_id: expenseIds },
@@ -25,10 +30,10 @@ export const getSettledAmountsBatch = async (expenseIds: number[], transaction?:
     group: ['expense_id'],
     raw: true,
     transaction
-  } as any);
+  }) as unknown as SettlementResult[];
 
   const result: Record<number, number> = {};
-  settlements.forEach((s: any) => {
+  settlements.forEach((s) => {
     result[s.expense_id] = parseFloat(s.total_settled || '0');
   });
 
@@ -108,18 +113,19 @@ export interface CreateExpenseInput {
 
 export const createExpense = async (data: CreateExpenseInput, options?: { tx?: import('sequelize').Transaction }) => {
   const expenseRepo = new ExpenseRepository();
-  const expense = await expenseRepo.create({
+  const expenseData: ExpenseCreationAttributes = {
     shop_id: data.shop_id,
     user_id: parseInt(data.user_id),
     amount: data.amount,
-    type: data.type,
+    type: data.type as 'expense' | 'advance' | 'adjustment',
     description: data.description,
     transaction_id: data.transaction_id || null,
     status: ExpenseStatus.Pending
-  } as any, options);
+  };
+  const expense = await expenseRepo.create(expenseData, options);
 
   console.log('[EXPENSE] Expense created', {
-    expenseId: (expense as any)?.id,
+    expenseId: expense.id,
     type: data.type,
     userId: parseInt(data.user_id),
     amount: data.amount,
@@ -212,7 +218,7 @@ export const settleAmount = async (expense_id: number, amount: number, options?:
   }
   // partial settle: reduce amount and save
   e.amount = originalAmount - amount;
-  await e.save(options?.tx ? { transaction: options.tx } as any : undefined);
+  await e.save(options?.tx ? { transaction: options.tx } : undefined);
   return e;
 };
 

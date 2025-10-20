@@ -25,8 +25,8 @@ export class TransactionService {
   async getAllBuyersBalance(shopId: number): Promise<number> {
     const transactions = await this.transactionRepository.findByShop(shopId);
     if (!transactions.length) return 0;
-    const txnIds = transactions.map((t: any) => t.id).filter((id: any): id is number => typeof id === 'number');
-    let payments: any[] = [];
+    const txnIds = transactions.map((t) => t.id).filter((id): id is number => id != null && typeof id === 'number');
+    let payments: Payment[] = [];
     if (txnIds.length > 0) {
       const { Op } = await import('sequelize');
       payments = await (await import('../models/payment')).Payment.findAll({
@@ -38,8 +38,8 @@ export class TransactionService {
     for (const txn of transactions) {
       const buyerId = txn.buyer_id;
       if (!buyerId) continue;
-      const buyerPayments = payments.filter((p: any) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID');
-      const buyerPaid = buyerPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const buyerPayments = payments.filter((p) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID');
+      const buyerPaid = buyerPayments.reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
       const due = Math.max(Number(txn.total_amount || 0) - buyerPaid, 0);
       if (!buyerDueMap[buyerId]) buyerDueMap[buyerId] = 0;
       buyerDueMap[buyerId] += due;
@@ -54,8 +54,8 @@ export class TransactionService {
   async getAllFarmersBalance(shopId: number): Promise<number> {
     const transactions = await this.transactionRepository.findByShop(shopId);
     if (!transactions.length) return 0;
-    const txnIds = transactions.map((t: any) => t.id).filter((id: any): id is number => typeof id === 'number');
-    let payments: any[] = [];
+    const txnIds = transactions.map((t) => t.id).filter((id): id is number => id != null && typeof id === 'number');
+    let payments: Payment[] = [];
     if (txnIds.length > 0) {
       const { Op } = await import('sequelize');
       payments = await (await import('../models/payment')).Payment.findAll({
@@ -67,8 +67,8 @@ export class TransactionService {
     for (const txn of transactions) {
       const farmerId = txn.farmer_id;
       if (!farmerId) continue;
-      const farmerPayments = payments.filter((p: any) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID');
-      const farmerPaid = farmerPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const farmerPayments = payments.filter((p) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID');
+      const farmerPaid = farmerPayments.reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
       const due = Math.max(Number(txn.farmer_earning || 0) - farmerPaid, 0);
       if (!farmerDueMap[farmerId]) farmerDueMap[farmerId] = 0;
       farmerDueMap[farmerId] += due;
@@ -787,17 +787,14 @@ export class TransactionService {
 
       // Calculate net deltas after payments using the actual createdPayments
       // (data.payments may be undefined for default/full-payment flows)
-      const farmerPaid = Array.isArray(createdPayments) ? (createdPayments as any[])
+      const farmerPaid = Array.isArray(createdPayments) ? (createdPayments as Payment[])
         .filter(p => String(p.payee_type || '').toUpperCase() === 'FARMER')
         .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
-      const buyerPaid = Array.isArray(createdPayments) ? (createdPayments as any[])
+      const buyerPaid = Array.isArray(createdPayments) ? (createdPayments as Payment[])
         .filter(p => String(p.payer_type || '').toUpperCase() === 'BUYER')
         .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
       const netFarmerDelta = recordFarmerEarning - farmerPaid;
       const netBuyerDelta = recordTotalAmount - buyerPaid;
-
-      const farmerBalanceBefore = Number(farmer.balance || 0);
-      const buyerBalanceBefore = Number(buyer.balance || 0);
 
       // NOW update user balances AFTER all payments and allocations are created
       // This ensures the balance calculation can find the PaymentAllocation records
@@ -1035,7 +1032,6 @@ export class TransactionService {
       // Use lower-case normalization for party types (they are stored as lower-case strings)
       // Use upper-case normalization for statuses (some status constants are upper-case)
       const normUpper = (v: unknown) => (v == null ? '' : String(v).toUpperCase());
-      const normLower = (v: unknown) => (v == null ? '' : String(v).toLowerCase());
 
       // Comprehensive transaction validation
       const totalAmount = Number(transaction.total_amount || 0);
@@ -1754,7 +1750,7 @@ export class TransactionService {
         const settlements = await ExpenseSettlement.findAll({
           where: { expense_id: expense.id }
         });
-        const settledAmount = settlements.reduce((sum: number, s: any) => 
+        const settledAmount = settlements.reduce((sum: number, s) => 
           sum + Number(s.amount || 0), 0);
         
         // Unsettled portion = expense amount - settled amount
@@ -2112,66 +2108,87 @@ export class TransactionService {
    * - shopPaysFarmer: optional { amount, method }
    */
   async createTransactionWithPayments(params: {
-    transaction: any;
+    transaction: {
+      shop_id: number;
+      farmer_id: number;
+      buyer_id: number;
+      product_id?: number | null;
+      category_id: number;
+      product_name: string;
+      quantity: number;
+      unit_price: number;
+      commission_rate?: number;
+      transaction_date?: Date;
+      notes?: string;
+      payments?: Array<{
+        payer_type: 'BUYER' | 'SHOP';
+        payee_type: 'SHOP' | 'FARMER';
+        amount: number;
+        method: string;
+        status?: string;
+        payment_date?: string;
+        notes?: string;
+      }>;
+    };
     expenses?: Array<{ amount: number; description?: string; type?: 'expense' | 'advance' }>;
     buyerPayment?: { amount: number; method?: string } | null;
     shopPaysFarmer?: { amount: number; method?: string } | null;
-  }, requestingUser?: { role?: string; id?: number }): Promise<any> {
+  }, requestingUser?: { role?: string; id?: number }): Promise<TransactionEntity> {
     const txn = await sequelize.transaction();
     const { PaymentService } = await import('./paymentService');
     const paymentService = new PaymentService();
     // Dynamically import createExpense function
-    let createExpense: any = null;
+    let createExpense: ((data: { shop_id: number; user_id: number; amount: number; type: string; description: string; transaction_id?: number | null }, options?: { tx?: import('sequelize').Transaction }) => Promise<unknown>) | null = null;
     try {
       const mod = await import('./expenseService');
       createExpense = mod.createExpense;
-    } catch (e: any) {
+    } catch (e: unknown) {
       // If createExpense is not found, throw a clear error
-      throw new Error('createExpense could not be imported: ' + (e && e.message ? e.message : e));
+      throw new Error('createExpense could not be imported: ' + (e instanceof Error ? e.message : String(e)));
     }
     try {
       // 1) create transaction within tx
-  const transactionEntity = await this.createTransaction(params.transaction, requestingUser as any, { tx: txn });
+      const transactionEntity = await this.createTransaction(params.transaction, requestingUser as { role: string; id: number } | undefined, { tx: txn });
 
       // 2) create expense rows (if any)
       if (Array.isArray(params.expenses) && params.expenses.length) {
         for (const e of params.expenses) {
           await createExpense({
             shop_id: params.transaction.shop_id,
-            user_id: String(params.transaction.farmer_id),
-            transaction_id: (transactionEntity as any).id,
+            user_id: params.transaction.farmer_id,
+            transaction_id: transactionEntity.id,
             amount: e.amount,
             type: e.type || 'expense',
             description: e.description || ''
-          } as any, { tx: txn });
+          }, { tx: txn });
         }
       }
 
       // 3) buyer payment (if provided)
       if (params.buyerPayment && params.buyerPayment.amount > 0) {
         await paymentService.createPayment({
-          payer_type: PARTY_TYPE.BUYER,
-          payee_type: PARTY_TYPE.SHOP,
+          payer_type: 'BUYER',
+          payee_type: 'SHOP',
           amount: params.buyerPayment.amount,
-          transaction_id: (transactionEntity as any).id,
+          transaction_id: transactionEntity.id,
           counterparty_id: params.transaction.buyer_id,
           shop_id: params.transaction.shop_id,
-          method: params.buyerPayment.method || 'Cash',
+          method: (params.buyerPayment.method || 'CASH') as PaymentMethod,
           payment_date: new Date()
-        } as any, requestingUser?.id || 0, { tx: txn });
+        }, requestingUser?.id || 0, { tx: txn });
       }
 
       // 4) shop pays farmer (if provided) — paymentService will apply FIFO on expenses
       if (params.shopPaysFarmer && params.shopPaysFarmer.amount > 0) {
         await paymentService.createPayment({
-          payer_type: PARTY_TYPE.SHOP,
-          payee_type: PARTY_TYPE.FARMER,
+          payer_type: 'SHOP',
+          payee_type: 'FARMER',
           amount: params.shopPaysFarmer.amount,
           counterparty_id: params.transaction.farmer_id,
           shop_id: params.transaction.shop_id,
-          method: params.shopPaysFarmer.method || 'Cash',
+          method: (params.shopPaysFarmer.method || 'CASH') as PaymentMethod,
           payment_date: new Date()
-        } as any, requestingUser?.id || 0, { tx: txn });
+        }, requestingUser?.id || 0, { tx: txn });
       }
 
       await txn.commit();

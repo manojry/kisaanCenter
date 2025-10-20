@@ -1,5 +1,5 @@
 import { User } from '../models/user';
-import { Payment, PaymentParty, PaymentMethod, PaymentStatus } from '../models/payment';
+import { Payment, PaymentParty, PaymentMethod, PaymentStatus, PaymentCreationAttributes } from '../models/payment';
 import { PaymentRepository } from '../repositories/PaymentRepository';
 import { Transaction } from '../models/transaction';
 import { PaymentAllocation } from '../models/paymentAllocation';
@@ -13,7 +13,6 @@ import { ValidationError } from '../shared/utils/errors';
 import BalanceSnapshot from '../models/balanceSnapshot';
 import { TransactionLedger } from '../models/transactionLedger';
 import { TransactionService } from './transactionService';
-import sequelize from '../config/database';
 
 // Result shape returned by balance update operations
 // appliedToExpenses: amount consumed by expense settlements
@@ -29,7 +28,7 @@ export class PaymentService {
   constructor() {
     this.paymentRepository = new PaymentRepository();
   }
-  async createPayment(data: CreatePaymentDTO, userId: number, options?: { tx?: import('sequelize').Transaction }): Promise<any> {
+  async createPayment(data: CreatePaymentDTO, userId: number, options?: { tx?: import('sequelize').Transaction }): Promise<PaymentResponseDTO> {
     // Reject shop-to-shop payments (commission should not be a payment)
     if (data.payer_type === PARTY_TYPE.SHOP && data.payee_type === PARTY_TYPE.SHOP) {
       logger.error({ payload: data }, 'Shop-to-shop payments (commission) are not allowed.');
@@ -135,7 +134,7 @@ export class PaymentService {
     }
 
     logger.info({ payload: data, normalized: paymentData }, 'Creating payment');    
-  const payment = await this.paymentRepository.create(paymentData, options);      
+  const payment = await this.paymentRepository.create(paymentData as PaymentCreationAttributes, options);      
     if (!payment || !payment.id) {
       logger.error({ paymentData }, 'Payment creation failed: No valid payment ID returned');
       throw new Error('Payment creation failed: No valid payment ID returned');   
@@ -237,7 +236,7 @@ export class PaymentService {
       applied_to_expenses: balanceResult?.appliedToExpenses ?? 0,
       applied_to_balance: balanceResult?.appliedToBalance ?? 0,
       fifo_result: balanceResult?.fifoResult ?? null
-    };
+    } as PaymentResponseDTO & { applied_to_expenses: number; applied_to_balance: number; fifo_result: unknown };
   }
 
   private async updateUserBalancesAfterPayment(payment: Payment, options?: { tx?: import('sequelize').Transaction }): Promise<BalanceResult | undefined> {
@@ -272,8 +271,8 @@ export class PaymentService {
         try {
           // Apply FIFO settlement to settle the farmer's pending expenses first
           fifoResult = await applyRepaymentFIFO(payment.shop_id, userIdToUpdate, paymentAmount, payment.id, options);
-          const fifo = fifoResult as any;
-          const remainingAfterExpenses = fifo?.remaining || 0;
+          const fifo = fifoResult as { remaining: number };
+          const remainingAfterExpenses = fifo.remaining;
           const amountUsedForExpenses = paymentAmount - remainingAfterExpenses;
           appliedToExpenses = amountUsedForExpenses;
           appliedToBalance = remainingAfterExpenses;
@@ -292,7 +291,7 @@ export class PaymentService {
             const previousBalance = Number(user.balance || 0);
             const amountAppliedToBalance = remainingAfterExpenses;
             // Since farmer is paying the shop, the farmer's debt should decrease -> balance increases
-            let newBalance = previousBalance + amountAppliedToBalance;
+            const newBalance = previousBalance + amountAppliedToBalance;
             await user.update({ balance: newBalance });
 
             console.log('[FARMER BALANCE] Updated after farmer->shop payment', {
@@ -348,8 +347,8 @@ export class PaymentService {
         try {
           // Apply FIFO settlement to clear expenses first
           fifoResult = await applyRepaymentFIFO(payment.shop_id, userIdToUpdate, paymentAmount, payment.id, options);
-          const fifo = fifoResult as any;
-          const remainingForBalance = fifo?.remaining || 0;
+          const fifo = fifoResult as { remaining: number };
+          const remainingForBalance = fifo.remaining;
           const amountUsedForExpenses = paymentAmount - remainingForBalance;
           appliedToExpenses = amountUsedForExpenses;
           appliedToBalance = remainingForBalance;
@@ -491,7 +490,6 @@ export class PaymentService {
         const Transaction = (await import('../models/transaction')).Transaction;
         const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
         const Payment = (await import('../models/payment')).Payment;
-        const Settlement = (await import('../models/settlement')).Settlement;
         
         // Get all transactions for this farmer
         const allFarmerTxns = await Transaction.findAll({ 
@@ -546,7 +544,7 @@ export class PaymentService {
           const settlements = await ExpenseSettlement.findAll({
             where: { expense_id: expense.id }
           });
-          const settledAmount = settlements.reduce((sum: number, s: any) => 
+          const settledAmount = settlements.reduce((sum: number, s) => 
             sum + Number(s.amount || 0), 0);
           
           // Unsettled portion = expense amount - settled amount
@@ -703,7 +701,7 @@ export class PaymentService {
             const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
             if (outstandingAmount > 0) {
               const allocationAmount = Math.min(paymentAmount, outstandingAmount);
-                const alloc = await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
                 // Realize owner's commission proportionally for this allocation
                 try {
                   const txn = targetTx; // Transaction model instance
@@ -909,8 +907,8 @@ export class PaymentService {
         status: data.status ? PaymentStatus[data.status as keyof typeof PaymentStatus] : PaymentStatus.Pending,
         notes: data.notes,
       };
-  const payment = await this.paymentRepository.create(paymentData);
-    if (payment) results.push((payment as any).toJSON() as PaymentResponseDTO);
+  const payment = await this.paymentRepository.create(paymentData as PaymentCreationAttributes);
+    if (payment) results.push(payment.toJSON() as PaymentResponseDTO);
     }
     return results;
   }
@@ -1034,14 +1032,14 @@ export class PaymentService {
       
       // Calculate settled and unsettled amounts for each expense
       const expenseDetails = await Promise.all(
-        farmerExpenses.map(async (expense: any) => {
+        farmerExpenses.map(async (expense) => {
           const expenseAmount = Number(expense.amount || 0);
           
           // Get settlements for this expense
           const settlements = await ExpenseSettlement.findAll({
             where: { expense_id: expense.id }
           });
-          const settledAmount = settlements.reduce((sum: number, s: any) => 
+          const settledAmount = settlements.reduce((sum: number, s) => 
             sum + Number(s.amount || 0), 0);
           
           const unsettledAmount = Math.max(0, expenseAmount - settledAmount);

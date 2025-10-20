@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Transaction } from 'sequelize';
 import sequelize from '../config/database';
 import ExpenseSettlement from './expenseSettlement';
 
@@ -76,16 +76,16 @@ export class Expense extends Model<ExpenseAttributes, ExpenseCreationAttributes>
   public readonly settlements?: ExpenseSettlement[];
 
   // Instance method to get settled amount
-  public async getSettledAmount(options?: { transaction?: import('sequelize').Transaction }): Promise<number> {
+  public async getSettledAmount(options?: { transaction?: Transaction }): Promise<number> {
     const settlements = await ExpenseSettlement.findAll({
       where: { expense_id: this.id },
       attributes: [[sequelize.fn('SUM', sequelize.col('amount')), 'total']],
       raw: true,
       transaction: options?.transaction
-    } as any);
+    });
 
-    const result = settlements[0] as any;
-    return result?.total ? parseFloat(result.total) : 0;
+    const result = settlements[0] as { total?: string | number } | undefined;
+    return result?.total ? parseFloat(String(result.total)) : 0;
   }
 
   // Instance method to get remaining amount

@@ -1,5 +1,5 @@
 import { ExpenseRepository } from '../repositories/ExpenseRepository';
-import Expense, { ExpenseStatus } from '../models/expense';
+import Expense, { ExpenseStatus, ExpenseCreationAttributes } from '../models/expense';
 import ExpenseSettlement from '../models/expenseSettlement';
 import { User } from '../models/user';
 import { TransactionLedger } from '../models/transactionLedger';
@@ -34,18 +34,19 @@ export interface ExpenseUserSummary {
 // Create a new expense
 export const createExpense = async (data: CreateExpenseData, options?: { tx?: import('sequelize').Transaction }) => {
   const expenseRepo = new ExpenseRepository();
-  const expense = await expenseRepo.create({
+  const expenseData: ExpenseCreationAttributes = {
     shop_id: data.shop_id,
     user_id: data.user_id,
     amount: data.amount,
-    type: data.type,
+    type: data.type as 'expense' | 'advance' | 'adjustment',
     description: data.description,
     transaction_id: data.transaction_id || null,
     status: ExpenseStatus.Pending
-  } as any, options);
+  };
+  const expense = await expenseRepo.create(expenseData, options);
 
   console.log('[EXPENSE] Expense created', {
-    expenseId: (expense as any)?.id,
+    expenseId: expense?.id,
     type: data.type,
     userId: data.user_id,
     amount: data.amount,
@@ -73,20 +74,20 @@ export const createExpense = async (data: CreateExpenseData, options?: { tx?: im
       data.shop_id,
       data.user_id,
       data.amount,
-      (expense as any)?.id,
+      expense!.id,
       options
     );
 
     if (adjustmentResult.totalAdjusted > 0) {
       console.log('[EXPENSE] Payments adjusted for retroactive expense', {
-        expenseId: (expense as any)?.id,
+        expenseId: expense!.id,
         totalAdjusted: adjustmentResult.totalAdjusted,
         adjustedPaymentsCount: adjustmentResult.adjustedPayments.length
       });
     }
   } catch (error) {
     console.error('[EXPENSE] Failed to adjust payments for expense', {
-      expenseId: (expense as any)?.id,
+      expenseId: expense!.id,
       error: error instanceof Error ? error.message : String(error)
     });
     // Don't fail expense creation if payment adjustment fails
@@ -121,24 +122,24 @@ export const getExpenses = async (filters: GetExpensesFilters) => {
 
   if (filters.user_id) {
     const uid = parseInt(filters.user_id);
-    result = result.filter((e: any) => e.user_id === uid);
+    result = result.filter((e) => e.user_id === uid);
   }
 
   // Additional filtering by status/dates can be added here
   if (filters.status) {
-    result = result.filter((e: any) => e.status === filters.status);
+    result = result.filter((e) => e.status === filters.status);
   }
 
   // Calculate settled and unsettled amounts for each expense
   const expenseDetails = await Promise.all(
-    result.map(async (expense: any) => {
+    result.map(async (expense) => {
       const expenseAmount = Number(expense.amount || 0);
       
       // Get settlements for this expense
       const settlements = await ExpenseSettlement.findAll({
         where: { expense_id: expense.id }
       });
-      const settledAmount = settlements.reduce((sum: number, s: any) => 
+      const settledAmount = settlements.reduce((sum: number, s) => 
         sum + Number(s.amount || 0), 0);
       
       const unsettledAmount = Math.max(0, expenseAmount - settledAmount);
@@ -174,8 +175,8 @@ export const getExpenseSummary = async (shop_id: string) => {
   });
 
   const settlementMap = new Map<number, number>();
-  settlements.forEach((s: any) => {
-    settlementMap.set(s.expense_id, parseFloat(s.total_settled || '0'));
+  settlements.forEach((s) => {
+    settlementMap.set(s.expense_id as number, parseFloat((s as { total_settled?: string }).total_settled || '0'));
   });
 
   for (const e of expenses) {
@@ -192,12 +193,12 @@ export const getExpenseSummary = async (shop_id: string) => {
         username: user.username,
         role: user.role,
         balance: typeof user.balance === 'string' ? parseFloat(user.balance) : user.balance,
-  total_amount: 0,
+        total_amount: 0,
         pending_count: 0
       };
     }
 
-  summary[e.user_id].total_amount += expenseAmount;
+    summary[e.user_id].total_amount += expenseAmount;
     if (pendingAmount > 0) summary[e.user_id].pending_count++;
   }
 
@@ -224,6 +225,6 @@ export const settleExpenseAmount = async (expense_id: number, amount: number, op
 
   // Partial settle: reduce amount and save
   e.amount = originalAmount - amount;
-  await e.save(options?.tx ? { transaction: options.tx } as any : undefined);
+  await e.save(options?.tx ? { transaction: options.tx } : undefined);
   return e;
 };

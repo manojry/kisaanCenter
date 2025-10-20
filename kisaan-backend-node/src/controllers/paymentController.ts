@@ -100,7 +100,7 @@ export class PaymentController {
       // Authorization: if a shop is paying a farmer, ensure requester is the shop owner or superadmin
       if (paymentData.payer_type === PARTY_TYPE.SHOP && paymentData.payee_type === PARTY_TYPE.FARMER) {
         // Resolve shop_id from body or transaction if available in service later; here, if shop_id in body check ownership
-        const shopId = (paymentData as any).shop_id || (reqUser ? reqUser.shop_id : undefined);
+        const shopId = (paymentData as { shop_id?: number }).shop_id || (reqUser ? reqUser.shop_id : undefined);
         if (reqUser?.role === 'owner') {
           if (!shopId || Number(shopId) !== Number(reqUser.shop_id) && reqUser.shop_id !== undefined) {
             // If owner role but shopId doesn't match their shop, reject

@@ -77,8 +77,8 @@ export class SimplifiedTransactionService {
     if (data.payments && Array.isArray(data.payments)) {
       for (const payment of data.payments) {
         // Normalize payer_type and payee_type (handle both uppercase and lowercase)
-        const payerType = (payment as any).payer_type?.toLowerCase();
-        const payeeType = (payment as any).payee_type?.toLowerCase();
+        const payerType = payment.payer_type.toLowerCase();
+        const payeeType = payment.payee_type.toLowerCase();
         
         // Map to enum values
         let payer: PaymentParty;
