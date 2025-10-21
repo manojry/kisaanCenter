@@ -130,8 +130,8 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { sequelize } = require('../models/index');
-    const { shop_id } = req.query;
-    let { date_from, date_to } = req.query;
+  const { shop_id } = req.query;
+  const { date_from, date_to } = req.query;
     // If date_from and date_to are not provided, do not apply a date filter (return lifetime/shop-scoped aggregates)
     // This avoids unintentionally restricting analytics to the current day when the caller expects lifetime totals.
     let whereClause = '';
@@ -231,7 +231,7 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     };
 
     // Map aggregates to client-friendly keys and compute realized values
-    const agg = (Array.isArray(aggResults) ? aggResults[0] : aggResults) || {} as any;
+  const agg = (Array.isArray(aggResults) ? aggResults[0] : aggResults) || {} as Record<string, unknown>;
     const totalTransactions = Number(agg.total_transactions ?? 0);
     const totalSales = Number(agg.total_sales ?? total_sales ?? 0);
     const totalCommission = Number(agg.total_commission ?? 0);
@@ -299,7 +299,7 @@ router.get('/analytics/debug', authenticateToken, loadFeatures, requireFeature('
       ORDER BY pending DESC
     `, { replacements: params });
 
-    const total = (Array.isArray(rows) ? rows.reduce((s: number, r: any) => s + Number(r.pending || 0), 0) : 0);
+  const total = (Array.isArray(rows) ? rows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.pending as number || 0), 0) : 0);
     success(res, { rows: rows || [], total_pending_to_farmer: Number(total) });
   } catch (error) {
     const stack = typeof error === 'object' && error && 'stack' in error ? (error as { stack?: string }).stack : String(error);

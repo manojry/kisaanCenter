@@ -12,8 +12,8 @@ export interface PaymentResponse {
   balance_before: string | null;
   balance_after: string | null;
   settlement_type?: string | null;
-  settled_transactions: any[];
-  settled_expenses: any[];
+  settled_transactions: Array<Record<string, unknown>>;
+  settled_expenses: Array<Record<string, unknown>>;
   fifo_result: unknown;
   applied_to_expenses: number;
   applied_to_balance: number;

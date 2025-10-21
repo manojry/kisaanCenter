@@ -14,8 +14,7 @@ import BalanceSnapshot from '../models/balanceSnapshot';
 import { TransactionLedger } from '../models/transactionLedger';
 import { applyRepaymentFIFO } from './settlementService';
 import * as path from 'path';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { USER_ROLES } = require('../shared/constants');
+import { USER_ROLES } from '../shared/constants/index';
 
 // Result shape returned by balance update operations
 // appliedToExpenses: amount consumed by expense settlements
@@ -178,26 +177,25 @@ export class PaymentService {
         // Resolve the paymentGuard module from the project root so mocks required
         // in tests (which use the project-relative path) resolve to the same
         // module instance. Fall back to a local require if resolve fails.
-        let guardModule: any;
+        let guardFn: ((opts: { shop_id?: number; counterparty_id?: number; amount?: number; force_override?: boolean }) => Promise<{ worsen: boolean; currentBalance: number; simulatedNewBalance: number }>) | undefined;
         try {
           const abs = path.resolve(process.cwd(), 'src', 'services', 'paymentGuard');
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          guardModule = require(abs);
+          const guardModule = await import(abs);
+          guardFn = typeof guardModule?.willShopToFarmerWorsenDebt === 'function' ? guardModule.willShopToFarmerWorsenDebt : undefined;
         } catch (err) {
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          guardModule = require('./paymentGuard');
+          const guardModule = await import('./paymentGuard');
+          guardFn = typeof guardModule?.willShopToFarmerWorsenDebt === 'function' ? guardModule.willShopToFarmerWorsenDebt : undefined;
         }
-        const guardFn = typeof guardModule?.willShopToFarmerWorsenDebt === 'function' ? guardModule.willShopToFarmerWorsenDebt : undefined;
         const guardResult = guardFn
-          ? (await guardFn({
+          ? await guardFn({
               shop_id: payment.shop_id || undefined,
               counterparty_id: payment.counterparty_id || undefined,
-              amount: payment.amount,
-              force_override: (data as any).force_override
-            }))
+              amount: payment.amount as unknown as number,
+              force_override: (data as unknown as { force_override?: boolean }).force_override
+            })
           : { worsen: false, currentBalance: 0, simulatedNewBalance: 0 };
 
-        if (guardResult.worsen && !(data as any).force_override) {
+        if (guardResult.worsen && !(data as unknown as { force_override?: boolean }).force_override) {
           throw new Error(`Payment would worsen farmer debt from ${guardResult.currentBalance} to ${guardResult.simulatedNewBalance}. Use force_override=true to proceed.`);
         }
       }
@@ -264,7 +262,7 @@ export class PaymentService {
     }
 
     // Include applied breakdown for client visibility
-    const base = payment.toJSON() as Record<string, any>;
+  const base = payment.toJSON() as unknown as Record<string, unknown>;
 
     // Helper: format amount as fixed 2-decimal string and cents integer
     const fmtAmount = (v: unknown) => {
@@ -280,7 +278,7 @@ export class PaymentService {
       return Number.isFinite(n) ? n : v;
     };
 
-    const normalizedPayment: Record<string, any> = {
+    const normalizedPayment: Record<string, unknown> = {
       id: normalizeId(base.id),
       transaction_id: base.transaction_id == null ? null : normalizeId(base.transaction_id),
       shop_id: base.shop_id == null ? null : normalizeId(base.shop_id),
@@ -329,7 +327,7 @@ export class PaymentService {
     return {
       ...raw,
       ...normalizedPayment
-    } as PaymentResponseDTO & { applied_to_expenses: number; applied_to_balance: number; fifo_result: unknown };
+    } as unknown as PaymentResponseDTO & { applied_to_expenses: number; applied_to_balance: number; fifo_result: unknown };
   }
 
   private async updateUserBalancesAfterPayment(payment: Payment, options?: { tx?: import('sequelize').Transaction }): Promise<BalanceResult | undefined> {
@@ -1083,9 +1081,10 @@ export class PaymentService {
       return { paymentId, available, alreadyAllocated, planned: allocations };
     }
 
-    // Apply allocations in a transaction
-    const { sequelize } = require('../models');
-    return await sequelize.transaction(async (tx: import('sequelize').Transaction) => {
+  // Apply allocations in a transaction
+  const models = await import('../models');
+  const sequelize = models.sequelize;
+  return await sequelize.transaction(async (tx: import('sequelize').Transaction) => {
       const results: Array<{ transaction_id: number; amount: number }>= [];
       for (const a of allocations) {
         // Idempotency check: identical allocation exists
@@ -1098,8 +1097,7 @@ export class PaymentService {
         await PaymentAllocation.create({ payment_id: paymentId, transaction_id: a.transaction_id, allocated_amount: a.amount }, { transaction: tx });
         // Increment allocated_amount on payment for quick reads using raw update (safer across schemas)
         try {
-          const { sequelize: seq } = require('../models');
-          await seq.query(`UPDATE kisaan_payments SET allocated_amount = COALESCE(allocated_amount,0) + :amt WHERE id = :pid`, { replacements: { amt: a.amount, pid: paymentId }, transaction: tx });
+          await sequelize.query(`UPDATE kisaan_payments SET allocated_amount = COALESCE(allocated_amount,0) + :amt WHERE id = :pid`, { replacements: { amt: a.amount, pid: paymentId }, transaction: tx });
         } catch (incErr) {
           // ignore if column missing or increment fails
         }
