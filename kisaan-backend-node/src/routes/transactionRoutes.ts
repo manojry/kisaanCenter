@@ -175,25 +175,26 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     `, { replacements: params });
     const total_sales = Number((Array.isArray(totalSalesResult) ? totalSalesResult[0]?.total_sales : 0) || 0);
 
-    // 2. Pending payments to farmer (sum of farmer_earning - paid to farmer)
-    // Compute pending to farmer using both payments linked to transactions and allocations
+    // 2. Pending payments to farmer (sum of farmer_earning - allocated_to_farmer)
+    // NOTE: allocations represent the authoritative amount applied to transactions.
+    // Previously we subtracted both raw payments and allocations which double-counted
+    // when allocations were created for the same PAID payments. Instead, sum only
+    // allocations that originate from PAID shop->farmer payments.
     const [pendingToFarmerResult] = await sequelize.query(`
-      SELECT COALESCE(SUM(t.farmer_earning - COALESCE(p.paid,0) - COALESCE(a.alloc,0)),0) as pending_to_farmer
+      SELECT COALESCE(SUM(t.farmer_earning - COALESCE(a.alloc,0)),0) as pending_to_farmer
       FROM kisaan_transactions t
       LEFT JOIN (
-        SELECT transaction_id, SUM(amount) as paid
-        FROM kisaan_payments
-        WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID' AND transaction_id IS NOT NULL
-        GROUP BY transaction_id
-      ) p ON t.id = p.transaction_id
-      LEFT JOIN (
-        SELECT transaction_id, SUM(allocated_amount) as alloc
-        FROM kisaan_payment_allocations
-        GROUP BY transaction_id
+        SELECT pa.transaction_id, SUM(pa.allocated_amount) as alloc
+        FROM kisaan_payment_allocations pa
+        JOIN kisaan_payments p ON pa.payment_id = p.id
+        WHERE p.status = 'PAID' AND p.payer_type = 'SHOP' AND p.payee_type = 'FARMER'
+        GROUP BY pa.transaction_id
       ) a ON t.id = a.transaction_id
       ${whereClause}
     `, { replacements: params });
-    const pending_to_farmer = Number((Array.isArray(pendingToFarmerResult) ? pendingToFarmerResult[0]?.pending_to_farmer : 0) || 0);
+  let pending_to_farmer = Number((Array.isArray(pendingToFarmerResult) ? pendingToFarmerResult[0]?.pending_to_farmer : 0) || 0);
+  // Prevent negative pending amounts due to overpayments/over-allocations
+  if (pending_to_farmer < 0) pending_to_farmer = 0;
 
     // Count unlinked shop->farmer paid amounts (payments recorded without transaction_id)
     // Compute unlinked paid: payments without transaction_id minus any allocations recorded against those payments
@@ -217,10 +218,12 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
       ) p ON t.id = p.transaction_id
       ${whereClause}
     `, { replacements: params });
-    const pending_from_buyer = Number((Array.isArray(pendingFromBuyerResult) ? pendingFromBuyerResult[0]?.pending_from_buyer : 0) || 0);
+  let pending_from_buyer = Number((Array.isArray(pendingFromBuyerResult) ? pendingFromBuyerResult[0]?.pending_from_buyer : 0) || 0);
+  // Prevent negative pending from buyer (overpayments should not create negative pending)
+  if (pending_from_buyer < 0) pending_from_buyer = 0;
 
     // Net pending: apply unlinked shop->farmer payments as prepayments against transaction-level pending
-    const net_pending_to_farmer = Math.max(pending_to_farmer - unlinked_paid_to_farmer, 0);
+  const net_pending_to_farmer = Math.max(pending_to_farmer - unlinked_paid_to_farmer, 0);
     const total_deficit = net_pending_to_farmer + pending_from_buyer;
     const status_summary = {
       total_sales,
@@ -247,8 +250,8 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     `, { replacements: paymentReplacements });
 
     const buyer_total_spent = Number((Array.isArray(buyerPaidResult) ? buyerPaidResult[0]?.buyer_paid : buyerPaidResult?.buyer_paid) || 0);
-    // Farmer realized earnings = total farmer earnings from transactions minus pending_to_farmer (amount not yet paid to farmers)
-    const farmer_total_earned = Math.max(Number(totalFarmerEarnings) - Number(pending_to_farmer), 0);
+  // Farmer realized earnings = total farmer earnings from transactions minus pending_to_farmer (amount not yet paid to farmers)
+  const farmer_total_earned = Math.max(Number(totalFarmerEarnings) - Number(Math.max(pending_to_farmer, 0)), 0);
     const commission_realized = totalCommission;
 
     success(res, {

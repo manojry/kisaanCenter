@@ -201,17 +201,18 @@ export class OwnerDashboardService {
         buyer_total_spent,
         farmer_total_earned,
         // Calculate buyer_payments_due: sum of (total_amount - paid) for all transactions
+        // Include both PAID and PENDING payments (partial payments count)
         buyer_payments_due: Number(transactions.reduce((sum, t) => {
           const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
           const buyerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.BUYER && p.payee_type === PARTY_TYPE.SHOP);
-          const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((s, p) => s + Number(p.amount || 0), 0);
+          const buyerPaid = buyerPayments.filter(p => p.status === PaymentStatus.Paid || p.status === PaymentStatus.Pending).reduce((s, p) => s + Number(p.amount || 0), 0);
           const totalAmount = Number((t as Transaction).total_amount || 0);
           return sum + Math.max(totalAmount - buyerPaid, 0);
         }, 0).toFixed(2)),
         farmer_payments_due: Number(transactions.reduce((sum, t) => {
           const transactionPayments = payments.filter(p => Number(p.transaction_id) === Number(t.id));
           const farmerPayments = transactionPayments.filter(p => p.payer_type === PARTY_TYPE.SHOP && p.payee_type === PARTY_TYPE.FARMER);
-          const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatus.Paid).reduce((s, p) => s + Number(p.amount || 0), 0);
+          const farmerPaid = farmerPayments.filter(p => p.status === PaymentStatus.Paid || p.status === PaymentStatus.Pending).reduce((s, p) => s + Number(p.amount || 0), 0);
           const farmerEarning = Number((t as Transaction).farmer_earning || 0);
           return sum + Math.max(farmerEarning - farmerPaid, 0);
         }, 0).toFixed(2)),
