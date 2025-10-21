@@ -12,7 +12,7 @@ export interface TransactionDTO {
   rate: number;
   total_amount: number;
   commission_amount: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'PARTIALLY_PAID' | 'SETTLED';
   created_at: Date;
   updated_at: Date;
   // Enriched fields

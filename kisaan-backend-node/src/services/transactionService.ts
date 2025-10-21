@@ -1,4 +1,4 @@
-import { TRANSACTION_STATUS, USER_ROLES, TransactionStatus, PAYMENT_STATUS } from '../shared/constants/index';
+import { USER_ROLES, PAYMENT_STATUS } from '../shared/constants/index';
 import { PARTY_TYPE } from '../shared/partyTypes';
 import { TransactionRepository } from '../repositories/TransactionRepository';
 import { TransactionIdempotencyRepository } from '../repositories/TransactionIdempotencyRepository';
@@ -13,6 +13,7 @@ import { UserEntity } from '../entities/UserEntity';
 import { Transaction } from '../models/transaction';
 import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, DatabaseError } from '../shared/utils/errors';
 import { Payment, PaymentStatus as PaymentStatusEnum } from '../models/payment';
+import { TransactionStatus } from '../shared/enums';
 import { sequelize } from '../models/index';
 // ...existing code...
 
@@ -528,9 +529,9 @@ export class TransactionService {
 
       // Construct entity (canonical fields only)
       // Set status: COMPLETED if payment is already made, else PENDING
-  let txnStatus: TransactionStatus = TRANSACTION_STATUS.PENDING;
+  let txnStatus: TransactionStatus = TransactionStatus.Pending;
       if ('payment_cleared' in data && data.payment_cleared === true) {
-    txnStatus = TRANSACTION_STATUS.COMPLETED;
+    txnStatus = TransactionStatus.Completed;
       }
       // For transactions with payments, store calculated amounts (not payment amounts)
       // so that balance calculations work correctly for pending amounts
@@ -557,7 +558,7 @@ export class TransactionService {
         commission_rate: normalizedCommissionRate,
         commission_amount: recordCommissionAmount,
         farmer_earning: recordFarmerEarning,
-        status: txnStatus,
+        status: txnStatus.toLowerCase() as 'pending' | 'completed' | 'partial' | 'cancelled' | 'settled',
   transaction_date: (() => {
     if (typeof data.transaction_date === 'string') {
       if (/^\d{4}-\d{2}-\d{2}$/.test(data.transaction_date)) {
@@ -799,7 +800,7 @@ export class TransactionService {
       // NOW update user balances AFTER all payments and allocations are created
       // This ensures the balance calculation can find the PaymentAllocation records
       // NOTE: Not in a transaction since payments are created outside the DB transaction
-      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TRANSACTION_STATUS.PENDING, undefined);      // Refetch transaction to get latest status after payments
+      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TransactionStatus.Pending, undefined);      // Refetch transaction to get latest status after payments
       createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
       // Attach payments to transaction response
       if (createdTransaction) {
@@ -1129,20 +1130,20 @@ export class TransactionService {
 
       if (status === 'CANCELLED' || status === 'cancelled') {
         // Manual cancellation
-        newStatus = TRANSACTION_STATUS.CANCELLED;
+        newStatus = TransactionStatus.Cancelled;
       } else if (isBuyerFullyPaid && isFarmerFullyPaid && commissionConfirmed) {
         // Fully completed transaction - all payments made and commission confirmed
-        newStatus = TRANSACTION_STATUS.COMPLETED;
+        newStatus = TransactionStatus.Completed;
       } else if (isBuyerFullyPaid && isFarmerFullyPaid && !commissionConfirmed) {
         // All payments made but commission not confirmed - use SETTLED
-        newStatus = TRANSACTION_STATUS.SETTLED;
+        newStatus = TransactionStatus.Settled;
       } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid || 
                  (buyerPendingAmount > tolerance) || (farmerPendingAmount > tolerance)) {
         // Some payments made or pending - transaction is still pending completion
-        newStatus = TRANSACTION_STATUS.PENDING;
+        newStatus = TransactionStatus.Pending;
       } else {
         // No significant payments made
-        newStatus = TRANSACTION_STATUS.PENDING;
+        newStatus = TransactionStatus.Pending;
       }
 
       // Comprehensive logging for audit trail
@@ -1178,7 +1179,7 @@ export class TransactionService {
 
       const updatedEntity = new TransactionEntity({
         ...transaction,
-        status: newStatus,
+        status: newStatus.toLowerCase() as 'pending' | 'completed' | 'partial' | 'cancelled' | 'settled',
         metadata: newMetadata
       });
 
@@ -1266,16 +1267,16 @@ export class TransactionService {
     
     // Simple logic: settled only if both buyer and farmer payments are complete
     if (isBuyerFullyPaid && isFarmerFullyPaid && commissionConfirmed) {
-      statusRecommendation = TRANSACTION_STATUS.COMPLETED;
+      statusRecommendation = TransactionStatus.Completed;
     } else if (isBuyerFullyPaid && isFarmerFullyPaid) {
-      statusRecommendation = TRANSACTION_STATUS.SETTLED;
+      statusRecommendation = TransactionStatus.Settled;
     } else if (isBuyerPartiallyPaid || isFarmerPartiallyPaid) {
       // Partial payments = still pending
-      statusRecommendation = TRANSACTION_STATUS.PENDING;
+      statusRecommendation = TransactionStatus.Pending;
     } else if (buyerPending > tolerance || farmerPending > tolerance) {
-      statusRecommendation = TRANSACTION_STATUS.PENDING;
+      statusRecommendation = TransactionStatus.Pending;
     } else {
-      statusRecommendation = TRANSACTION_STATUS.PENDING;
+      statusRecommendation = TransactionStatus.Pending;
     }
 
     return {

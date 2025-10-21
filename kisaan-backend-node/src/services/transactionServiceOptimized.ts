@@ -109,7 +109,7 @@ export const getTransactionsOptimized = async (
     rate: Number(txn.rate),
     total_amount: Number(txn.total_amount),
     commission_amount: Number(txn.commission_amount),
-    status: String(txn.status) as 'pending' | 'completed' | 'cancelled',
+    status: String(txn.status) as 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'PARTIALLY_PAID' | 'SETTLED',
     created_at: new Date(String(txn.createdAt)),
     updated_at: new Date(String(txn.updatedAt)),
     // Related data
@@ -313,7 +313,7 @@ export const getUserBalanceWithHistory = async (
     rate: typeof (transaction as unknown as Record<string, unknown>).rate === 'number' ? (transaction as unknown as Record<string, unknown>).rate as number : 0,
     total_amount: transaction.total_amount,
     commission_amount: transaction.commission_amount,
-    status: transaction.status as 'pending' | 'completed' | 'cancelled',
+    status: transaction.status as 'PENDING' | 'COMPLETED' | 'CANCELLED',
   created_at: transaction.created_at as Date,
   updated_at: transaction.updated_at as Date,
     farmer_name: transaction.farmer ? `${(transaction.farmer as { firstname: string; username: string }).firstname} (${(transaction.farmer as { firstname: string; username: string }).username})` : undefined,
@@ -393,7 +393,7 @@ export const createTransactionOptimized = async (
       rate: createdTransaction!.unit_price,
       total_amount: createdTransaction!.total_amount,
       commission_amount: createdTransaction!.commission_amount,
-      status: (createdTransaction!.status as 'pending' | 'completed' | 'cancelled') || 'pending',
+      status: (createdTransaction!.status as 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'PARTIALLY_PAID' | 'SETTLED') || 'PENDING',
       created_at: createdTransaction!.created_at,
       updated_at: createdTransaction!.updated_at
     };

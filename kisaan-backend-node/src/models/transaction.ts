@@ -1,13 +1,10 @@
 
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { TransactionStatus } from '../shared/enums';
 
-export enum TransactionStatus {
-  Pending = 'pending',
-  Completed = 'completed',
-  Cancelled = 'cancelled',
-  Settled = 'settled',
-}
+// Re-export for backward compatibility
+export { TransactionStatus };
 
 export interface TransactionAttributes {
   id: number;

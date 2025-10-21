@@ -1,35 +1,9 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { PaymentParty, PaymentStatus, PaymentMethod, SettlementType } from '../shared/enums';
 
-export enum PaymentParty {
-  Buyer = 'BUYER',
-  Shop = 'SHOP',
-  Farmer = 'FARMER',
-  External = 'EXTERNAL',
-}
-
-export enum PaymentStatus {
-  Pending = 'PENDING',
-  Paid = 'PAID',
-  Failed = 'FAILED',
-  Cancelled = 'CANCELLED',
-}
-
-export enum PaymentMethod {
-  Cash = 'CASH',
-  Upi = 'UPI',
-  BankTransfer = 'BANK_TRANSFER',
-  Card = 'CARD',
-  Cheque = 'CHEQUE',
-  Other = 'OTHER',
-}
-
-export enum SettlementType {
-  Partial = 'partial',
-  Full = 'full',
-  Advance = 'advance',
-  Adjustment = 'adjustment',
-}
+// Re-export for backward compatibility
+export { PaymentParty, PaymentStatus, PaymentMethod, SettlementType };
 
 export interface PaymentAttributes {
   id: number;
@@ -43,14 +17,14 @@ export interface PaymentAttributes {
   method: PaymentMethod; // Future-proof: add new methods here
   notes?: string;
   counterparty_id?: number | null;
-  
+
   // Enhanced Settlement Tracking (New)
   settlement_type?: SettlementType;
   balance_before?: number | null;
   balance_after?: number | null;
   settled_transactions?: number[] | null;
   settled_expenses?: number[] | null;
-  
+
   readonly created_at?: Date;
   readonly updated_at?: Date;
 }
@@ -70,14 +44,14 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
   public method!: PaymentMethod;
   public notes?: string;
   public counterparty_id!: number | null;
-  
+
   // Enhanced Settlement Tracking
   public settlement_type?: SettlementType;
   public balance_before?: number | null;
   public balance_after?: number | null;
   public settled_transactions?: number[] | null;
   public settled_expenses?: number[] | null;
-  
+
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
   // Add hooks for audit fields if custom logic is needed
@@ -96,14 +70,14 @@ Payment.init(
     method: { type: DataTypes.ENUM(...Object.values(PaymentMethod)), allowNull: false },
     notes: { type: DataTypes.TEXT, allowNull: true },
     counterparty_id: { type: DataTypes.BIGINT, allowNull: true, references: { model: 'kisaan_users', key: 'id' } },
-    
+
     // Enhanced Settlement Tracking
     settlement_type: { type: DataTypes.ENUM(...Object.values(SettlementType)), allowNull: true, defaultValue: SettlementType.Partial },
     balance_before: { type: DataTypes.DECIMAL(10,2), allowNull: true },
     balance_after: { type: DataTypes.DECIMAL(10,2), allowNull: true },
     settled_transactions: { type: DataTypes.ARRAY(DataTypes.INTEGER), allowNull: true },
     settled_expenses: { type: DataTypes.ARRAY(DataTypes.INTEGER), allowNull: true },
-    
+
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
   },

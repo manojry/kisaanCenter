@@ -30,10 +30,11 @@ export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
  * Transaction Status
  */
 export const TRANSACTION_STATUS = {
-  PENDING: 'pending',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled',
-  SETTLED: 'settled'
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
+  SETTLED: 'SETTLED',
+  CANCELLED: 'CANCELLED'
 } as const;
 
 export type TransactionStatus = typeof TRANSACTION_STATUS[keyof typeof TRANSACTION_STATUS];
@@ -48,7 +49,7 @@ export const PAYMENT_STATUS = {
   CANCELLED: 'CANCELLED'
 } as const;
 
-export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
+export type PaymentStatusConst = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
 
 /**
  * Balance Snapshot types
