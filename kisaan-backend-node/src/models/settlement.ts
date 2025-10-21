@@ -1,18 +1,9 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { SettlementReason, SettlementStatus } from '../shared/enums';
 
-export enum SettlementReason {
-  Overpayment = 'overpayment',
-  Underpayment = 'underpayment',
-  Adjustment = 'adjustment',
-  Expense = 'expense',
-  Advance = 'advance',
-}
-
-export enum SettlementStatus {
-  Pending = 'pending',
-  Settled = 'settled',
-}
+// Re-export for backward compatibility
+export { SettlementReason, SettlementStatus };
 
 interface SettlementAttributes {
   id: number;

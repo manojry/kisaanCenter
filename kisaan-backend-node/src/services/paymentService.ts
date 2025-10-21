@@ -9,6 +9,7 @@ import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '..
 import { Op } from 'sequelize';
 import { PARTY_TYPE } from '../shared/partyTypes';
 import { PAYMENT_STATUS, BALANCE_TYPE } from '../shared/constants/index';
+import { BalanceType } from '../shared/enums';
 import { ValidationError } from '../shared/utils/errors';
 import BalanceSnapshot from '../models/balanceSnapshot';
 import { TransactionLedger } from '../models/transactionLedger';

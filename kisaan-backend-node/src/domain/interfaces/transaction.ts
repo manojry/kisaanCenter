@@ -3,6 +3,8 @@
  * Core business models for transaction operations
  */
 
+import { TransactionStatus } from '../../shared/enums';
+
 export interface TransactionParticipants {
   shopId: number;
   farmerId: number;
@@ -77,14 +79,6 @@ export interface PaymentStatusSummary {
     pending: number;
     isComplete: boolean;
   };
-}
-
-export enum TransactionStatus {
-  PENDING = 'PENDING',
-  PARTIALLY_PAID = 'PARTIALLY_PAID', 
-  SETTLED = 'SETTLED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
 }
 
 export interface AuthorizedUser {

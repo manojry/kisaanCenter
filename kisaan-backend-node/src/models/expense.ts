@@ -1,19 +1,10 @@
 import { DataTypes, Model, Optional, Transaction } from 'sequelize';
 import sequelize from '../config/database';
 import ExpenseSettlement from './expenseSettlement';
+import { ExpenseStatus, ExpenseCategory } from '../shared/enums';
 
-export enum ExpenseStatus {
-  Pending = 'pending',
-  Settled = 'settled'
-}
-
-export enum ExpenseCategory {
-  Transport = 'transport',
-  Packaging = 'packaging',
-  Labor = 'labor',
-  Storage = 'storage',
-  Misc = 'misc',
-}
+// Re-export for backward compatibility
+export { ExpenseStatus, ExpenseCategory };
 
 export interface ExpenseAttributes {
   id: number;

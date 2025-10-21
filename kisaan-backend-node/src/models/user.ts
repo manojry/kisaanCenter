@@ -1,18 +1,9 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '../config/database';
+import { UserRole, UserStatus } from '../shared/enums';
 
-export enum UserRole {
-  Superadmin = 'superadmin',
-  Owner = 'owner',
-  Farmer = 'farmer',
-  Buyer = 'buyer',
-}
-
-export enum UserStatus {
-  Active = 'active',
-  Inactive = 'inactive',
-  Suspended = 'suspended',
-}
+// Re-export for backward compatibility
+export { UserRole, UserStatus };
 
 export interface UserAttributes {
   id: number;
