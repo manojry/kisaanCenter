@@ -16,9 +16,16 @@ export async function willShopToFarmerWorsenDebt(payment: { shop_id?: number; co
   const currentBalance = Number(farmer?.balance || 0);
   const simulatedNewBalance = currentBalance - remainingForBalance;
 
-  // Only block if payment would make the balance more negative (i.e., increase debt)
-  // Allow if payment reduces negative balance (moves toward zero or positive)
-  // Example: currentBalance = -1000, simulatedNewBalance = -800 (allowed), -1200 (blocked)
+  // If the farmer already has a negative balance (i.e. owes the shop), a SHOP->FARMER
+  // payment is very likely the wrong action: the shop should RECEIVE from the farmer
+  // in that case. Enforce this explicitly unless force_override is true. This avoids
+  // relying on FIFO allocation edge-cases where remainingForBalance may be 0.
+  if (currentBalance < 0) {
+    return { worsen: true, currentBalance, simulatedNewBalance, remainingForBalance };
+  }
+
+  // Otherwise, only block if the simulated new balance would be more negative than
+  // the current balance (i.e., this payment increases farmer debt).
   const isWorsen = simulatedNewBalance < currentBalance && simulatedNewBalance < 0;
   return { worsen: isWorsen, currentBalance, simulatedNewBalance, remainingForBalance };
 }

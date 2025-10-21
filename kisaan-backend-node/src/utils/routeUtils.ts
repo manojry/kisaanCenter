@@ -71,13 +71,15 @@ export const AuthUtils = {
     const filters: Record<string, unknown> = { ...overrides };
 
     // Apply role-based filtering
-    if (user?.role === 'owner' && user?.shop_id && !filters.shopId) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { USER_ROLES } = require('../shared/constants');
+    if (user && user.role === USER_ROLES.OWNER && user.shop_id && !filters.shopId) {
       filters.shopId = Number(user.shop_id);
     }
-    if (user?.role === 'farmer' && !filters.farmerId) {
+    if (user && user.role === USER_ROLES.FARMER && !filters.farmerId) {
       filters.farmerId = Number(user.id);
     }
-    if (user?.role === 'buyer' && !filters.buyerId) {
+    if (user && user.role === USER_ROLES.BUYER && !filters.buyerId) {
       filters.buyerId = Number(user.id);
     }
 

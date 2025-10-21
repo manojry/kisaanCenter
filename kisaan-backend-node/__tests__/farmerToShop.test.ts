@@ -5,7 +5,7 @@ jest.mock('../src/models', () => ({
 }), { virtual: false });
 
 jest.mock('../src/services/settlementService', () => ({
-  applyRepaymentFIFO: jest.fn()
+  applyRepaymentFIFO: jest.fn().mockResolvedValue({ remaining: 20, settlements: [{ expenseId: 1, settledAmount: 30 }] })
 }));
 
 // Prevent Sequelize from initializing a DB connection in tests
@@ -62,7 +62,6 @@ jest.mock('../src/repositories/PaymentRepository', () => ({
   }))
 }));
 
-import { applyRepaymentFIFO } from '../src/services/settlementService';
 const { PaymentService } = require('../src/services/paymentService');
 const { User } = require('../src/models');
 
@@ -74,7 +73,7 @@ describe('FARMER -> SHOP payment flow', () => {
 
   it('applies FIFO and updates farmer balance correctly', async () => {
     // Setup mocks: FIFO settles 30 to expenses, remaining 20 goes to balance
-    (applyRepaymentFIFO as jest.Mock).mockResolvedValue({ remaining: 20, settlements: [{ expenseId: 1, settledAmount: 30 }] });
+    // Mock is already set up in jest.mock above
 
     // Fake user with existing balance 100
     const fakeUser = { id: 20, balance: 100, update: jest.fn().mockResolvedValue(true) };
@@ -83,7 +82,7 @@ describe('FARMER -> SHOP payment flow', () => {
     const { PaymentService: PS } = require('../src/services/paymentService');
     const svc = new PS();
     // Mock payment repository to return a payment object
-    jest.spyOn((svc as any).paymentRepository, 'create' as any).mockResolvedValue({ id: 555, toJSON: () => ({ id: 555 }), transaction_id: null, amount: 50, payer_type: 'FARMER', payee_type: 'SHOP' });
+    jest.spyOn((svc as any).paymentRepository, 'create' as any).mockResolvedValue({ id: 555, toJSON: () => ({ id: 555 }), transaction_id: null, amount: 50, payer_type: 'FARMER', payee_type: 'SHOP', counterparty_id: 20, shop_id: 1 });
 
     const paymentData: any = {
       payer_type: 'FARMER',

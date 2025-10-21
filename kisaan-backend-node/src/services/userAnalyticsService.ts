@@ -17,24 +17,25 @@ export class UserAnalyticsService {
     try {
   let whereClause: Record<string, unknown> = {};
       let sumColumn = 'total_amount';
-
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { USER_ROLES } = require('../shared/constants');
       switch (role) {
-        case 'farmer':
+        case USER_ROLES.FARMER:
           whereClause = { farmer_id: userId };
           sumColumn = 'total_amount';
           break;
-          
-        case 'buyer':
+
+        case USER_ROLES.BUYER:
           whereClause = { buyer_id: userId };
           sumColumn = 'total_amount';
           break;
-          
-        case 'owner':
+
+        case USER_ROLES.OWNER:
           if (!shopId) return 0;
           whereClause = { shop_id: shopId };
           sumColumn = 'commission_amount';
           break;
-          
+
         default:
           return 0;
       }

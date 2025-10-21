@@ -12,7 +12,10 @@ import { PAYMENT_STATUS, BALANCE_TYPE } from '../shared/constants/index';
 import { ValidationError } from '../shared/utils/errors';
 import BalanceSnapshot from '../models/balanceSnapshot';
 import { TransactionLedger } from '../models/transactionLedger';
-import { TransactionService } from './transactionService';
+import { applyRepaymentFIFO } from './settlementService';
+import * as path from 'path';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { USER_ROLES } = require('../shared/constants');
 
 // Result shape returned by balance update operations
 // appliedToExpenses: amount consumed by expense settlements
@@ -82,6 +85,11 @@ export class PaymentService {
       payee_type: mappedPayeeType,
       method: mappedMethod
     };
+    // Ensure amount is positive — direction is determined by payer/payee types.
+    if (paymentData.amount !== undefined && paymentData.amount !== null) {
+      const amt = Number(paymentData.amount);
+      paymentData.amount = Math.abs(isNaN(amt) ? 0 : amt);
+    }
     // Handle transaction_id: set to null if not provided (for balance payments not tied to transactions)
     if (data.transaction_id !== undefined) {
       paymentData.transaction_id = data.transaction_id;
@@ -128,6 +136,7 @@ export class PaymentService {
     if (!paymentData.counterparty_id) missingFields.push('counterparty_id');
     if (!paymentData.payment_date) missingFields.push('payment_date');
     if (!paymentData.shop_id) missingFields.push('shop_id');
+    if (!paymentData.amount || Number(paymentData.amount) <= 0) missingFields.push('amount');
     if (missingFields.length > 0) {
       logger.warn({ paymentData, missingFields }, 'Missing required fields for payment creation');
       throw new Error(`Missing required fields for payment creation: ${missingFields.join(', ')}`);
@@ -144,7 +153,7 @@ export class PaymentService {
     // Allocate payment to outstanding transactions (direct allocations or FIFO)
     // Do this immediately so subsequent balance recalculation sees the allocation records.
     try {
-      await this.allocatePaymentToTransactions(payment);
+      await this.allocatePaymentToTransactions(payment, options);
     } catch (allocErr) {
       console.warn('[ALLOCATE] Error allocating payment immediately after creation', { paymentId: payment.id, err: (allocErr as Error).message || allocErr });
     }
@@ -166,7 +175,31 @@ export class PaymentService {
       // SERVER-SIDE GUARD: Prevent unintentional SHOP->FARMER payments that worsen farmer debt
       // Extracted into a small helper for testability
       if (payment.payer_type === PARTY_TYPE.SHOP && payment.payee_type === PARTY_TYPE.FARMER) {
-        // Removed force_override safety check: allow SHOP->FARMER payments even if they increase farmer debt
+        // Resolve the paymentGuard module from the project root so mocks required
+        // in tests (which use the project-relative path) resolve to the same
+        // module instance. Fall back to a local require if resolve fails.
+        let guardModule: any;
+        try {
+          const abs = path.resolve(process.cwd(), 'src', 'services', 'paymentGuard');
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          guardModule = require(abs);
+        } catch (err) {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          guardModule = require('./paymentGuard');
+        }
+        const guardFn = typeof guardModule?.willShopToFarmerWorsenDebt === 'function' ? guardModule.willShopToFarmerWorsenDebt : undefined;
+        const guardResult = guardFn
+          ? (await guardFn({
+              shop_id: payment.shop_id || undefined,
+              counterparty_id: payment.counterparty_id || undefined,
+              amount: payment.amount,
+              force_override: (data as any).force_override
+            }))
+          : { worsen: false, currentBalance: 0, simulatedNewBalance: 0 };
+
+        if (guardResult.worsen && !(data as any).force_override) {
+          throw new Error(`Payment would worsen farmer debt from ${guardResult.currentBalance} to ${guardResult.simulatedNewBalance}. Use force_override=true to proceed.`);
+        }
       }
 
       // Capture previous balance for ledger delta calculation
@@ -184,7 +217,7 @@ export class PaymentService {
         const userAfter = await User.findByPk(payment.counterparty_id, { transaction: options?.tx });
         const afterBalance = Number(userAfter?.balance || 0);
         const delta = (previousBalance === null ? 0 : (afterBalance - previousBalance));
-        const role = payment.payer_type === 'BUYER' || payment.payee_type === 'BUYER' ? 'buyer' : 'farmer';
+  const role = payment.payer_type === 'BUYER' || payment.payee_type === 'BUYER' ? USER_ROLES.BUYER : USER_ROLES.FARMER;
 
         await TransactionLedger.create({
           user_id: payment.counterparty_id,
@@ -224,18 +257,78 @@ export class PaymentService {
 
     // Always recalculate status for the transaction after payment
     if (payment.transaction_id) {
+      const { TransactionService } = await import('./transactionService');
       const txnService = new TransactionService();
       console.log('[PAYMENT] Triggering transaction status update', { transactionId: payment.transaction_id });
       await txnService.updateTransactionStatus(payment.transaction_id);
     }
 
     // Include applied breakdown for client visibility
-    const base = payment.toJSON() as PaymentResponseDTO;
+    const base = payment.toJSON() as Record<string, any>;
+
+    // Helper: format amount as fixed 2-decimal string and cents integer
+    const fmtAmount = (v: unknown) => {
+      const n = Number(v);
+      if (isNaN(n)) return { amount: null, amount_cents: null };
+      const amount = (Math.round(n * 100) / 100).toFixed(2);
+      return { amount, amount_cents: Math.round(n * 100) };
+    };
+
+    // Normalize core id fields to numbers when possible
+    const normalizeId = (v: unknown) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : v;
+    };
+
+    const normalizedPayment: Record<string, any> = {
+      id: normalizeId(base.id),
+      transaction_id: base.transaction_id == null ? null : normalizeId(base.transaction_id),
+      shop_id: base.shop_id == null ? null : normalizeId(base.shop_id),
+      counterparty_id: base.counterparty_id == null ? null : normalizeId(base.counterparty_id),
+      payer_type: typeof base.payer_type === 'string' ? String(base.payer_type).toUpperCase() : base.payer_type,
+      payee_type: typeof base.payee_type === 'string' ? String(base.payee_type).toUpperCase() : base.payee_type,
+      method: typeof base.method === 'string' ? String(base.method).toUpperCase() : base.method,
+      status: typeof base.status === 'string' ? String(base.status).toUpperCase() : base.status,
+      notes: base.notes || '',
+      payment_date: base.payment_date || null,
+      created_at: base.created_at || null,
+      updated_at: base.updated_at || null
+    };
+
+    // Normalize monetary fields
+    const topLevelAmounts = fmtAmount(base.amount);
+    normalizedPayment.amount = topLevelAmounts.amount;
+    normalizedPayment.amount_cents = topLevelAmounts.amount_cents;
+
+    // Normalize optional balance tracking fields
+    if (base.balance_before !== undefined) {
+      const bb = Number(base.balance_before);
+      normalizedPayment.balance_before = Number.isFinite(bb) ? (Math.round(bb * 100) / 100).toFixed(2) : null;
+    } else {
+      normalizedPayment.balance_before = null;
+    }
+    if (base.balance_after !== undefined) {
+      const ba = Number(base.balance_after);
+      normalizedPayment.balance_after = Number.isFinite(ba) ? (Math.round(ba * 100) / 100).toFixed(2) : null;
+    } else {
+      normalizedPayment.balance_after = null;
+    }
+
+    // Keep allocation/settlement-related fields predictable
+    normalizedPayment.settlement_type = base.settlement_type || null;
+    normalizedPayment.settled_transactions = Array.isArray(base.settled_transactions) ? base.settled_transactions : [];
+    normalizedPayment.settled_expenses = Array.isArray(base.settled_expenses) ? base.settled_expenses : [];
+    normalizedPayment.fifo_result = balanceResult?.fifoResult ?? base.fifo_result ?? null;
+
+    normalizedPayment.applied_to_expenses = Number(balanceResult?.appliedToExpenses ?? base.applied_to_expenses ?? 0);
+    normalizedPayment.applied_to_balance = Number(balanceResult?.appliedToBalance ?? base.applied_to_balance ?? 0);
+
+    // Provide original raw values for backward compatibility in data payload
+    const raw = { ...base };
+
     return {
-      ...base,
-      applied_to_expenses: balanceResult?.appliedToExpenses ?? 0,
-      applied_to_balance: balanceResult?.appliedToBalance ?? 0,
-      fifo_result: balanceResult?.fifoResult ?? null
+      ...raw,
+      ...normalizedPayment
     } as PaymentResponseDTO & { applied_to_expenses: number; applied_to_balance: number; fifo_result: unknown };
   }
 
@@ -265,7 +358,6 @@ export class PaymentService {
       userRole = PARTY_TYPE.FARMER;
 
       if (userIdToUpdate && payment.shop_id) {
-        const { applyRepaymentFIFO } = await import('../services/settlementService');
         const paymentAmount = Number(payment.amount);
 
         try {
@@ -341,7 +433,6 @@ export class PaymentService {
       userRole = PARTY_TYPE.FARMER;
 
       if (userIdToUpdate && payment.shop_id) {
-        const { applyRepaymentFIFO } = await import('../services/settlementService');
         const paymentAmount = Number(payment.amount);
 
         try {
@@ -365,14 +456,15 @@ export class PaymentService {
           const user = await User.findByPk(userIdToUpdate);
           if (user) {
             const previousBalance = Number(user.balance || 0);
-            // When shop pays farmer, farmer's debt to shop decreases -> balance decreases
-            // This applies regardless of whether payment goes to expenses or balance
-            const newBalance = previousBalance - paymentAmount;
+            // When shop pays farmer, only the amount that doesn't go to expenses reduces the farmer's balance
+            // The FIFO settlement already handled the expense portion
+            const newBalance = previousBalance - remainingForBalance;
 
             console.log('[FARMER BALANCE] About to update user balance', {
               userId: userIdToUpdate,
               previousBalance,
               paymentAmount,
+              remainingForBalance,
               newBalance,
               paymentId: payment.id
             });
@@ -686,7 +778,7 @@ export class PaymentService {
     }
   }
 
-  private async allocatePaymentToTransactions(payment: Payment): Promise<void> {
+  private async allocatePaymentToTransactions(payment: Payment, options?: { tx?: import('sequelize').Transaction }): Promise<void> {
     const paymentAmount = Number(payment.amount || 0);
     
     // BUYER → SHOP payments: Allocate to buyer's outstanding transactions
@@ -696,12 +788,12 @@ export class PaymentService {
           const targetTx = await Transaction.findByPk(payment.transaction_id);
           if (targetTx) {
             const transactionTotal = Number(targetTx.total_amount || 0);
-            const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id } });
+            const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: targetTx.id }, transaction: options?.tx });
             const alreadyPaid = existingAllocations.reduce((sum, alloc) => sum + Number(alloc.allocated_amount || 0), 0);
             const outstandingAmount = Math.max(transactionTotal - alreadyPaid, 0);
             if (outstandingAmount > 0) {
               const allocationAmount = Math.min(paymentAmount, outstandingAmount);
-              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount });
+              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: targetTx.id, allocated_amount: allocationAmount }, options?.tx ? { transaction: options.tx } : undefined);
                 // Realize owner's commission proportionally for this allocation
                 try {
                   const txn = targetTx; // Transaction model instance
@@ -712,7 +804,7 @@ export class PaymentService {
                     if (commissionShare > 0) {
                       // Find shop owner and increment their cumulative_value atomically
                       const Shop = (await import('../models/shop')).Shop;
-                      const shop = await Shop.findByPk(Number(payment.shop_id));
+                      const shop = await Shop.findByPk(Number(payment.shop_id), { transaction: options?.tx });
                       if (shop && shop.owner_id) {
                         const ownerId = Number(shop.owner_id);
                         try {
@@ -764,7 +856,7 @@ export class PaymentService {
             // Link allocations to payments and sum only buyer payments that are PAID
             const Payment = (await import('../models/payment')).Payment;
             const paymentIds = existingAllocations.map(a => a.payment_id);
-            const relatedPayments = paymentIds.length ? await Payment.findAll({ where: { id: paymentIds } }) : [];
+                    const relatedPayments = paymentIds.length ? await Payment.findAll({ where: { id: paymentIds }, transaction: options?.tx }) : [];
             const alreadyPaidByBuyer = existingAllocations
               .filter(a => {
                 const pmt = relatedPayments.find(p => p.id === a.payment_id);
@@ -898,15 +990,15 @@ export class PaymentService {
     const results: PaymentResponseDTO[] = [];
     for (const item of data.payments) {
       // Map DTO values to enums for bulk
-  const paymentData: Record<string, unknown> = {
-        transaction_id: item.transaction_id,
-        payer_type: PaymentParty[data.payer_type as keyof typeof PaymentParty],
-        payee_type: PaymentParty[data.payee_type as keyof typeof PaymentParty],
-        amount: item.amount,
-        method: PaymentMethod[data.method as keyof typeof PaymentMethod],
-        status: data.status ? PaymentStatus[data.status as keyof typeof PaymentStatus] : PaymentStatus.Pending,
-        notes: data.notes,
-      };
+    const paymentData: Record<string, unknown> = {
+      transaction_id: item.transaction_id,
+      payer_type: PaymentParty[data.payer_type as keyof typeof PaymentParty],
+      payee_type: PaymentParty[data.payee_type as keyof typeof PaymentParty],
+      amount: Math.abs(Number(item.amount || 0)),
+      method: PaymentMethod[data.method as keyof typeof PaymentMethod],
+      status: data.status ? PaymentStatus[data.status as keyof typeof PaymentStatus] : PaymentStatus.Pending,
+      notes: data.notes,
+    };
   const payment = await this.paymentRepository.create(paymentData as PaymentCreationAttributes);
     if (payment) results.push(payment.toJSON() as PaymentResponseDTO);
     }
@@ -952,6 +1044,7 @@ export class PaymentService {
 
     // If payment is now PAID and linked to a transaction, update transaction status
   if (payment.status === PAYMENT_STATUS.PAID && payment.transaction_id) {
+      const { TransactionService } = await import('./transactionService');
       const txnService = new TransactionService();
       await txnService.updateTransactionStatus(payment.transaction_id);
     }
@@ -961,6 +1054,68 @@ export class PaymentService {
   async getPaymentsByTransaction(transactionId: number): Promise<PaymentResponseDTO[]> {
     const payments = await this.paymentRepository.findByTransactionId(transactionId);
     return payments.map((p: Payment) => p.toJSON() as PaymentResponseDTO);
+  }
+
+  /**
+   * Public API: allocate specified amounts from a payment to transactions.
+   * Idempotent: will not duplicate identical allocation rows.
+   */
+  async allocatePayment(paymentId: number, allocations: Array<{ transaction_id: number; amount: number }>, options?: { userId?: number; dryRun?: boolean }) {
+    // Validate payment exists and is PAID
+    const { Payment } = await import('../models');
+    const payment = await Payment.findByPk(paymentId);
+    if (!payment) throw new Error('Payment not found');
+    if (String(payment.status).toUpperCase() !== 'PAID') throw new Error('Only PAID payments can be allocated');
+
+    // Compute remaining available amount considering previous allocations
+    const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
+    const existingAlloc = await PaymentAllocation.findAll({ where: { payment_id: paymentId } });
+    const alreadyAllocated = existingAlloc.reduce((s, a) => s + Number(a.allocated_amount || 0), 0);
+    const available = Math.max(Number(payment.amount || 0) - alreadyAllocated, 0);
+
+    const totalRequested = allocations.reduce((s, a) => s + Number(a.amount || 0), 0);
+    if (totalRequested > available) {
+      throw new Error(`Requested allocations ${totalRequested} exceed available payment amount ${available}`);
+    }
+
+    // Dry-run returns planned actions
+    if (options?.dryRun) {
+      return { paymentId, available, alreadyAllocated, planned: allocations };
+    }
+
+    // Apply allocations in a transaction
+    const { sequelize } = require('../models');
+    return await sequelize.transaction(async (tx: import('sequelize').Transaction) => {
+      const results: Array<{ transaction_id: number; amount: number }>= [];
+      for (const a of allocations) {
+        // Idempotency check: identical allocation exists
+        const found = await PaymentAllocation.findOne({ where: { payment_id: paymentId, transaction_id: a.transaction_id, allocated_amount: a.amount }, transaction: tx });
+        if (found) {
+          results.push({ transaction_id: a.transaction_id, amount: a.amount });
+          continue;
+        }
+
+        await PaymentAllocation.create({ payment_id: paymentId, transaction_id: a.transaction_id, allocated_amount: a.amount }, { transaction: tx });
+        // Increment allocated_amount on payment for quick reads using raw update (safer across schemas)
+        try {
+          const { sequelize: seq } = require('../models');
+          await seq.query(`UPDATE kisaan_payments SET allocated_amount = COALESCE(allocated_amount,0) + :amt WHERE id = :pid`, { replacements: { amt: a.amount, pid: paymentId }, transaction: tx });
+        } catch (incErr) {
+          // ignore if column missing or increment fails
+        }
+        results.push({ transaction_id: a.transaction_id, amount: a.amount });
+      }
+
+      // Optionally create an audit log
+      try {
+        const AuditLog = (await import('../models/auditLog')).AuditLog;
+        await AuditLog.create({ shop_id: payment.shop_id || 1, user_id: options?.userId || 1, action: 'payment_recorded', entity_type: 'payment', entity_id: paymentId, new_values: JSON.stringify({ allocations: results }) }, { transaction: tx });
+      } catch (auditErr) {
+        // ignore audit failures
+      }
+
+      return { paymentId, applied: results };
+    });
   }
 
   async getOutstandingPayments(shopId?: number): Promise<PaymentResponseDTO[]> {

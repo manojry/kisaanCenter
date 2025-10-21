@@ -1,5 +1,5 @@
 import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
-import type { BalanceSnapshot } from '../types/api';
+import type { BalanceSnapshot, User } from '../types/api';
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
 import { paymentsApi, balanceSnapshotsApi } from '../services/api';
@@ -41,8 +41,9 @@ const PaymentManagement: React.FC = () => {
       refreshUsers();
     }
   }, [isAuthenticated, refreshUsers]);
-  const [selectedUser, setSelectedUser] = useState<import('../types/api').User | null>(null);
-  const [searchRole, setSearchRole] = useState<'farmer' | 'buyer' | 'all'>('all');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  // Remove top-level role filter; direction is chosen inline based on selected user
+  const [searchRole] = useState<'farmer' | 'buyer' | 'all'>('all');
   // ...existing code...
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -80,8 +81,10 @@ const PaymentManagement: React.FC = () => {
     };
   } | null>(null);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  // modal removed; inline override checkbox used instead
   const [forceOverride, setForceOverride] = useState(false);
+  // Inline direction selector: controls whether this is shop->farmer (pay) or receive (from buyer/farmer)
+  const [paymentDirection, setPaymentDirection] = useState<'pay_to_farmer' | 'receive_from_buyer' | 'receive_from_farmer'>('pay_to_farmer');
   const [currentPage, setCurrentPage] = useState(1);
   const [snapshotsPage, setSnapshotsPage] = useState(1);
   const itemsPerPage = 8;
@@ -128,8 +131,8 @@ const PaymentManagement: React.FC = () => {
           setPayments(data);
           setExpensesData(null);
         } else {
-          setPayments((data as { payments?: Payment[] }).payments || []);
-          setExpensesData((data as { expenses?: unknown }).expenses || null);
+          setPayments(((data as any).payments) || []);
+          setExpensesData(((data as any).expenses) || null);
         }
       } else if (selectedUser.role === 'buyer') {
         res = await paymentsApi.getBuyerPayments(selectedUser.id);
@@ -147,6 +150,18 @@ const PaymentManagement: React.FC = () => {
     setMessage('');
     setSettlementBreakdown(null);
   }, [selectedUser]);
+
+  // Auto-adjust paymentDirection for farmers with negative balance (they owe the shop)
+  useEffect(() => {
+    if (!selectedUser) return;
+    if (selectedUser.role === 'farmer' && currentBalance < 0) {
+      // Farmer owes shop -> prefer Receive from Farmer (farmer pays shop)
+      if (paymentDirection === 'pay_to_farmer') {
+        setPaymentDirection('receive_from_farmer');
+        setMessage('Farmer has an outstanding advance — defaulting action to Receive from Farmer.');
+      }
+    }
+  }, [selectedUser, currentBalance]);
 
   // No transaction selection or bulk payment logic needed for bookkeeping mode
 
@@ -167,6 +182,7 @@ const PaymentManagement: React.FC = () => {
         counterparty_id: number;
         shop_id: number;
         payment_date: string;
+          force_override?: boolean | undefined;
       };
       let payload: PaymentPayload;
       // directionParam indicates whether this is a shop->user payment ('pay') or user->shop ('receive')
@@ -179,7 +195,6 @@ const PaymentManagement: React.FC = () => {
           method: paymentMethod.toLowerCase(),
           status: 'PAID',
           notes: `Payment to ${getUserDisplayWithRoleAndId(selectedUser)}` + (forceOverrideFlag ? ' (force_override)' : ''),
-          ...(forceOverrideFlag ? { force_override: true } : {}),
           counterparty_id: Number(selectedUser.id),
           shop_id: Number(shopId),
           payment_date: new Date().toISOString()
@@ -226,8 +241,8 @@ const PaymentManagement: React.FC = () => {
               setPayments(refreshed);
               setExpensesData(null);
             } else {
-              setPayments((refreshed as { payments?: Payment[] }).payments || []);
-              setExpensesData((refreshed as { expenses?: unknown }).expenses || null);
+              setPayments(((refreshed as any).payments) || []);
+              setExpensesData(((refreshed as any).expenses) || null);
             }
             } else if (selectedUser.role === 'buyer') {
               payRes = await paymentsApi.getBuyerPayments(selectedUser.id);
@@ -256,14 +271,19 @@ const PaymentManagement: React.FC = () => {
   // Inline payment direction: for buyers, always receive; for farmers, always pay
   const onRecordClick = () => {
     if (!selectedUser) return;
-    if (selectedUser.role === 'farmer') {
-      // If paying a farmer who currently has negative balance, show force modal
-      if (currentBalance < 0) {
-        setShowConfirmModal(true);
+    // Determine effective direction from inline selector
+    if (paymentDirection === 'pay_to_farmer') {
+      // pay shop -> farmer
+      // If farmer currently has negative balance (advance), require override to allow increasing debt
+      if (currentBalance < 0 && !forceOverride) {
+        setMessage('Farmer has a negative balance (advance). Enable Override to allow this payment to increase farmer debt.');
         return;
       }
-      handlePayment('pay', false);
-    } else if (selectedUser.role === 'buyer') {
+      handlePayment('pay', forceOverride);
+    } else if (paymentDirection === 'receive_from_buyer') {
+      handlePayment('receive', false);
+    } else if (paymentDirection === 'receive_from_farmer') {
+      // receiving from farmer: user pays shop
       handlePayment('receive', false);
     }
   };
@@ -281,20 +301,18 @@ const PaymentManagement: React.FC = () => {
       {/* User Selection and Balance */}
       <div className="bg-white rounded-lg border p-4 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
             <span className="font-medium text-sm">Select User:</span>
             <div className="flex items-center gap-2">
-              <button className={`px-2 py-1 rounded text-sm ${searchRole === 'farmer' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setSearchRole('farmer')}>Pay Farmer</button>
-              <button className={`px-2 py-1 rounded text-sm ${searchRole === 'buyer' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setSearchRole('buyer')}>Receive from Buyer</button>
-              <button className={`px-2 py-1 rounded text-sm ${searchRole === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`} onClick={() => setSearchRole('all')}>All</button>
+              {/* Removed top role filter buttons — selection is done via the user dropdown */}
+              <UserSearchDropdown
+                onSelect={setSelectedUser}
+                placeholder="Search user by name or phone"
+                roleFilter={searchRole}
+              />
             </div>
-            <UserSearchDropdown
-              onSelect={setSelectedUser}
-              placeholder="Search user by name or phone"
-              roleFilter={searchRole}
-            />
           </div>
-          {selectedUser && (
+              {selectedUser && (
             <div className="flex items-center gap-4">
               <div className="bg-gray-50 px-3 py-2 rounded">
                 <span className="text-sm text-gray-600">Current Balance:</span>
@@ -451,58 +469,89 @@ const PaymentManagement: React.FC = () => {
               <CardContent className="pt-0">
                 <div className="space-y-4">
                   {/* Payment Preview */}
-                  {paymentAmount && parseFloat(paymentAmount) > 0 && (
-                    <div className={`p-3 rounded-lg border ${parseFloat(paymentAmount) > currentBalance ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                      <div className={`flex items-center gap-2 font-medium text-sm mb-2 ${parseFloat(paymentAmount) > currentBalance ? 'text-red-700' : 'text-blue-700'}`}>
-                        <TrendingDown className="h-4 w-4" />
-                        Payment Impact
-                        {parseFloat(paymentAmount) > currentBalance && (
-                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded ml-2">
-                            ⚠️ Overpayment - Balance will be ₹0
-                          </span>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 text-sm">
-                        <div>
-                          <div className="text-gray-600 text-xs">Current</div>
-                          <div className="font-mono font-bold">₹{currentBalance.toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600 text-xs">Payment</div>
-                          <div className="font-mono font-bold text-red-600">-₹{parseFloat(paymentAmount).toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600 text-xs">New Balance</div>
-                          <div className={`font-mono font-bold ${Math.max(0, currentBalance - parseFloat(paymentAmount)) === 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            ₹{Math.max(0, currentBalance - parseFloat(paymentAmount)).toLocaleString()}
+                    {paymentAmount && parseFloat(paymentAmount) > 0 && (
+                    (() => {
+                      const amt = Math.abs(parseFloat(paymentAmount));
+                      // For pay_to_farmer: shop -> farmer, farmer balance increases by amt
+                      // For receive_from_*: user -> shop, user balance decreases by amt
+                      const newBalance = paymentDirection === 'pay_to_farmer' ? currentBalance + amt : currentBalance - amt;
+                      // Overpayment: when receiving from user and user does not have enough balance (i.e., receiving more than their positive balance)
+                      const isOverpay = (paymentDirection === 'receive_from_farmer' || paymentDirection === 'receive_from_buyer') && amt > currentBalance;
+                      const bgClass = isOverpay ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200';
+                      const headerColor = isOverpay ? 'text-red-700' : 'text-blue-700';
+
+                      return (
+                        <div className={`p-3 rounded-lg border ${bgClass}`}>
+                          <div className={`flex items-center gap-2 font-medium text-sm mb-2 ${headerColor}`}>
+                            <TrendingDown className="h-4 w-4" />
+                            Payment Impact
+                            {isOverpay && (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded ml-2">
+                                ⚠️ Overpayment - balance will go negative
+                              </span>
+                            )}
                           </div>
+                          <div className="grid grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <div className="text-gray-600 text-xs">Current</div>
+                              <div className="font-mono font-bold">₹{currentBalance.toLocaleString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 text-xs">Payment</div>
+                              <div className="font-mono font-bold text-red-600">{paymentDirection === 'pay_to_farmer' ? '+₹' + amt.toLocaleString() : '-₹' + amt.toLocaleString()}</div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 text-xs">New Balance</div>
+                              <div className={`font-mono font-bold ${newBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                ₹{newBalance.toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          {isOverpay && (
+                            <div className="mt-2 text-xs text-red-600">
+                              This payment exceeds the user's current balance and will make their balance negative.
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      {parseFloat(paymentAmount) > currentBalance && (
-                        <div className="mt-2 text-xs text-red-600">
-                          This payment exceeds the current balance. The farmer's balance will be set to ₹0.
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()
                   )}
 
                   <div className="flex flex-col gap-3">
-                    <div className="flex items-end gap-3">
-                      <div className="flex flex-col">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div className="flex flex-col w-24 min-w-[6rem]">
                         <label className="text-sm font-medium text-gray-700 mb-1">Amount</label>
                         <Input
                           type="number"
                           step="0.01"
                           value={paymentAmount}
-                          onChange={e => setPaymentAmount(e.target.value)}
-                          placeholder="Enter amount"
-                          className="w-32"
+                          onChange={e => {
+                            // ensure amount stored as a positive string
+                            const raw = e.target.value || '';
+                            const n = parseFloat(raw);
+                            if (!isNaN(n)) setPaymentAmount(String(Math.abs(n))); else setPaymentAmount(raw);
+                          }}
+                          placeholder="Enter"
+                          className="w-full"
                         />
                       </div>
-                      <div className="flex flex-col">
+                      {/* Direction chooser inline */}
+                      <div className="flex flex-col w-44 min-w-[10rem]">
+                        <label className="text-sm font-medium text-gray-700 mb-1">Action</label>
+                        <select
+                          className="border rounded px-2 py-2 text-sm w-full"
+                          value={paymentDirection}
+                          onChange={e => setPaymentDirection(e.target.value as any)}
+                        >
+                          <option value="pay_to_farmer" disabled={selectedUser?.role === 'farmer' && currentBalance < 0 && !forceOverride}>Pay to Farmer</option>
+                          <option value="receive_from_buyer">Receive from Buyer</option>
+                          <option value="receive_from_farmer">Receive from Farmer</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col w-36 min-w-[8rem]">
                         <label className="text-sm font-medium text-gray-700 mb-1">Method</label>
                         <select
-                          className="border rounded px-3 py-2 text-sm min-w-[120px]"
+                          className="border rounded px-2 py-2 text-sm w-full"
                           value={paymentMethod}
                           onChange={e => setPaymentMethod(e.target.value)}
                         >
@@ -512,12 +561,21 @@ const PaymentManagement: React.FC = () => {
                           <option value="other">Other</option>
                         </select>
                       </div>
-                        <Button
-                          onClick={onRecordClick}
-                          disabled={loading || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                          className={loading ? 'opacity-60 cursor-not-allowed' : ''}
-                          size="sm"
-                        >
+                      <div className="flex items-center gap-2 ml-auto">
+                        <div className="flex items-center gap-2">
+                          <input id="force-override" type="checkbox" checked={forceOverride} onChange={e => setForceOverride(e.target.checked)} />
+                          <label htmlFor="force-override" className="text-sm">Override</label>
+                        </div>
+                        <div>
+                          <Button
+                            onClick={onRecordClick}
+                            disabled={
+                              loading || !paymentAmount || parseFloat(paymentAmount) <= 0 || !shopId ||
+                              (paymentDirection === 'pay_to_farmer' && selectedUser?.role === 'farmer' && currentBalance < 0 && !forceOverride)
+                            }
+                            className={loading ? 'opacity-60 cursor-not-allowed' : ''}
+                            size="sm"
+                          >
                           {loading ? (
                             <span className="flex items-center">
                               <span className="loader mr-1"></span>
@@ -526,33 +584,12 @@ const PaymentManagement: React.FC = () => {
                           ) : (
                             <span className="flex items-center gap-1">
                               <CreditCard className="h-3 w-3" />
-                              {selectedUser?.role === 'farmer' ? 'Pay Farmer' : 'Receive from Buyer'}
+                              {paymentDirection === 'pay_to_farmer' ? 'Pay Farmer' : paymentDirection === 'receive_from_buyer' ? 'Receive from Buyer' : 'Receive from Farmer'}
                             </span>
                           )}
-                        </Button>
-                        {/* Confirmation Modal */}
-                        {showConfirmModal && (
-                          <div className="fixed inset-0 flex items-center justify-center z-50">
-                            <div className="absolute inset-0 bg-black opacity-30" onClick={() => setShowConfirmModal(false)} />
-                            <div className="bg-white rounded-lg shadow-lg p-6 z-10 w-11/12 max-w-md">
-                              <h3 className="text-lg font-semibold mb-2">Confirm payment to farmer</h3>
-                              <p className="text-sm text-gray-700 mb-3">This farmer currently has a negative balance (advance). Recording this payment will make their balance more negative and increase their outstanding debt. Are you sure you want to proceed?</p>
-                              <div className="flex items-center gap-2 mb-4">
-                                <input id="force-override" type="checkbox" checked={forceOverride} onChange={e => setForceOverride(e.target.checked)} />
-                                <label htmlFor="force-override" className="text-sm">Force payment (allow increasing farmer debt)</label>
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => { setShowConfirmModal(false); setForceOverride(false); }}>Cancel</Button>
-                                <Button size="sm" onClick={async () => {
-                                  setShowConfirmModal(false);
-                                  await handlePayment('pay', forceOverride);
-                                  setForceOverride(false);
-                                }}>Confirm</Button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {/* Direction modal removed: direction is now explicit and inline */}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

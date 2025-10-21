@@ -2,6 +2,11 @@
 // These tests avoid running allocation/transaction logic by mocking the guard helper
 // and by stubbing PaymentService.allocatePaymentToTransactions to a no-op.
 
+// Mock models/index to prevent all Sequelize model initialization
+jest.mock('../src/models', () => ({
+  User: { findByPk: jest.fn() }
+}), { virtual: false });
+
 jest.mock('../src/models/user', () => ({
   User: { findByPk: jest.fn(), prototype: { update: jest.fn() } }
 }), { virtual: false });
@@ -19,6 +24,45 @@ jest.mock('../src/models/payment', () => ({
   PaymentMethod: { CASH: 'CASH' },
   PaymentStatus: { Paid: 'PAID' },
   SettlementType: { Partial: 'partial', Full: 'full', Advance: 'advance', Adjustment: 'adjustment' }
+}), { virtual: false });
+
+// Mock transaction model to prevent Sequelize initialization
+jest.mock('../src/models/transaction', () => ({
+  Transaction: class {}
+}), { virtual: false });
+
+// Mock payment allocation model
+jest.mock('../src/models/paymentAllocation', () => ({
+  PaymentAllocation: class {}
+}), { virtual: false });
+
+// Mock audit log model
+jest.mock('../src/models/auditLog', () => ({
+  AuditLog: { create: jest.fn() }
+}), { virtual: false });
+
+// Mock balance snapshot model
+jest.mock('../src/models/balanceSnapshot', () => ({
+  default: { create: jest.fn() }
+}), { virtual: false });
+
+// Mock transaction ledger model
+jest.mock('../src/models/transactionLedger', () => ({
+  TransactionLedger: { create: jest.fn() }
+}), { virtual: false });
+
+// Mock shop model
+jest.mock('../src/models/shop', () => ({
+  Shop: class {}
+}), { virtual: false });
+
+// Mock expense models
+jest.mock('../src/models/expense', () => ({
+  default: class {}
+}), { virtual: false });
+
+jest.mock('../src/models/expenseSettlement', () => ({
+  default: class {}
 }), { virtual: false });
 
 // Mock the guard helper so tests are deterministic
@@ -39,8 +83,6 @@ jest.mock('../src/config/database', () => ({
   }
 }));
 
-const { PaymentService } = require('../src/services/paymentService');
-const { User } = require('../src/models');
 const { willShopToFarmerWorsenDebt } = require('../src/services/paymentGuard');
 
 describe('SHOP -> FARMER guard (unit)', () => {

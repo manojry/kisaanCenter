@@ -42,8 +42,10 @@ export class OwnerDashboardService {
       }
 
   // 5. Calculate stats (+ integrity instrumentation)
-      const buyers = users.filter((u) => u.role === 'buyer');
-      const farmers = users.filter((u) => u.role === 'farmer');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { USER_ROLES } = require('../shared/constants');
+  const buyers = users.filter((u) => u.role === USER_ROLES.BUYER);
+  const farmers = users.filter((u) => u.role === USER_ROLES.FARMER);
 
       // Debug (only if small cardinality to avoid log spam)
       if (buyers.length <= 20 && farmers.length <= 20) {

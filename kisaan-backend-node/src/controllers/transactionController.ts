@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { TransactionService } from '../services/transactionService';
-import { ValidationError } from '../shared/utils/errors';
+import { ValidationError, AppError } from '../shared/utils/errors';
 import { USER_ROLES as _USER_ROLES } from '../shared/constants/index';
 import { success, created as createdResp, failureCode } from '../shared/http/respond';
 import { ErrorCodes } from '../shared/errors/errorCodes';
@@ -89,17 +89,17 @@ export class TransactionController {
   return createdResp(res, transaction, { message: 'Transaction created successfully' });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'transaction:create failed');
-      // If it's a ValidationError, include its context/details in the response to help clients debug
-      if (error instanceof ValidationError) {
+      // If it's a ValidationError or other known AppError, include its context/details in the response to help clients debug
+      if (error instanceof ValidationError || error instanceof AppError) {
         // log full error for server-side debugging
-        console.error('[transactionController:createTransaction] ValidationError caught:', error);
+        console.error('[transactionController:createTransaction] AppError caught:', error);
         // Build a robust details object that always contains a helpful message and any available context
         const details = {
-          message: error.message,
-          ...(error.context ? { context: error.context } : {}),
+          message: (error as Error).message,
+          ...(error instanceof AppError && error.context ? { context: error.context } : {}),
           payments_count: Array.isArray((req as { body?: { payments?: unknown[] } }).body?.payments) ? ((req as { body?: { payments?: unknown[] } }).body?.payments?.length || 0) : 0
         };
-        return failureCode(res, error.statusCode || 400, ErrorCodes.TRANSACTION_CREATE_FAILED, details, error.message);
+        return failureCode(res, (error as AppError).statusCode || 400, ErrorCodes.TRANSACTION_CREATE_FAILED, details, (error as Error).message);
       }
       const statusCode = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : undefined;
       const message = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;

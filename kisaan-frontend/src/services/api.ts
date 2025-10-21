@@ -1,3 +1,32 @@
+// Centralized API service layer
+import { apiClient } from './apiClient';
+import { TRANSACTION_ENDPOINTS, USER_ENDPOINTS, CATEGORY_ENDPOINTS, PRODUCT_ENDPOINTS, SHOP_ENDPOINTS, PAYMENT_ENDPOINTS, BALANCE_ENDPOINTS, REPORT_ENDPOINTS, EXPENSE_ENDPOINTS, DASHBOARD_ENDPOINTS, SIMPLIFIED_ENDPOINTS, FARMER_PRODUCT_ENDPOINTS } from './endpoints';
+// Helper utilities centralizing query string construction & list response normalization
+import { buildQueryString, normalizeListResponse, normalizeSingleItemResponse } from './serviceHelpers';
+import { buildTransactionPayload } from '../utils/buildTransactionPayload';
+import type { BuildTransactionInput } from '../utils/buildTransactionPayload';
+import type {
+  User,
+  UserCreate,
+  Category,
+  Product,
+  Shop,
+  Transaction,
+  TransactionCreate,
+  Payment,
+  Expense,
+  ApiResponse,
+  PaginatedResponse,
+  BusinessSummary,
+  TransactionSummary,
+  LoginRequest,
+  LoginResponse,
+  TransactionSettlement,
+  ExpenseAllocation,
+  TransactionSettlementDetail,
+  ExpenseAllocationDetail
+} from '../types/api';
+
 // Commissions API
 export const commissionsApi = {
   getByShopId: async (shop_id: number | string) => {
@@ -140,45 +169,7 @@ export const getTransactionFormData = async () => {
     categories: categoriesRes.data
   };
 };
-// Centralized API service layer
-import { apiClient } from './apiClient';
-import { TRANSACTION_ENDPOINTS, USER_ENDPOINTS, CATEGORY_ENDPOINTS, PRODUCT_ENDPOINTS, SHOP_ENDPOINTS, PAYMENT_ENDPOINTS, BALANCE_ENDPOINTS, REPORT_ENDPOINTS, EXPENSE_ENDPOINTS, DASHBOARD_ENDPOINTS, SIMPLIFIED_ENDPOINTS, FARMER_PRODUCT_ENDPOINTS } from './endpoints';
-// Helper utilities centralizing query string construction & list response normalization
-import { buildQueryString, normalizeListResponse, normalizeSingleItemResponse } from './serviceHelpers';
-/**
- * NOTE: Selected list endpoints (users, products, transactions, payments farmer) now use
- * buildQueryString + normalizeListResponse for consistent behavior.
- * TODO: Gradually migrate remaining endpoints that manually use URLSearchParams or ad-hoc
- * response shape parsing to these helpers for uniformity & reduced duplication.
- * Recent migrations (batch 2): settlements, payments.getAll, shops, reports, analytics,
- * shopProducts (products fetch), expense, dashboard summaries.
- * Remaining potential improvements: introduce constants for transactions earnings/list endpoints
- * currently using inline template strings (see TODO comments in transactionsApi), and unify any
- * residual direct array response handling with normalizeListResponse where pagination is desired.
- */
-import { buildTransactionPayload } from '../utils/buildTransactionPayload';
-import type { BuildTransactionInput } from '../utils/buildTransactionPayload';
-import type {
-  User,
-  UserCreate,
-  Category,
-  Product,
-  Shop,
-  Transaction,
-  TransactionCreate,
-  Payment,
-  Expense,
-  ApiResponse,
-  PaginatedResponse,
-  BusinessSummary,
-  TransactionSummary,
-  LoginRequest,
-  LoginResponse,
-  TransactionSettlement,
-  ExpenseAllocation,
-  TransactionSettlementDetail,
-  ExpenseAllocationDetail
-} from '../types/api';
+/* duplicate imports removed (kept single import block at top of file) */
 
 // Authentication API
 export const authApi = {
@@ -529,7 +520,15 @@ export const paymentsApi = {
     const raw = await apiClient.get<ApiResponse<Payment[] | { payments: Payment[]; expenses: unknown }>>(PAYMENT_ENDPOINTS.FARMER(farmerId));
     // If backend returned the enhanced shape with expenses, return it directly
     if (raw && raw.success && raw.data && typeof raw.data === 'object' && 'expenses' in raw.data) {
-      return raw;
+      // Convert enhanced backend shape to the declared return shape
+      const paymentsArr = Array.isArray((raw.data as any).payments) ? (raw.data as any).payments : [];
+      return {
+        data: raw.data as { payments: Payment[]; expenses: unknown },
+        page: 1,
+        limit: paymentsArr.length,
+        total: (raw.data as any).totalPayments || paymentsArr.length,
+        totalPages: 1
+      };
     }
     // Legacy: { success: true, data: { payments: [...] } } or { success: true, data: [...] }
     if (raw && raw.success && raw.data && Array.isArray((raw.data as { payments?: Payment[] }).payments)) {

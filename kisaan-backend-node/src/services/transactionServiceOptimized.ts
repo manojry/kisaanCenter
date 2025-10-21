@@ -12,6 +12,8 @@ import sequelize from '../config/database';
 import { TransactionDTO, TransactionFilters } from '../types/transaction';
 import { UserContext } from '../types/user';
 import { AuthorizationError, ValidationError } from '../shared/utils/errors';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { USER_ROLES } = require('../shared/constants');
 
 /**
  * Get transactions with all related data in a single optimized query
@@ -26,7 +28,7 @@ export const getTransactionsOptimized = async (
   const includeConditions = [];
 
   // Build WHERE clause based on user role and permissions
-  if (requestingUser.role === 'owner') {
+  if (requestingUser.role === USER_ROLES.OWNER) {
     // Subquery to get shop IDs owned by this user
     includeConditions.push({
       model: Shop,
@@ -35,7 +37,7 @@ export const getTransactionsOptimized = async (
       required: true,
       attributes: ['id', 'name']
     });
-  } else if (['farmer', 'buyer'].includes(requestingUser.role)) {
+  } else if ([USER_ROLES.FARMER, USER_ROLES.BUYER].includes(requestingUser.role)) {
     // Users can only see their own transactions
     where[Op.or] = [
       { farmer_id: requestingUser.id },
@@ -158,7 +160,7 @@ export const getTransactionStatsOptimized = async (
 }> => {
   
   // Permission check
-  if (requestingUser.role === 'owner') {
+  if (requestingUser.role === USER_ROLES.OWNER) {
     const shop = await Shop.findByPk(shopId);
     if (!shop || shop.owner_id !== requestingUser.id) {
       throw new AuthorizationError('Access denied to shop data');
@@ -230,12 +232,12 @@ export const getUserBalanceWithHistory = async (
     throw new ValidationError('User not found');
   }
 
-  if (requestingUser.role === 'owner') {
+  if (requestingUser.role === USER_ROLES.OWNER) {
     const shop = user.shop_id ? await Shop.findByPk(user.shop_id) : null;
     if (!shop || shop.owner_id !== requestingUser.id) {
       throw new AuthorizationError('Access denied');
     }
-  } else if (requestingUser.id !== userId && requestingUser.role !== 'superadmin') {
+  } else if (requestingUser.id !== userId && requestingUser.role !== USER_ROLES.SUPERADMIN) {
     throw new AuthorizationError('Access denied');
   }
 

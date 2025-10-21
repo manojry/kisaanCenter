@@ -108,7 +108,9 @@ export const requireShopAccess = (getShopId?: (req: AuthenticatedRequest) => num
     }
 
     // Superadmin can access everything
-  if (req.user && req.user.role === 'superadmin') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { USER_ROLES } = require('../shared/constants');
+  if (req.user && req.user.role === USER_ROLES.SUPERADMIN) {
       next();
       return;
     }
@@ -144,7 +146,9 @@ export const requireSelfOrAdmin = (getUserId?: (req: AuthenticatedRequest) => nu
     const requestedUserId = getUserId ? getUserId(req) : parseInt(req.params.id || req.params.userId);
     
     // Superadmin and owners can access any user
-  if (req.user && (req.user.role === 'superadmin' || req.user.role === 'owner')) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { USER_ROLES } = require('../shared/constants');
+  if (req.user && (req.user.role === USER_ROLES.SUPERADMIN || req.user.role === USER_ROLES.OWNER)) {
       next();
       return;
     }

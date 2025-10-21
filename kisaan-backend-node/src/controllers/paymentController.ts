@@ -101,7 +101,9 @@ export class PaymentController {
       if (paymentData.payer_type === PARTY_TYPE.SHOP && paymentData.payee_type === PARTY_TYPE.FARMER) {
         // Resolve shop_id from body or transaction if available in service later; here, if shop_id in body check ownership
         const shopId = (paymentData as { shop_id?: number }).shop_id || (reqUser ? reqUser.shop_id : undefined);
-        if (reqUser?.role === 'owner') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { USER_ROLES } = require('../shared/constants');
+        if (reqUser && reqUser.role === USER_ROLES.OWNER) {
           if (!shopId || Number(shopId) !== Number(reqUser.shop_id) && reqUser.shop_id !== undefined) {
             // If owner role but shopId doesn't match their shop, reject
             return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Only the shop owner can make payments on behalf of the shop');
@@ -179,6 +181,33 @@ export class PaymentController {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
       }
       failureCode(res, 500, ErrorCodes.GET_OUTSTANDING_PAYMENTS_FAILED, { error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to fetch outstanding payments');
+    }
+  }
+
+  /**
+   * POST /payments/:id/allocate - allocate a payment to transactions (idempotent)
+   * Body: { allocations: [{ transaction_id, amount }], dryRun?: boolean }
+   */
+  async allocatePayment(req: Request, res: Response) {
+    try {
+      const { id } = IdParamSchema.parse({ id: req.params.id });
+      const body = req.body as { allocations?: Array<{ transaction_id: number; amount: number }>; dryRun?: boolean };
+      if (!body || !Array.isArray(body.allocations) || body.allocations.length === 0) {
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'allocations array required');
+      }
+
+      const userId = (req as { user?: { id?: number } }).user?.id || 1;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const PaymentService = require('../services/paymentService').PaymentService;
+      const svc = new PaymentService();
+
+      const result = await svc.allocatePayment(Number(id), body.allocations, { userId, dryRun: Boolean(body.dryRun) });
+      success(res, result, { message: body.dryRun ? 'Dry-run allocation result' : 'Allocation applied' });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { issues: error.issues }, 'Validation failed');
+      }
+      failureCode(res, 500, ErrorCodes.ALLOCATE_PAYMENT_FAILED, { error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to allocate payment');
     }
   }
 

@@ -46,9 +46,12 @@ router.get('/', authenticateToken, loadFeatures, requireFeature('transactions.li
       filters.startDate = range.start;
       filters.endDate = range.end;
     }
-    if (req.user?.role === 'owner' && req.user?.shop_id && !filters.shopId) filters.shopId = Number(req.user.shop_id);
-    if (req.user?.role === 'farmer' && !filters.farmerId) filters.farmerId = Number(req.user.id);
-    if (req.user?.role === 'buyer' && !filters.buyerId) filters.buyerId = Number(req.user.id);
+  // Normalize role comparisons to shared USER_ROLES
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { USER_ROLES } = require('../shared/constants');
+  if (req.user && req.user.role === USER_ROLES.OWNER && req.user.shop_id && !filters.shopId) filters.shopId = Number(req.user.shop_id);
+  if (req.user && req.user.role === USER_ROLES.FARMER && !filters.farmerId) filters.farmerId = Number(req.user.id);
+  if (req.user && req.user.role === USER_ROLES.BUYER && !filters.buyerId) filters.buyerId = Number(req.user.id);
     if (!filters.shopId && !filters.farmerId && !filters.buyerId) {
   return failureCode(res, 400, ErrorCodes.TRANSACTION_CONTEXT_REQUIRED, undefined, 'Missing shop, farmer, or buyer context');
     }
@@ -129,15 +132,8 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     const { sequelize } = require('../models/index');
     const { shop_id } = req.query;
     let { date_from, date_to } = req.query;
-    // If no date_from or date_to, default both to today
-    if (!date_from || !date_to) {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      date_from = `${yyyy}-${mm}-${dd}`;
-      date_to = `${yyyy}-${mm}-${dd}`;
-    }
+    // If date_from and date_to are not provided, do not apply a date filter (return lifetime/shop-scoped aggregates)
+    // This avoids unintentionally restricting analytics to the current day when the caller expects lifetime totals.
     let whereClause = '';
   const params: unknown[] = [];
     if (date_from && date_to) {
@@ -180,18 +176,34 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     const total_sales = Number((Array.isArray(totalSalesResult) ? totalSalesResult[0]?.total_sales : 0) || 0);
 
     // 2. Pending payments to farmer (sum of farmer_earning - paid to farmer)
+    // Compute pending to farmer using both payments linked to transactions and allocations
     const [pendingToFarmerResult] = await sequelize.query(`
-      SELECT COALESCE(SUM(t.farmer_earning - COALESCE(p.paid,0)),0) as pending_to_farmer
+      SELECT COALESCE(SUM(t.farmer_earning - COALESCE(p.paid,0) - COALESCE(a.alloc,0)),0) as pending_to_farmer
       FROM kisaan_transactions t
       LEFT JOIN (
         SELECT transaction_id, SUM(amount) as paid
         FROM kisaan_payments
-        WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID'
+        WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID' AND transaction_id IS NOT NULL
         GROUP BY transaction_id
       ) p ON t.id = p.transaction_id
+      LEFT JOIN (
+        SELECT transaction_id, SUM(allocated_amount) as alloc
+        FROM kisaan_payment_allocations
+        GROUP BY transaction_id
+      ) a ON t.id = a.transaction_id
       ${whereClause}
     `, { replacements: params });
     const pending_to_farmer = Number((Array.isArray(pendingToFarmerResult) ? pendingToFarmerResult[0]?.pending_to_farmer : 0) || 0);
+
+    // Count unlinked shop->farmer paid amounts (payments recorded without transaction_id)
+    // Compute unlinked paid: payments without transaction_id minus any allocations recorded against those payments
+    const [unlinkedShopToFarmer] = await sequelize.query(`
+      SELECT COALESCE(SUM(COALESCE(p.amount,0) - COALESCE(p.allocated_amount,0)),0) as unlinked_paid
+      FROM kisaan_payments p
+      WHERE p.payer_type = 'SHOP' AND p.payee_type = 'FARMER' AND p.status = 'PAID' AND p.transaction_id IS NULL
+      ${shop_id ? ' AND p.shop_id = ?' : ''}
+    `, { replacements: shop_id ? [shop_id] : [] });
+    const unlinked_paid_to_farmer = Number((Array.isArray(unlinkedShopToFarmer) ? unlinkedShopToFarmer[0]?.unlinked_paid : unlinkedShopToFarmer?.unlinked_paid) || 0);
 
   // 3. Pending payments from buyer (sum of total_amount - paid by buyer)
     const [pendingFromBuyerResult] = await sequelize.query(`
@@ -207,21 +219,91 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     `, { replacements: params });
     const pending_from_buyer = Number((Array.isArray(pendingFromBuyerResult) ? pendingFromBuyerResult[0]?.pending_from_buyer : 0) || 0);
 
-    const total_deficit = pending_to_farmer + pending_from_buyer;
+    // Net pending: apply unlinked shop->farmer payments as prepayments against transaction-level pending
+    const net_pending_to_farmer = Math.max(pending_to_farmer - unlinked_paid_to_farmer, 0);
+    const total_deficit = net_pending_to_farmer + pending_from_buyer;
     const status_summary = {
       total_sales,
       pending_to_farmer,
+      unlinked_paid_to_farmer,
+      net_pending_to_farmer,
       pending_from_buyer
     };
+
+    // Map aggregates to client-friendly keys and compute realized values
+    const agg = (Array.isArray(aggResults) ? aggResults[0] : aggResults) || {} as any;
+    const totalTransactions = Number(agg.total_transactions ?? 0);
+    const totalSales = Number(agg.total_sales ?? total_sales ?? 0);
+    const totalCommission = Number(agg.total_commission ?? 0);
+    const totalFarmerEarnings = Number(agg.total_farmer_earnings ?? 0);
+
+    // Realized / settled amounts - compute directly from payments table (sum of PAID amounts) for authoritative DB values
+    const paymentWhereClause = shop_id ? ' AND shop_id = ?' : '';
+    const paymentReplacements = shop_id ? [shop_id] : [];
+    const [buyerPaidResult] = await sequelize.query(`
+      SELECT COALESCE(SUM(amount),0) as buyer_paid
+      FROM kisaan_payments
+      WHERE payer_type = 'BUYER' AND payee_type = 'SHOP' AND status = 'PAID' ${paymentWhereClause}
+    `, { replacements: paymentReplacements });
+
+    const buyer_total_spent = Number((Array.isArray(buyerPaidResult) ? buyerPaidResult[0]?.buyer_paid : buyerPaidResult?.buyer_paid) || 0);
+    // Farmer realized earnings = total farmer earnings from transactions minus pending_to_farmer (amount not yet paid to farmers)
+    const farmer_total_earned = Math.max(Number(totalFarmerEarnings) - Number(pending_to_farmer), 0);
+    const commission_realized = totalCommission;
+
     success(res, {
-      ...((Array.isArray(aggResults) ? aggResults[0] : aggResults) || {}),
+      total_transactions: String(totalTransactions),
+      total_sales: String(totalSales.toFixed(2)),
+      total_commission: String(totalCommission.toFixed(2)),
+      total_farmer_earnings: String(totalFarmerEarnings.toFixed(2)),
       total_deficit,
       daily: dailyResults || [],
-      status_summary
+      status_summary,
+      // additional client fields
+      buyer_total_spent,
+      farmer_total_earned,
+      unlinked_paid_to_farmer,
+      net_pending_to_farmer,
+      commission_realized
     });
   } catch (error) {
   const stack = typeof error === 'object' && error && 'stack' in error ? (error as { stack?: string }).stack : String(error);
   failureCode(res, 500, ErrorCodes.ANALYTICS_FAILURE, { stack }, 'Failed to fetch transaction analytics');
+  }
+});
+
+// Temporary debug endpoint: returns per-transaction pending to farmer and total (safe, read-only)
+router.get('/analytics/debug', authenticateToken, loadFeatures, requireFeature('transactions.analytics'), async (req: ReqWithUser, res) => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { sequelize } = require('../models/index');
+    const { shop_id } = req.query;
+    const params: unknown[] = [];
+    let shopFilter = '';
+    if (shop_id) {
+      shopFilter = 'WHERE t.shop_id = ?';
+      params.push(shop_id);
+    }
+    const [rows] = await sequelize.query(`
+      SELECT t.id, t.farmer_id, t.farmer_earning,
+        COALESCE(p.paid,0) as paid_to_farmer,
+        GREATEST(t.farmer_earning - COALESCE(p.paid,0), 0) as pending
+      FROM kisaan_transactions t
+      LEFT JOIN (
+        SELECT transaction_id, SUM(amount) as paid
+        FROM kisaan_payments
+        WHERE payer_type = 'SHOP' AND payee_type = 'FARMER' AND status = 'PAID'
+        GROUP BY transaction_id
+      ) p ON t.id = p.transaction_id
+      ${shopFilter}
+      ORDER BY pending DESC
+    `, { replacements: params });
+
+    const total = (Array.isArray(rows) ? rows.reduce((s: number, r: any) => s + Number(r.pending || 0), 0) : 0);
+    success(res, { rows: rows || [], total_pending_to_farmer: Number(total) });
+  } catch (error) {
+    const stack = typeof error === 'object' && error && 'stack' in error ? (error as { stack?: string }).stack : String(error);
+    failureCode(res, 500, ErrorCodes.ANALYTICS_FAILURE, { stack }, 'Failed to fetch debug analytics');
   }
 });
 
@@ -401,5 +483,7 @@ router.post('/payments', validateSchema(CreatePaymentSchema), paymentController.
 router.put('/payments/:id/status', validateSchema(UpdatePaymentStatusSchema), paymentController.updatePaymentStatus.bind(paymentController));
 router.get('/payments/transaction/:transactionId', paymentController.getPaymentsByTransaction.bind(paymentController));
 router.get('/payments/outstanding', paymentController.getOutstandingPayments.bind(paymentController));
+// Allocate payment to transactions (idempotent). Body: { allocations: [{ transaction_id, amount }], dryRun?: boolean }
+router.post('/payments/:id/allocate', paymentController.allocatePayment.bind(paymentController));
 
 export { router as transactionRoutes };
