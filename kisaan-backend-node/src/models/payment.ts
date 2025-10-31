@@ -22,6 +22,10 @@ export interface PaymentAttributes {
   settlement_type?: SettlementType;
   balance_before?: number | null;
   balance_after?: number | null;
+  // Amount applied by this payment towards expenses (e.g. expense settlements)
+  applied_to_expenses?: number | null;
+  // Amount applied by this payment towards stored balance (reducing unpaid txn amounts)
+  applied_to_balance?: number | null;
   settled_transactions?: number[] | null;
   settled_expenses?: number[] | null;
 
@@ -49,6 +53,8 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
   public settlement_type?: SettlementType;
   public balance_before?: number | null;
   public balance_after?: number | null;
+  public applied_to_expenses?: number | null;
+  public applied_to_balance?: number | null;
   public settled_transactions?: number[] | null;
   public settled_expenses?: number[] | null;
 
@@ -75,6 +81,8 @@ Payment.init(
     settlement_type: { type: DataTypes.ENUM(...Object.values(SettlementType)), allowNull: true, defaultValue: SettlementType.Partial },
     balance_before: { type: DataTypes.DECIMAL(10,2), allowNull: true },
     balance_after: { type: DataTypes.DECIMAL(10,2), allowNull: true },
+  applied_to_expenses: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0 },
+  applied_to_balance: { type: DataTypes.DECIMAL(12,2), allowNull: true, defaultValue: 0 },
     settled_transactions: { type: DataTypes.ARRAY(DataTypes.INTEGER), allowNull: true },
     settled_expenses: { type: DataTypes.ARRAY(DataTypes.INTEGER), allowNull: true },
 

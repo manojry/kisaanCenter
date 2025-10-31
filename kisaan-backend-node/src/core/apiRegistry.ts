@@ -86,7 +86,14 @@ export class ApiRegistry {
       register('/api/balance', routes.balanceReconciliationRoutes);
       register('/api/commissions', routes.commissionRoutes);
       register('/api/settlements', routes.settlementRoutes);
-      register('/api/expenses', routes.expenseRoutes);
+      // Expense routes
+      if (routes.expenseRoutes) {
+        register('/api/expenses', routes.expenseRoutes);
+      }
+      // Development/diagnostic routes
+      if (routes.debugRoutes) {
+        register('/api/debug', routes.debugRoutes);
+      }
       // Reporting and auditing
       register('/api/reports', routes.reportRoutes);
       register('/api/audit-logs', routes.auditLogRoutes);

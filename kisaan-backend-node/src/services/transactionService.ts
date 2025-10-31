@@ -1,4 +1,5 @@
 import { USER_ROLES, PAYMENT_STATUS } from '../shared/constants/index';
+import { BalanceType } from '../shared/enums';
 import { PARTY_TYPE } from '../shared/partyTypes';
 import { TransactionRepository } from '../repositories/TransactionRepository';
 import { TransactionIdempotencyRepository } from '../repositories/TransactionIdempotencyRepository';
@@ -27,26 +28,59 @@ export class TransactionService {
     const transactions = await this.transactionRepository.findByShop(shopId);
     if (!transactions.length) return 0;
     const txnIds = transactions.map((t) => t.id).filter((id): id is number => id != null && typeof id === 'number');
+    // Include allocations so payments that were standalone but allocated to transactions are counted
+    const allocations = txnIds.length > 0 ? await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: txnIds } }) : [];
+    const paymentIds = allocations.map(a => Number((a as any).payment_id)).filter(Boolean);
     let payments: Payment[] = [];
-    if (txnIds.length > 0) {
+    if (paymentIds.length > 0) {
       const { Op } = await import('sequelize');
-      payments = await (await import('../models/payment')).Payment.findAll({
-        where: { transaction_id: { [Op.in]: txnIds } }
-      });
+      payments = await (await import('../models/payment')).Payment.findAll({ where: { id: { [Op.in]: paymentIds } } });
     }
     // Map: buyerId -> sum due
     const buyerDueMap: Record<number, number> = {};
     for (const txn of transactions) {
       const buyerId = txn.buyer_id;
       if (!buyerId) continue;
-      const buyerPayments = payments.filter((p) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'BUYER' && p.payee_type === 'SHOP' && p.status === 'PAID');
-      const buyerPaid = buyerPayments.reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
+      // Sum allocated amounts for payments linked to this transaction where the payment is from BUYER->SHOP and PAID
+      const allocsForTxn = allocations.filter(a => Number((a as any).transaction_id) === Number(txn.id));
+      const buyerPaid = allocsForTxn.reduce((sum, a) => {
+        const pid = Number((a as any).payment_id);
+        const p = payments.find(pay => Number(pay.id) === pid);
+        if (p && String(p.payer_type).toUpperCase() === 'BUYER' && String(p.payee_type).toUpperCase() === 'SHOP' && String(p.status).toUpperCase() === 'PAID') {
+          return sum + Number((a as any).allocated_amount || 0);
+        }
+        return sum;
+      }, 0);
       const due = Math.max(Number(txn.total_amount || 0) - buyerPaid, 0);
       if (!buyerDueMap[buyerId]) buyerDueMap[buyerId] = 0;
       buyerDueMap[buyerId] += due;
     }
     // Sum all buyers' due
-    return Object.values(buyerDueMap).reduce((sum, v) => sum + v, 0);
+    let totalDue = Object.values(buyerDueMap).reduce((sum, v) => sum + v, 0);
+
+    try {
+      // Subtract bookkeeping (standalone) buyer payments made to this shop that are not already allocated
+      const { Op } = await import('sequelize');
+      const Payments = await (await import('../models/payment')).Payment;
+      const bookkeeping = await Payments.findAll({ where: {
+        shop_id: shopId,
+        transaction_id: null,
+        payer_type: 'BUYER',
+        payee_type: 'SHOP',
+        status: { [Op.not]: 'FAILED' }
+      } });
+      // Exclude payments that are already allocated (we only want unallocated bookkeeping payments)
+      const allocatedIds = new Set(paymentIds.map(Number));
+      const bookkeepingTotal = bookkeeping.reduce((s, p) => {
+        if (allocatedIds.has(Number(p.id))) return s;
+        return s + Number(p.amount || 0);
+      }, 0);
+      totalDue = Math.max(0, totalDue - bookkeepingTotal);
+    } catch (err) {
+      // Non-fatal: if bookkeeping fetch fails, return computed due
+    }
+
+    return totalDue;
   }
 
   /**
@@ -56,26 +90,55 @@ export class TransactionService {
     const transactions = await this.transactionRepository.findByShop(shopId);
     if (!transactions.length) return 0;
     const txnIds = transactions.map((t) => t.id).filter((id): id is number => id != null && typeof id === 'number');
+    // Include allocations so standalone payments allocated to transactions count
+    const allocations = txnIds.length > 0 ? await (await import('../models/paymentAllocation')).PaymentAllocation.findAll({ where: { transaction_id: txnIds } }) : [];
+    const paymentIds = allocations.map(a => Number((a as any).payment_id)).filter(Boolean);
     let payments: Payment[] = [];
-    if (txnIds.length > 0) {
+    if (paymentIds.length > 0) {
       const { Op } = await import('sequelize');
-      payments = await (await import('../models/payment')).Payment.findAll({
-        where: { transaction_id: { [Op.in]: txnIds } }
-      });
+      payments = await (await import('../models/payment')).Payment.findAll({ where: { id: { [Op.in]: paymentIds } } });
     }
     // Map: farmerId -> sum due
     const farmerDueMap: Record<number, number> = {};
     for (const txn of transactions) {
       const farmerId = txn.farmer_id;
       if (!farmerId) continue;
-      const farmerPayments = payments.filter((p) => Number(p.transaction_id) === Number(txn.id) && p.payer_type === 'SHOP' && p.payee_type === 'FARMER' && p.status === 'PAID');
-      const farmerPaid = farmerPayments.reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
+      // Sum allocated amounts for payments linked to this transaction where the payment is SHOP->FARMER and PAID
+      const allocsForTxn = allocations.filter(a => Number((a as any).transaction_id) === Number(txn.id));
+      const farmerPaid = allocsForTxn.reduce((sum, a) => {
+        const pid = Number((a as any).payment_id);
+        const p = payments.find(pay => Number(pay.id) === pid);
+        if (p && String(p.payer_type).toUpperCase() === 'SHOP' && String(p.payee_type).toUpperCase() === 'FARMER' && String(p.status).toUpperCase() === 'PAID') {
+          return sum + Number((a as any).allocated_amount || 0);
+        }
+        return sum;
+      }, 0);
       const due = Math.max(Number(txn.farmer_earning || 0) - farmerPaid, 0);
       if (!farmerDueMap[farmerId]) farmerDueMap[farmerId] = 0;
       farmerDueMap[farmerId] += due;
     }
     // Sum all farmers' due
-    return Object.values(farmerDueMap).reduce((sum, v) => sum + v, 0);
+    let totalFarmerDue = Object.values(farmerDueMap).reduce((sum, v) => sum + v, 0);
+    try {
+      const { Op } = await import('sequelize');
+      const Payments = await (await import('../models/payment')).Payment;
+      const bookkeeping = await Payments.findAll({ where: {
+        shop_id: shopId,
+        transaction_id: null,
+        payer_type: 'SHOP',
+        payee_type: 'FARMER',
+        status: { [Op.not]: 'FAILED' }
+      } });
+      const allocatedIds = new Set(paymentIds.map(Number));
+      const bookkeepingTotal = bookkeeping.reduce((s, p) => {
+        if (allocatedIds.has(Number(p.id))) return s;
+        return s + Number(p.amount || 0);
+      }, 0);
+      totalFarmerDue = Math.max(0, totalFarmerDue - bookkeepingTotal);
+    } catch (err) {
+      // ignore
+    }
+    return totalFarmerDue;
   }
 
   // ...existing code...
@@ -580,6 +643,9 @@ export class TransactionService {
 
     let createdTransaction: TransactionEntity | undefined;
   const createdPayments: unknown[] = [];
+  // Capture previous balances before we mutate anything so we can record payment balance deltas
+  const prevFarmerBalance = Number(farmer.balance || 0);
+  const prevBuyerBalance = Number(buyer.balance || 0);
       const externalTx = options?.tx;
       const run = async (tx: import('sequelize').Transaction) => {
         if (options?.idempotencyKey) {
@@ -718,21 +784,17 @@ export class TransactionService {
           const shop_id = pd.shop_id !== undefined ? Number(pd.shop_id) : undefined;
           const statusCandidate = String(pd.status ?? '').toUpperCase();
           const allowedStatuses = ['PENDING','PAID','FAILED','CANCELLED'] as const;
-          let normalizedStatus: PaymentStatus | undefined;
-          if (statusCandidate === 'PAID' || statusCandidate === 'COMPLETED') {
-            normalizedStatus = 'PAID';
-          } else if ((allowedStatuses as ReadonlyArray<string>).includes(statusCandidate)) {
-            normalizedStatus = statusCandidate as PaymentStatus;
-          } else {
-            normalizedStatus = undefined;
-          }
+          // For payments provided as part of transaction creation, treat them as PAID
+          // so they participate in allocation and balance recalculation immediately.
+          // This aligns with frontend expectations for transaction payload payments.
+          let normalizedStatus: PaymentStatus | undefined = 'PAID';
 
           await createPaymentRecord({
             payer_type,
             payee_type,
             amount: amountVal,
             method: method.toUpperCase() as PaymentMethod,
-            status: normalizedStatus,
+            status: 'PAID',
             notes,
             payment_date,
             counterparty_id,
@@ -800,11 +862,77 @@ export class TransactionService {
       // NOW update user balances AFTER all payments and allocations are created
       // This ensures the balance calculation can find the PaymentAllocation records
       // NOTE: Not in a transaction since payments are created outside the DB transaction
-      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TransactionStatus.Pending, undefined);      // Refetch transaction to get latest status after payments
+      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TransactionStatus.Pending, undefined);
+
+      // Refetch transaction to get latest status after payments
       createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
-      // Attach payments to transaction response
+
+      // IMPORTANT: Fetch fresh payment records from PaymentService after balances are updated
+      // so that returned payments include updated balance_before/balance_after and applied_to_* fields.
       if (createdTransaction) {
-        (createdTransaction as unknown as { payments?: unknown[] }).payments = createdPayments;
+        try {
+          const txnId = (createdTransaction as { id: number }).id;
+          const freshPayments = await paymentService.getPaymentsByTransaction(txnId);
+
+          // Compute allocations per payment and persist balance_before/after and applied breakdown
+          const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
+          const PaymentModel = (await import('../models/payment')).Payment;
+
+          // Get allocations for this transaction grouped by payment_id
+          const allocations = await PaymentAllocation.findAll({ where: { transaction_id: txnId } });
+          const allocMap: Record<number, number> = {};
+          for (const a of allocations) {
+            const pid = Number((a as any).payment_id);
+            const amt = Number((a as any).allocated_amount || 0);
+            allocMap[pid] = (allocMap[pid] || 0) + amt;
+          }
+
+          // Fetch refreshed user balances to set balance_before/after on payment rows
+          const FarmerModel = (await import('../models/user')).User;
+          const BuyerModel = FarmerModel; // same model
+          const farmerAfter = await FarmerModel.findByPk(Number((createdTransaction as any).farmer_id));
+          const buyerAfter = await BuyerModel.findByPk(Number((createdTransaction as any).buyer_id));
+          const newFarmerBalance = Number(farmerAfter?.balance || 0);
+          const newBuyerBalance = Number(buyerAfter?.balance || 0);
+
+          // Persist per-payment fields
+          for (const p of freshPayments) {
+            try {
+              const pid = Number((p as any).id);
+              const modelPayment = await PaymentModel.findByPk(pid);
+              if (!modelPayment) continue;
+
+              // Determine applied amounts from allocations (transaction payments primarily allocate to the transaction)
+              const totalAllocated = allocMap[pid] || 0;
+              let appliedToExpenses = 0;
+              let appliedToBalance = totalAllocated;
+
+              // Determine which user balance fields to use
+              const pPayer = String((p as any).payer_type || '').toUpperCase();
+              const pPayee = String((p as any).payee_type || '').toUpperCase();
+
+              const balanceBefore = pPayee === 'FARMER' ? prevFarmerBalance : (pPayee === 'BUYER' ? prevBuyerBalance : null);
+              const balanceAfter = pPayee === 'FARMER' ? newFarmerBalance : (pPayee === 'BUYER' ? newBuyerBalance : null);
+
+              await modelPayment.update({
+                balance_before: balanceBefore,
+                balance_after: balanceAfter,
+                applied_to_expenses: appliedToExpenses,
+                applied_to_balance: appliedToBalance
+              } as any);
+            } catch (err) {
+              console.warn('[transaction:create] Could not persist payment breakdown for payment', p, err);
+            }
+          }
+
+          // Re-fetch payments to include updated fields
+          const refreshedPayments = await paymentService.getPaymentsByTransaction(txnId);
+          (createdTransaction as unknown as { payments?: unknown[] }).payments = refreshedPayments;
+        } catch (err) {
+          // Fallback to previously captured createdPayments if fetching fresh payments fails
+          console.warn('[transaction:create] Could not fetch fresh payments for response, returning cached payments', { err });
+          (createdTransaction as unknown as { payments?: unknown[] }).payments = createdPayments;
+        }
       }
       return createdTransaction;
     } catch (error) {
@@ -1648,7 +1776,7 @@ export class TransactionService {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
           await BalanceSnapshot.create({
             user_id: farmer.id!,
-            balance_type: 'farmer',
+            balance_type: BalanceType.Farmer,
             previous_balance: _currentFarmerBalance,
             amount_change: (updatedFarmer.balance ?? 0) - _currentFarmerBalance,
             new_balance: updatedFarmer.balance ?? 0,
@@ -1671,7 +1799,7 @@ export class TransactionService {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
           await BalanceSnapshot.create({
             user_id: buyer.id!,
-            balance_type: 'buyer',
+            balance_type: BalanceType.Buyer,
             previous_balance: currentBuyerBalance,
             amount_change: (updatedBuyer.balance ?? 0) - currentBuyerBalance,
             new_balance: updatedBuyer.balance ?? 0,
@@ -1773,7 +1901,7 @@ export class TransactionService {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
           await BalanceSnapshot.create({
             user_id: farmer.id!,
-            balance_type: 'farmer',
+            balance_type: BalanceType.Farmer,
             previous_balance: _currentFarmerBalance,
             amount_change: farmerBalanceChange,
             new_balance: updatedFarmer.balance,
@@ -1834,7 +1962,7 @@ export class TransactionService {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
           await BalanceSnapshot.create({
             user_id: buyer.id!,
-            balance_type: 'buyer',
+            balance_type: BalanceType.Buyer,
             previous_balance: currentBuyerBalance,
             amount_change: buyerBalanceChange,
             new_balance: updatedBuyer.balance,

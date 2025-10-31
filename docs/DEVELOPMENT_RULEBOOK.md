@@ -7,6 +7,62 @@ This document establishes development standards, best practices, and guidelines 
 
 ---
 
+## 🔴 CRITICAL RULE #1: REUSE BEFORE CREATE
+
+### The "No Duplicate Files" Policy
+
+**BEFORE creating ANY new file (script, migration, documentation), you MUST:**
+
+1. **CHECK EXISTING FILES FIRST** using the project index:
+   - `docs/DOCS_STATUS.md` - All documentation files with deprecation status
+   - `docs/DEPRECATED_SCRIPTS.md` - Deprecated/removed scripts and their replacements
+   - `kisaan-backend-node/scripts/` - Active utility scripts
+   - `scripts/` - Root-level operational scripts
+   - `kisaan-backend-node/src/migrations/` - Database migrations
+
+2. **REFACTOR EXISTING FILES** instead of creating new ones:
+   - ✅ Update existing migration files
+   - ✅ Extend existing scripts with new functions
+   - ✅ Add sections to existing documentation
+   - ❌ DO NOT create `file-v2.sql`, `file-new.sql`, `file-fixed.sql`
+
+3. **USE CANONICAL COMMANDS**:
+   ```bash
+   # Schema management
+   npm run schema:prepare       # Apply complete schema
+   npm run schema:structure     # Verify schema
+   
+   # Seeding
+   npm run features:seed        # Feature flags (idempotent)
+   npm run db:bootstrap         # Initial data
+   
+   # Migrations
+   npm run migrate              # Run pending migrations
+   npm run migrate:transactions:rename  # Specific migration
+   
+   # Cleanup
+   npm run cleanup:deprecated   # Remove old files
+   ```
+
+4. **NAMING CONVENTIONS FOR NEW FILES** (only if truly needed):
+   - Migrations: `YYYYMMDD_NN_descriptive_name.sql` (e.g., `20251027_01_add_constraints.sql`)
+   - Scripts: `action-subject.ts` (e.g., `validate-balances.ts`)
+   - Docs: `SUBJECT_PURPOSE.md` (e.g., `BALANCE_VALIDATION_GUIDE.md`)
+   - ❌ NEVER: `temp.sql`, `fix.js`, `new-script.ts`, `updated.md`
+
+### Why This Matters
+- Prevents script bloat (96 scripts currently exist!)
+- Avoids conflicting logic in duplicate files
+- Makes maintenance impossible when changes exist in multiple places
+- Wastes time searching for "which version is correct?"
+
+### Enforcement
+- All PRs will be rejected if they create duplicate files
+- Use `git status` to check what you're creating
+- Run `npm run cleanup:deprecated` before committing
+
+---
+
 ## 📁 Project Structure Standards
 
 ### Directory Organization

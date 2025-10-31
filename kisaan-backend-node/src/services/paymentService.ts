@@ -148,7 +148,7 @@ export class PaymentService {
       logger.error({ paymentData }, 'Payment creation failed: No valid payment ID returned');
       throw new Error('Payment creation failed: No valid payment ID returned');   
     }
-    logger.info({ payment: payment.toJSON() }, 'Created payment');
+  logger.info({ payment: payment.toJSON() }, 'Created payment');
 
     // Allocate payment to outstanding transactions (direct allocations or FIFO)
     // Do this immediately so subsequent balance recalculation sees the allocation records.
@@ -156,6 +156,44 @@ export class PaymentService {
       await this.allocatePaymentToTransactions(payment, options);
     } catch (allocErr) {
       console.warn('[ALLOCATE] Error allocating payment immediately after creation', { paymentId: payment.id, err: (allocErr as Error).message || allocErr });
+    }
+
+    // Persist per-payment applied breakdown for transaction-linked payments.
+    // When a payment is part of a transaction, allocations are created above.
+    // Compute applied_to_expenses and applied_to_balance from allocation records and
+    // any expense settlements produced by FIFO, and store them on the payment row
+    // so callers (including the transaction flow) can immediately read finalized values.
+    try {
+      if (payment.transaction_id) {
+        const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
+        const ExpenseSettlement = (await import('../models/expenseSettlement')).default;
+        const PaymentModel = (await import('../models/payment')).Payment;
+
+        // Sum allocations for this payment across the transaction
+        const allocations = await PaymentAllocation.findAll({ where: { payment_id: payment.id } });
+        const totalAllocated = allocations.reduce((s, a) => s + Number((a as any).allocated_amount || 0), 0);
+
+        // For transaction-linked payments, any allocations go primarily to the transaction; expense settlements
+        // are created by FIFO logic during balance updates. Attempt to derive applied_to_expenses from
+        // expenseSettlement rows that reference this payment (if any).
+        const settledRows = await ExpenseSettlement.findAll({ where: { payment_id: payment.id } });
+        const appliedToExpenses = settledRows.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+
+        // The remainder of allocated amount (if any) is applied to balance (i.e., reduces unpaid txn amounts)
+        const appliedToBalance = Math.max(0, totalAllocated - appliedToExpenses);
+
+        // Persist the computed fields on the payment row. Use update on model to ensure DB persistence.
+        try {
+          await (payment as any).update({
+            applied_to_expenses: appliedToExpenses,
+            applied_to_balance: appliedToBalance
+          } as any);
+        } catch (e) {
+          console.warn('[PAYMENT] Failed to persist applied breakdown for payment', payment.id, e);
+        }
+      }
+    } catch (err) {
+      console.warn('[PAYMENT] Error while computing/persisting per-payment breakdown', { paymentId: payment.id, err });
     }
 
     // Post-insert consistency check for NULL payment_date/counterparty_id        
@@ -399,7 +437,7 @@ export class PaymentService {
               if (amountChange !== 0) {
                 await BalanceSnapshot.create({
                   user_id: userIdToUpdate,
-                  balance_type: BALANCE_TYPE.FARMER,
+                  balance_type: BalanceType.Farmer,
                   previous_balance: previousBalance,
                   amount_change: amountChange,
                   new_balance: newBalance,
@@ -491,7 +529,7 @@ export class PaymentService {
               if (amountChange !== 0) {
                 await BalanceSnapshot.create({
                   user_id: userIdToUpdate,
-                  balance_type: BALANCE_TYPE.FARMER,
+                  balance_type: BalanceType.Farmer,
                   previous_balance: previousBalance,
                   amount_change: amountChange,
                   new_balance: newBalance,
@@ -545,7 +583,7 @@ export class PaymentService {
           try {
             await BalanceSnapshot.create({
               user_id: userIdToUpdate,
-              balance_type: BALANCE_TYPE.BUYER,
+              balance_type: BalanceType.Buyer,
               previous_balance: previousBalance,
               amount_change: newBalance - previousBalance,
               new_balance: newBalance,
@@ -700,6 +738,41 @@ export class PaymentService {
           newBalance = newBalance - refundTotal; // subtract refunds
         }
 
+        // ALSO subtract standalone bookkeeping payments made by the buyer (payer=BUYER payee=SHOP, transaction_id IS NULL)
+        // These represent direct payments from buyer to shop that should reduce buyer's outstanding balance
+        try {
+          const bookkeepingPayments = await Payment.findAll({
+            where: {
+              transaction_id: null,
+              payer_type: PARTY_TYPE.BUYER,
+              payee_type: PARTY_TYPE.SHOP,
+              counterparty_id: userIdToUpdate,
+              status: 'PAID'
+            }
+          });
+
+          // Exclude bookkeeping payments that have allocations recorded (they are already counted via allocations)
+          const bkPaymentIds = bookkeepingPayments.map(p => Number(p.id));
+          let unallocatedTotal = 0;
+          if (bkPaymentIds.length > 0) {
+            const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
+            const allocs = await PaymentAllocation.findAll({ where: { payment_id: bkPaymentIds } });
+            const allocatedIds = new Set<number>(allocs.map(a => Number(a.payment_id)));
+            for (const p of bookkeepingPayments) {
+              if (!allocatedIds.has(Number(p.id))) {
+                unallocatedTotal += Number(p.amount || 0);
+              }
+            }
+          }
+
+          if (unallocatedTotal > 0) {
+            console.log('[BUYER BOOKKEEPING] Subtracting unallocated buyer bookkeeping payments from balance:', unallocatedTotal);
+            newBalance = newBalance - unallocatedTotal;
+          }
+        } catch (bkErr) {
+          console.warn('[BUYER BOOKKEEPING] Failed to adjust for bookkeeping payments:', (bkErr as Error).message || bkErr);
+        }
+
         console.log('[BUYER BALANCE RECALC]', {
           buyerId: userIdToUpdate,
           transactions: allBuyerTxns.length,
@@ -725,7 +798,7 @@ export class PaymentService {
         if (amountChange !== 0 && (userRole === PARTY_TYPE.BUYER || userRole === PARTY_TYPE.FARMER)) {
             await BalanceSnapshot.create({
             user_id: userIdToUpdate,
-            balance_type: userRole === PARTY_TYPE.BUYER ? BALANCE_TYPE.BUYER : BALANCE_TYPE.FARMER,
+            balance_type: userRole === PARTY_TYPE.BUYER ? BalanceType.Buyer : BalanceType.Farmer,
             previous_balance: previousBalance,
             amount_change: amountChange,
             new_balance: newBalance,
@@ -839,42 +912,53 @@ export class PaymentService {
           console.warn('[ALLOCATE] Direct allocation error', error?.message || directErr);
         }
       } else if (payment.counterparty_id) {
-        // Standalone buyer payment (no specific transaction): apply FIFO to buyer's outstanding transactions
-        try {
-          const Transaction = (await import('../models/transaction')).Transaction;
-          const buyerTransactions = await Transaction.findAll({
-            where: { buyer_id: payment.counterparty_id },
-            order: [['transaction_date', 'ASC'], ['id', 'ASC']]
-          });
-          let remaining = paymentAmount;
-          for (const txn of buyerTransactions) {
-            if (remaining <= 0) break;
-            const totalAmount = Number(txn.total_amount || 0);
-            // Fetch existing allocations for this txn
-            const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: txn.id } });
-            // Link allocations to payments and sum only buyer payments that are PAID
-            const Payment = (await import('../models/payment')).Payment;
-            const paymentIds = existingAllocations.map(a => a.payment_id);
-                    const relatedPayments = paymentIds.length ? await Payment.findAll({ where: { id: paymentIds }, transaction: options?.tx }) : [];
-            const alreadyPaidByBuyer = existingAllocations
-              .filter(a => {
-                const pmt = relatedPayments.find(p => p.id === a.payment_id);
-                return pmt && pmt.payer_type === PARTY_TYPE.BUYER && pmt.status === 'PAID';
-              })
-              .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
-            const outstandingForBuyer = Math.max(totalAmount - alreadyPaidByBuyer, 0);
-            if (outstandingForBuyer > 0) {
-              const allocationAmount = Math.min(remaining, outstandingForBuyer);
-              await PaymentAllocation.create({ payment_id: payment.id, transaction_id: txn.id, allocated_amount: allocationAmount });
-              remaining -= allocationAmount;
-              console.log('[ALLOCATE] Standalone buyer payment allocated', { paymentId: payment.id, transactionId: txn.id, allocationAmount, remaining });
+        // Standalone buyer payment (no specific transaction).
+        // Historically we applied FIFO allocation immediately which converted bookkeeping
+        // payments into allocated payments and prevented them from being counted as
+        // "bookkeeping" payments that reduce overall buyer_payments_due. To ensure that
+        // buyer-initiated standalone payments reduce receivables on the owner dashboard by
+        // default, skip automatic FIFO allocation unless explicitly enabled via env.
+        if (process.env.ALLOCATE_STANDALONE_BUYER_PAYMENTS === 'true') {
+          try {
+            const Transaction = (await import('../models/transaction')).Transaction;
+            const buyerTransactions = await Transaction.findAll({
+              where: { buyer_id: payment.counterparty_id },
+              order: [['transaction_date', 'ASC'], ['id', 'ASC']]
+            });
+            let remaining = paymentAmount;
+            for (const txn of buyerTransactions) {
+              if (remaining <= 0) break;
+              const totalAmount = Number(txn.total_amount || 0);
+              // Fetch existing allocations for this txn
+              const existingAllocations = await PaymentAllocation.findAll({ where: { transaction_id: txn.id } });
+              // Link allocations to payments and sum only buyer payments that are PAID
+              const Payment = (await import('../models/payment')).Payment;
+              const paymentIds = existingAllocations.map(a => a.payment_id);
+              const relatedPayments = paymentIds.length ? await Payment.findAll({ where: { id: paymentIds }, transaction: options?.tx }) : [];
+              const alreadyPaidByBuyer = existingAllocations
+                .filter(a => {
+                  const pmt = relatedPayments.find(p => p.id === a.payment_id);
+                  return pmt && pmt.payer_type === PARTY_TYPE.BUYER && pmt.status === 'PAID';
+                })
+                .reduce((sum, a) => sum + Number(a.allocated_amount || 0), 0);
+              const outstandingForBuyer = Math.max(totalAmount - alreadyPaidByBuyer, 0);
+              if (outstandingForBuyer > 0) {
+                const allocationAmount = Math.min(remaining, outstandingForBuyer);
+                await PaymentAllocation.create({ payment_id: payment.id, transaction_id: txn.id, allocated_amount: allocationAmount });
+                remaining -= allocationAmount;
+                console.log('[ALLOCATE] Standalone buyer payment allocated', { paymentId: payment.id, transactionId: txn.id, allocationAmount, remaining });
+              }
             }
+            if (remaining > 0) {
+              console.log('[ALLOCATE] Buyer payment has unallocated remainder (overpayment)', { paymentId: payment.id, unallocatedAmount: remaining });
+            }
+          } catch (buyerErr) {
+            console.error('[ALLOCATE] Error allocating standalone buyer payment', buyerErr);
           }
-          if (remaining > 0) {
-            console.log('[ALLOCATE] Buyer payment has unallocated remainder (overpayment)', { paymentId: payment.id, unallocatedAmount: remaining });
-          }
-        } catch (buyerErr) {
-          console.error('[ALLOCATE] Error allocating standalone buyer payment', buyerErr);
+        } else {
+          // By default, do not allocate standalone buyer payments automatically. Treat them
+          // as bookkeeping payments that reduce buyer_receivables at owner dashboard computation.
+          console.log('[ALLOCATE] Skipping automatic FIFO allocation for standalone BUYER->SHOP payment', { paymentId: payment.id });
         }
       }
     }

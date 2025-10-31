@@ -68,6 +68,14 @@ export function registerAllRoutes(app: Express): void {
     // Reporting and auditing
     app.use('/api/reports', reportRoutes);
     app.use('/api/audit-logs', auditLogRoutes);
+  // Expense routes
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const expenseRoutes = require('../routes/expenseRoutes').default;
+  app.use('/api/expenses', expenseRoutes);
+  // Dev debug endpoints (owner-only)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const debugRoutes = require('../routes/debugRoutes').default;
+  app.use('/api/debug', debugRoutes);
     
     // Dashboard routes
     app.use('/api/owner-dashboard', ownerDashboardRoute);

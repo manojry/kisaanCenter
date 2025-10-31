@@ -151,17 +151,33 @@ const PaymentManagement: React.FC = () => {
     setSettlementBreakdown(null);
   }, [selectedUser]);
 
-  // Auto-adjust paymentDirection for farmers with negative balance (they owe the shop)
+  // Auto-adjust paymentDirection based on user role and balance
   useEffect(() => {
     if (!selectedUser) return;
-    if (selectedUser.role === 'farmer' && currentBalance < 0) {
+    
+    // For buyers: only "receive from buyer" is valid (buyers pay shop, never receive from shop)
+    if (selectedUser.role === 'buyer') {
+      if (paymentDirection !== 'receive_from_buyer') {
+        setPaymentDirection('receive_from_buyer');
+        setMessage('Buyer selected — action set to Receive from Buyer.');
+      }
+    }
+    // For farmers with negative balance (they owe the shop)
+    else if (selectedUser.role === 'farmer' && currentBalance < 0) {
       // Farmer owes shop -> prefer Receive from Farmer (farmer pays shop)
       if (paymentDirection === 'pay_to_farmer') {
         setPaymentDirection('receive_from_farmer');
         setMessage('Farmer has an outstanding advance — defaulting action to Receive from Farmer.');
       }
     }
-  }, [selectedUser, currentBalance]);
+    // For farmers with positive balance (shop owes them)
+    else if (selectedUser.role === 'farmer' && currentBalance >= 0) {
+      if (paymentDirection !== 'pay_to_farmer') {
+        setPaymentDirection('pay_to_farmer');
+        setMessage('');
+      }
+    }
+  }, [selectedUser, currentBalance, paymentDirection]);
 
   // No transaction selection or bulk payment logic needed for bookkeeping mode
 
@@ -460,56 +476,124 @@ const PaymentManagement: React.FC = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <CreditCard className="h-4 w-4" />
-                  {selectedUser.role === 'farmer' ? 'Record Payment to Farmer' : 'Receive Payment from Buyer'}
+                  Payment Recording
                 </CardTitle>
                 <div className="text-sm text-gray-600">
-                  Manage payments with this user. You can either record a payment the shop makes to them (Pay), or record a payment received from them to the shop (Receive).
+                  {selectedUser.role === 'buyer' ? (
+                    <span className="font-medium text-blue-700">📥 Receive money from buyer (reduces what they owe)</span>
+                  ) : currentBalance >= 0 ? (
+                    <span className="font-medium text-green-700">📤 Pay money to farmer (reduces what shop owes them)</span>
+                  ) : (
+                    <span className="font-medium text-orange-700">📥 Receive money from farmer (settles their advance/expenses first, then reduces balance)</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-4">
-                  {/* Payment Preview */}
+                  {/* Payment Preview - Clear breakdown of what happens */}
                     {paymentAmount && parseFloat(paymentAmount) > 0 && (
                     (() => {
                       const amt = Math.abs(parseFloat(paymentAmount));
-                      // For pay_to_farmer: shop -> farmer, farmer balance increases by amt
-                      // For receive_from_*: user -> shop, user balance decreases by amt
-                      const newBalance = paymentDirection === 'pay_to_farmer' ? currentBalance + amt : currentBalance - amt;
-                      // Overpayment: when receiving from user and user does not have enough balance (i.e., receiving more than their positive balance)
-                      const isOverpay = (paymentDirection === 'receive_from_farmer' || paymentDirection === 'receive_from_buyer') && amt > currentBalance;
-                      const bgClass = isOverpay ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200';
-                      const headerColor = isOverpay ? 'text-red-700' : 'text-blue-700';
+                      
+                      // Determine the money flow and balance impact
+                      let moneyFlow = '';
+                      let balanceChange = 0;
+                      let balanceExplanation = '';
+                      let newBalance = currentBalance;
+                      
+                      if (paymentDirection === 'pay_to_farmer') {
+                        // SHOP PAYS FARMER: Shop gives money → Farmer balance DECREASES (shop owes less)
+                        moneyFlow = '💵 Shop → Farmer';
+                        balanceChange = -amt;
+                        newBalance = currentBalance - amt;
+                        balanceExplanation = 'Shop owes farmer LESS';
+                      } else if (paymentDirection === 'receive_from_buyer') {
+                        // BUYER PAYS SHOP: Buyer gives money → Buyer balance DECREASES (buyer owes less)
+                        moneyFlow = '💵 Buyer → Shop';
+                        balanceChange = -amt;
+                        newBalance = currentBalance - amt;
+                        balanceExplanation = 'Buyer owes shop LESS';
+                      } else if (paymentDirection === 'receive_from_farmer') {
+                        // FARMER PAYS SHOP: Farmer gives money → First settles expenses, then reduces negative balance
+                        moneyFlow = '💵 Farmer → Shop';
+                        // For farmers with negative balance (they owe shop), payment reduces debt
+                        // Note: Backend applies FIFO to expenses first, remaining goes to balance
+                        balanceChange = amt; // moves toward zero (less negative)
+                        newBalance = currentBalance + amt;
+                        balanceExplanation = currentBalance < 0 
+                          ? 'Settles expenses first, then reduces farmer debt' 
+                          : 'Reduces what shop owes farmer';
+                      }
+                      
+                      const isOverpay = (paymentDirection === 'receive_from_farmer' || paymentDirection === 'receive_from_buyer') && amt > Math.abs(currentBalance);
+                      const bgClass = isOverpay ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-200';
+                      const headerColor = isOverpay ? 'text-amber-800' : 'text-blue-800';
 
                       return (
-                        <div className={`p-3 rounded-lg border ${bgClass}`}>
-                          <div className={`flex items-center gap-2 font-medium text-sm mb-2 ${headerColor}`}>
-                            <TrendingDown className="h-4 w-4" />
-                            Payment Impact
+                        <div className={`p-4 rounded-lg border-2 ${bgClass}`}>
+                          <div className={`flex items-center justify-between mb-3 ${headerColor}`}>
+                            <div className="flex items-center gap-2 font-semibold text-base">
+                              <TrendingDown className="h-5 w-5" />
+                              Payment Impact Preview
+                            </div>
                             {isOverpay && (
-                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded ml-2">
-                                ⚠️ Overpayment - balance will go negative
+                              <span className="text-xs bg-amber-200 text-amber-900 px-2 py-1 rounded font-semibold">
+                                ⚠️ OVERPAYMENT
                               </span>
                             )}
                           </div>
+                          
+                          {/* Money Flow */}
+                          <div className="bg-white rounded p-2 mb-3 border border-gray-200">
+                            <div className="text-xs text-gray-500 mb-1">Money Flow</div>
+                            <div className="font-bold text-sm">{moneyFlow}</div>
+                          </div>
+                          
+                          {/* Balance Changes */}
                           <div className="grid grid-cols-3 gap-3 text-sm">
-                            <div>
-                              <div className="text-gray-600 text-xs">Current</div>
-                              <div className="font-mono font-bold">₹{currentBalance.toLocaleString()}</div>
+                            <div className="bg-white rounded p-2 border border-gray-200">
+                              <div className="text-gray-600 text-xs mb-1">Current Balance</div>
+                              <div className={`font-mono font-bold ${currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                ₹{currentBalance.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {currentBalance > 0 && selectedUser.role === 'buyer' && 'Buyer owes'}
+                                {currentBalance > 0 && selectedUser.role === 'farmer' && 'Shop owes'}
+                                {currentBalance < 0 && 'Farmer owes'}
+                                {currentBalance === 0 && 'Settled'}
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-gray-600 text-xs">Payment</div>
-                              <div className="font-mono font-bold text-red-600">{paymentDirection === 'pay_to_farmer' ? '+₹' + amt.toLocaleString() : '-₹' + amt.toLocaleString()}</div>
+                            <div className="bg-white rounded p-2 border border-gray-200">
+                              <div className="text-gray-600 text-xs mb-1">Balance Change</div>
+                              <div className={`font-mono font-bold ${balanceChange < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {balanceChange > 0 ? '+' : ''}₹{balanceChange.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">{balanceExplanation}</div>
                             </div>
-                            <div>
-                              <div className="text-gray-600 text-xs">New Balance</div>
-                              <div className={`font-mono font-bold ${newBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            <div className="bg-white rounded p-2 border border-gray-200">
+                              <div className="text-gray-600 text-xs mb-1">New Balance</div>
+                              <div className={`font-mono font-bold text-lg ${newBalance < 0 ? 'text-red-600' : newBalance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                                 ₹{newBalance.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {newBalance > 0 && selectedUser.role === 'buyer' && 'Still owes'}
+                                {newBalance > 0 && selectedUser.role === 'farmer' && 'Shop still owes'}
+                                {newBalance < 0 && 'Farmer still owes'}
+                                {newBalance === 0 && '✅ Fully settled'}
                               </div>
                             </div>
                           </div>
+                          
                           {isOverpay && (
-                            <div className="mt-2 text-xs text-red-600">
-                              This payment exceeds the user's current balance and will make their balance negative.
+                            <div className="mt-3 p-2 bg-amber-100 rounded text-xs text-amber-900 border border-amber-300">
+                              <strong>⚠️ Overpayment Warning:</strong> Payment amount exceeds current balance. 
+                              {paymentDirection === 'receive_from_farmer' && ' For farmers, excess will be applied to unsettled expenses first (FIFO), then adjust balance.'}
+                            </div>
+                          )}
+                          
+                          {paymentDirection === 'receive_from_farmer' && currentBalance < 0 && (
+                            <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-900 border border-blue-300">
+                              <strong>ℹ️ Expense Settlement:</strong> This payment will first settle any outstanding expenses (FIFO order), then the remaining amount will reduce the farmer's debt.
                             </div>
                           )}
                         </div>
@@ -535,17 +619,31 @@ const PaymentManagement: React.FC = () => {
                           className="w-full"
                         />
                       </div>
-                      {/* Direction chooser inline */}
-                      <div className="flex flex-col w-44 min-w-[10rem]">
-                        <label className="text-sm font-medium text-gray-700 mb-1">Action</label>
+                      {/* Payment Direction - Clear labels about money flow */}
+                      <div className="flex flex-col w-56 min-w-[14rem]">
+                        <label className="text-sm font-medium text-gray-700 mb-1">Payment Direction</label>
                         <select
-                          className="border rounded px-2 py-2 text-sm w-full"
+                          className="border rounded px-2 py-2 text-sm w-full font-medium"
                           value={paymentDirection}
                           onChange={e => setPaymentDirection(e.target.value as any)}
                         >
-                          <option value="pay_to_farmer" disabled={selectedUser?.role === 'farmer' && currentBalance < 0 && !forceOverride}>Pay to Farmer</option>
-                          <option value="receive_from_buyer">Receive from Buyer</option>
-                          <option value="receive_from_farmer">Receive from Farmer</option>
+                          {/* For FARMERS: Show both pay and receive options */}
+                          {selectedUser?.role === 'farmer' && (
+                            <>
+                              <option value="pay_to_farmer" disabled={currentBalance < 0 && !forceOverride}>
+                                💵 Shop → Farmer (Pay them)
+                              </option>
+                              <option value="receive_from_farmer">
+                                💰 Farmer → Shop (Receive from them)
+                              </option>
+                            </>
+                          )}
+                          {/* For BUYERS: Only receive option (buyers never receive from shop) */}
+                          {selectedUser?.role === 'buyer' && (
+                            <option value="receive_from_buyer">
+                              💰 Buyer → Shop (Receive payment)
+                            </option>
+                          )}
                         </select>
                       </div>
                       <div className="flex flex-col w-36 min-w-[8rem]">
@@ -583,8 +681,24 @@ const PaymentManagement: React.FC = () => {
                             </span>
                           ) : (
                             <span className="flex items-center gap-1">
-                              <CreditCard className="h-3 w-3" />
-                              {paymentDirection === 'pay_to_farmer' ? 'Pay Farmer' : paymentDirection === 'receive_from_buyer' ? 'Receive from Buyer' : 'Receive from Farmer'}
+                              {paymentDirection === 'pay_to_farmer' && (
+                                <>
+                                  <span className="text-base">💵</span>
+                                  <span>Pay ₹{paymentAmount} to Farmer</span>
+                                </>
+                              )}
+                              {paymentDirection === 'receive_from_buyer' && (
+                                <>
+                                  <span className="text-base">💰</span>
+                                  <span>Receive ₹{paymentAmount} from Buyer</span>
+                                </>
+                              )}
+                              {paymentDirection === 'receive_from_farmer' && (
+                                <>
+                                  <span className="text-base">💰</span>
+                                  <span>Receive ₹{paymentAmount} from Farmer</span>
+                                </>
+                              )}
                             </span>
                           )}
                           </Button>

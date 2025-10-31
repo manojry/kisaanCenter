@@ -231,7 +231,8 @@ export interface Payment {
   transaction_id: number;
   payer_type: 'buyer' | 'shop';
   payee_type: 'shop' | 'farmer';
-  amount: number;
+  // Backend may return amount as formatted string ("71.00") or number. Accept both.
+  amount: number | string;
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
   payment_date?: string;
   method: 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
@@ -250,6 +251,15 @@ export interface Payment {
     }[];
     remaining?: number;
   };
+  // Additional fields returned by backend
+  amount_cents?: number;
+  balance_before?: number | string | null;
+  balance_after?: number | string | null;
+  settlement_type?: string | null;
+  settled_transactions?: unknown[];
+  settled_expenses?: unknown[];
+  counterparty_id?: number | null;
+  shop_id?: number | null;
 }
 
 // Settlement Tracking Types

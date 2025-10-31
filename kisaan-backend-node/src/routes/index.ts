@@ -11,6 +11,7 @@ import superadminRoutes from './superadminRoutes';
 import testProductRoutes from './testProductRoutes';
 import farmerProductRoutes from './farmerProductRoutes';
 import shopProductRoutes from './shopProductRoutes';
+import debugRoutes from './debugRoutes';
 import creditAdvanceRoutes from './creditAdvanceRoutes';
 import balanceReconciliationRoutes from './balanceReconciliationRoutes';
 
@@ -52,6 +53,7 @@ export {
   testProductRoutes,
   farmerProductRoutes,
   shopProductRoutes,
+  debugRoutes,
   creditAdvanceRoutes,
   balanceReconciliationRoutes,
   simplifiedRoutes
@@ -81,6 +83,7 @@ export default {
   testProductRoutes,
   farmerProductRoutes,
   shopProductRoutes,
+  debugRoutes,
   creditAdvanceRoutes,
   balanceReconciliationRoutes,
   simplifiedRoutes

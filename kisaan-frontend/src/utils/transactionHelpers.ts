@@ -23,7 +23,9 @@ export function getTotalSaleValue(txn: Transaction): number {
 export function getBuyerPaid(txn: Transaction): number {
   if (typeof txn.buyer_paid === 'number') return txn.buyer_paid;
   if (Array.isArray(txn.payments)) {
-    return txn.payments.filter(p => p.payer_type === 'BUYER').reduce((sum, p) => sum + (p.amount || 0), 0);
+    return txn.payments
+      .filter(p => String(p.payer_type || '').toUpperCase() === 'BUYER')
+      .reduce((sum, p) => sum + (isNaN(Number(p.amount)) ? 0 : Number(p.amount)), 0);
   }
   return 0;
 }
@@ -31,7 +33,9 @@ export function getBuyerPaid(txn: Transaction): number {
 export function getFarmerPaid(txn: Transaction): number {
   if (typeof txn.farmer_paid === 'number') return txn.farmer_paid;
   if (Array.isArray(txn.payments)) {
-    return txn.payments.filter(p => p.payee_type === 'FARMER').reduce((sum, p) => sum + (p.amount || 0), 0);
+    return txn.payments
+      .filter(p => String(p.payee_type || '').toUpperCase() === 'FARMER')
+      .reduce((sum, p) => sum + (isNaN(Number(p.amount)) ? 0 : Number(p.amount)), 0);
   }
   return 0;
 }

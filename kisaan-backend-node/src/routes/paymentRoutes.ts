@@ -13,6 +13,22 @@ router.use(authenticateToken);
 // Payment routes
 router.get('/', async (req, res) => {
   try {
+    // Compatibility: allow callers to fetch payments by transaction using ?transaction_id=123
+    const { transaction_id } = req.query as { transaction_id?: string };
+    if (transaction_id) {
+      const txnId = Number(transaction_id);
+      if (Number.isNaN(txnId)) {
+        return res.status(400).json({ success: false, error: 'Invalid transaction_id' });
+      }
+      // Lazy-require service to avoid circular imports at module load time
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const PaymentService = require('../services/paymentService').PaymentService;
+      const svc = new PaymentService();
+      const payments = await svc.getPaymentsByTransaction(txnId);
+      return res.json({ success: true, data: payments });
+    }
+
+    // Default: no-op list (kept for backward compatibility)
     res.json({
       success: true,
       data: []
