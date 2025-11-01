@@ -15,7 +15,16 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from '../component
 import { Button } from '../components/ui/button';
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { 
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../components/ui/pagination';
+import {
   ArrowLeft,
   Receipt
 } from 'lucide-react';
@@ -29,8 +38,7 @@ import type { Expense, ExpenseUserSummary } from '../types/api';
 
 export default function Expenses() {
   const [activeTab, setActiveTab] = useState<'expenses' | 'summary'>('expenses');
-
-  // ...existing code...
+  const [recoverableExpensesPage, setRecoverableExpensesPage] = useState(1);
 
   // Example usage: render UserAmountsOwedTable with summary and recoverableExpenses
   // <UserAmountsOwedTable summary={summary} recoverableExpenses={recoverableExpenses} />
@@ -59,6 +67,57 @@ export default function Expenses() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Pagination for recoverable expenses
+  const RECOVERABLE_ITEMS_PER_PAGE = 5;
+  const totalRecoverablePages = Math.ceil(recoverableExpenses.length / RECOVERABLE_ITEMS_PER_PAGE);
+  const recoverableStartIndex = (recoverableExpensesPage - 1) * RECOVERABLE_ITEMS_PER_PAGE;
+  const recoverableEndIndex = recoverableStartIndex + RECOVERABLE_ITEMS_PER_PAGE;
+  const currentRecoverableExpenses = recoverableExpenses.slice(recoverableStartIndex, recoverableEndIndex);
+
+  // Reset recoverable expenses page when data changes
+  useEffect(() => {
+    setRecoverableExpensesPage(1);
+  }, [recoverableExpenses.length]);
+
+  const handleRecoverablePageChange = (page: number) => {
+    setRecoverableExpensesPage(page);
+  };
+
+  // Helper function for pagination display
+  const getRecoverablePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalRecoverablePages <= maxVisiblePages) {
+      for (let i = 1; i <= totalRecoverablePages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (recoverableExpensesPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalRecoverablePages);
+      } else if (recoverableExpensesPage >= totalRecoverablePages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalRecoverablePages - 3; i <= totalRecoverablePages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = recoverableExpensesPage - 1; i <= recoverableExpensesPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalRecoverablePages);
+      }
+    }
+    return pages;
+  };
 
     useEffect(() => {
       // If storeShop is missing but user.shop_id exists, set it globally
@@ -294,7 +353,7 @@ export default function Expenses() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {recoverableExpenses.map((exp, idx) => (
+                      {currentRecoverableExpenses.map((exp, idx) => (
                         <TableRow key={exp.id || idx}>
                           <TableCell>{'username' in exp && typeof exp.username === 'string' ? exp.username : ''}</TableCell>
                           <TableCell className="capitalize">{'user_type' in exp && typeof exp.user_type === 'string' ? exp.user_type : ''}</TableCell>
@@ -310,6 +369,45 @@ export default function Expenses() {
                     </TableBody>
                   </Table>
                 )
+              )}
+              {/* Pagination for recoverable expenses */}
+              {activeTab === 'summary' && recoverableExpenses.length > RECOVERABLE_ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {recoverableStartIndex + 1}-{Math.min(recoverableEndIndex, recoverableExpenses.length)} of {recoverableExpenses.length} expenses
+                  </div>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => recoverableExpensesPage > 1 && handleRecoverablePageChange(recoverableExpensesPage - 1)}
+                          className={recoverableExpensesPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {getRecoverablePageNumbers().map((page, index) => (
+                        <PaginationItem key={index}>
+                          {page === '...' ? (
+                            <PaginationEllipsis />
+                          ) : (
+                            <PaginationLink
+                              onClick={() => handleRecoverablePageChange(page as number)}
+                              isActive={page === recoverableExpensesPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          )}
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => recoverableExpensesPage < totalRecoverablePages && handleRecoverablePageChange(recoverableExpensesPage + 1)}
+                          className={recoverableExpensesPage >= totalRecoverablePages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               )}
             </CardContent>
           </Card>

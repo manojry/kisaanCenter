@@ -88,7 +88,9 @@ const PaymentManagement: React.FC = () => {
   const [paymentDirection, setPaymentDirection] = useState<'pay_to_farmer' | 'receive_from_buyer' | 'receive_from_farmer'>('pay_to_farmer');
   const [currentPage, setCurrentPage] = useState(1);
   const [snapshotsPage, setSnapshotsPage] = useState(1);
+  const [expensesPage, setExpensesPage] = useState(1);
   const itemsPerPage = 8;
+  const EXPENSES_ITEMS_PER_PAGE = 10;
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingPayment, setPendingPayment] = useState<{
     direction: 'pay' | 'receive';
@@ -104,6 +106,7 @@ const PaymentManagement: React.FC = () => {
       setSettlementBreakdown(null);
       setCurrentPage(1);
       setSnapshotsPage(1);
+      setExpensesPage(1);
       setCurrentBalance(0);
       setLoadingBalance(false);
       return;
@@ -860,7 +863,7 @@ const PaymentManagement: React.FC = () => {
                     {/* Compact Payment Summary */}
                     <div className="flex justify-between items-center bg-gray-50 p-2 rounded text-xs">
                       <span className="font-medium">{payments.length} payments</span>
-                      <span className="font-mono font-medium">â‚¹{payments.reduce((sum, p) => sum + Number(p.amount), 0).toLocaleString()}</span>
+                      <span className="font-mono font-medium">₹{payments.reduce((sum, p) => sum + Number(p.amount), 0).toLocaleString()}</span>
                       <span className="text-green-600">{payments.filter(p => p.status === 'PAID').length} completed</span>
                     </div>
 
@@ -993,24 +996,62 @@ const PaymentManagement: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expensesData.expenses.map((e: {
-                      id: number;
-                      created_at: string;
-                      amount: number;
-                      settled: number;
-                      unsettled: number;
-                      status: string;
-                    }) => (
-                      <TableRow key={e.id} className="h-8 hover:bg-gray-50">
-                        <TableCell className="text-xs px-2 py-1">{formatDate(e.created_at)}</TableCell>
-                        <TableCell className="text-xs px-2 py-1">₹{e.amount.toLocaleString()}</TableCell>
-                        <TableCell className="text-xs px-2 py-1">₹{e.settled.toLocaleString()}</TableCell>
-                        <TableCell className="text-xs px-2 py-1">₹{e.unsettled.toLocaleString()}</TableCell>
-                        <TableCell className="text-xs px-2 py-1"><Badge>{e.status}</Badge></TableCell>
-                      </TableRow>
-                    ))}
+                    {(() => {
+                      const startIndex = (expensesPage - 1) * EXPENSES_ITEMS_PER_PAGE;
+                      const endIndex = startIndex + EXPENSES_ITEMS_PER_PAGE;
+                      const paginatedExpenses = expensesData.expenses.slice(startIndex, endIndex);
+                      
+                      return paginatedExpenses.map((e: {
+                        id: number;
+                        created_at: string;
+                        amount: number;
+                        settled: number;
+                        unsettled: number;
+                        status: string;
+                      }) => (
+                        <TableRow key={e.id} className="h-8 hover:bg-gray-50">
+                          <TableCell className="text-xs px-2 py-1">{formatDate(e.created_at)}</TableCell>
+                          <TableCell className="text-xs px-2 py-1">₹{e.amount.toLocaleString()}</TableCell>
+                          <TableCell className="text-xs px-2 py-1">₹{e.settled.toLocaleString()}</TableCell>
+                          <TableCell className="text-xs px-2 py-1">₹{e.unsettled.toLocaleString()}</TableCell>
+                          <TableCell className="text-xs px-2 py-1"><Badge>{e.status}</Badge></TableCell>
+                        </TableRow>
+                      ));
+                    })()}
                   </TableBody>
                 </Table>
+                
+                {/* Expenses Pagination Controls */}
+                {expensesData.expenses.length > EXPENSES_ITEMS_PER_PAGE && (
+                  <div className="flex items-center justify-between pt-2 border-t mt-2">
+                    <div className="text-xs text-gray-500">
+                      Showing {Math.min((expensesPage - 1) * EXPENSES_ITEMS_PER_PAGE + 1, expensesData.expenses.length)} to {Math.min(expensesPage * EXPENSES_ITEMS_PER_PAGE, expensesData.expenses.length)} of {expensesData.expenses.length} expenses
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setExpensesPage(Math.max(1, expensesPage - 1))}
+                        disabled={expensesPage === 1}
+                        className="h-7 px-2"
+                      >
+                        <ChevronLeft className="h-3 w-3" />
+                      </Button>
+                      <span className="text-xs px-2">
+                        {expensesPage} / {Math.ceil(expensesData.expenses.length / EXPENSES_ITEMS_PER_PAGE)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setExpensesPage(Math.min(Math.ceil(expensesData.expenses.length / EXPENSES_ITEMS_PER_PAGE), expensesPage + 1))}
+                        disabled={expensesPage === Math.ceil(expensesData.expenses.length / EXPENSES_ITEMS_PER_PAGE)}
+                        className="h-7 px-2"
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
