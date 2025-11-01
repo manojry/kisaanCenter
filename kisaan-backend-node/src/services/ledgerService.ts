@@ -182,7 +182,7 @@ export class LedgerService {
       where.created_at = {
         ...(filters.from && { [Op.gte]: filters.from }),
         ...(filters.to && { [Op.lte]: filters.to })
-      } as any;
+      };
     }
 
     return LedgerEntry.findAll({

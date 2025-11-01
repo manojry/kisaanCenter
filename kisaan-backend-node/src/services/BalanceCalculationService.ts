@@ -289,7 +289,7 @@ export class BalanceCalculationService {
   private async getUserRole(userId: number): Promise<string> {
     const user = (await sequelize.query(`
       SELECT role FROM kisaan_users WHERE id = :userId
-    `, { replacements: { userId } })) as any[];
+    `, { replacements: { userId } })) as { role: string }[][];
 
     if (!user || user.length === 0) {
       throw new Error(`User ${userId} not found`);
