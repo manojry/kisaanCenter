@@ -122,11 +122,8 @@ export const balanceSnapshotsApi = {
       description?: string;
       created_at: string;
     }[]>>(BALANCE_ENDPOINTS.SNAPSHOTS_BY_USER(userId));
-    // Only keep snapshots with amount_change != 0 or previous_balance != new_balance
-    const data = (resp.data || []).filter((s) =>
-      parseFloat(String(s.amount_change)) !== 0 || s.previous_balance !== s.new_balance
-    );
-    return data;
+    // Return all snapshots without filtering - let the UI decide what to display
+    return resp.data || [];
   }
 };
 // Superadmin Dashboard API
@@ -140,18 +137,6 @@ export const superadminDashboardApi = {
 // Owner Dashboard API
 export const ownerDashboardApi = {
   getStats: async () => apiClient.get(DASHBOARD_ENDPOINTS.OWNER.DASHBOARD)
-};
-// Analytics API
-export const analyticsApi = {
-  getShopAnalytics: async (shopId: number, dateRange?: { from: string; to: string }) => {
-    const qs = buildQueryString({
-      shop_id: shopId,
-      date_from: dateRange?.from,
-      date_to: dateRange?.to
-    });
-  const raw = await apiClient.get<ApiResponse<Record<string, unknown>>>(`${TRANSACTION_ENDPOINTS.ANALYTICS}${qs}`);
-    return raw?.data || raw || null;
-  }
 };
 // Transaction Form Data API
 export const getTransactionFormData = async () => {
@@ -624,6 +609,15 @@ export const reportsApi = {
 
   getSuperadminDashboard: (): Promise<ApiResponse> =>
     apiClient.get('/superadmin/dashboard')
+};
+
+// Analytics API - using transaction analytics endpoint
+export const analyticsApi = {
+  getShopAnalytics: (shopId: number, dateRange?: { from?: string; to?: string }): Promise<ApiResponse> =>
+    apiClient.get(`${TRANSACTION_ENDPOINTS.ANALYTICS}${buildQueryString({ shop_id: shopId, date_from: dateRange?.from, date_to: dateRange?.to })}`),
+
+  getPlatformAnalytics: (dateRange?: { from?: string; to?: string }): Promise<ApiResponse> =>
+    apiClient.get(`${TRANSACTION_ENDPOINTS.ANALYTICS}${buildQueryString({ date_from: dateRange?.from, date_to: dateRange?.to })}`)
 };
 
 // Simplified Transaction API - Easy to use endpoints

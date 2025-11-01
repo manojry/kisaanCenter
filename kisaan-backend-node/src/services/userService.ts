@@ -13,6 +13,7 @@ import { USER_ROLES } from '../shared/constants/index';
 import { UserRepository } from '../repositories/UserRepository';
 import { UserDTO } from '../dtos';
 import { toUserDTO, fromUserModel as _fromUserModel } from '../mappers/userMapper';
+import { UserEntity } from '../entities/UserEntity';
 import { 
   UserCreate, 
   UserUpdate, 
@@ -88,13 +89,6 @@ export const createUser = async (
       throw new ConflictError('Username already exists', { code: 'USER_ALREADY_EXISTS', field: 'username' });
     }
   }
-  // Get requesting user's owner_id for farmer/buyer creation
-  if ((data.role === USER_ROLES.FARMER || data.role === USER_ROLES.BUYER) && requestingUserId) {
-  const requestingUser = await userRepo.findById(requestingUserId);
-    if (requestingUser && requestingUser.role === USER_ROLES.OWNER) {
-      userData.shop_id = requestingUser.shop_id;
-    }
-  }
   // Validate shop exists for farmer/buyer
   if ((data.role === USER_ROLES.FARMER || data.role === USER_ROLES.BUYER) && userData.shop_id) {
     const { Shop } = await import('../models/shop');
@@ -117,43 +111,53 @@ export const getAllUsers = async (
   requestingUser: RequestingUser
 ): Promise<{ users: UserDTO[]; total: number; page: number; limit: number }> => {
   const userRepo = new UserRepository();
-  let users: UserDTO[] = [];
-  let total = 0;
-  // Role-based filtering
-    if (requestingUser.role === USER_ROLES.OWNER) {
-      // Use shop_id for owner, not id or owner_id
-      const shopId = requestingUser.shop_id ? Number(requestingUser.shop_id) : undefined;
-      if (!shopId) {
-        console.warn('[USER_SERVICE] Owner user missing shop_id:', requestingUser);
-        users = [];
-        total = 0;
-      } else {
-        const ownerUsers = await userRepo.findByShop(shopId);
-        users = await Promise.all(ownerUsers.map(async (entity) => await toUserDTO(entity)));
-        total = users.length;
+  let result: { users: UserEntity[]; total: number };
+
+  // Role-based filtering with proper pagination
+  if (requestingUser.role === USER_ROLES.OWNER) {
+    // Owner's shop_id is null in their record, so fetch from shops table
+    let shopId = requestingUser.shop_id ? Number(requestingUser.shop_id) : undefined;
+    if (!shopId) {
+      // Get owner's shop from shops table
+      const { Shop } = await import('../models/shop');
+      const shop = await Shop.findOne({ where: { owner_id: requestingUser.id } });
+      if (!shop) {
+        console.warn('[USER_SERVICE] Owner has no shop:', requestingUser);
+        return { users: [], total: 0, page: searchParams.page, limit: searchParams.limit };
       }
+      shopId = shop.id;
+    }
+    
+    // Use paginated query for owner's shop users
+    result = await userRepo.findByShopPaginated(shopId, searchParams.page, searchParams.limit);
   } else if (requestingUser.role === USER_ROLES.FARMER || requestingUser.role === USER_ROLES.BUYER) {
-  const userId = typeof requestingUser.id === 'string' ? Number(requestingUser.id) : requestingUser.id;
-  const user = await userRepo.findById(userId);
-    users = user ? [await toUserDTO(user)] : [];
-    total = users.length;
+    // Farmers and buyers can only see themselves
+    const user = await userRepo.findById(typeof requestingUser.id === 'string' ? Number(requestingUser.id) : requestingUser.id);
+    result = user ? { users: [user], total: 1 } : { users: [], total: 0 };
   } else {
-    // Superadmin sees all users
-    // For pagination, you may want to implement a repository method for paginated fetch
-    // For now, fetch all and slice manually
-    const allUsers = await userRepo.findAll();
-    total = allUsers.length;
-    const paged = allUsers.slice((searchParams.page - 1) * searchParams.limit, searchParams.page * searchParams.limit);
-    users = await Promise.all(paged.map(async (entity: typeof allUsers[0]) => await toUserDTO(entity)));
+    // Superadmin sees all users with proper pagination and filtering
+    const filters: { role?: string; shop_id?: number; status?: string } = {};
+    if (searchParams.role) filters.role = searchParams.role;
+    if (searchParams.shop_id) filters.shop_id = Number(searchParams.shop_id);
+    if (searchParams.status) filters.status = searchParams.status;
+    
+    result = await userRepo.findAllPaginated(searchParams.page, searchParams.limit, filters);
   }
-  // Backend log for debugging empty results
+
+  // Convert to DTOs
+  const users = await Promise.all(result.users.map(async (entity) => await toUserDTO(entity)));
+
+  // Backend log for debugging
   console.log('[USER_SERVICE] getAllUsers', {
     query: searchParams,
     requestingUser,
-    totalFound: total,
-    usersPreview: users.slice(0, 3)
+    totalFound: result.total,
+    usersReturned: users.length,
+    page: searchParams.page,
+    limit: searchParams.limit
   });
-  return { users, total, page: searchParams.page, limit: searchParams.limit };
+
+  return { users, total: result.total, page: searchParams.page, limit: searchParams.limit };
 };
 
 export const getUserById = async (

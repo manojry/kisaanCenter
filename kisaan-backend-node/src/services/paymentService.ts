@@ -3,12 +3,13 @@ import { Payment, PaymentParty, PaymentMethod, PaymentStatus, PaymentCreationAtt
 import { PaymentRepository } from '../repositories/PaymentRepository';
 import { Transaction } from '../models/transaction';
 import { PaymentAllocation } from '../models/paymentAllocation';
+import ExpenseSettlement from '../models/expenseSettlement';
 import { logger } from '../shared/logging/logger';
 import { AuditLog } from '../models/auditLog';
 import { CreatePaymentDTO, PaymentResponseDTO, UpdatePaymentStatusDTO } from '../dtos';
 import { Op } from 'sequelize';
 import { PARTY_TYPE } from '../shared/partyTypes';
-import { PAYMENT_STATUS, BALANCE_TYPE } from '../shared/constants/index';
+import { PAYMENT_STATUS } from '../shared/constants/index';
 import { BalanceType } from '../shared/enums';
 import { ValidationError } from '../shared/utils/errors';
 import BalanceSnapshot from '../models/balanceSnapshot';
@@ -16,6 +17,7 @@ import { TransactionLedger } from '../models/transactionLedger';
 import { applyRepaymentFIFO } from './settlementService';
 import * as path from 'path';
 import { USER_ROLES } from '../shared/constants/index';
+import { LedgerService } from './ledgerService';
 
 // Result shape returned by balance update operations
 // appliedToExpenses: amount consumed by expense settlements
@@ -25,11 +27,13 @@ export type BalanceResult = { appliedToExpenses: number; appliedToBalance: numbe
 
 export class PaymentService {
   private readonly paymentRepository: PaymentRepository;
+  private readonly ledgerService: LedgerService;
 
   
 
   constructor() {
     this.paymentRepository = new PaymentRepository();
+    this.ledgerService = new LedgerService();
   }
   async createPayment(data: CreatePaymentDTO, userId: number, options?: { tx?: import('sequelize').Transaction }): Promise<PaymentResponseDTO> {
     // Reject shop-to-shop payments (commission should not be a payment)
@@ -119,6 +123,9 @@ export class PaymentService {
           } else if (data.payer_type === PARTY_TYPE.SHOP && data.payee_type === PARTY_TYPE.FARMER) {
             paymentData.counterparty_id = transaction.farmer_id;
             logger.info({ transactionId: data.transaction_id, farmerId: transaction.farmer_id }, 'Auto-populated counterparty_id (farmer) from transaction');
+          } else if (data.payer_type === PARTY_TYPE.FARMER && data.payee_type === PARTY_TYPE.SHOP) {
+            paymentData.counterparty_id = transaction.farmer_id;
+            logger.info({ transactionId: data.transaction_id, farmerId: transaction.farmer_id }, 'Auto-populated counterparty_id (farmer paying) from transaction');
           }
         }
         if (data.payment_date) {
@@ -167,27 +174,26 @@ export class PaymentService {
       if (payment.transaction_id) {
         const PaymentAllocation = (await import('../models/paymentAllocation')).PaymentAllocation;
         const ExpenseSettlement = (await import('../models/expenseSettlement')).default;
-        const PaymentModel = (await import('../models/payment')).Payment;
 
         // Sum allocations for this payment across the transaction
         const allocations = await PaymentAllocation.findAll({ where: { payment_id: payment.id } });
-        const totalAllocated = allocations.reduce((s, a) => s + Number((a as any).allocated_amount || 0), 0);
+        const totalAllocated = allocations.reduce((s, a) => s + Number(a.allocated_amount || 0), 0);
 
         // For transaction-linked payments, any allocations go primarily to the transaction; expense settlements
         // are created by FIFO logic during balance updates. Attempt to derive applied_to_expenses from
         // expenseSettlement rows that reference this payment (if any).
         const settledRows = await ExpenseSettlement.findAll({ where: { payment_id: payment.id } });
-        const appliedToExpenses = settledRows.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+        const appliedToExpenses = settledRows.reduce((s: number, r: ExpenseSettlement) => s + Number(r.amount || 0), 0);
 
         // The remainder of allocated amount (if any) is applied to balance (i.e., reduces unpaid txn amounts)
         const appliedToBalance = Math.max(0, totalAllocated - appliedToExpenses);
 
         // Persist the computed fields on the payment row. Use update on model to ensure DB persistence.
         try {
-          await (payment as any).update({
+          await payment.update({
             applied_to_expenses: appliedToExpenses,
             applied_to_balance: appliedToBalance
-          } as any);
+          });
         } catch (e) {
           console.warn('[PAYMENT] Failed to persist applied breakdown for payment', payment.id, e);
         }
@@ -381,8 +387,16 @@ export class PaymentService {
       payer_type: payment.payer_type,
       payee_type: payment.payee_type,
       amount: payment.amount,
-      counterparty_id: payment.counterparty_id
+      counterparty_id: payment.counterparty_id,
+      transaction_id: payment.transaction_id
     });
+
+    // EARLY EXIT: If this payment is linked to a transaction, do NOT update balance here
+    // The TransactionService.updateUserBalances() method handles all transaction-related balance updates
+    if (payment.transaction_id) {
+      logger.info({ paymentId: payment.id, transactionId: payment.transaction_id }, 'Skipping balance update for transaction payment - handled by transaction service');
+      return { appliedToExpenses: 0, appliedToBalance: 0 };
+    }
 
     if (payment.payer_type === PARTY_TYPE.BUYER && payment.payee_type === PARTY_TYPE.SHOP) {
   // Buyer pays shop: reduce buyer's positive balance (buyer owes less). Negative buyer balance means shop owes buyer (refund scenario).
@@ -419,28 +433,42 @@ export class PaymentService {
           if (user) {
             const previousBalance = Number(user.balance || 0);
             const amountAppliedToBalance = remainingAfterExpenses;
-            // Since farmer is paying the shop, the farmer's debt should decrease -> balance increases
-            const newBalance = previousBalance + amountAppliedToBalance;
-            await user.update({ balance: newBalance });
+            
+            // Since farmer is paying the shop, create a CREDIT ledger entry (payment received)
+            try {
+              await this.ledgerService.appendEntry({
+                user_id: userIdToUpdate,
+                shop_id: payment.shop_id!,
+                direction: 'CREDIT',
+                amount: amountAppliedToBalance,
+                type: 'PAYMENT',
+                reference_type: 'payment',
+                reference_id: payment.id!,
+                description: `Payment #${payment.id}: Farmer payment to shop (applied ₹${amountAppliedToBalance})`
+              });
 
-            console.log('[FARMER BALANCE] Updated after farmer->shop payment', {
-              farmerId: userIdToUpdate,
-              previousBalance,
-              paymentAmount,
-              amountUsedForExpenses,
-              amountAppliedToBalance,
-              newBalance
-            });
+              console.log('[LEDGER] Created CREDIT entry for farmer->shop payment', {
+                farmerId: userIdToUpdate,
+                shopId: payment.shop_id,
+                amount: amountAppliedToBalance,
+                paymentId: payment.id
+              });
+            } catch (ledgerError) {
+              console.error('[LEDGER ERROR] Failed to create payment ledger entry:', ledgerError);
+              // Fallback: still update balance directly if ledger fails
+              const newBalance = previousBalance + amountAppliedToBalance;
+              await user.update({ balance: newBalance });
+            }
 
             try {
-              const amountChange = newBalance - previousBalance;
+              const amountChange = amountAppliedToBalance;
               if (amountChange !== 0) {
                 await BalanceSnapshot.create({
                   user_id: userIdToUpdate,
                   balance_type: BalanceType.Farmer,
                   previous_balance: previousBalance,
                   amount_change: amountChange,
-                  new_balance: newBalance,
+                  new_balance: previousBalance + amountChange,
                   transaction_type: 'payment',
                   reference_id: payment.id,
                   reference_type: 'payment',
@@ -493,46 +521,43 @@ export class PaymentService {
           const user = await User.findByPk(userIdToUpdate);
           if (user) {
             const previousBalance = Number(user.balance || 0);
-            // When shop pays farmer, only the amount that doesn't go to expenses reduces the farmer's balance
-            // The FIFO settlement already handled the expense portion
-            const newBalance = previousBalance - remainingForBalance;
-
-            console.log('[FARMER BALANCE] About to update user balance', {
-              userId: userIdToUpdate,
-              previousBalance,
-              paymentAmount,
-              remainingForBalance,
-              newBalance,
-              paymentId: payment.id
-            });
-
+            
+            // When shop pays farmer, create a DEBIT ledger entry (payment made)
             try {
+              await this.ledgerService.appendEntry({
+                user_id: userIdToUpdate,
+                shop_id: payment.shop_id!,
+                direction: 'DEBIT',
+                amount: remainingForBalance,
+                type: 'PAYMENT',
+                reference_type: 'payment',
+                reference_id: payment.id!,
+                description: `Payment #${payment.id}: Shop payment to farmer (applied ₹${remainingForBalance})`
+              });
+
+              console.log('[LEDGER] Created DEBIT entry for shop->farmer payment', {
+                farmerId: userIdToUpdate,
+                shopId: payment.shop_id,
+                amount: remainingForBalance,
+                paymentId: payment.id
+              });
+            } catch (ledgerError) {
+              console.error('[LEDGER ERROR] Failed to create payment ledger entry:', ledgerError);
+              // Fallback: still update balance directly if ledger fails
+              const newBalance = previousBalance - remainingForBalance;
               await user.update({ balance: newBalance });
-              console.log('[FARMER BALANCE] Successfully updated user balance', {
-                userId: userIdToUpdate,
-                previousBalance,
-                newBalance,
-                actualChange: newBalance - previousBalance
-              });
-            } catch (updateError: unknown) {
-              const error = updateError as Error;
-              console.error('[FARMER BALANCE] Failed to update user balance', {
-                userId: userIdToUpdate,
-                error: error?.message || 'Unknown error'
-              });
-              throw updateError; // Re-throw to prevent silent failure
             }
 
             // Create balance snapshot
             try {
-              const amountChange = newBalance - previousBalance;
+              const amountChange = -remainingForBalance;
               if (amountChange !== 0) {
                 await BalanceSnapshot.create({
                   user_id: userIdToUpdate,
                   balance_type: BalanceType.Farmer,
                   previous_balance: previousBalance,
                   amount_change: amountChange,
-                  new_balance: newBalance,
+                  new_balance: previousBalance + amountChange,
                   transaction_type: 'payment',
                   reference_id: payment.id,
                   reference_type: 'payment',

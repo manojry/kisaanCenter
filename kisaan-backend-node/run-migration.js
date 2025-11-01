@@ -31,31 +31,73 @@ async function runMigration() {
     await sequelize.authenticate();
     console.log('Database connection successful.\n');
 
-    console.log('Running migration to allow null transaction_id in kisaan_payments...\n');
+    console.log('Running migration: Create Ledger Tables...\n');
 
-    // Drop the existing foreign key constraint
-    console.log('Dropping existing foreign key constraint...');
+    // Create the append-only ledger table
+    console.log('Creating kisaan_ledger_entries table...');
     await sequelize.query(`
-      ALTER TABLE kisaan_payments DROP CONSTRAINT IF EXISTS kisaan_payments_transaction_id_fkey;
+      CREATE TABLE IF NOT EXISTS kisaan_ledger_entries (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        shop_id BIGINT NOT NULL,
+        direction VARCHAR(10) NOT NULL CHECK (direction IN ('DEBIT', 'CREDIT')),
+        amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
+        type VARCHAR(50) NOT NULL,
+        reference_type VARCHAR(50),
+        reference_id BIGINT,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_by BIGINT,
+        CONSTRAINT fk_ledger_user FOREIGN KEY (user_id) REFERENCES kisaan_users(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_ledger_shop FOREIGN KEY (shop_id) REFERENCES kisaan_shops(id) ON DELETE RESTRICT
+      )
     `);
 
-    // Make transaction_id nullable
-    console.log('Making transaction_id nullable...');
+    // Create indexes for ledger table
+    console.log('Creating indexes on kisaan_ledger_entries...');
     await sequelize.query(`
-      ALTER TABLE kisaan_payments ALTER COLUMN transaction_id DROP NOT NULL;
+      CREATE INDEX IF NOT EXISTS idx_ledger_user_shop ON kisaan_ledger_entries(user_id, shop_id)
+    `);
+    await sequelize.query(`
+      CREATE INDEX IF NOT EXISTS idx_ledger_created_at ON kisaan_ledger_entries(created_at DESC)
+    `);
+    await sequelize.query(`
+      CREATE INDEX IF NOT EXISTS idx_ledger_type ON kisaan_ledger_entries(type)
+    `);
+    await sequelize.query(`
+      CREATE INDEX IF NOT EXISTS idx_ledger_reference ON kisaan_ledger_entries(reference_type, reference_id)
     `);
 
-    // Re-add the foreign key constraint allowing nulls
-    console.log('Re-adding foreign key constraint with null support...');
+    // Create the pre-calculated balance table
+    console.log('Creating kisaan_user_balances table...');
     await sequelize.query(`
-      ALTER TABLE kisaan_payments
-      ADD CONSTRAINT kisaan_payments_transaction_id_fkey
-      FOREIGN KEY (transaction_id)
-      REFERENCES kisaan_transactions(id)
-      ON DELETE SET NULL;
+      CREATE TABLE IF NOT EXISTS kisaan_user_balances (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        shop_id BIGINT NOT NULL,
+        balance DECIMAL(15, 2) NOT NULL DEFAULT 0,
+        version INT NOT NULL DEFAULT 0,
+        last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uk_user_balance_unique UNIQUE (user_id, shop_id),
+        CONSTRAINT fk_balance_user FOREIGN KEY (user_id) REFERENCES kisaan_users(id) ON DELETE RESTRICT,
+        CONSTRAINT fk_balance_shop FOREIGN KEY (shop_id) REFERENCES kisaan_shops(id) ON DELETE RESTRICT
+      )
     `);
 
-    console.log('Migration completed successfully!');
+    // Create index for balance table
+    console.log('Creating index on kisaan_user_balances...');
+    await sequelize.query(`
+      CREATE INDEX IF NOT EXISTS idx_balance_user_shop ON kisaan_user_balances(user_id, shop_id)
+    `);
+
+    // Add created_by column to kisaan_expenses if it doesn't exist
+    console.log('Updating kisaan_expenses table...');
+    await sequelize.query(`
+      ALTER TABLE IF EXISTS kisaan_expenses 
+      ADD COLUMN IF NOT EXISTS created_by BIGINT
+    `);
+
+    console.log('✅ Migration completed successfully!');
 
   } catch (e) {
     console.log('Migration failed:', e.message);

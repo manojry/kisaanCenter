@@ -99,17 +99,21 @@ export class PaymentController {
       }
       // Authorization: if a shop is paying a farmer, ensure requester is the shop owner or superadmin
       if (paymentData.payer_type === PARTY_TYPE.SHOP && paymentData.payee_type === PARTY_TYPE.FARMER) {
-        // Resolve shop_id from body or transaction if available in service later; here, if shop_id in body check ownership
-        const shopId = (paymentData as { shop_id?: number }).shop_id || (reqUser ? reqUser.shop_id : undefined);
+        // Resolve shop_id from body
+        const shopId = (paymentData as { shop_id?: number }).shop_id;
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { USER_ROLES } = require('../shared/constants');
+        
+        // Owner role: must provide shop_id and it should match their owned shop
+        // Note: Owner's user record has shop_id = NULL per business rule, so we don't check reqUser.shop_id
+        // Instead, we rely on the service to validate shop ownership
         if (reqUser && reqUser.role === USER_ROLES.OWNER) {
-          if (!shopId || Number(shopId) !== Number(reqUser.shop_id) && reqUser.shop_id !== undefined) {
-            // If owner role but shopId doesn't match their shop, reject
-            return failureCode(res, 403, ErrorCodes.FORBIDDEN, undefined, 'Only the shop owner can make payments on behalf of the shop');
+          if (!shopId) {
+            return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, undefined, 'shop_id is required for owner to make payments');
           }
+          // Service will validate that this owner actually owns this shop
         }
-        // If role is buyer/staff, they'll be rejected in deeper business logic; superadmin allowed
+        // Superadmin is allowed; buyer/staff will be rejected by service business logic
       }
 
       const payment = await this.paymentService.createPayment(paymentData, userId);

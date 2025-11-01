@@ -20,6 +20,45 @@ function getLastNDates(n: number): string[] {
   return dates;
 }
 
+// Utility: Calculate KPIs from analytics data
+function calculateKPIs(analytics: Analytics, daily: DailyAnalytics[]) {
+  const totalSales = Number(analytics.total_sales) || 0;
+  const totalTransactions = Number(analytics.total_transactions) || 0;
+  const totalCommission = Number(analytics.total_commission) || 0;
+
+  // Average transaction value
+  const avgTransactionValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+
+  // Commission rate
+  const commissionRate = totalSales > 0 ? (totalCommission / totalSales) * 100 : 0;
+
+  // Growth calculations (comparing last 15 days vs previous 15 days)
+  const recent15Days = daily.slice(-15);
+  const previous15Days = daily.slice(-30, -15);
+
+  const recentSales = recent15Days.reduce((sum, d) => sum + d.total_sales, 0);
+  const previousSales = previous15Days.reduce((sum, d) => sum + d.total_sales, 0);
+
+  const salesGrowth = previousSales > 0 ? ((recentSales - previousSales) / previousSales) * 100 : 0;
+
+  // Outstanding amount
+  const outstandingAmount = (analytics.status_summary?.pending_to_farmer || 0) +
+                           (analytics.status_summary?.pending_from_buyer || 0);
+
+  // Collection efficiency
+  const collectionEfficiency = totalSales > 0 ? ((totalSales - outstandingAmount) / totalSales) * 100 : 100;
+
+  return {
+    avgTransactionValue,
+    commissionRate,
+    salesGrowth,
+    outstandingAmount,
+    collectionEfficiency,
+    recentSales,
+    previousSales
+  };
+}
+
 // Always return 30 days of sales/commission, filling zeros for missing days
 function getSalesCommissionTimeSeries(daily: DailyAnalytics[] | undefined): DailyAnalytics[] {
   const dates = getLastNDates(30);
@@ -35,7 +74,7 @@ function getSalesCommissionTimeSeries(daily: DailyAnalytics[] | undefined): Dail
 }
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { BarChart3, AlertCircle, Calendar } from 'lucide-react';
+import { BarChart3, AlertCircle, Calendar, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../lib/formatters';
 import { Pie, Bar } from './Charts';
 import { useToast } from '@/hooks/use-toast';
@@ -116,6 +155,9 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
   // Prepare daily chart data (always 30 days)
   const daily = getSalesCommissionTimeSeries(analytics?.daily);
   const hasDaily = daily.length > 0 && daily.some(d => d.total_sales > 0 || d.total_commission > 0);
+
+  // Calculate KPIs
+  const kpis = analytics ? calculateKPIs(analytics, daily) : null;
 
   if (isLoading) {
     return (
@@ -261,6 +303,61 @@ export default function ReportsAnalytics({ shopId }: ReportsAnalyticsProps) {
               </Card>
             )}
           </div>
+
+          {/* Advanced KPIs */}
+          {kpis && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Key Performance Indicators</CardTitle>
+                <CardDescription>Advanced metrics and business insights</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-700">Avg Transaction Value</span>
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-xl font-bold text-blue-900">{formatCurrency(kpis.avgTransactionValue)}</p>
+                    <p className="text-xs text-blue-600">Per transaction</p>
+                  </div>
+
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-green-700">Commission Rate</span>
+                      <BarChart3 className="h-4 w-4 text-green-600" />
+                    </div>
+                    <p className="text-xl font-bold text-green-900">{kpis.commissionRate.toFixed(1)}%</p>
+                    <p className="text-xs text-green-600">Of total sales</p>
+                  </div>
+
+                  <div className={`p-4 rounded-lg ${kpis.salesGrowth >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-sm font-medium ${kpis.salesGrowth >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        Sales Growth
+                      </span>
+                      <TrendingUp className={`h-4 w-4 ${kpis.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                    </div>
+                    <p className={`text-xl font-bold ${kpis.salesGrowth >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                      {kpis.salesGrowth >= 0 ? '+' : ''}{kpis.salesGrowth.toFixed(1)}%
+                    </p>
+                    <p className={`text-xs ${kpis.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      Last 15 vs previous 15 days
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-purple-700">Collection Efficiency</span>
+                      <BarChart3 className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <p className="text-xl font-bold text-purple-900">{kpis.collectionEfficiency.toFixed(1)}%</p>
+                    <p className="text-xs text-purple-600">Payments collected</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Daily Sales/Commission Chart */}
           {hasDaily && (

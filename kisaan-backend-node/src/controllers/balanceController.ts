@@ -8,6 +8,7 @@ import { ErrorCodes } from '../shared/errors/errorCodes';
 import { ExpenseRepository } from '../repositories/ExpenseRepository';
 import { getSettledAmountsBatch } from '../services/settlementService';
 import { PARTY_TYPE } from '../shared/partyTypes';
+import { LedgerService } from '../services/ledgerService';
 
 // Helper function to get user's shop_id
 const getUserShopId = async (userId: number): Promise<number | null> => {
@@ -136,12 +137,10 @@ export class BalanceController {
         }, 0);
       }
 
-      // NOTE: stored `user.balance` is maintained by transaction/payment services
-      // and already reflects transaction earnings and expense settlements in the system.
-      // Subtracting `pending_expenses` again here could double-count the deduction.
-      // Therefore we return the stored current balance as-is and expose pending_expenses
-      // separately so callers can decide how to interpret them.
-      const currentBalance = Number(user.balance || 0);
+      // USE LEDGER: Get current balance from ledger_entries, not from kisaan_users.balance
+      const ledgerService = new LedgerService();
+      const ledgerBalance = await ledgerService.getBalance(user.id, user.shop_id || 0);
+      const currentBalance = ledgerBalance;
 
       // Provide an explanatory field so UI can interpret sign correctly per role.
       const balanceMeaning = user.role === 'farmer'

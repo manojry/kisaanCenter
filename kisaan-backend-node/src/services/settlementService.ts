@@ -85,7 +85,9 @@ export const applyRepaymentFIFO = async (shop_id: number, user_id: number, repay
     const isFullySettled = newSettledAmount >= expenseAmount;
 
     if (isFullySettled && !options?.dryRun) {
-      await expenseRepo.markSettled(exp.id, options);
+      // Use service method that updates balance instead of repository method
+      const { settleExpense } = await import('./expenseService');
+      await settleExpense(exp.id, options);
     }
 
     settlements.push({

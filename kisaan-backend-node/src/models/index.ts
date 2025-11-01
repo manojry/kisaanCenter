@@ -19,6 +19,8 @@ import { TransactionLedger } from './transactionLedger';
 import { Feature, PlanFeature, UserFeatureOverride } from './feature';
 import Expense from './expense';
 import ExpenseSettlement from './expenseSettlement';
+import LedgerEntry from './ledgerEntry';
+import UserBalance from './userBalance';
 
 
 // Initialize all models
@@ -45,6 +47,8 @@ const models = {
   UserFeatureOverride,
   Expense,
   ExpenseSettlement,
+  LedgerEntry,
+  UserBalance
 };
 
 // Set up associations
@@ -198,16 +202,17 @@ export {
   Product, 
   ShopCategory, 
   Transaction, 
-  Payment, 
-// ...existing code...
+  Payment,
   ShopProducts, 
   Settlement, 
   Commission,
   AuditLog,
   PlanUsage,
   BalanceSnapshot,
-  PaymentAllocation
-  ,TransactionIdempotency
+  PaymentAllocation,
+  TransactionIdempotency,
+  LedgerEntry,
+  UserBalance
 };
 
 export default models;

@@ -2,7 +2,7 @@ import { getUserDisplayWithRoleAndId } from '../utils/userDisplayName';
 import type { BalanceSnapshot, User } from '../types/api';
 import React, { useState, useEffect } from 'react';
 import { formatDate } from '../utils/formatDate';
-import { paymentsApi, balanceSnapshotsApi } from '../services/api';
+import { paymentsApi, balanceSnapshotsApi, balanceApi } from '../services/api';
 import { useUsers } from '../context/useUsers';
 import { useAuth } from '../context/AuthContext';
 import { fetchOwnerShop } from '../utils/shopUtils';
@@ -81,6 +81,7 @@ const PaymentManagement: React.FC = () => {
     };
   } | null>(null);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [loadingBalance, setLoadingBalance] = useState<boolean>(false);
   // modal removed; inline override checkbox used instead
   const [forceOverride, setForceOverride] = useState(false);
   // Inline direction selector: controls whether this is shop->farmer (pay) or receive (from buyer/farmer)
@@ -88,6 +89,11 @@ const PaymentManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [snapshotsPage, setSnapshotsPage] = useState(1);
   const itemsPerPage = 8;
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState<{
+    direction: 'pay' | 'receive';
+    forceOverride: boolean;
+  } | null>(null);
 
   // Removed local fetchUsers; using users from context
 
@@ -99,53 +105,66 @@ const PaymentManagement: React.FC = () => {
       setCurrentPage(1);
       setSnapshotsPage(1);
       setCurrentBalance(0);
+      setLoadingBalance(false);
       return;
     }
-    const fetchSnapshots = async () => {
-      const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
-      setSnapshots(snapshotsData);
-      
-      // Calculate current balance from the most recent snapshot
-      if (snapshotsData && snapshotsData.length > 0) {
-        // Sort by created date descending to get the most recent
-        const sortedSnapshots = [...snapshotsData].sort((a, b) => {
-          const dateA = new Date(a.created_at || 0);
-          const dateB = new Date(b.created_at || 0);
-          return dateB.getTime() - dateA.getTime();
-        });
-        const latestSnapshot = sortedSnapshots[0];
-        const currentBalanceValue = Number(latestSnapshot.new_balance || 0);
-        setCurrentBalance(currentBalanceValue);
-      } else {
+    
+    const fetchData = async () => {
+      setLoadingBalance(true);
+      try {
+        // Fetch current balance directly from balance API
+        const balanceRes = await balanceApi.getUserBalance(selectedUser.id);
+        if (balanceRes.success && balanceRes.data) {
+          setCurrentBalance(Number(balanceRes.data.current_balance || 0));
+        } else {
+          console.warn('Failed to fetch balance:', balanceRes);
+          setCurrentBalance(0);
+        }
+      } catch (error) {
+        console.error('Error fetching balance:', error);
         setCurrentBalance(0);
+      } finally {
+        setLoadingBalance(false);
       }
-    };
-    const fetchPayments = async () => {
-      // Fetch payments specific to the user role
-      let res;
-      if (selectedUser.role === 'farmer') {
-        res = await paymentsApi.getFarmerPayments(selectedUser.id);
-        const data = res.data || {};
-        // API may return either an array (legacy) or an object { payments, expenses }
-        if (Array.isArray(data)) {
-          setPayments(data);
+
+      // Fetch balance snapshots for history display (don't fail if this errors)
+      try {
+        const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
+        setSnapshots(snapshotsData);
+      } catch (error) {
+        console.error('Error fetching balance snapshots:', error);
+        setSnapshots([]);
+      }
+
+      // Fetch payments (don't fail if this errors)
+      try {
+        let res;
+        if (selectedUser.role === 'farmer') {
+          res = await paymentsApi.getFarmerPayments(selectedUser.id);
+          const data = res.data || {};
+          if (Array.isArray(data)) {
+            setPayments(data);
+            setExpensesData(null);
+          } else {
+            setPayments(((data as any).payments) || []);
+            setExpensesData(((data as any).expenses) || null);
+          }
+        } else if (selectedUser.role === 'buyer') {
+          res = await paymentsApi.getBuyerPayments(selectedUser.id);
+          setPayments(res.data || []);
           setExpensesData(null);
         } else {
-          setPayments(((data as any).payments) || []);
-          setExpensesData(((data as any).expenses) || null);
+          setPayments([]);
+          setExpensesData(null);
         }
-      } else if (selectedUser.role === 'buyer') {
-        res = await paymentsApi.getBuyerPayments(selectedUser.id);
-        setPayments(res.data || []);
-        setExpensesData(null);
-      } else {
-        res = { data: [] };
+      } catch (error) {
+        console.error('Error fetching payments:', error);
         setPayments([]);
         setExpensesData(null);
       }
     };
-    fetchSnapshots();
-    fetchPayments();
+    
+    fetchData();
   // Advance payment state removed
     setMessage('');
     setSettlementBreakdown(null);
@@ -241,9 +260,16 @@ const PaymentManagement: React.FC = () => {
         }
         setMessage('Payment recorded successfully!');
         setPaymentAmount('');
-        // Refresh users, snapshots, and payments after payment
-  await refreshUsers();
+        // Refresh users, balance, snapshots, and payments after payment
+        await refreshUsers();
         if (selectedUser) {
+          // Refresh current balance from balance API
+          const balanceRes = await balanceApi.getUserBalance(selectedUser.id);
+          if (balanceRes.success && balanceRes.data) {
+            setCurrentBalance(Number(balanceRes.data.current_balance || 0));
+          }
+
+          // Refresh balance snapshots for history
           const snapshotsData = await balanceSnapshotsApi.getByUserId(selectedUser.id);
           setSnapshots(snapshotsData);
           
@@ -286,7 +312,24 @@ const PaymentManagement: React.FC = () => {
 
   // Inline payment direction: for buyers, always receive; for farmers, always pay
   const onRecordClick = () => {
-    if (!selectedUser) return;
+    if (!selectedUser || !paymentAmount || !shopId) return;
+    
+    const amount = parseFloat(paymentAmount);
+    if (amount <= 0) {
+      setMessage('Please enter a valid payment amount greater than 0.');
+      return;
+    }
+
+    // Show confirmation for large payments (> ₹10,000)
+    if (amount > 10000) {
+      setPendingPayment({
+        direction: paymentDirection === 'pay_to_farmer' ? 'pay' : 'receive',
+        forceOverride
+      });
+      setShowConfirmation(true);
+      return;
+    }
+
     // Determine effective direction from inline selector
     if (paymentDirection === 'pay_to_farmer') {
       // pay shop -> farmer
@@ -302,6 +345,13 @@ const PaymentManagement: React.FC = () => {
       // receiving from farmer: user pays shop
       handlePayment('receive', false);
     }
+  };
+
+  const confirmPayment = () => {
+    if (!pendingPayment) return;
+    setShowConfirmation(false);
+    handlePayment(pendingPayment.direction, pendingPayment.forceOverride);
+    setPendingPayment(null);
   };
 
   // No longer needed: confirmDirectionAndSend (direction is explicit)
@@ -329,10 +379,20 @@ const PaymentManagement: React.FC = () => {
             </div>
           </div>
               {selectedUser && (
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
               <div className="bg-gray-50 px-3 py-2 rounded">
-                <span className="text-sm text-gray-600">Current Balance:</span>
-                <span className="ml-2 font-bold text-lg">₹{currentBalance.toLocaleString()}</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-gray-600">Net Balance:</span>
+                    <div className="text-xs text-gray-500">After deducting unsettled expenses</div>
+                    {expensesData && expensesData.totalUnsettled > 0 && (
+                      <div className="text-xs text-orange-600 font-medium mt-1">
+                        ⚠️ Farmer still owes ₹{expensesData.totalUnsettled.toLocaleString()} in expenses
+                      </div>
+                    )}
+                  </div>
+                  <span className="font-bold text-lg">₹{currentBalance.toLocaleString()}</span>
+                </div>
               </div>
               {selectedUser.role === 'farmer' && currentBalance < 0 && (
                 <div className="bg-blue-50 px-3 py-2 rounded">
@@ -363,6 +423,22 @@ const PaymentManagement: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {/* Balance Summary Card */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">Balance Summary</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-blue-900">₹{currentBalance.toLocaleString()}</div>
+                          <div className="text-xs text-blue-600">
+                            {snapshots.length} transactions • {snapshots.filter(s => Number(s.amount_change) > 0).length} increases • {snapshots.filter(s => Number(s.amount_change) < 0).length} decreases
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Compact Recent Activity */}
                     <div className="bg-green-50 p-2 rounded text-xs">
                       <div className="flex items-center justify-between">
@@ -482,7 +558,7 @@ const PaymentManagement: React.FC = () => {
                   {selectedUser.role === 'buyer' ? (
                     <span className="font-medium text-blue-700">📥 Receive money from buyer (reduces what they owe)</span>
                   ) : currentBalance >= 0 ? (
-                    <span className="font-medium text-green-700">📤 Pay money to farmer (reduces what shop owes them)</span>
+                    <span className="font-medium text-green-700">📤 Pay money to farmer (reduces what shop owes them) - Does NOT settle expenses</span>
                   ) : (
                     <span className="font-medium text-orange-700">📥 Receive money from farmer (settles their advance/expenses first, then reduces balance)</span>
                   )}
@@ -522,7 +598,7 @@ const PaymentManagement: React.FC = () => {
                         newBalance = currentBalance + amt;
                         balanceExplanation = currentBalance < 0 
                           ? 'Settles expenses first, then reduces farmer debt' 
-                          : 'Reduces what shop owes farmer';
+                          : 'Reduces what shop owes farmer (but expenses are separate)';
                       }
                       
                       const isOverpay = (paymentDirection === 'receive_from_farmer' || paymentDirection === 'receive_from_buyer') && amt > Math.abs(currentBalance);
@@ -591,9 +667,17 @@ const PaymentManagement: React.FC = () => {
                             </div>
                           )}
                           
-                          {paymentDirection === 'receive_from_farmer' && currentBalance < 0 && (
+                          {paymentDirection === 'receive_from_farmer' && (
                             <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-900 border border-blue-300">
-                              <strong>ℹ️ Expense Settlement:</strong> This payment will first settle any outstanding expenses (FIFO order), then the remaining amount will reduce the farmer's debt.
+                              <strong>ℹ️ How Farmer Payments Work:</strong> This payment will first settle any outstanding expenses (oldest first), then adjust the farmer's net balance. The displayed balance already accounts for unsettled expenses.
+                            </div>
+                          )}
+                          
+                          {paymentDirection === 'pay_to_farmer' && expensesData && expensesData.totalUnsettled > 0 && (
+                            <div className="mt-3 p-2 bg-red-100 rounded text-xs text-red-900 border border-red-300">
+                              <strong>⚠️ IMPORTANT:</strong> Paying the farmer will NOT settle their expenses! 
+                              The farmer will still owe ₹{expensesData.totalUnsettled.toLocaleString()} for supplies/advances. 
+                              Only payments FROM the farmer settle expenses.
                             </div>
                           )}
                         </div>
@@ -602,9 +686,50 @@ const PaymentManagement: React.FC = () => {
                   )}
 
                   <div className="flex flex-col gap-3">
+                    {/* Quick Amount Buttons */}
+                    {selectedUser && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs text-gray-500 self-center mr-2">Quick amounts:</span>
+                        {[500, 1000, 2000, 5000].map(amount => (
+                          <Button
+                            key={amount}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 px-2"
+                            onClick={() => setPaymentAmount(amount.toString())}
+                          >
+                            ₹{amount.toLocaleString()}
+                          </Button>
+                        ))}
+                        {currentBalance !== 0 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 px-2 text-blue-600"
+                            onClick={() => setPaymentAmount(Math.abs(currentBalance).toString())}
+                          >
+                            Full balance (₹{Math.abs(currentBalance).toLocaleString()})
+                          </Button>
+                        )}
+                        {expensesData && expensesData.totalUnsettled > 0 && paymentDirection === 'receive_from_farmer' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 px-2 text-green-600"
+                            onClick={() => setPaymentAmount(expensesData.totalUnsettled.toString())}
+                          >
+                            Settle all expenses (₹{expensesData.totalUnsettled.toLocaleString()})
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap items-end gap-3">
                       <div className="flex flex-col w-24 min-w-[6rem]">
-                        <label className="text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <label className="text-sm font-medium text-gray-700 mb-1">Amount *</label>
                         <Input
                           type="number"
                           step="0.01"
@@ -615,33 +740,37 @@ const PaymentManagement: React.FC = () => {
                             const n = parseFloat(raw);
                             if (!isNaN(n)) setPaymentAmount(String(Math.abs(n))); else setPaymentAmount(raw);
                           }}
-                          placeholder="Enter"
+                          placeholder="Enter amount"
                           className="w-full"
+                          min="0"
+                          required
                         />
                       </div>
                       {/* Payment Direction - Clear labels about money flow */}
                       <div className="flex flex-col w-56 min-w-[14rem]">
-                        <label className="text-sm font-medium text-gray-700 mb-1">Payment Direction</label>
+                        <label className="text-sm font-medium text-gray-700 mb-1">Payment Direction *</label>
                         <select
                           className="border rounded px-2 py-2 text-sm w-full font-medium"
                           value={paymentDirection}
                           onChange={e => setPaymentDirection(e.target.value as any)}
+                          required
                         >
                           {/* For FARMERS: Show both pay and receive options */}
                           {selectedUser?.role === 'farmer' && (
                             <>
                               <option value="pay_to_farmer" disabled={currentBalance < 0 && !forceOverride}>
-                                💵 Shop → Farmer (Pay them)
+                                💵 Pay Farmer (Shop → Farmer) - Reduces what shop owes
+                                {currentBalance < 0 && !forceOverride && ' - Disabled: Has advance'}
                               </option>
                               <option value="receive_from_farmer">
-                                💰 Farmer → Shop (Receive from them)
+                                💰 Receive from Farmer (Farmer → Shop) - Settles expenses first
                               </option>
                             </>
                           )}
                           {/* For BUYERS: Only receive option (buyers never receive from shop) */}
                           {selectedUser?.role === 'buyer' && (
                             <option value="receive_from_buyer">
-                              💰 Buyer → Shop (Receive payment)
+                              💰 Receive from Buyer (Buyer → Shop)
                             </option>
                           )}
                         </select>
@@ -659,7 +788,7 @@ const PaymentManagement: React.FC = () => {
                           <option value="other">Other</option>
                         </select>
                       </div>
-                      <div className="flex items-center gap-2 ml-auto">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center ml-auto">
                         <div className="flex items-center gap-2">
                           <input id="force-override" type="checkbox" checked={forceOverride} onChange={e => setForceOverride(e.target.checked)} />
                           <label htmlFor="force-override" className="text-sm">Override</label>
@@ -840,13 +969,17 @@ const PaymentManagement: React.FC = () => {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Receipt className="h-4 w-4" />
-                Expenses
+                Farmer Expenses & Advances
               </CardTitle>
+              <div className="text-sm text-gray-600">
+                Money farmer owes shop for supplies, advances, etc. (automatically deducted from balance)
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="mb-2 text-sm text-gray-600">
                 Total: <strong>₹{expensesData.totalExpenses.toLocaleString()}</strong>
                 <span className="ml-4">Unsettled: <strong>₹{expensesData.totalUnsettled.toLocaleString()}</strong></span>
+                <div className="text-xs text-orange-600 mt-1">💡 Unsettled expenses are already deducted from the farmer's balance above</div>
               </div>
               <div className="overflow-x-auto">
                 <Table>
@@ -887,6 +1020,59 @@ const PaymentManagement: React.FC = () => {
       {settlementBreakdown && (
         <SettlementBreakdownCard settlementBreakdown={settlementBreakdown} />
       )}
+
+      {/* Large Payment Confirmation Dialog */}
+      {showConfirmation && pendingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <TrendingDown className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Confirm Large Payment</h3>
+                <p className="text-sm text-gray-600">You're about to record a payment of ₹{paymentAmount}</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <div className="bg-gray-50 rounded p-3 text-sm">
+                <div className="flex justify-between mb-1">
+                  <span>Amount:</span>
+                  <span className="font-medium">₹{parseFloat(paymentAmount).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                  <span>To/From:</span>
+                  <span className="font-medium">{getUserDisplayWithRoleAndId(selectedUser)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Direction:</span>
+                  <span className="font-medium">
+                    {pendingPayment.direction === 'pay' ? 'Shop → Farmer' : 'Farmer/Buyer → Shop'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowConfirmation(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmPayment}
+                className="flex-1 bg-amber-600 hover:bg-amber-700"
+              >
+                Confirm Payment
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {message && (
         <div className={
           message.toLowerCase().includes('error')

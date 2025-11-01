@@ -41,22 +41,32 @@ export class ExpenseController {
 
   async getExpenses(req: Request, res: Response) {
     try {
-      const { shop_id, user_id, status, from_date, to_date } = req.query;
+      const { shop_id, user_id, status, from_date, to_date, page, limit } = req.query;
 
       if (!shop_id || typeof shop_id !== 'string') {
         return failureCode(res, 400, ErrorCodes.VALIDATION_ERROR, { field: 'shop_id' }, 'shop_id is required');
       }
 
       const shopId = parseId(shop_id, 'shop id');
-      const expenses = await getExpenses({
+      const result = await getExpenses({
         shop_id: String(shopId),
         user_id: user_id as string,
         status: status as string,
         from_date: from_date as string,
-        to_date: to_date as string
+        to_date: to_date as string,
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined
       });
 
-      return success(res, expenses, { message: 'Expenses retrieved', meta: { count: expenses.length } });
+      return success(res, result.expenses, {
+        message: 'Expenses retrieved',
+        meta: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          count: result.expenses.length
+        }
+      });
     } catch (error: unknown) {
       req.log?.error({ err: error }, 'expense:list failed');
       const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : 'Failed to fetch expenses';

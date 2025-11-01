@@ -1,9 +1,8 @@
-import { Payment } from '../models/payment';
 import { Shop } from '../models/shop';
 import { User } from '../models/user';
 import { Transaction } from '../models/transaction';
-import { logger } from '../shared/logging/logger';
 import { PaymentAllocation } from '../models/paymentAllocation';
+import { Payment } from '../models/payment';
 import { PARTY_TYPE } from '../shared/partyTypes';
 import { Op } from 'sequelize';
 
@@ -24,12 +23,12 @@ export class OwnerDashboardService {
       // 3. Fetch allocations and payments
       const transactionIds = transactions.map(t => t.id).filter(Boolean) as number[];
       const allocations = transactionIds.length ? await PaymentAllocation.findAll({ where: { transaction_id: { [Op.in]: transactionIds } } }) : [];
-      const payments = shopIds.length ? await (await import('../models/payment')).Payment.findAll({ where: { shop_id: { [Op.in]: shopIds } } }) : [];
+      const payments = shopIds.length ? await Payment.findAll({ where: { shop_id: { [Op.in]: shopIds } } }) : [];
 
       console.log(`${logPrefix} shops=${shopIds.length} users=${users.length} transactions=${transactions.length} payments=${payments.length} allocations=${allocations.length}`);
 
       // Index payments by id
-      const paymentsById: Record<string, any> = {};
+      const paymentsById: Record<string, Payment> = {};
       for (const p of payments) paymentsById[String(p.id)] = p;
 
       // Compute buyer_total_spent and farmer_total_earned (direct + allocated)

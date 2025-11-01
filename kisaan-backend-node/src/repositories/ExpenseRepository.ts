@@ -54,6 +54,40 @@ export class ExpenseRepository {
     }
   }
 
+  async findAllByShopPaginated(shopId: number, page: number = 1, limit: number = 20, filters?: { user_id?: number; status?: string }, options?: { tx?: Transaction }) {
+    try {
+      const offset = (page - 1) * limit;
+      const whereClause: Partial<ExpenseCreationAttributes> = { shop_id: shopId };
+
+      if (filters?.user_id) {
+        whereClause.user_id = filters.user_id;
+      }
+
+      if (filters?.status) {
+        whereClause.status = filters.status as ExpenseStatus;
+      }
+
+      const findOpts: FindOptions = {
+        where: whereClause,
+        limit,
+        offset,
+        order: [['created_at', 'DESC']]
+      };
+
+      if (options?.tx) findOpts.transaction = options.tx;
+
+      const result = await Expense.findAndCountAll(findOpts);
+      return {
+        expenses: result.rows,
+        total: result.count,
+        page,
+        limit
+      };
+    } catch (err) {
+      throw new DomainError(`Failed to fetch paginated expenses by shop: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   async getPendingTotal(shopId: number, userId: number, options?: { tx?: Transaction }): Promise<number> {
     try {
       const sumOpts: { where: { shop_id: number; user_id: number; status: ExpenseStatus }; transaction?: Transaction } = { 

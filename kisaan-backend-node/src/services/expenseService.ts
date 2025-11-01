@@ -20,6 +20,8 @@ export interface GetExpensesFilters {
   status?: string;
   from_date?: string;
   to_date?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ExpenseUserSummary {
@@ -103,47 +105,59 @@ export const createExpense = async (data: CreateExpenseData, options?: { tx?: im
     created_at: new Date()
   }, { transaction: options?.tx });
 
-  // Update user balance
-  const { User } = await import('../models/user');
-  await User.update(
-    { balance: sequelize.literal(`balance + ${data.amount}`) },
-    { where: { id: data.user_id }, transaction: options?.tx }
-  );
+  // ❌ REMOVE THIS BALANCE UPDATE - Causes double-counting!
+  // Balance calculation logic (in transactionService.ts):
+  // Farmer Balance = Unpaid Transaction Earnings - Unsettled Expenses
+  //
+  // When expense is created, it's added to Expense table as "pending"
+  // When transaction is created/updated, updateUserBalances() fetches all expenses
+  // and subtracts unsettled amounts automatically.
+  //
+  // DO NOT update balance here - it causes double-counting!
+
+  // Update user balance - REMOVED to prevent double-counting
+  // const { User } = await import('../models/user');
+  // await User.update(
+  //   { balance: sequelize.literal(`balance + ${data.amount}`) },
+  //   { where: { id: data.user_id }, transaction: options?.tx }
+  // );
 
   return expense;
 };
 
-// Get expenses with filters - NOW INCLUDES settled/unsettled amounts
+// Get expenses with filters - NOW INCLUDES settled/unsettled amounts and pagination
 export const getExpenses = async (filters: GetExpensesFilters) => {
   const repo = new ExpenseRepository();
   const shopId = parseInt(filters.shop_id);
-  const all = await repo.findAllByShop(shopId);
-  let result = all;
+  const page = filters.page || 1;
+  const limit = filters.limit || 20;
 
+  // Build filters for repository
+  const repoFilters: { user_id?: number; status?: string } = {};
   if (filters.user_id) {
-    const uid = parseInt(filters.user_id);
-    result = result.filter((e) => e.user_id === uid);
+    repoFilters.user_id = parseInt(filters.user_id);
+  }
+  if (filters.status) {
+    repoFilters.status = filters.status;
   }
 
-  // Additional filtering by status/dates can be added here
-  if (filters.status) {
-    result = result.filter((e) => e.status === filters.status);
-  }
+  // Use paginated query
+  const result = await repo.findAllByShopPaginated(shopId, page, limit, repoFilters);
 
   // Calculate settled and unsettled amounts for each expense
   const expenseDetails = await Promise.all(
-    result.map(async (expense) => {
+    result.expenses.map(async (expense) => {
       const expenseAmount = Number(expense.amount || 0);
-      
+
       // Get settlements for this expense
       const settlements = await ExpenseSettlement.findAll({
         where: { expense_id: expense.id }
       });
-      const settledAmount = settlements.reduce((sum: number, s) => 
+      const settledAmount = settlements.reduce((sum: number, s) =>
         sum + Number(s.amount || 0), 0);
-      
+
       const unsettledAmount = Math.max(0, expenseAmount - settledAmount);
-      
+
       return {
         ...expense.toJSON(),
         settled: settledAmount,
@@ -152,7 +166,12 @@ export const getExpenses = async (filters: GetExpensesFilters) => {
     })
   );
 
-  return expenseDetails;
+  return {
+    expenses: expenseDetails,
+    total: result.total,
+    page: result.page,
+    limit: result.limit
+  };
 };
 
 // Get expense summary by shop
@@ -206,25 +225,90 @@ export const getExpenseSummary = async (shop_id: string) => {
 };
 
 // Mark expense as settled
-export const settleExpense = async (expense_id: number) => {
+export const settleExpense = async (expense_id: number, options?: { tx?: import('sequelize').Transaction }) => {
   const repo = new ExpenseRepository();
-  return await repo.markSettled(expense_id);
+
+  // Get expense before settling to know the amount
+  const expense = await Expense.findByPk(expense_id, options?.tx ? { transaction: options.tx } : undefined);
+  if (!expense) throw new Error('Expense not found');
+
+  const settledAmount = Number(expense.amount || 0);
+
+  // Mark as settled
+  const result = await repo.markSettled(expense_id, options);
+
+  // Update farmer balance: increase by settled amount (less debt)
+  if (settledAmount > 0) {
+    const { User } = await import('../models/user');
+    await User.update(
+      { balance: sequelize.literal(`balance + ${settledAmount}`) },
+      { where: { id: expense.user_id }, transaction: options?.tx }
+    );
+
+    console.log('[EXPENSE] Balance updated on settlement', {
+      expenseId: expense_id,
+      userId: expense.user_id,
+      settledAmount,
+      balanceIncrease: settledAmount
+    });
+  }
+
+  return result;
 };
 
 // Partially or fully settle an expense
-export const settleExpenseAmount = async (expense_id: number, amount: number, options?: { tx?: import('sequelize').Transaction }) => {
+export const settleExpenseAmount = async (expense_id: number, amount: number, payment_id?: number, options?: { tx?: import('sequelize').Transaction }) => {
   const repo = new ExpenseRepository();
-  const e = await Expense.findByPk(expense_id);
+  const e = await Expense.findByPk(expense_id, options?.tx ? { transaction: options.tx } : undefined);
   if (!e) throw new Error('Expense not found');
 
   const originalAmount = typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount;
-  if (amount >= originalAmount) {
-    // Fully settle
-    return await repo.markSettled(expense_id, options);
-  }
 
-  // Partial settle: reduce amount and save
-  e.amount = originalAmount - amount;
-  await e.save(options?.tx ? { transaction: options.tx } : undefined);
-  return e;
+  // Create settlement record for audit trail
+  await ExpenseSettlement.create({
+    expense_id: expense_id,
+    payment_id: payment_id || undefined,
+    amount: amount,
+    settled_at: new Date(),
+    notes: payment_id ? `Settled via payment ${payment_id}` : 'Manual settlement'
+  }, options?.tx ? { transaction: options.tx } : undefined);
+
+  if (amount >= originalAmount) {
+    // Fully settle - mark as settled and update balance
+    const result = await repo.markSettled(expense_id, options);
+
+    // Update farmer balance: increase by full amount (less debt)
+    const { User } = await import('../models/user');
+    await User.update(
+      { balance: sequelize.literal(`balance + ${originalAmount}`) },
+      { where: { id: e.user_id }, transaction: options?.tx }
+    );
+
+    console.log('[EXPENSE] Full settlement balance updated', {
+      expenseId: expense_id,
+      userId: e.user_id,
+      settledAmount: originalAmount,
+      balanceIncrease: originalAmount
+    });
+
+    return result;
+  } else {
+    // Partial settle: create settlement record but keep expense pending
+    // Balance increases by settled amount
+    const { User } = await import('../models/user');
+    await User.update(
+      { balance: sequelize.literal(`balance + ${amount}`) },
+      { where: { id: e.user_id }, transaction: options?.tx }
+    );
+
+    console.log('[EXPENSE] Partial settlement balance updated', {
+      expenseId: expense_id,
+      userId: e.user_id,
+      settledAmount: amount,
+      balanceIncrease: amount,
+      remainingExpense: originalAmount - amount
+    });
+
+    return e;
+  }
 };

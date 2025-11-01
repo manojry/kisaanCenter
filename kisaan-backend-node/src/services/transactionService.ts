@@ -16,6 +16,7 @@ import { ValidationError, NotFoundError, BusinessRuleError, AuthorizationError, 
 import { Payment, PaymentStatus as PaymentStatusEnum } from '../models/payment';
 import { TransactionStatus } from '../shared/enums';
 import { sequelize } from '../models/index';
+import { LedgerService } from './ledgerService';
 // ...existing code...
 
 export class TransactionService {
@@ -149,6 +150,7 @@ export class TransactionService {
   private readonly ledgerRepository: TransactionLedgerRepository;
   private readonly farmerProductRepo: FarmerProductAssignmentRepository;
   private readonly idempotencyRepo: TransactionIdempotencyRepository;
+  private readonly ledgerService: LedgerService;
 
   constructor() {
     this.transactionRepository = new TransactionRepository();
@@ -158,6 +160,7 @@ export class TransactionService {
   this.ledgerRepository = new TransactionLedgerRepository();
   this.farmerProductRepo = new FarmerProductAssignmentRepository();
     this.idempotencyRepo = new TransactionIdempotencyRepository();
+    this.ledgerService = new LedgerService();
   }
   private resolveCommissionRate(
     dataRate: number | undefined,
@@ -787,7 +790,7 @@ export class TransactionService {
           // For payments provided as part of transaction creation, treat them as PAID
           // so they participate in allocation and balance recalculation immediately.
           // This aligns with frontend expectations for transaction payload payments.
-          let normalizedStatus: PaymentStatus | undefined = 'PAID';
+          const normalizedStatus: PaymentStatus | undefined = 'PAID';
 
           await createPaymentRecord({
             payer_type,
@@ -848,21 +851,58 @@ export class TransactionService {
       });
       // Status update is handled by PaymentService.createPayment() calls above
 
-      // Calculate net deltas after payments using the actual createdPayments
-      // (data.payments may be undefined for default/full-payment flows)
-      const farmerPaid = Array.isArray(createdPayments) ? (createdPayments as Payment[])
-        .filter(p => String(p.payee_type || '').toUpperCase() === 'FARMER')
-        .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
-      const buyerPaid = Array.isArray(createdPayments) ? (createdPayments as Payment[])
-        .filter(p => String(p.payer_type || '').toUpperCase() === 'BUYER')
-        .reduce((sum, p) => sum + Number(p.amount || 0), 0) : 0;
-      const netFarmerDelta = recordFarmerEarning - farmerPaid;
-      const netBuyerDelta = recordTotalAmount - buyerPaid;
+      // NOW update user balances using LEDGER ENTRIES
+      // IMPORTANT: Create ledger entries for the TRANSACTION amounts (what farmer earns and buyer owes)
+      // NOT just for unpaid deltas. The ledger records the economic event, not just balance changes.
+      // Payments are recorded separately - payments reduce what's owed/earned.
+      
+      console.log('[LEDGER] Creating entries for transaction', {
+        transactionId: (createdTransaction as { id: number }).id,
+        farmerId: farmer.id,
+        buyerId: buyer.id,
+        farmerEarning: recordFarmerEarning,
+        totalAmount: recordTotalAmount
+      });
 
-      // NOW update user balances AFTER all payments and allocations are created
-      // This ensures the balance calculation can find the PaymentAllocation records
-      // NOTE: Not in a transaction since payments are created outside the DB transaction
-      await this.updateUserBalances(farmer, buyer, netFarmerDelta, netBuyerDelta, recordFarmerEarning, recordTotalAmount, transactionEntity.status ?? TransactionStatus.Pending, undefined);
+      try {
+        // Farmer earns: CREDIT entry for the full transaction amount
+        // ALWAYS create this - it's what the farmer is earning from the transaction
+        if (recordFarmerEarning > 0) {
+          console.error('[LEDGER] Creating CREDIT entry for farmer', { farmerId: farmer.id, shopId: farmer.shop_id, amount: recordFarmerEarning });
+          await this.ledgerService.appendEntry({
+            user_id: farmer.id!,
+            shop_id: farmer.shop_id!,
+            direction: 'CREDIT',
+            amount: recordFarmerEarning,
+            type: 'TRANSACTION',
+            reference_type: 'transaction',
+            reference_id: (createdTransaction as { id: number }).id,
+            description: `Transaction #${(createdTransaction as { id: number }).id}: Farmer earns ₹${recordFarmerEarning}`
+          });
+          console.error('[LEDGER] CREDIT entry created successfully');
+        }
+
+        // Buyer owes: DEBIT entry for the full transaction amount
+        // ALWAYS create this - it's what the buyer owes for the transaction
+        if (recordTotalAmount > 0) {
+          console.error('[LEDGER] Creating DEBIT entry for buyer', { buyerId: buyer.id, shopId: buyer.shop_id, amount: recordTotalAmount });
+          await this.ledgerService.appendEntry({
+            user_id: buyer.id!,
+            shop_id: buyer.shop_id!,
+            direction: 'DEBIT',
+            amount: recordTotalAmount,
+            type: 'TRANSACTION',
+            reference_type: 'transaction',
+            reference_id: (createdTransaction as { id: number }).id,
+            description: `Transaction #${(createdTransaction as { id: number }).id}: Buyer owes ₹${recordTotalAmount}`
+          });
+          console.error('[LEDGER] DEBIT entry created successfully');
+        }
+      } catch (ledgerError) {
+        console.error('[LEDGER ERROR] CRITICAL: Failed to create ledger entries:', ledgerError);
+        console.error('[LEDGER ERROR] Error stack:', (ledgerError as Error).stack);
+        throw new DatabaseError(`Failed to record ledger entries: ${(ledgerError as Error).message}`);
+      }
 
       // Refetch transaction to get latest status after payments
       createdTransaction = await this.getTransactionById((createdTransaction as { id: number }).id);
@@ -904,8 +944,8 @@ export class TransactionService {
 
               // Determine applied amounts from allocations (transaction payments primarily allocate to the transaction)
               const totalAllocated = allocMap[pid] || 0;
-              let appliedToExpenses = 0;
-              let appliedToBalance = totalAllocated;
+              const appliedToExpenses = 0;
+              const appliedToBalance = totalAllocated;
 
               // Determine which user balance fields to use
               const pPayer = String((p as any).payer_type || '').toUpperCase();
@@ -934,6 +974,26 @@ export class TransactionService {
           (createdTransaction as unknown as { payments?: unknown[] }).payments = createdPayments;
         }
       }
+
+      // CRITICAL FIX: Update user balances after transaction and payments are created
+      // This ensures balance snapshots are created with correct amount_change values
+      try {
+        await this.updateUserBalances(
+          farmer,
+          buyer,
+          recordFarmerEarning, // farmerDelta: farmer gains their earning
+          recordTotalAmount,   // buyerDelta: buyer owes the total amount
+          recordFarmerEarning, // farmerGross: for cumulative_value
+          recordTotalAmount,   // buyerGross: for cumulative_value
+          'pending',           // transactionStatus
+          undefined            // no transaction context needed
+        );
+        console.log('[BALANCE UPDATE] Successfully updated user balances for transaction creation');
+      } catch (balanceError) {
+        console.error('[BALANCE UPDATE ERROR] Failed to update user balances:', balanceError);
+        // Don't fail the transaction creation for balance update errors
+      }
+
       return createdTransaction;
     } catch (error) {
       if (error instanceof ValidationError || error instanceof NotFoundError || 
@@ -1762,15 +1822,41 @@ export class TransactionService {
       // transaction flow (payments are created separately and allocations recorded).
       const deltaProvided = typeof farmerDelta === 'number' || typeof buyerDelta === 'number';
       if (deltaProvided) {
+        console.error(`[DELTA PATH] FarmerID=${farmer.id}, BuyerID=${buyer.id}, farmerDelta=${farmerDelta}, buyerDelta=${buyerDelta}, farmerGross=${farmerGross}, buyerGross=${buyerGross}`);
+        
         const newFarmerCumulative = currentFarmerCumulative + Number(farmerGross);
         const newBuyerCumulative = currentBuyerCumulative + Number(buyerGross);
+        
+        const newFarmerBalance = Math.round(((_currentFarmerBalance) + (Number(farmerDelta) || 0)) * 100) / 100;
+        const newBuyerBalance = Math.round((currentBuyerBalance + (Number(buyerDelta) || 0)) * 100) / 100;
+        
+        console.error(`[DELTA PATH RESULT] Old Farmer=${_currentFarmerBalance} New=${newFarmerBalance}, Old Buyer=${currentBuyerBalance} New=${newBuyerBalance}`);
 
-        const updatedFarmer = new UserEntity({
-          ...farmer,
-          balance: Math.round(((_currentFarmerBalance) + (Number(farmerDelta) || 0)) * 100) / 100,
-          cumulative_value: Math.round(newFarmerCumulative * 100) / 100
-        });
-        await this.userRepository.update(farmer.id!, updatedFarmer, tx ? { tx } : undefined);
+        // CRITICAL FIX: Use direct Sequelize model update instead of repository
+        // to ensure balance updates are persisted correctly
+        const { User } = await import('../models/user');
+        await User.update(
+          { 
+            balance: newFarmerBalance,
+            cumulative_value: Math.round(newFarmerCumulative * 100) / 100
+          },
+          { 
+            where: { id: farmer.id! },
+            transaction: tx as any
+          }
+        );
+        
+        await User.update(
+          { 
+            balance: newBuyerBalance,
+            cumulative_value: Math.round(newBuyerCumulative * 100) / 100
+          },
+          { 
+            where: { id: buyer.id! },
+            transaction: tx as any
+          }
+        );
+
         // Always create a snapshot for traceability, even if balance didn't change
         try {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
@@ -1778,8 +1864,8 @@ export class TransactionService {
             user_id: farmer.id!,
             balance_type: BalanceType.Farmer,
             previous_balance: _currentFarmerBalance,
-            amount_change: (updatedFarmer.balance ?? 0) - _currentFarmerBalance,
-            new_balance: updatedFarmer.balance ?? 0,
+            amount_change: newFarmerBalance - _currentFarmerBalance,
+            new_balance: newFarmerBalance,
             transaction_type: 'transaction',
             reference_type: 'transaction',
             description: `Transaction balance update (delta path): farmer earning ${farmerGross}`
@@ -1788,21 +1874,14 @@ export class TransactionService {
           console.warn(`[BALANCE SNAPSHOT] Failed to create farmer snapshot (delta path):`, snapshotError);
         }
 
-        const updatedBuyer = new UserEntity({
-          ...buyer,
-          balance: Math.round((currentBuyerBalance + (Number(buyerDelta) || 0)) * 100) / 100,
-          cumulative_value: Math.round(newBuyerCumulative * 100) / 100
-        });
-        await this.userRepository.update(buyer.id!, updatedBuyer, tx ? { tx } : undefined);
-        // Always create a snapshot for traceability, even if balance didn't change
         try {
           const { default: BalanceSnapshot } = await import('../models/balanceSnapshot');
           await BalanceSnapshot.create({
             user_id: buyer.id!,
             balance_type: BalanceType.Buyer,
             previous_balance: currentBuyerBalance,
-            amount_change: (updatedBuyer.balance ?? 0) - currentBuyerBalance,
-            new_balance: updatedBuyer.balance ?? 0,
+            amount_change: newBuyerBalance - currentBuyerBalance,
+            new_balance: newBuyerBalance,
             transaction_type: 'transaction',
             reference_type: 'transaction',
             description: `Transaction balance update (delta path): buyer total ${buyerGross}`
@@ -1932,7 +2011,12 @@ export class TransactionService {
           status: PaymentStatusEnum.Paid
         },
         transaction: tx
-      });      const newBuyerBalance = allBuyerTxns.reduce((sum, t) => {
+      });
+      
+      console.log(`[BUYER BALANCE CALC] Buyer ID ${buyer.id}: Found ${allBuyerTxns.length} transactions, ${buyerAllocations.length} allocations, ${buyerPayments.length} payments`);
+      
+      let debugSum = 0;
+      const newBuyerBalance = allBuyerTxns.reduce((sum, t) => {
         const paidByBuyer = buyerAllocations
           .filter(a => a.transaction_id === t.id)
           .map(a => {
@@ -1945,8 +2029,13 @@ export class TransactionService {
           })
           .reduce((s, v) => s + v, 0);
         const unpaid = Math.max(Number(t.total_amount || 0) - paidByBuyer, 0);
+        console.log(`[BUYER BALANCE CALC] TXN ${t.id}: total=₹${t.total_amount}, paid=₹${paidByBuyer}, unpaid=₹${unpaid}`);
+        debugSum += unpaid;
         return sum + unpaid;
       }, 0);
+      
+      console.log(`[BUYER BALANCE CALC] Final buyer balance: ₹${newBuyerBalance} (debug sum: ₹${debugSum})`);
+
       
       const updatedBuyer = new UserEntity({
         ...buyer,

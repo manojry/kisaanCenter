@@ -8,7 +8,9 @@ import { UserSearchDropdown } from '@/components/ui/UserSearchDropdown';
 import { Badge } from '@/components/ui/badge';
 import { getRoleBadgeClass } from '@/utils/getRoleBadgeClass';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wallet, TrendingDown, History, ArrowUpDown, ArrowUp, ArrowDown, Receipt, CreditCard, DollarSign, Minus, Plus, Filter, TrendingUp } from 'lucide-react';
+import { BalanceCard } from '@/components/BalanceCard';
+import { BalanceSummary } from '@/components/BalanceSummary';
+import { Wallet, History, ArrowUpDown, ArrowUp, ArrowDown, Receipt, CreditCard, DollarSign, Minus, Plus, Filter, TrendingUp } from 'lucide-react';
 import type { User, BalanceSnapshot as SharedBalanceSnapshot, Payment } from '../types/api';
 import { useUsers } from '../context/useUsers';
 
@@ -103,8 +105,9 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
     paymentsApi.getAll({})
       .then((res) => {
         // Filter payments for this user (either as payer or payee)
-        const userPayments = (res.data || []).filter((p: Payment & { counterparty_id?: number }) =>
-          Number((p as { counterparty_id?: number }).counterparty_id) === Number(selectedUser.id)
+        const userPayments = (res.data || []).filter((p: any) =>
+          p.counterparty_id !== null && p.counterparty_id !== undefined &&
+          Number(p.counterparty_id) === Number(selectedUser.id)
         );
         setPayments(userPayments);
       })
@@ -119,8 +122,7 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
           setSelectedUserBalance({
             current_balance: Number(d.current_balance || 0),
             pending_expenses: Number(d.pending_expenses || 0),
-            effective_balance: Number(d.effective_balance ?? d.current_balance ?? 0),
-            balance_meaning: d.balance_meaning
+            effective_balance: Number(d.effective_balance ?? d.current_balance ?? 0)
           });
         } else {
           setSelectedUserBalance(null);
@@ -148,16 +150,15 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
           </div>
         </div>
         {selectedUser && (
-          <div className="flex items-center gap-4">
-                <div className="bg-white border rounded px-4 py-2 shadow-sm">
-                  <span className="font-semibold">Amount Owed: </span>
-                  <span className="text-lg font-bold text-red-600">
-                    ₹{selectedUserBalance ? Math.abs(selectedUserBalance.current_balance).toLocaleString() : Math.abs(selectedUser.balance).toLocaleString()}
-                  </span>
-                  <span className="text-xs text-gray-500 ml-2">
-                    {selectedUserBalance?.balance_meaning || '(Amount the shop owes this user or is owed by buyer)'}
-                  </span>
-                </div>
+          <div className="flex items-center gap-4 flex-1">
+            <BalanceCard
+              userName={getUserDisplayWithRoleAndId(selectedUser)}
+              userRole={selectedUser.role as 'farmer' | 'buyer' | 'shop_owner'}
+              balance={selectedUserBalance?.current_balance ?? selectedUser.balance ?? 0}
+              lastUpdated={selectedUserBalance ? new Date() : undefined}
+              showDetails={false}
+              className="w-full"
+            />
           </div>
         )}
       </div>
@@ -427,36 +428,13 @@ const BalanceManagement: React.FC<BalanceManagementProps> = () => {
       )}
       
       {/* Summary Cards - Only Receivables and Payables */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <TrendingDown className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Receivables (from Buyers)</p>
-                <p className="text-2xl font-bold text-blue-600 break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]" style={{overflowWrap: 'anywhere'}} title={users.filter(u => u.role === 'buyer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}>
-                  ₹{users.filter(u => u.role === 'buyer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500">(Amount buyers owe to shop)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Wallet className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Payables (to Farmers)</p>
-                <p className="text-2xl font-bold text-red-600 break-words truncate max-w-[12ch] md:max-w-[20ch] lg:max-w-[28ch]" style={{overflowWrap: 'anywhere'}} title={allUsers.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}>
-                  ₹{allUsers.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0).toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500">(Amount shop owes to farmers)</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <BalanceSummary
+        totalReceivables={users.filter(u => u.role === 'buyer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0)}
+        totalPayables={allUsers.filter(u => u.role === 'farmer' && u.balance > 0).reduce((sum, u) => sum + u.balance, 0)}
+        totalUsers={allUsers.length}
+        farmersCount={allUsers.filter(u => u.role === 'farmer').length}
+        buyersCount={allUsers.filter(u => u.role === 'buyer').length}
+      />
 
       {/* Enhanced Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

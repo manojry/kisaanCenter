@@ -23,8 +23,12 @@ const dbDialect = process.env.DB_DIALECT || 'postgres';
 const dbName = process.env.NODE_ENV === 'test' 
   ? (process.env.DB_NAME_TEST || 'kisaan_test')
   : (process.env.DB_NAME || 'kisaan_dev');
-const dbUser = process.env.DB_USER || 'postgres';
-const dbPassword = process.env.DB_PASSWORD || '';
+const dbUser = process.env.NODE_ENV === 'test' 
+  ? (process.env.DB_TEST_USER || process.env.DB_USER || 'postgres')
+  : (process.env.DB_USER || 'postgres');
+const dbPassword = process.env.NODE_ENV === 'test' 
+  ? (process.env.DB_TEST_PASSWORD || process.env.DB_PASSWORD || '')
+  : (process.env.DB_PASSWORD || '');
 const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = parseInt(process.env.DB_PORT || '5432');
 const sslMode = process.env.DB_SSL_MODE || '';

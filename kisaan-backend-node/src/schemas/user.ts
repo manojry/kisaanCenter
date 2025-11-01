@@ -29,14 +29,23 @@ export const UserCreateSchema = UserBaseSchema.extend({
     created_by: z.number().int().optional().nullable(),
     firstname: z.string().min(1).max(64), // required
 }).superRefine((data, ctx) => {
-  // Superadmin can create: superadmin, owner
-  // Owner can create: farmer, buyer (with shop_id)
-  if ((data.role === 'farmer' || data.role === 'buyer') && (!data.shop_id || isNaN(Number(data.shop_id)))) {
+  // Owner/Superadmin: shop_id must be null
+  if ((data.role === 'owner' || data.role === 'superadmin') && data.shop_id !== null && data.shop_id !== undefined) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'shop_id is required for farmer and buyer users',
+      code: 'custom',
+      message: `${data.role} users cannot have a shop_id`,
       path: ['shop_id'],
     });
+  }
+  // Farmer/Buyer: shop_id MUST be provided and valid
+  if ((data.role === 'farmer' || data.role === 'buyer')) {
+    if (!data.shop_id || Number.isNaN(Number(data.shop_id))) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'shop_id is required for farmer and buyer users',
+        path: ['shop_id'],
+      });
+    }
   }
 });
 
@@ -59,6 +68,7 @@ export const UserSearchSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().int().optional()
   ),
+  status: UserStatusEnum.optional(),
   page: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? 1 : Number(val)),
     z.number().int().min(1).default(1)

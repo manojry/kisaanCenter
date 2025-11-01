@@ -3,6 +3,7 @@ import { Shop } from '../src/models/shop';
 import { Transaction } from '../src/models/transaction';
 import { PaymentService } from '../src/services/paymentService';
 import { ExpenseRepository } from '../src/repositories/ExpenseRepository';
+import * as expenseService from '../src/services/expenseService';
 import sequelize from '../src/config/database';
 
 // Integration tests that exercise partial payments, later settlement, and expense flows.
@@ -38,6 +39,107 @@ const RUN_INTEGRATION = process.env.USE_TEST_DB === '1';
     }
     await sequelize.close();
   });
+
+  test('expense creation should NOT increase farmer balance (fixes double-counting bug)', async () => {
+    // Create a separate farmer for this test to avoid interference
+    const testFarmer = await User.create({
+      username: `farmer_balance_test_${Date.now()}`,
+      password: 'p',
+      role: UserRole.Farmer,
+      shop_id: shop!.id,
+      balance: 1000, // Start with positive balance (earnings)
+      cumulative_value: 0
+    } as any, { transaction: tx as any });
+    createdIds.users.push(testFarmer.id as number);
+
+    const farmerBalanceBefore = Number(testFarmer.balance || 0);
+
+    // Create an expense using the service (not repository) to test the fix
+    const expense = await expenseService.createExpense({
+      shop_id: shop!.id,
+      user_id: testFarmer.id,
+      amount: 300,
+      type: 'transport',
+      description: 'Balance test expense'
+    }, { tx: tx as any });
+
+    createdIds.expenses.push(expense.id);
+
+    // Fetch farmer balance after expense creation
+    const farmerAfter = await User.findByPk(testFarmer.id, { transaction: tx as any });
+    const farmerBalanceAfter = Number(farmerAfter!.balance || 0);
+
+    // Balance should NOT have increased (fixes double-counting bug)
+    expect(farmerBalanceAfter).toBe(farmerBalanceBefore);
+  }, 20000);
+
+  test('manual expense settlement should increase farmer balance (fixes missing balance updates)', async () => {
+    // Create a separate farmer for this test
+    const testFarmer = await User.create({
+      username: `farmer_settlement_test_${Date.now()}`,
+      password: 'p',
+      role: UserRole.Farmer,
+      shop_id: shop!.id,
+      balance: 500, // Start with some earnings
+      cumulative_value: 0
+    } as any, { transaction: tx as any });
+    createdIds.users.push(testFarmer.id as number);
+
+    const farmerBalanceBefore = Number(testFarmer.balance || 0);
+
+    // Create an expense
+    const expense = await expenseService.createExpense({
+      shop_id: shop!.id,
+      user_id: testFarmer.id,
+      amount: 200,
+      type: 'equipment',
+      description: 'Settlement test expense'
+    }, { tx: tx as any });
+
+    createdIds.expenses.push(expense.id);
+
+    // Manually settle the full expense
+    const settlement = await expenseService.settleExpense(expense.id, { tx: tx as any });
+
+    // Farmer balance should increase by the settled amount (debt reduction)
+    const farmerAfter = await User.findByPk(testFarmer.id, { transaction: tx as any });
+    const expectedBalance = farmerBalanceBefore + 200;
+    expect(Number(farmerAfter!.balance || 0)).toBeCloseTo(expectedBalance, 2);
+  }, 20000);
+
+  test('partial expense settlement should increase farmer balance proportionally', async () => {
+    // Create a separate farmer for this test
+    const testFarmer = await User.create({
+      username: `farmer_partial_test_${Date.now()}`,
+      password: 'p',
+      role: UserRole.Farmer,
+      shop_id: shop!.id,
+      balance: 300,
+      cumulative_value: 0
+    } as any, { transaction: tx as any });
+    createdIds.users.push(testFarmer.id as number);
+
+    const farmerBalanceBefore = Number(testFarmer.balance || 0);
+
+    // Create an expense
+    const expense = await expenseService.createExpense({
+      shop_id: shop!.id,
+      user_id: testFarmer.id,
+      amount: 400,
+      type: 'maintenance',
+      description: 'Partial settlement test expense'
+    }, { tx: tx as any });
+
+    createdIds.expenses.push(expense.id);
+
+    // Settle partial amount (150 out of 400)
+    const settlement = await expenseService.settleExpenseAmount(expense.id, 150, undefined, { tx: tx as any });
+
+    // Farmer balance should increase by the settled amount
+    const farmerAfter = await User.findByPk(testFarmer.id, { transaction: tx as any });
+    const expectedBalance = farmerBalanceBefore + 150;
+    expect(Number(farmerAfter!.balance || 0)).toBeCloseTo(expectedBalance, 2);
+  }, 20000);
 
   test('partial buyer payment realizes proportional commission; later payment completes allocation', async () => {
     // Create owner, shop, farmer, buyer
@@ -105,7 +207,7 @@ const RUN_INTEGRATION = process.env.USE_TEST_DB === '1';
   const expense = await expenseRepo.create({ shop_id: shop!.id, user_id: farmer!.id, amount: 500, type: 'advance', description: 'integration test expense' } as any, { tx: tx as any });
   if (expense && (expense as any).id) createdIds.expenses.push(Number((expense as any).id));
 
-    // Farmer balance should increase by 500 (farmer owes)
+    // Farmer balance before expense creation and settlement
   const farmerBefore = await User.findByPk(farmer!.id!, { transaction: tx as any });
     expect(farmerBefore).not.toBeNull();
     const farmerBalBefore = Number(farmerBefore!.balance || 0);
@@ -129,7 +231,8 @@ const RUN_INTEGRATION = process.env.USE_TEST_DB === '1';
   const farmerAfter = await User.findByPk(farmer!.id!, { transaction: tx as any });
     const farmerBalAfter = Number(farmerAfter!.balance || 0);
 
-    // farmer balance should have reduced (less owed) by close to 500 after FIFO settlement
-    expect(farmerBalAfter).toBeGreaterThanOrEqual(farmerBalBefore - 0.01);
+    // farmer balance should INCREASE (debt reduction) by close to 500 after FIFO settlement
+    // This validates that expense settlement properly updates farmer balance
+    expect(farmerBalAfter).toBeCloseTo(farmerBalBefore + 500, 1);
   }, 20000);
 });

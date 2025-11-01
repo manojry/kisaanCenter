@@ -77,10 +77,10 @@ export const PAYMENT_ENDPOINTS = {
 } as const;
 
 export const BALANCE_ENDPOINTS = {
-  BASE: '/balance',
-  USER: (id: Id) => `/balance/user/${id}`,
-  SHOP: (id: Id) => `/balance/shop/${id}`,
-  UPDATE: '/balance/update',
+  BASE: '/balances',
+  USER: (id: Id) => `/balances/user/${id}`,
+  SHOP: (id: Id) => `/balances/shop/${id}`,
+  UPDATE: '/balances/update',
   SNAPSHOTS: '/balance-snapshots',
   SNAPSHOTS_BY_USER: (id: Id) => `/balance-snapshots/user/${id}`
 } as const;
