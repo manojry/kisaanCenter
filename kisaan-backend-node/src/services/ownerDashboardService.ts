@@ -99,13 +99,31 @@ export class OwnerDashboardService {
       const buyer_payments_due = Number(Math.max(buyerTransactionBasedDue - bookkeepingBuyerTotal, 0).toFixed(2));
       const farmer_payments_due = Number(Math.max(farmerTransactionBasedDue - bookkeepingFarmerTotal, 0).toFixed(2));
 
-      // Minimal commission metric (kept simple for now)
-      const commission_realized = 0;
+      // Compute today's metrics
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayTransactions = transactions.filter(t => {
+        const createdAt = t.created_at ? new Date(t.created_at) : null;
+        const transactionDate = t.transaction_date ? new Date(t.transaction_date) : null;
+        // Use transaction_date if available, otherwise created_at
+        const dateToCheck = transactionDate || createdAt;
+        return dateToCheck && dateToCheck >= today && dateToCheck < tomorrow;
+      });
+
+      const today_sales = todayTransactions.reduce((sum, t) => sum + Number(t.total_amount || 0), 0);
+      const today_transactions = todayTransactions.length;
+      const today_commission = todayTransactions.reduce((sum, t) => sum + Number(t.commission_amount || 0), 0);
+
+      // Calculate total commission realized from all transactions
+      const commission_realized = transactions.reduce((sum, t) => sum + Number(t.commission_amount || 0), 0);
 
       const result = {
-        today_sales: 0,
-        today_transactions: 0,
-        today_commission: 0,
+        today_sales,
+        today_transactions,
+        today_commission,
         buyer_total_spent,
         farmer_total_earned,
         buyer_payments_due,
