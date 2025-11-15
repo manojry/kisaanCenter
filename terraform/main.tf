@@ -36,7 +36,7 @@ variable "bastion_user_password" {
   description = "Password for the bastion host user (will be stored in Key Vault)"
   type        = string
   sensitive   = true
-  default     = "yd2A4TKG1d7J"  # This will be stored securely in Key Vault, not in state
+  default     = "yd2A4TKG1d7J"  # dummy value placeholder
 }
 
 # Generate random suffix for unique naming
