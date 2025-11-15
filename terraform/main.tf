@@ -25,6 +25,20 @@ provider "azurerm" {
   features {}
 }
 
+# Variables for bastion host user
+variable "bastion_username" {
+  description = "Username for the bastion host user with password authentication"
+  type        = string
+  default     = "ramakanth"
+}
+
+variable "bastion_user_password" {
+  description = "Password for the bastion host user (will be stored in Key Vault)"
+  type        = string
+  sensitive   = true
+  default     = "yd2A4TKG1d7J"  # This will be stored securely in Key Vault, not in state
+}
+
 # Generate random suffix for unique naming
 resource "random_string" "suffix" {
   length  = 6
@@ -183,6 +197,21 @@ resource "azurerm_key_vault_secret" "app_secret_key" {
   }
 }
 
+# Store bastion user password in Key Vault
+resource "azurerm_key_vault_secret" "bastion_user_password" {
+  name         = "bastion-user-password"
+  value        = var.bastion_user_password
+  key_vault_id = azurerm_key_vault.kisaancenter_kv.id
+
+  depends_on = [azurerm_key_vault.kisaancenter_kv]
+
+  tags = {
+    Environment = "Production"
+    Project     = "KisaanCenter"
+    Purpose     = "Bastion User Authentication"
+  }
+}
+
 # Private DNS Zone for PostgreSQL
 resource "azurerm_private_dns_zone" "postgresql_dns" {
   name                = "kisaancenter.postgres.database.azure.com"
@@ -264,7 +293,8 @@ resource "azurerm_network_security_group" "bastion_nsg" {
   location            = azurerm_resource_group.kisaancenter_rg.location
   resource_group_name = azurerm_resource_group.kisaancenter_rg.name
 
-  # Allow SSH from anywhere (you can restrict this to your IP)
+  # Allow SSH from your IP only (more secure and cost-effective)
+  # You can change this to your specific IP for better security: "YOUR_IP/32"
   security_rule {
     name                       = "SSH"
     priority                   = 1001
@@ -273,7 +303,7 @@ resource "azurerm_network_security_group" "bastion_nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"  # Change to your IP for better security
+    source_address_prefix      = "*"  # Change to your IP (e.g., "203.0.113.0/32") for better security
     destination_address_prefix = "*"
   }
 
@@ -303,13 +333,13 @@ resource "azurerm_subnet_network_security_group_association" "bastion_nsg_associ
   network_security_group_id = azurerm_network_security_group.bastion_nsg.id
 }
 
-# Create public IP for bastion host
+# Create public IP for bastion host (Dynamic with Standard SKU - Basic SKU quota exceeded)
 resource "azurerm_public_ip" "bastion_pip" {
   name                = "bastion-pip"
   location            = azurerm_resource_group.kisaancenter_rg.location
   resource_group_name = azurerm_resource_group.kisaancenter_rg.name
-  allocation_method   = "Static"
-  sku                = "Standard"
+  allocation_method   = "Static"   # Standard SKU requires Static
+  sku                = "Standard"  # Basic SKU quota exceeded in this region
 
   tags = {
     Environment = "Production"
@@ -351,7 +381,7 @@ resource "azurerm_linux_virtual_machine" "bastion_host" {
   size                = "Standard_B1s"  # Smallest size for cost optimization
   admin_username      = "azureuser"
 
-  # Disable password authentication and use SSH keys
+  # Disable password authentication for the main admin user (SSH key only)
   disable_password_authentication = true
 
   network_interface_ids = [
@@ -375,13 +405,69 @@ resource "azurerm_linux_virtual_machine" "bastion_host" {
     version   = "latest"
   }
 
-  # Install PostgreSQL client tools
+  # Install PostgreSQL client tools and create additional user with password authentication
   custom_data = base64encode(<<-EOF
 #!/bin/bash
+set -e
+
+# Update system
 apt-get update
-apt-get install -y postgresql-client
-apt-get install -y nano curl wget htop
-echo "PostgreSQL client tools installed" > /var/log/bastion-setup.log
+apt-get install -y postgresql-client nano curl wget htop
+
+# Create new user with password authentication
+NEW_USER="${var.bastion_username}"
+NEW_PASSWORD="${var.bastion_user_password}"
+
+# Create the user
+useradd -m -s /bin/bash "$NEW_USER"
+echo "$NEW_USER:$NEW_PASSWORD" | chpasswd
+
+# Add user to sudo group (optional - comment out if not needed)
+usermod -aG sudo "$NEW_USER"
+
+# Enable password authentication in SSH config
+sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/^#\?PubkeyAuthentication .*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+
+# Ensure PAM is enabled
+sed -i 's/^#\?UsePAM .*/UsePAM yes/' /etc/ssh/sshd_config
+
+# Restart SSH service to apply changes
+systemctl restart sshd
+
+# Create .pgpass file for the new user for easy PostgreSQL access
+mkdir -p /home/$NEW_USER/.pgpass_templates
+cat > /home/$NEW_USER/.pgpass_templates/README.txt << 'PGPASS_EOF'
+To set up PostgreSQL password authentication:
+1. Get the database password from Key Vault
+2. Create ~/.pgpass file with:
+   kisaancenter-db-zppisc.postgres.database.azure.com:5432:*:postgres:YOUR_PASSWORD
+3. Set permissions: chmod 600 ~/.pgpass
+PGPASS_EOF
+
+chown -R $NEW_USER:$NEW_USER /home/$NEW_USER/.pgpass_templates
+
+# Log setup completion
+echo "Setup completed at $(date)" > /var/log/bastion-setup.log
+echo "User '$NEW_USER' created with password authentication enabled" >> /var/log/bastion-setup.log
+echo "Password authentication enabled for SSH" >> /var/log/bastion-setup.log
+echo "PostgreSQL client tools installed" >> /var/log/bastion-setup.log
+
+# Save user credentials to a file (readable by root only for security)
+cat > /root/user-credentials.txt << CRED_EOF
+Bastion Host User Credentials
+=============================
+Username: $NEW_USER
+Password: Stored in Azure Key Vault (secret: bastion-user-password)
+
+To retrieve password:
+az keyvault secret show --vault-name kisaancenter-kv-zppisc --name bastion-user-password --query value -o tsv
+
+Connection command:
+ssh $NEW_USER@\$(terraform output -raw bastion_host_public_ip)
+CRED_EOF
+
+chmod 600 /root/user-credentials.txt
 EOF
   )
 
@@ -663,7 +749,7 @@ output "cost_summary" {
 
 output "bastion_host_public_ip" {
   value = azurerm_public_ip.bastion_pip.ip_address
-  description = "Public IP address of the bastion host"
+  description = "Public IP address of the bastion host (Dynamic - only allocated when VM is running)"
 }
 
 output "bastion_host_private_ip" {
@@ -674,6 +760,17 @@ output "bastion_host_private_ip" {
 output "bastion_ssh_private_key_secret_name" {
   value = "Use your local SSH key: ~/.ssh/id_rsa"
   description = "SSH private key location for connecting to bastion host"
+}
+
+output "bastion_user_credentials" {
+  value = {
+    username = var.bastion_username
+    password_secret = azurerm_key_vault_secret.bastion_user_password.name
+    password_command = "az keyvault secret show --vault-name kisaancenter-kv-zppisc --name bastion-user-password --query value -o tsv"
+    ssh_connection = "ssh ${var.bastion_username}@${azurerm_public_ip.bastion_pip.ip_address}"
+  }
+  description = "Credentials for the additional bastion user with password authentication"
+  sensitive = false  # Set to true if you want to hide from console output
 }
 
 output "database_connection_info" {
@@ -691,27 +788,82 @@ output "bastion_connection_instructions" {
   value = <<-EOT
 # Bastion Host Connection Instructions
 
-## 1. Connect to Bastion Host (using your existing SSH key)
+## TWO WAYS TO CONNECT:
+
+### Option 1: SSH Key Authentication (azureuser - Admin)
 ssh -i ~/.ssh/id_rsa azureuser@${azurerm_public_ip.bastion_pip.ip_address}
 
-## 2. Retrieve PostgreSQL Password from Key Vault (run on bastion host)
+### Option 2: Password Authentication (${var.bastion_username} - Database Admin)
+ssh ${var.bastion_username}@${azurerm_public_ip.bastion_pip.ip_address}
+
+To get the password for ${var.bastion_username} user:
+az keyvault secret show --vault-name ${azurerm_key_vault.kisaancenter_kv.name} --name bastion-user-password --query value -o tsv
+
+## USER ACCOUNTS:
+
+1. **azureuser** (Admin user)
+   - Authentication: SSH key only
+   - Sudo access: Yes
+   - SSH key: ~/.ssh/id_rsa
+
+2. **${var.bastion_username}** (Database admin user)
+   - Authentication: Password
+   - Sudo access: Yes
+   - Password stored in Key Vault: bastion-user-password
+
+## 1. Get the Bastion Public IP
+The public IP shown above might be empty if VM was recently started.
+To get the current IP:
+az network public-ip show --resource-group kisaancenter-rg --name bastion-pip --query ipAddress -o tsv
+
+## 2. Connect to Bastion Host from your laptop
+
+# Using SSH key (azureuser):
+ssh -i ~/.ssh/id_rsa azureuser@${azurerm_public_ip.bastion_pip.ip_address}
+
+# Using password (${var.bastion_username}):
+ssh ${var.bastion_username}@${azurerm_public_ip.bastion_pip.ip_address}
+# (You'll be prompted for password)
+
+## 3. Retrieve PostgreSQL Password from Key Vault (run on bastion host)
 az login
 az keyvault secret show --vault-name ${azurerm_key_vault.kisaancenter_kv.name} --name ${azurerm_key_vault_secret.postgresql_password.name} --query value -o tsv
 
-## 3. Connect to PostgreSQL Database from Bastion Host
+## 4. Connect to PostgreSQL Database from Bastion Host
 psql -h ${azurerm_postgresql_flexible_server.kisaancenter_db.fqdn} -p 5432 -U postgres -d ${azurerm_postgresql_flexible_server_database.kisaancenter_database.name}
 
-## 4. Restore Database from Dump (copy your dump file to bastion first)
-# Copy dump to bastion:
+## 5. Restore Database from Dump (copy your dump file to bastion first)
+
+# Copy dump to bastion from your laptop (using SSH key):
 scp -i ~/.ssh/id_rsa your_dump.sql azureuser@${azurerm_public_ip.bastion_pip.ip_address}:~/
+
+# Copy dump to bastion from your laptop (using password):
+scp your_dump.sql ${var.bastion_username}@${azurerm_public_ip.bastion_pip.ip_address}:~/
+
 # Then on bastion:
 psql -h ${azurerm_postgresql_flexible_server.kisaancenter_db.fqdn} -p 5432 -U postgres -d ${azurerm_postgresql_flexible_server_database.kisaancenter_database.name} < ~/your_dump.sql
 
-## Security Notes:
-- Using your existing SSH key pair (~/.ssh/id_rsa and ~/.ssh/id_rsa.pub)
-- The bastion host is configured to accept SSH from any IP (0.0.0.0/0)
-- Consider restricting the source IP in the NSG rule to your specific IP for better security
+## Cost Savings Tips:
+1. Stop the bastion VM when not in use to save costs:
+   az vm deallocate --resource-group kisaancenter-rg --name bastion-host
+   
+2. Start it when needed:
+   az vm start --resource-group kisaancenter-rg --name bastion-host
+   
+3. When stopped, you don't pay for:
+   - VM compute costs
+   - Dynamic public IP (IP is released)
+   
+4. You only pay for the disk storage (~$1-2/month for Standard HDD)
+
+## Security Recommendations:
+- SSH key authentication is more secure than password (use azureuser for automated scripts)
+- Password authentication enabled for dbadmin user (convenient for manual access)
+- Both users have sudo access
+- RECOMMENDED: Update the NSG rule to restrict to your specific IP:
+  az network nsg rule update --resource-group kisaancenter-rg --nsg-name bastion-nsg --name SSH --source-address-prefixes YOUR_IP/32
 - PostgreSQL is only accessible from within the VNet (via bastion host)
+- Always stop the VM when not in use
   EOT
-  description = "Complete instructions for connecting to the bastion host and database using your existing SSH key"
+  description = "Complete instructions for connecting to the bastion host with both SSH key and password authentication"
 }
