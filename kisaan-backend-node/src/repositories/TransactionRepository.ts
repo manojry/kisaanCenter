@@ -96,7 +96,7 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     
 
     
-    const { rows, count } = await this.model.findAndCountAll({ 
+    const { rows, count } = await this.safeFindAndCountAll({ 
       where, 
       limit, 
       offset, 
@@ -162,6 +162,29 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
       return entity;
     });
     return { rows: rowsWithPayments, count };
+  }
+
+  // Wrap the findAndCountAll call to handle older SQLite schemas missing `total_amount`
+  // (This mirrors the defensive pattern used in findByShop).
+  private async safeFindAndCountAll(options: Record<string, unknown>) {
+    try {
+      return await this.model.findAndCountAll(options as any);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('no such column') && msg.includes('total_amount')) {
+        // Retry without selecting total_amount (explicit attribute list)
+        const safeOptions = { ...options } as any;
+        safeOptions.attributes = [
+          'id','shop_id','farmer_id','buyer_id','category_id','product_name','quantity','unit_price','total_sale_value','shop_commission','farmer_earning','product_id','commission_type','status','transaction_date','settlement_date','notes','created_at','updated_at'
+        ];
+        // Remove order by total_amount if present
+        if (Array.isArray(safeOptions.order)) {
+          safeOptions.order = (safeOptions.order as any[]).filter((o: any) => !(Array.isArray(o) && o[0] === 'total_amount'));
+        }
+        return await this.model.findAndCountAll(safeOptions as any);
+      }
+      throw err;
+    }
   }
 
   /**
@@ -248,7 +271,9 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
     const { User } = await import('../models/user');
     const { Shop } = await import('../models/shop');
     // Patch: Allow shop_id comparison as string or number
-    const models = await this.model.findAll({
+    let models: Transaction[];
+    try {
+      models = await this.model.findAll({
       where: {
         [Op.or]: [
           { shop_id: shopId },
@@ -276,7 +301,46 @@ export class TransactionRepository extends BaseRepository<Transaction, Transacti
         }
       ],
       order: [['created_at', 'DESC']]
-    });
+      });
+    } catch (err: unknown) {
+      // Handle SQLite missing column error (e.g., commission_rate missing on older local DB)
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('no such column') && msg.includes('commission_rate')) {
+        // Retry with a safe attribute list that excludes commission_rate
+        models = await this.model.findAll({
+          attributes: ['id','shop_id','farmer_id','buyer_id','category_id','product_name','quantity','unit_price','total_sale_value','shop_commission','farmer_earning','product_id','commission_type','status','transaction_date','settlement_date','notes','created_at','updated_at'],
+          where: {
+            [Op.or]: [
+              { shop_id: shopId },
+              { shop_id: String(shopId) }
+            ]
+          },
+          include: [
+            {
+              model: User,
+              as: 'farmer',
+              attributes: ['id', 'username', 'firstname'],
+              required: false
+            },
+            {
+              model: User,
+              as: 'buyer',
+              attributes: ['id', 'username', 'firstname'],
+              required: false
+            },
+            {
+              model: Shop,
+              as: 'transactionShop',
+              attributes: ['id', 'name'],
+              required: false
+            }
+          ],
+          order: [['created_at', 'DESC']]
+        });
+      } else {
+        throw err;
+      }
+    }
 
     return models.map((model) => this.toDomainEntity(model));
   }

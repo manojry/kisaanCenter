@@ -18,6 +18,7 @@ import { PaymentAllocation } from '../models/paymentAllocation';
 import { TransactionStatus } from '../shared/enums';
 import { sequelize } from '../models/index';
 import { LedgerService } from './ledgerService';
+import { logger } from '../shared/logging/logger';
 // ...existing code...
 
 export class TransactionService {
@@ -1136,6 +1137,8 @@ export class TransactionService {
       if (error instanceof AuthorizationError) {
         throw error;
       }
+      // Log database error details for debugging
+      try { logger.error({ err: error }, 'Error in getTransactionsByShop'); } catch (_e) { void _e; }
       throw new DatabaseError('Failed to retrieve shop transactions', error instanceof Error ? { message: error.message } : undefined);
     }
   }

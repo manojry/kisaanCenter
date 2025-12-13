@@ -60,18 +60,28 @@ export class ApiRegistry {
         }
         console.log(`📝 Registering route: ${path}`);
         app.use(path, router as express.Router);
-        if (router && (router as express.Router).stack) {
-          for (const layer of (router as express.Router).stack) {
-            if (layer.route && layer.route.path) {
-              // @ts-expect-error Express types do not expose 'methods' property
-              for (const method of Object.keys(layer.route.methods)) {
-                this._endpoints.push({
-                  method: method.toUpperCase(),
-                  path: path + (layer.route.path === '/' ? '' : layer.route.path)
-                });
+        let added = false;
+        try {
+          if (router && (router as express.Router).stack) {
+            for (const layer of (router as express.Router).stack) {
+              if (layer.route && layer.route.path) {
+                // @ts-expect-error Express types do not expose 'methods' property
+                for (const method of Object.keys(layer.route.methods)) {
+                  this._endpoints.push({
+                    method: method.toUpperCase(),
+                    path: path + (layer.route.path === '/' ? '' : layer.route.path)
+                  });
+                  added = true;
+                }
               }
             }
           }
+        } catch (e) {
+          // Fallback: if we couldn't introspect the router, add a generic GET/POST entry for the base path
+        }
+        if (!added) {
+          this._endpoints.push({ method: 'GET', path });
+          this._endpoints.push({ method: 'POST', path });
         }
       };
 
@@ -186,7 +196,7 @@ export class ApiRegistry {
   }
 
   getAllEndpoints() {
-    return [];
+    return this._endpoints.slice();
   }
 
   getOpenApiSpec() {

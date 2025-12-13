@@ -48,7 +48,8 @@ export default function Expenses() {
     { value: 'transport', label: 'Transport' },
     { value: 'advance', label: 'Advance' }
   ];
-  const transactionStore = useTransactionStore();
+  const transactionStoreGetUsers = useTransactionStore(state => state.getUsers);
+  const transactionStoreSetUsers = useTransactionStore(state => state.setUsers);
   const { toast } = useToast();
   const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
@@ -137,23 +138,24 @@ export default function Expenses() {
 
     useEffect(() => {
       // Load users into transaction store when storeShop changes
+      // Use selector functions to avoid re-running due to store object identity changes
       if (storeShop?.id) {
         const shopIdStr = String(storeShop.id);
-        let users = transactionStore.getUsers(shopIdStr);
+        let users = transactionStoreGetUsers(shopIdStr);
         if (!users || users.length === 0) {
           (async () => {
-            // You should use a users API here, but keeping logic as is
-            const usersRes: unknown = await expenseApi.getExpenses(storeShop.id); // Replace with getUsers API if available
+            // Ideally use a dedicated users API here; using expenses API as fallback
+            const usersRes: unknown = await expenseApi.getExpenses(storeShop.id);
             if (usersRes && typeof usersRes === 'object' && 'data' in usersRes && Array.isArray((usersRes as { data?: unknown[] }).data)) {
               users = (usersRes as { data?: import('../types/api').User[] }).data || [];
             } else {
               users = [];
             }
-            transactionStore.setUsers(shopIdStr, users);
+            transactionStoreSetUsers(shopIdStr, users);
           })();
         }
       }
-    }, [storeShop?.id, transactionStore]);
+    }, [storeShop?.id, transactionStoreGetUsers, transactionStoreSetUsers]);
 
     // Set storeShop when user changes
     useEffect(() => {

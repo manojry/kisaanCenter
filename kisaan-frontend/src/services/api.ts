@@ -379,8 +379,14 @@ export const transactionsApi = {
     limit?: number;
   }): Promise<PaginatedResponse<Transaction>> => {
     const qs = buildQueryString(params);
-  const raw = await apiClient.get<ApiResponse<Transaction[]>>(`${TRANSACTION_ENDPOINTS.BASE}${qs}`);
-  return normalizeListResponse<Transaction>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  try {
+    const raw = await apiClient.get<ApiResponse<Transaction[]>>(`${TRANSACTION_ENDPOINTS.BASE}${qs}`);
+    return normalizeListResponse<Transaction>(raw, { keys: ['data'], limit: params?.limit, page: params?.page });
+  } catch (err: unknown) {
+    // Network or server error - provide a clear message for UI
+    const msg = err instanceof Error ? err.message : 'Server error';
+    throw new Error(`Unable to load transactions: ${msg}`);
+  }
   },
   
   getById: (id: number): Promise<ApiResponse<Transaction>> =>

@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS kisaan_transactions (
     quantity REAL NOT NULL,
     unit_price REAL NOT NULL,
     total_sale_value REAL NOT NULL,
+    total_amount REAL NOT NULL DEFAULT 0,
+    commission_amount REAL,
     shop_commission REAL NOT NULL,
     farmer_earning REAL NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
