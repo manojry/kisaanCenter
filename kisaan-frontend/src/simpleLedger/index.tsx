@@ -6,11 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
 import { BookOpen, Plus } from 'lucide-react';
+// note: no additional imports
+import { UserSearchDropdown } from '../components/ui/UserSearchDropdown';
+import { exportLedgerCsv } from './api';
+// no extra imports
 
 const SimpleLedger: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'entries' | 'summary'>('entries');
   const [refreshTrigger, setRefreshTrigger] = useState(false);
+  const [selectedFarmer, setSelectedFarmer] = useState<number | null>(null);
+  const [fromDate, setFromDate] = useState<string | undefined>(undefined);
+  const [toDate, setToDate] = useState<string | undefined>(undefined);
 
   const handleEntryAdded = () => {
     setShowForm(false);
@@ -25,6 +32,35 @@ const SimpleLedger: React.FC = () => {
           <h1 className="text-3xl font-bold">Simple Farmer Ledger</h1>
         </div>
         <p className="text-gray-600">Track credit and debit entries for farmers</p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 mb-3">
+        <div className="flex-1">
+          <UserSearchDropdown onSelect={(u:any)=> setSelectedFarmer(u?.id ?? null)} roleFilter="farmer" placeholder="Filter by farmer" />
+        </div>
+        <div className="flex gap-2">
+          <input type="date" value={fromDate ?? ''} onChange={e=> setFromDate(e.target.value || undefined)} className="border px-2 py-1 rounded" />
+          <input type="date" value={toDate ?? ''} onChange={e=> setToDate(e.target.value || undefined)} className="border px-2 py-1 rounded" />
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={async ()=>{
+            // CSV export
+            try {
+              const blob = await exportLedgerCsv(1, selectedFarmer ?? undefined, fromDate, toDate);
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
+              a.download = `ledger-${d}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            } catch (err) {
+              console.error('Export failed', err);
+            }
+          }}>Export CSV</Button>
+          <Button onClick={()=> window.print()} variant="outline">Print / PDF</Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)} className="w-full">
@@ -51,7 +87,7 @@ const SimpleLedger: React.FC = () => {
               </CardContent>
             </Card>
           )}
-          <LedgerList refreshTrigger={refreshTrigger} />
+          <LedgerList refreshTrigger={refreshTrigger} farmerId={selectedFarmer ?? undefined} from={fromDate} to={toDate} />
         </TabsContent>
 
         {/* Summary Tab */}

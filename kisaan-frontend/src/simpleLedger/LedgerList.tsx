@@ -22,15 +22,17 @@ interface LedgerEntry {
 
 interface LedgerListProps {
   refreshTrigger?: boolean;
+  farmerId?: number;
+  from?: string;
+  to?: string;
 }
 
-const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
+const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false, farmerId, from, to }) => {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const shopId = 1;
-  const farmerId = undefined;
   const getUsersForShop = useTransactionStore(state => state.getUsers);
   const setUsersForShop = useTransactionStore(state => state.setUsers);
 
@@ -54,7 +56,7 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchLedgerEntries(shopId, farmerId);
+        const data = await fetchLedgerEntries(shopId, farmerId ?? undefined, from ?? undefined, to ?? undefined);
         setEntries(Array.isArray(data) ? data : []);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to fetch ledger entries');
@@ -64,7 +66,7 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
       }
     };
     loadEntries();
-  }, [shopId, farmerId, refreshTrigger]);
+  }, [shopId, farmerId, from, to, refreshTrigger]);
 
   return (
     <Card>
