@@ -4,6 +4,9 @@ import { logger } from './shared/logging/logger';
 import sequelize from './config/database';
 import './models'; // Import models to ensure they're initialized
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+
 dotenv.config();
 
 const PORT = process.env.API_PORT || process.env.PORT || 8000;
@@ -16,9 +19,17 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
     
-    // Skip auto-sync to avoid schema conflicts
-    // Use manual migrations instead: npm run migrate
-    console.log('✅ Database models loaded (manual migration required).');
+    // Create schema from schema.sqlite.sql for SQLite
+    let schemaPath;
+    if (process.env.DB_DIALECT === 'sqlite') {
+      schemaPath = path.join(__dirname, '..', '..', 'local-sqlite-setup', 'schema.sqlite.sql');
+    } else {
+      schemaPath = path.join(__dirname, '..', 'schema', 'unified-schema.sql');
+    }
+    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    console.log('🔄 Creating database schema from', schemaPath);
+    await sequelize.query(schemaSQL);
+    console.log('✅ Database schema created.');
     
     // Start the server
     const server = app.listen(PORT, () => {

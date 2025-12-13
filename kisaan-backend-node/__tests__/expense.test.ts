@@ -1,6 +1,6 @@
 import request from 'supertest';
-
-const BASE = process.env.API_BASE || 'http://localhost:8000/api';
+import { API_BASE } from './testConfig';
+const BASE = API_BASE;
 
 // These tests assume the server is running and the test user exists (use real credentials in .env if needed)
 

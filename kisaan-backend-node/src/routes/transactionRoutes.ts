@@ -151,8 +151,8 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     const [dailyResults] = await sequelize.query(`
       SELECT 
         DATE(created_at) as date,
-  SUM(total_amount) as total_sales,
-  SUM(commission_amount) as total_commission
+  SUM(total_sale_value) as total_sales,
+  SUM(shop_commission) as total_commission
       FROM kisaan_transactions
       ${whereClause}
       GROUP BY DATE(created_at)
@@ -163,15 +163,15 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     const [aggResults] = await sequelize.query(`
       SELECT 
         COUNT(*) as total_transactions,
-  SUM(total_amount) as total_sales,
-  SUM(commission_amount) as total_commission,
+  SUM(total_sale_value) as total_sales,
+  SUM(shop_commission) as total_commission,
         SUM(farmer_earning) as total_farmer_earnings
       FROM kisaan_transactions
       ${whereClause}
     `, { replacements: params });
     // Calculate status_summary for chart: total sales (paid), pending to farmer, pending from buyer
     const [totalSalesResult] = await sequelize.query(`
-  SELECT COALESCE(SUM(total_amount),0) as total_sales FROM kisaan_transactions ${whereClause}
+  SELECT COALESCE(SUM(total_sale_value),0) as total_sales FROM kisaan_transactions ${whereClause}
     `, { replacements: params });
     const total_sales = Number((Array.isArray(totalSalesResult) ? totalSalesResult[0]?.total_sales : 0) || 0);
 
@@ -185,7 +185,7 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
       FROM kisaan_transactions t
       LEFT JOIN (
         SELECT pa.transaction_id, SUM(pa.allocated_amount) as alloc
-        FROM kisaan_payment_allocations pa
+        FROM payment_allocations pa
         JOIN kisaan_payments p ON pa.payment_id = p.id
         WHERE p.status = 'PAID' AND p.payer_type = 'SHOP' AND p.payee_type = 'FARMER'
         GROUP BY pa.transaction_id
@@ -199,16 +199,21 @@ router.get('/analytics', authenticateToken, loadFeatures, requireFeature('transa
     // Count unlinked shop->farmer paid amounts (payments recorded without transaction_id)
     // Compute unlinked paid: payments without transaction_id minus any allocations recorded against those payments
     const [unlinkedShopToFarmer] = await sequelize.query(`
-      SELECT COALESCE(SUM(COALESCE(p.amount,0) - COALESCE(p.allocated_amount,0)),0) as unlinked_paid
+      SELECT COALESCE(SUM(COALESCE(p.amount,0) - COALESCE(a.allocated,0)),0) as unlinked_paid
       FROM kisaan_payments p
+      LEFT JOIN (
+        SELECT payment_id, SUM(allocated_amount) as allocated
+        FROM payment_allocations
+        GROUP BY payment_id
+      ) a ON p.id = a.payment_id
       WHERE p.payer_type = 'SHOP' AND p.payee_type = 'FARMER' AND p.status = 'PAID' AND p.transaction_id IS NULL
       ${shop_id ? ' AND p.shop_id = ?' : ''}
     `, { replacements: shop_id ? [shop_id] : [] });
     const unlinked_paid_to_farmer = Number((Array.isArray(unlinkedShopToFarmer) ? unlinkedShopToFarmer[0]?.unlinked_paid : unlinkedShopToFarmer?.unlinked_paid) || 0);
 
-  // 3. Pending payments from buyer (sum of total_amount - paid by buyer)
+  // 3. Pending payments from buyer (sum of total_sale_value - paid by buyer)
     const [pendingFromBuyerResult] = await sequelize.query(`
-  SELECT COALESCE(SUM(t.total_amount - COALESCE(p.paid,0)),0) as pending_from_buyer
+  SELECT COALESCE(SUM(t.total_sale_value - COALESCE(p.paid,0)),0) as pending_from_buyer
       FROM kisaan_transactions t
       LEFT JOIN (
         SELECT transaction_id, SUM(amount) as paid

@@ -130,37 +130,13 @@ class ApiClient {
 
       // Show error toast if enabled (default: true for errors)
       if (config?.showErrorToast !== false) {
-        if (response.status === 401) {
-          toastService.authError(config?.errorMessage || 'Authentication required');
-        } else if (response.status === 403) {
-          // Check for token expiration in error message/code
-          let expiredOrInvalid = false;
-          if (typeof data === 'object' && data !== null) {
-            const maybeData = data as { message?: string; error?: string };
-            expiredOrInvalid = !!(
-              (maybeData.message && (
-                maybeData.message.toLowerCase().includes('token expired') ||
-                maybeData.message.toLowerCase().includes('jwt expired') ||
-                maybeData.message.toLowerCase().includes('invalid token')
-              )) ||
-              (maybeData.error && (
-                maybeData.error.toLowerCase().includes('token expired') ||
-                maybeData.error.toLowerCase().includes('jwt expired') ||
-                maybeData.error.toLowerCase().includes('invalid token')
-              ))
-            );
-          }
-          if (expiredOrInvalid) {
-            // Clear session and redirect to login
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('token');
-            toastService.authError('Session expired or invalid token, please log in again.');
-            setTimeout(() => {
-              window.location.href = '/login';
-            }, 1500);
-          } else {
-            toastService.permissionError(config?.errorMessage || 'Access denied');
-          }
+        if (response.status === 401 || response.status === 403) {
+          // Always show the backend error message in a toast for debug
+          toastService.authError(`[${response.status}] ${errorMessage}`);
+          // Delay redirect to login so user can see the error
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 3000);
         } else if (response.status >= 500) {
           toastService.networkError(config?.errorMessage || 'Server error occurred');
         } else {

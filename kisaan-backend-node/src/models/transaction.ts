@@ -15,9 +15,12 @@ export interface TransactionAttributes {
   product_name: string;
   quantity: number;
   unit_price: number;
-  total_amount: number;
-  commission_amount: number;
+  total_sale_value: number;  // Database column name: total_sale_value
+  shop_commission: number;   // Database column name: shop_commission (not commission_amount)
   farmer_earning: number;
+  // Legacy aliases for backward compatibility
+  total_amount?: number;
+  commission_amount?: number;
   product_id?: number | null;
   commission_rate?: number | null;
   commission_type?: string | null;
@@ -47,9 +50,12 @@ export class Transaction extends Model<TransactionAttributes, TransactionCreatio
   public product_name!: string;
   public quantity!: number;
   public unit_price!: number;
-  public total_amount!: number;
-  public commission_amount!: number;
+  public total_sale_value!: number;
+  public shop_commission!: number;
   public farmer_earning!: number;
+  // Legacy aliases
+  public get total_amount(): number { return this.total_sale_value; }
+  public get commission_amount(): number { return this.shop_commission; }
   public product_id?: number | null;
   public commission_rate?: number | null;
   public commission_type?: string | null;
@@ -79,8 +85,8 @@ Transaction.init(
     product_name: { type: DataTypes.STRING(255), allowNull: false },
     quantity: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     unit_price: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
-    total_amount: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
-    commission_amount: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    total_sale_value: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
+    shop_commission: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     farmer_earning: { type: DataTypes.DECIMAL(12,2), allowNull: false, validate: { min: 0 } },
     product_id: { type: DataTypes.BIGINT, allowNull: true, references: { model: 'kisaan_products', key: 'id' } },
     commission_rate: { type: DataTypes.DECIMAL(6,4), allowNull: true },

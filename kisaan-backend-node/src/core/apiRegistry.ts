@@ -105,6 +105,11 @@ export class ApiRegistry {
         register('/api/simple', routes.simplifiedRoutes);
         console.log('✅ Simplified transaction routes registered at /api/simple');
       }
+      // Simple Farmer Ledger Book-Keeping
+      if (routes.simpleFarmerLedgerRoutes) {
+        register('/api/simple-ledger', routes.simpleFarmerLedgerRoutes);
+        console.log('✅ Simple Farmer Ledger routes registered at /api/simple-ledger');
+      }
       // Diagnostics routes (commission integrity)
       try {
         // Remove require statements here, use imported modules above

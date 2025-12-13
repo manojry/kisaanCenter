@@ -44,12 +44,22 @@ export const authenticateToken = async (
       return;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { 
-      id: number; 
-      username: string; 
-      role: UserRole; 
-      shop_id?: number | null;
-    };
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as {
+        id: number;
+        username: string;
+        role: UserRole;
+        shop_id?: number | null;
+      };
+    } catch (jwtError) {
+      // eslint-disable-next-line no-console
+      console.error('[AUTH ERROR] JWT verification failed:', jwtError instanceof Error ? jwtError.message : String(jwtError));
+      req.user = undefined;
+      failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
+      return;
+    }
+
     // Fetch fresh user data to ensure user still exists and is active
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] },
@@ -71,8 +81,10 @@ export const authenticateToken = async (
 
     next();
   } catch (error) {
-  req.user = undefined;
-  failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
+    // eslint-disable-next-line no-console
+    console.error('[AUTH ERROR] Unexpected error in authenticateToken:', error instanceof Error ? error.message : String(error));
+    req.user = undefined;
+    failureCode(res, 403, ErrorCodes.INVALID_TOKEN, undefined, 'Invalid token');
   }
 };
 

@@ -49,7 +49,6 @@ export default function Expenses() {
     { value: 'advance', label: 'Advance' }
   ];
   const transactionStore = useTransactionStore();
-  useUsers();
   const { toast } = useToast();
   const { user } = useAuth();
   const storeShop = useTransactionStore(state => state.shop);
@@ -134,6 +133,10 @@ export default function Expenses() {
           status: 'active'
         });
       }
+    }, [user?.shop_id, user?.id, storeShop]);
+
+    useEffect(() => {
+      // Load users into transaction store when storeShop changes
       if (storeShop?.id) {
         const shopIdStr = String(storeShop.id);
         let users = transactionStore.getUsers(shopIdStr);
@@ -150,7 +153,7 @@ export default function Expenses() {
           })();
         }
       }
-    }, [storeShop]);
+    }, [storeShop?.id, transactionStore]);
 
     // Set storeShop when user changes
     useEffect(() => {
@@ -211,7 +214,7 @@ export default function Expenses() {
       return () => {
         if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
       };
-    }, [storeShop?.id, activeTab, refreshFlag]);
+    }, [storeShop?.id, activeTab, refreshFlag, fetchData]);
 
     // Add Expense
     const handleAddExpense = async () => {

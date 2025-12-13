@@ -5,7 +5,7 @@
   "main": "dist/src/server.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "npm run migrate && ts-node src/server.ts",
+    "dev": "ts-node src/server.ts",
     "dev:local": "dotenv -e .env.local ts-node src/server.ts",
     "build": "tsc",
     "test": "jest --runInBand",
@@ -20,6 +20,7 @@
     "schema:prepare": "node schema/schema-manager.js prepare",
     "db:setup": "npm run schema:init",
     "db:setup:local": "npm run schema:init:local",
+    "db:setup:sqlite": "ts-node scripts/setup-sqlite.ts",
     "db:bootstrap": "ts-node scripts/db-bootstrap.ts --minimal-seed",
     "db:bootstrap:local": "dotenv -e .env.local ts-node scripts/db-bootstrap.ts --minimal-seed",
     "db:bootstrap:full": "ts-node scripts/db-bootstrap.ts --full-seed",
@@ -37,6 +38,7 @@
   },
   "dependencies": {
     "@types/sequelize": "^4.28.20",
+    "@types/yup": "^0.29.14",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
@@ -54,7 +56,9 @@
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.2",
     "sequelize": "^6.37.7",
+    "sqlite3": "^5.1.7",
     "uuid": "^9.0.1",
+    "yup": "^1.7.1",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -70,11 +74,13 @@
     "@types/pdfkit": "^0.17.3",
     "@types/pg": "^8.10.9",
     "@types/pino": "^7.0.4",
+    "@types/sqlite3": "^3.1.11",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "axios": "^1.12.1",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8.56.0",
     "jest": "^29.6.1",
     "supertest": "^6.3.3",

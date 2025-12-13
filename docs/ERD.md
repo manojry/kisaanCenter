@@ -37,16 +37,33 @@ erDiagram
   Shop ||--o{ PlanUsage : "shop_id"
   Plan ||--o{ PlanUsage : "plan_id"
 
-  %% Potential / Missing explicit associations
-  Transaction ||--o{ PaymentAllocation : "transaction_id" %% (now associated)
-  Payment ||--o{ PaymentAllocation : "payment_id" %% (now associated)
-  Transaction ||--o{ TransactionLedger : "transaction_id" %% (now associated)
-  User ||--o{ TransactionLedger : "user_id" %% (now associated)
-  User ||--o{ BalanceSnapshot : "user_id" %% (now associated)
-  Transaction ||--o{ TransactionIdempotency : "transaction_id" %% (now associated)
-  Shop ||--o{ TransactionIdempotency : "shop_id" %% (now associated)
-  User ||--o{ TransactionIdempotency : "buyer_id/farmer_id" %% (now associated)
+  Transaction ||--o{ PaymentAllocation : "transaction_id"
+  Payment ||--o{ PaymentAllocation : "payment_id"
+  Transaction ||--o{ TransactionLedger : "transaction_id"
+  User ||--o{ TransactionLedger : "user_id"
+  User ||--o{ BalanceSnapshot : "user_id"
+  Transaction ||--o{ TransactionIdempotency : "transaction_id"
+  Shop ||--o{ TransactionIdempotency : "shop_id"
+  User ||--o{ TransactionIdempotency : "buyer_id/farmer_id"
+
+  Shop ||--o{ SimpleFarmerLedger : "shop_id"
+  User ||--o{ SimpleFarmerLedger : "farmer_id"
 ```
+
+### SimpleFarmerLedger (simple_farmer_ledger)
+- PK: id
+- FK: shop_id -> kisaan_shops(id)
+- FK: farmer_id -> kisaan_users(id)
+- amount: DECIMAL(12,2)
+- type: credit/debit (direction)
+- category: sale/expense/withdrawal/other
+- notes: TEXT
+- created_at: timestamp
+- created_by: FK to kisaan_users(id) (must be shop owner or employee; NOT farmer)
+
+#### Access Control
+- Only shop owner/employee can create, edit, or delete entries (created_by enforced)
+- Farmer can only view (read-only) their own ledger entries and balance
 
 ## Table Notes
 ### Plan (kisaan_plans)

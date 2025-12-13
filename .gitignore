@@ -3,6 +3,9 @@
 backend/src/db/.env
 db/__pycache__/
 seeds/__pycache__/
+# SQLite artifacts
+*.sqlite
+kisaan-backend-node/data/
 # Python cache files
 __pycache__/
 *.pyc

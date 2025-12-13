@@ -8,15 +8,18 @@
 // =============================================
 
 import { Sequelize } from 'sequelize';
+
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
-// Load .env from project root - handle both dev and production paths
-const envPath = process.env.NODE_ENV === 'production' 
-  ? path.resolve(__dirname, '../../../.env') 
-  : path.resolve(__dirname, '../../.env');
+// Prefer .env.local for local development, fallback to .env
+let envPath = path.resolve(__dirname, '../../.env');
+const envLocalPath = path.resolve(__dirname, '../../.env.local');
+if (fs.existsSync(envLocalPath)) {
+  envPath = envLocalPath;
+}
 dotenv.config({ path: envPath });
-
 console.log('[ENV] Loading from:', envPath);
 
 const dbDialect = process.env.DB_DIALECT || 'postgres';
@@ -44,21 +47,37 @@ console.log('[DB CONFIG] Environment variables loaded:', {
   ENV_PATH: envPath
 });
 
-const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
-  host: dbHost,
-  port: dbPort,
-  dialect: dbDialect as 'postgres' | 'mysql' | 'mariadb' | 'sqlite' | 'mssql',
-  logging: false,
-  ...(sslMode === 'require'
-    ? {
-        dialectOptions: {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false,
+let sequelize: Sequelize;
+
+if (dbDialect === 'sqlite') {
+  const sqliteStorage = process.env.DB_STORAGE
+    ? path.resolve(process.cwd(), process.env.DB_STORAGE)
+    : path.resolve(__dirname, '../../data/kisaan-local.sqlite');
+
+  console.log('[DB CONFIG] Using SQLite storage at:', sqliteStorage);
+
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: sqliteStorage,
+    logging: false,
+  });
+} else {
+  sequelize = new Sequelize(dbName, dbUser, dbPassword, {
+    host: dbHost,
+    port: dbPort,
+    dialect: dbDialect as 'postgres' | 'mysql' | 'mariadb' | 'sqlite' | 'mssql',
+    logging: false,
+    ...(sslMode === 'require'
+      ? {
+          dialectOptions: {
+            ssl: {
+              require: true,
+              rejectUnauthorized: false,
+            },
           },
-        },
-      }
-    : {}),
-});
+        }
+      : {}),
+  });
+}
 
 export default sequelize;

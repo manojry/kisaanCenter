@@ -16,17 +16,18 @@ export const getSuperadminDashboard = async (req: Request, res: Response) => {
     const activeUsers = totalUsers;
 
     // Get aggregated revenue (sum only, no individual transactions)
+    // Note: Database uses total_sale_value and shop_commission columns
     const revenueResultRaw = await Transaction.findOne({
       attributes: [
-        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_amount')), 'totalRevenue'],
-        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('commission_amount')), 'totalCommission']
+        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('total_sale_value')), 'totalRevenue'],
+        [Transaction.sequelize!.fn('SUM', Transaction.sequelize!.col('shop_commission')), 'totalCommission']
       ],
       raw: true
     });
     let totalRevenue = 0;
     let totalCommission = 0;
     if (revenueResultRaw && typeof revenueResultRaw === 'object') {
-  const tr = (revenueResultRaw as unknown as Record<string, unknown>);
+      const tr = (revenueResultRaw as unknown as Record<string, unknown>);
       totalRevenue = Number(tr['totalRevenue'] ?? 0);
       totalCommission = Number(tr['totalCommission'] ?? 0);
     }

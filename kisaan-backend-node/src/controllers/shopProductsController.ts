@@ -148,15 +148,16 @@ export const getShopProducts = async (req: Request, res: Response) => {
   try {
     const shopIdParam = req.params.id;
     const shopId = parseId(shopIdParam, 'shop id');
-    const [results] = await sequelize.query(
-  `SELECT p.*, sp.is_active as is_active, c.name as category_name, json_build_object('id', c.id, 'name', c.name) as category
-   FROM kisaan_products p
-   INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
-   LEFT JOIN kisaan_categories c ON p.category_id = c.id
-   WHERE sp.shop_id = :shopId AND sp.is_active = true
-   ORDER BY p.name`,
-      { replacements: { shopId } }
-    );
+    // Use json_object for SQLite, json_build_object for Postgres
+    const dbDialect = (sequelize.getDialect && sequelize.getDialect()) || process.env.DB_DIALECT || 'postgres';
+    const jsonObjectFn = dbDialect === 'sqlite' ? "json_object('id', c.id, 'name', c.name)" : "json_build_object('id', c.id, 'name', c.name)";
+    const query = `SELECT p.*, sp.is_active as is_active, c.name as category_name, ${jsonObjectFn} as category
+      FROM kisaan_products p
+      INNER JOIN kisaan_shop_products sp ON p.id = sp.product_id
+      LEFT JOIN kisaan_categories c ON p.category_id = c.id
+      WHERE sp.shop_id = :shopId AND sp.is_active = true
+      ORDER BY p.name`;
+    const [results] = await sequelize.query(query, { replacements: { shopId } });
     return success(res, Array.isArray(results) ? results : [], { message: 'Shop products retrieved', meta: { count: Array.isArray(results) ? results.length : 0 } });
   } catch (error: unknown) {
     req.log?.error({ err: error }, 'shopProducts:list failed');

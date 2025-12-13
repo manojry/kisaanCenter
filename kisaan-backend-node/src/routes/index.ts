@@ -27,6 +27,8 @@ import { balanceRoutes } from './balanceRoutes';
 import { productRoutes } from './productRoutes';
 import { creditRoutes } from './creditRoutes';
 
+
+import simpleFarmerLedgerRoutes from './simpleFarmerLedgerRoutes';
 import simplifiedRoutes from './simplifiedRoutes';
 
 export {
@@ -56,7 +58,8 @@ export {
   debugRoutes,
   creditAdvanceRoutes,
   balanceReconciliationRoutes,
-  simplifiedRoutes
+  simplifiedRoutes,
+  simpleFarmerLedgerRoutes
 };
 
 export default {

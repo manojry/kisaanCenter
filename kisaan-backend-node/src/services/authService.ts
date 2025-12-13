@@ -41,7 +41,6 @@ export class AuthService {
 
       // Find user by username
       const user = await this.userRepository.findByUsername(sanitizedUsername);
-      console.log('[DEBUG] User found for login:', user);
       if (!user) {
         throw new AuthorizationError('Invalid username or password');
       }
@@ -53,7 +52,6 @@ export class AuthService {
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log('[DEBUG] Password valid:', isPasswordValid);
       if (!isPasswordValid) {
         throw new AuthorizationError('Invalid username or password');
       }

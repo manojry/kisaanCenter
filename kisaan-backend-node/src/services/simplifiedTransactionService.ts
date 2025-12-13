@@ -57,11 +57,11 @@ export class SimplifiedTransactionService {
       product_name: data.product_name,
       quantity: data.quantity,
       unit_price: data.unit_price,
-      total_amount,
-      commission_amount,
+      total_sale_value: total_amount,
+      shop_commission: commission_amount,
       farmer_earning,
       commission_rate,
-  status: TransactionStatus.Pending,
+      status: TransactionStatus.Pending,
       transaction_date: data.transaction_date || new Date()
     });
     

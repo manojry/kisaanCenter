@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -32,6 +33,7 @@ import { AppLayout } from './components/Layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import OwnerSettings from './pages/OwnerSettings';
 import { Toaster } from './components/ui/toaster';
+import SimpleLedger from './simpleLedger';
 import TransactionManagementOptimized from './pages/TransactionManagementOptimized';
 
 // Protected Route Component
@@ -129,6 +131,11 @@ const AppRoutes = () => {
         <Route path="/settings" element={
           <ProtectedRoute allowedRoles={['owner']}>
             <OwnerSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/simple-ledger" element={
+          <ProtectedRoute allowedRoles={['owner']}>
+            <SimpleLedger />
           </ProtectedRoute>
         } />
         <Route path="/simple-transactions" element={

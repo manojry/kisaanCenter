@@ -20,12 +20,21 @@ module.exports = {
       `);
     }
 
-    // Add allocated_amount column to kisaan_payments for quick reads if missing
+    // Add allocated_amount column to kisaan_payments for quick reads if missing (cross-dialect)
     const paymentDesc = await queryInterface.describeTable('kisaan_payments');
     if (!paymentDesc['allocated_amount']) {
-      await queryInterface.sequelize.query(
-        `ALTER TABLE kisaan_payments ADD COLUMN IF NOT EXISTS allocated_amount DECIMAL(15,2) DEFAULT 0;`
-      );
+      const dialect = queryInterface.sequelize.getDialect();
+      if (dialect === 'sqlite') {
+        // SQLite does not support IF NOT EXISTS, just add if missing
+        await queryInterface.sequelize.query(
+          `ALTER TABLE kisaan_payments ADD COLUMN allocated_amount DECIMAL(15,2) DEFAULT 0;`
+        );
+      } else {
+        // Postgres/MySQL
+        await queryInterface.sequelize.query(
+          `ALTER TABLE kisaan_payments ADD COLUMN IF NOT EXISTS allocated_amount DECIMAL(15,2) DEFAULT 0;`
+        );
+      }
     }
   },
   down: async (queryInterface: QueryInterface): Promise<void> => {

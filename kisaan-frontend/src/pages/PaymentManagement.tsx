@@ -33,14 +33,8 @@ const PaymentManagement: React.FC = () => {
   if (!isAuthenticated || !hasRole('owner')) {
     return <div className="p-8 text-center text-red-600 font-bold">Unauthorized: Only owners can access this page.</div>;
   }
-  const { users, refreshUsers } = useUsers();
+  const { users } = useUsers();
 
-  // Ensure users are fetched for the dropdown
-  useEffect(() => {
-    if (isAuthenticated && hasRole('owner')) {
-      refreshUsers();
-    }
-  }, [isAuthenticated, refreshUsers]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   // Remove top-level role filter; direction is chosen inline based on selected user
   const [searchRole] = useState<'farmer' | 'buyer' | 'all'>('all');
