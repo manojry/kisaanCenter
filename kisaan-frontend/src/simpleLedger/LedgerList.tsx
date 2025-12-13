@@ -11,6 +11,8 @@ interface LedgerEntry {
   shop_id: number;
   farmer_id: number;
   amount: number;
+  commission_amount?: number;
+  net_amount?: number;
   type: string;
   category: string;
   notes?: string;
@@ -103,6 +105,8 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
                   <TableCell className="font-semibold">Date</TableCell>
                   <TableCell className="font-semibold">Type</TableCell>
                   <TableCell className="font-semibold">Category</TableCell>
+                  <TableCell className="font-semibold text-right">Commission</TableCell>
+                  <TableCell className="font-semibold text-right">Net</TableCell>
                   <TableCell className="font-semibold text-right">Amount</TableCell>
                   <TableCell className="font-semibold">Notes</TableCell>
                 </TableRow>
@@ -114,7 +118,7 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
                       {(() => {
                         const users = getUsersForShop(String(entry.shop_id)) || [];
                         const u = users.find((us: any) => us.id === entry.farmer_id);
-                        return u ? (u.username || u.name || `#${u.id}`) : `#${entry.farmer_id}`;
+                        return u ? (u.username || u.firstname || `#${u.id}`) : `#${entry.farmer_id}`;
                       })()}
                     </TableCell>
 
@@ -129,6 +133,8 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
                       </span>
                     </TableCell>
                     <TableCell className="text-sm">{entry.category}</TableCell>
+                    <TableCell className="text-right font-medium text-gray-700">{entry.commission_amount != null ? `₹${entry.commission_amount.toFixed(2)}` : '—'}</TableCell>
+                    <TableCell className="text-right font-medium text-gray-700">{entry.net_amount != null ? `₹${entry.net_amount.toFixed(2)}` : '—'}</TableCell>
                     <TableCell className="text-right font-semibold">
                       <span className={entry.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
                         {entry.type === 'credit' ? '+' : '−'}₹{entry.amount.toFixed(2)}

@@ -14,7 +14,7 @@ interface LedgerFormProps {
 const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     type: 'debit',
-    category: 'expense',
+    category: 'sale',
     amount: '',
     notes: ''
   });
@@ -24,7 +24,7 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
   const [error, setError] = useState<string | null>(null);
 
   const ledgerTypes = ['credit', 'debit'];
-  const ledgerCategories = ['expense', 'advance', 'purchase', 'other'];
+  const ledgerCategories = ['sale', 'expense', 'withdrawal', 'other'];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -66,7 +66,7 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
         notes: formData.notes,
         created_by: user?.id
       });
-      setFormData({ type: 'debit', category: 'expense', amount: '', notes: '' });
+      setFormData({ type: 'debit', category: 'sale', amount: '', notes: '' });
       setSelectedFarmer(null);
       onSuccess?.();
     } catch (err) {
