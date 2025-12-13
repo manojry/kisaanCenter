@@ -128,7 +128,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onSuccess, onCancel, editUse
           password: currentUser?.role === 'superadmin' ? formData.password : 'kisaan@123',
           email: currentUser?.role === 'superadmin' ? formData.email : 'contact@kisaancenter.com',
           balance: formData.balance || 0,
-          shop_id: formData.role === 'owner' ? formData.shop_id : (currentUser?.shop_id || undefined)
+          shop_id: currentUser?.shop_id
         };
         if (currentUser?.role !== 'superadmin') {
           delete createData.status;

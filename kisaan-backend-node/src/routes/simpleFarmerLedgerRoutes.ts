@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import * as controller from '../controllers/simpleFarmerLedgerController';
-import { authMiddleware, shopAccessGuard, farmerReadOnlyGuard } from '../middleware/accessGuards';
+import { authenticateToken } from '../middlewares/auth';
+import { shopAccessGuard, farmerReadOnlyGuard } from '../middleware/accessGuards';
 
 const router = Router();
 
 // All routes require authentication
-router.use(authMiddleware);
+router.use(authenticateToken);
 
 // Create, update, delete require shop owner/employee
 router.post('/', shopAccessGuard, controller.createEntry);

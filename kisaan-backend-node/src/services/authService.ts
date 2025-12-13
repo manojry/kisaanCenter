@@ -56,12 +56,25 @@ export class AuthService {
         throw new AuthorizationError('Invalid username or password');
       }
 
-      // Fetch shop name if shop_id exists
+      // --- FIX: For owners, if shop_id is null, look up their shop and set shop_id ---
+      let shopId = user.shop_id;
       let shopName: string | null = null;
-      if (user.shop_id) {
+      if (user.role === 'owner' && (!shopId || shopId === null)) {
         try {
           const { Shop } = await import('../models/shop');
-          const shop = await Shop.findByPk(user.shop_id);
+          // Ensure owner_id is always a number for the query
+          const shop = await Shop.findOne({ where: { owner_id: Number(user.id) } });
+          if (shop) {
+            shopId = shop.id;
+            shopName = shop.name;
+          }
+        } catch (err) {
+          console.error('Error fetching owner shop for login:', err);
+        }
+      } else if (shopId) {
+        try {
+          const { Shop } = await import('../models/shop');
+          const shop = await Shop.findByPk(shopId);
           shopName = shop ? shop.name : null;
         } catch (err) {
           console.error('Error fetching shop name:', err);
@@ -74,7 +87,7 @@ export class AuthService {
           id: user.id,
           username: user.username,
           role: user.role,
-          shop_id: user.shop_id
+          shop_id: shopId ?? null
         },
         JWT_SECRET
       );
@@ -85,7 +98,7 @@ export class AuthService {
           id: user.id!,
           username: user.username,
           role: user.role,
-          shop_id: user.shop_id,
+          shop_id: shopId ?? null,
           firstname: user.firstname ?? '',
           shop_name: shopName
         }

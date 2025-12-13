@@ -404,10 +404,50 @@ const SuperadminUsers: React.FC = () => {
         </CardHeader>
         <CardContent>
           {owners.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No owners found</p>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Shop ID</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>#{user.id}</TableCell>
+                    <TableCell>{getUserDisplayName(user)}</TableCell>
+                    <TableCell><Badge className={getRoleColor(user.role)}>{user.role}</Badge></TableCell>
+                    <TableCell>{user.contact || '-'}</TableCell>
+                    <TableCell>{user.email || '-'}</TableCell>
+                    <TableCell>{user.shop_id ? `#${user.shop_id}` : '-'}</TableCell>
+                    <TableCell>{formatCurrency(user.balance)}</TableCell>
+                    <TableCell><Badge className={getStatusColor(user.status)}>{user.status}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setEditingUser(user)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setShowPasswordReset(user)} className="text-blue-600 hover:text-blue-700" title="Reset Password">
+                          <Key className="w-4 h-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-700">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
+            // ...existing code for owners with shop_id...
             <Table>
               <TableHeader>
                 <TableRow>

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import type { User } from '../types/api';
+import { UserSearchDropdown } from '../components/ui/UserSearchDropdown';
 import { Button } from '../components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { createLedgerEntry } from './api';
@@ -15,6 +17,7 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
     amount: '',
     notes: ''
   });
+  const [selectedFarmer, setSelectedFarmer] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,25 +34,37 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
+    setError(null);
+    if (!selectedFarmer) {
+      setError('Please select a farmer');
+      return;
+    }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       setError('Amount must be greater than 0');
+      return;
+    }
+    if (selectedFarmer.shop_id === undefined || selectedFarmer.shop_id === null) {
+      setError('Selected farmer does not have a valid shop_id');
+      return;
+    }
+    if (selectedFarmer.id === undefined || selectedFarmer.id === null) {
+      setError('Selected farmer does not have a valid id');
       return;
     }
 
     setLoading(true);
     try {
       await createLedgerEntry({
-        shop_id: 1,
-        farmer_id: 1,
+        shop_id: Number(selectedFarmer.shop_id),
+        farmer_id: Number(selectedFarmer.id),
         type: formData.type,
         category: formData.category,
         amount: parseFloat(formData.amount),
         notes: formData.notes
       });
-
       setFormData({ type: 'debit', category: 'expense', amount: '', notes: '' });
+      setSelectedFarmer(null);
       onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -66,6 +81,18 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
           {error}
         </div>
       )}
+
+      <div>
+        <label className="block text-sm font-semibold mb-2">Select Farmer <span className="text-red-500">*</span></label>
+        <UserSearchDropdown
+          onSelect={setSelectedFarmer}
+          roleFilter="farmer"
+          placeholder="Search farmer by name or contact"
+        />
+        {selectedFarmer && (
+          <div className="mt-1 text-green-700 text-xs">Selected: {selectedFarmer.username} (ID: {selectedFarmer.id})</div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>

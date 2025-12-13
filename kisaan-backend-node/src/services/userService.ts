@@ -144,18 +144,23 @@ export const getAllUsers = async (
     result = await userRepo.findAllPaginated(searchParams.page, searchParams.limit, filters);
   }
 
-  // Convert to DTOs
-  const users = await Promise.all(result.users.map(async (entity) => await toUserDTO(entity)));
-
-  // Backend log for debugging
-  console.log('[USER_SERVICE] getAllUsers', {
-    query: searchParams,
-    requestingUser,
-    totalFound: result.total,
-    usersReturned: users.length,
-    page: searchParams.page,
-    limit: searchParams.limit
-  });
+  const users = await Promise.all(result.users.map(async (entity) => {
+    let userDTO = await toUserDTO(entity);
+    // Case-insensitive check for owner role
+    if (typeof userDTO.role === 'string' && userDTO.role.toLowerCase() === 'owner' && (!userDTO.shop_id || userDTO.shop_id === null)) {
+      try {
+        const { Shop } = await import('../models/shop');
+        const shop = await Shop.findOne({ where: { owner_id: Number(userDTO.id) } });
+        if (shop) {
+          userDTO = { ...userDTO, shop_id: shop.id };
+          entity.shop_id = shop.id;
+        }
+      } catch (err) {
+        // log error but continue
+      }
+    }
+    return userDTO;
+  }));
 
   return { users, total: result.total, page: searchParams.page, limit: searchParams.limit };
 };

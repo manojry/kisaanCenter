@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { shopProductsApi } from '../services/api';
+import type { Shop } from '../types/api';
 import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -30,8 +32,20 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
     role: '',
     contact: '',
     email: '',
-    commission_rate: ''
+    commission_rate: '',
+    shop_id: ''
   });
+  const [shops, setShops] = useState<Shop[]>([]);
+  const [shopsLoading, setShopsLoading] = useState(false);
+    // Load shops for superadmin
+    useEffect(() => {
+      if ((!user?.shop_id || user.role === 'superadmin') && open) {
+        setShopsLoading(true);
+        shopProductsApi.getShops(user)
+          .then(setShops)
+          .finally(() => setShopsLoading(false));
+      }
+    }, [user, open]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
@@ -57,22 +71,32 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
     setIsLoading(true);
 
     try {
+      // Determine shop_id: owner's shop, or selected shop for superadmin
+      let shop_id = user?.shop_id;
+      if (!shop_id && (formData.role === 'farmer' || formData.role === 'buyer')) {
+        shop_id = formData.shop_id ? Number(formData.shop_id) : undefined;
+      }
+      if ((formData.role === 'farmer' || formData.role === 'buyer') && !shop_id) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please select a shop for the user',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
       const userData = {
         ...formData,
-        shop_id: user?.shop_id,
+        shop_id,
         created_by: user?.id,
         status: 'active',
-        // Convert commission_rate to number if provided, otherwise null
-  commission_rate: formData.commission_rate ? parseFloat(formData.commission_rate) : 10
+        commission_rate: formData.commission_rate ? parseFloat(formData.commission_rate) : 10
       };
-
       await apiClient.post('/users', userData);
-      
       toast({
         title: 'Success',
         description: 'User created successfully',
       });
-      
       reset();
       onSuccess();
       onOpenChange(false);
@@ -140,6 +164,28 @@ export default function AddUserDialog({ open, onOpenChange, onSuccess }: AddUser
               </SelectContent>
             </Select>
           </FormField>
+
+          {/* Shop selection for superadmin or users without shop_id */}
+          {(formData.role === 'farmer' || formData.role === 'buyer') && !user?.shop_id && (
+            <FormField id="shop_id" label="Shop" required>
+              <Select
+                value={formData.shop_id}
+                onValueChange={val => setField('shop_id', val)}
+                disabled={shopsLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={shopsLoading ? 'Loading shops...' : 'Select shop'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {shops.map(shop => (
+                    <SelectItem key={shop.id} value={String(shop.id)}>
+                      {shop.name} (ID: {shop.id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
 
             <FormField id="contact" label="Contact">
               <Input
