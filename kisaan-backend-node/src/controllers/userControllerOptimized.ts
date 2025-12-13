@@ -17,7 +17,7 @@ import {
 interface AuthRequest extends Request {
   user?: {
     id: number;
-    role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+    role: 'superadmin' | 'owner' | 'farmer' | 'buyer' | 'employee';
     shop_id?: number | null;
     username: string;
   };
