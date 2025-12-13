@@ -6,6 +6,8 @@ import './models'; // Import models to ensure they're initialized
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+// Optional programmatic migration runner (safe to require)
+import { runAllMigrations } from '../scripts/run-migration';
 
 dotenv.config();
 
@@ -18,6 +20,18 @@ async function startServer() {
     // Test database connection
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
+
+    // Optionally run migrations programmatically on startup
+    if (String(process.env.RUN_MIGRATIONS_ON_STARTUP).toLowerCase() === 'true') {
+      console.log('🔄 RUN_MIGRATIONS_ON_STARTUP is enabled — running migrations');
+      try {
+        await runAllMigrations();
+        console.log('✅ Programmatic migrations completed');
+      } catch (e) {
+        console.error('✖ Migration run failed on startup:', e instanceof Error ? e.message : e);
+        throw e; // let outer catch handle process exit
+      }
+    }
     
     // Create schema from schema.sqlite.sql for SQLite
     let schemaPath;

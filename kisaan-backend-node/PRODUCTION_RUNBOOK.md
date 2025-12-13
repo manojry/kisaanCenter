@@ -121,3 +121,10 @@ psql kisaan_prod -c "DELETE FROM kisaan_commissions c1 USING kisaan_commissions 
 - [ ] Monitor for 24 hours
 - [ ] Document any issues encountered
 - [ ] Update runbook with lessons learned
+
+## Optional: Run migrations automatically on backend start
+
+- **Env var:** `RUN_MIGRATIONS_ON_STARTUP=true` will cause the backend to run the project's migration runner during process startup.
+- **Recommended:** Prefer running `npm run migrate` as part of your CI/CD deployment pipeline rather than enabling runtime migrations in production. Enabling runtime migrations can cause startup delays and can make rolling back harder if migrations are destructive.
+- **When to enable:** Use `RUN_MIGRATIONS_ON_STARTUP` only for controlled environments (canary/staging) or very small maintenance windows where you accept migrations running during process boot.
+- **Caveat:** The process will fail to start if migrations error; ensure backups and monitoring are in place before enabling.
