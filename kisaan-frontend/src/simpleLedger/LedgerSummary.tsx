@@ -90,7 +90,7 @@ const LedgerSummary: React.FC = () => {
       </div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {/* Total Credit */}
       <Card>
         <CardHeader className="pb-3">
@@ -149,28 +149,47 @@ const LedgerSummary: React.FC = () => {
           {breakdown.length === 0 ? (
             <div className="text-sm text-gray-500">No data for selected period</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500">
-                    <th className="px-2 py-1">Period</th>
-                    <th className="px-2 py-1 text-right">Credit</th>
-                    <th className="px-2 py-1 text-right">Debit</th>
-                    <th className="px-2 py-1 text-right">Net</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {breakdown.map(b => (
-                    <tr key={b.period} className="border-t">
-                      <td className="px-2 py-2">{b.period}</td>
-                      <td className="px-2 py-2 text-right text-green-600">₹{b.credit.toFixed(2)}</td>
-                      <td className="px-2 py-2 text-right text-red-600">₹{b.debit.toFixed(2)}</td>
-                      <td className="px-2 py-2 text-right">₹{(b.credit - b.debit).toFixed(2)}</td>
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500">
+                      <th className="px-2 py-1">Period</th>
+                      <th className="px-2 py-1 text-right">Credit</th>
+                      <th className="px-2 py-1 text-right">Debit</th>
+                      <th className="px-2 py-1 text-right">Net</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {breakdown.map(b => (
+                      <tr key={b.period} className="border-t">
+                        <td className="px-2 py-2">{b.period}</td>
+                        <td className="px-2 py-2 text-right text-green-600">₹{b.credit.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right text-red-600">₹{b.debit.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right">₹{(b.credit - b.debit).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile stacked list */}
+              <div className="md:hidden space-y-2">
+                {breakdown.map(b => (
+                  <div key={b.period} className="p-3 border rounded-lg bg-white">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">{b.period}</div>
+                      <div className="text-sm font-semibold">₹{(b.credit - b.debit).toFixed(2)}</div>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 flex items-center justify-between">
+                      <div className="text-green-600">Credit: ₹{b.credit.toFixed(2)}</div>
+                      <div className="text-red-600">Debit: ₹{b.debit.toFixed(2)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

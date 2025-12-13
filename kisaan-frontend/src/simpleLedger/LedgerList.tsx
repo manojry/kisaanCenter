@@ -97,55 +97,85 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
         )}
 
         {!loading && !error && entries.length > 0 && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableCell className="font-semibold">Farmer</TableCell>
-                  <TableCell className="font-semibold">Date</TableCell>
-                  <TableCell className="font-semibold">Type</TableCell>
-                  <TableCell className="font-semibold">Category</TableCell>
-                  <TableCell className="font-semibold text-right">Commission</TableCell>
-                  <TableCell className="font-semibold text-right">Net</TableCell>
-                  <TableCell className="font-semibold text-right">Amount</TableCell>
-                  <TableCell className="font-semibold">Notes</TableCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-sm">
-                      {(() => {
-                        const users = getUsersForShop(String(entry.shop_id)) || [];
-                        const u = users.find((us: any) => us.id === entry.farmer_id);
-                        return u ? (u.username || u.firstname || `#${u.id}`) : `#${entry.farmer_id}`;
-                      })()}
-                    </TableCell>
-
-                    <TableCell className="text-sm">
-                      {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN') : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        entry.type === 'credit' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {entry.type.charAt(0).toUpperCase() + entry.type.slice(1)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">{entry.category}</TableCell>
-                    <TableCell className="text-right font-medium text-gray-700">{entry.commission_amount != null ? `₹${entry.commission_amount.toFixed(2)}` : '—'}</TableCell>
-                    <TableCell className="text-right font-medium text-gray-700">{entry.net_amount != null ? `₹${entry.net_amount.toFixed(2)}` : '—'}</TableCell>
-                    <TableCell className="text-right font-semibold">
-                      <span className={entry.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
-                        {entry.type === 'credit' ? '+' : '−'}₹{entry.amount.toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">{entry.notes || '—'}</TableCell>
+          <>
+            {/* Desktop / tablet table view */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableCell className="font-semibold">Farmer</TableCell>
+                    <TableCell className="font-semibold">Date</TableCell>
+                    <TableCell className="font-semibold">Type</TableCell>
+                    <TableCell className="font-semibold">Category</TableCell>
+                    <TableCell className="font-semibold text-right">Commission</TableCell>
+                    <TableCell className="font-semibold text-right">Net</TableCell>
+                    <TableCell className="font-semibold text-right">Amount</TableCell>
+                    <TableCell className="font-semibold">Notes</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-sm">
+                        {(() => {
+                          const users = getUsersForShop(String(entry.shop_id)) || [];
+                          const u = users.find((us: any) => us.id === entry.farmer_id);
+                          return u ? (u.username || u.firstname || `#${u.id}`) : `#${entry.farmer_id}`;
+                        })()}
+                      </TableCell>
+
+                      <TableCell className="text-sm">
+                        {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          entry.type === 'credit' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {entry.type.charAt(0).toUpperCase() + entry.type.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">{entry.category}</TableCell>
+                      <TableCell className="text-right font-medium text-gray-700">{entry.commission_amount != null ? `₹${entry.commission_amount.toFixed(2)}` : '—'}</TableCell>
+                      <TableCell className="text-right font-medium text-gray-700">{entry.net_amount != null ? `₹${entry.net_amount.toFixed(2)}` : '—'}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        <span className={entry.type === 'credit' ? 'text-green-600' : 'text-red-600'}>
+                          {entry.type === 'credit' ? '+' : '−'}₹{entry.amount.toFixed(2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">{entry.notes || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile compact card list */}
+            <div className="md:hidden space-y-3">
+              {entries.map(entry => (
+                <div key={entry.id} className="border rounded-lg p-3 bg-white shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          const users = getUsersForShop(String(entry.shop_id)) || [];
+                          const u = users.find((us: any) => us.id === entry.farmer_id);
+                          return u ? (u.username || u.firstname || `#${u.id}`) : `#${entry.farmer_id}`;
+                        })()}
+                      </div>
+                      <div className="text-xs text-gray-500">{entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN') : '—'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-semibold ${entry.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                        {entry.type === 'credit' ? '+' : '−'}₹{entry.amount.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-gray-500">{entry.category}</div>
+                    </div>
+                  </div>
+                  {entry.notes && <div className="mt-2 text-xs text-gray-600">{entry.notes}</div>}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

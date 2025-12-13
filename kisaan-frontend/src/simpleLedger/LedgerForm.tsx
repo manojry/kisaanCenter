@@ -97,7 +97,7 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold mb-2">Type</label>
           <select
@@ -158,11 +158,11 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
         />
       </div>
 
-      <div className="flex gap-2 pt-4">
-        <Button type="submit" disabled={loading} className="flex-1">
+      <div className="flex flex-col sm:flex-row gap-2 pt-4">
+        <Button type="submit" disabled={loading} className="w-full sm:flex-1">
           {loading ? 'Adding...' : 'Add Entry'}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:flex-1">
           Cancel
         </Button>
       </div>
