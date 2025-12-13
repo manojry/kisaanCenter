@@ -4,6 +4,7 @@ import { UserSearchDropdown } from '../components/ui/UserSearchDropdown';
 import { Button } from '../components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { createLedgerEntry } from './api';
+import { useAuth } from '../context/AuthContext';
 
 interface LedgerFormProps {
   onSuccess?: () => void;
@@ -17,6 +18,7 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
     amount: '',
     notes: ''
   });
+  const { user } = useAuth();
   const [selectedFarmer, setSelectedFarmer] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,8 @@ const LedgerForm: React.FC<LedgerFormProps> = ({ onSuccess, onCancel }) => {
         type: formData.type,
         category: formData.category,
         amount: parseFloat(formData.amount),
-        notes: formData.notes
+        notes: formData.notes,
+        created_by: user?.id
       });
       setFormData({ type: 'debit', category: 'expense', amount: '', notes: '' });
       setSelectedFarmer(null);

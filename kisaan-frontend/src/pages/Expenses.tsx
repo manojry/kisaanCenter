@@ -8,7 +8,7 @@ import { useTransactionStore } from '../store/transactionStore';
 import { useUsers } from '../context/useUsers';
 import { useToast } from '../hooks/use-toast';
 import { useAuth } from '../context/AuthContext';
-import { expenseApi } from '../services/api';
+import { expenseApi, usersApi } from '../services/api';
 import { fetchOwnerShop } from '../utils/shopUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
@@ -144,11 +144,12 @@ export default function Expenses() {
         let users = transactionStoreGetUsers(shopIdStr);
         if (!users || users.length === 0) {
           (async () => {
-            // Ideally use a dedicated users API here; using expenses API as fallback
-            const usersRes: unknown = await expenseApi.getExpenses(storeShop.id);
-            if (usersRes && typeof usersRes === 'object' && 'data' in usersRes && Array.isArray((usersRes as { data?: unknown[] }).data)) {
-              users = (usersRes as { data?: import('../types/api').User[] }).data || [];
-            } else {
+            try {
+              // Prefer the dedicated users endpoint to fetch users for the shop
+              const usersRes = await usersApi.getAll({ shop_id: storeShop.id });
+              users = usersRes.data || [];
+            } catch (e) {
+              // Fallback to empty array on error
               users = [];
             }
             transactionStoreSetUsers(shopIdStr, users);

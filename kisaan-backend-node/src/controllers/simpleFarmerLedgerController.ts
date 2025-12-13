@@ -6,7 +6,46 @@ import { simpleFarmerLedgerSchema } from '../schema/simpleFarmerLedgerSchema';
 export async function createEntry(req: Request, res: Response) {
   try {
     await simpleFarmerLedgerSchema.validate(req.body);
-    const entry = await SimpleFarmerLedger.create(req.body);
+    // Compute commission_amount and net_amount using farmer custom rate or shop commission
+    const payload: any = { ...req.body };
+    const farmerId = Number(payload.farmer_id);
+    const shopId = Number(payload.shop_id);
+    // Resolve commission rate precedence: farmer -> shop owner -> shop -> 0
+    let rateUsed = 0;
+    let source = 'none';
+    try {
+      const farmerRow: any = (await SimpleFarmerLedger.sequelize!.query('SELECT custom_commission_rate FROM kisaan_users WHERE id = ?', { replacements: [farmerId], type: (SimpleFarmerLedger.sequelize as any).QueryTypes.SELECT })) as any;
+      const farmerRate = farmerRow && farmerRow[0] ? Number(farmerRow[0].custom_commission_rate) : null;
+      if (farmerRate != null) {
+        rateUsed = farmerRate;
+        source = 'farmer';
+      } else {
+        // Try to fetch shop commission rate and owner commission rate
+        const shopRow: any = (await SimpleFarmerLedger.sequelize!.query('SELECT commission_rate, owner_id FROM kisaan_shops WHERE id = ?', { replacements: [shopId], type: (SimpleFarmerLedger.sequelize as any).QueryTypes.SELECT })) as any;
+        const shopRate = shopRow && shopRow[0] ? Number(shopRow[0].commission_rate) : null;
+        const ownerId = shopRow && shopRow[0] ? shopRow[0].owner_id : null;
+        if (ownerId) {
+          const ownerRow: any = (await SimpleFarmerLedger.sequelize!.query('SELECT commission_rate FROM kisaan_users WHERE id = ?', { replacements: [ownerId], type: (SimpleFarmerLedger.sequelize as any).QueryTypes.SELECT })) as any;
+          const ownerRate = ownerRow && ownerRow[0] ? Number(ownerRow[0].commission_rate) : null;
+          if (ownerRate != null) {
+            rateUsed = ownerRate;
+            source = 'owner';
+          }
+        }
+        if (source === 'none' && shopRate != null) {
+          rateUsed = shopRate;
+          source = 'shop';
+        }
+      }
+    } catch (e) {
+      // fallback to zero rate
+      rateUsed = 0;
+      source = 'none';
+    }
+
+    payload.commission_amount = +(Number(payload.amount || 0) * (Number(rateUsed) / 100)).toFixed(2);
+    payload.net_amount = +(Number(payload.amount || 0) - payload.commission_amount).toFixed(2);
+    const entry = await SimpleFarmerLedger.create(payload);
     res.status(201).json(entry);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -70,6 +109,32 @@ export async function getSummary(req: Request, res: Response) {
          WHERE shop_id = ?${farmerIdNum ? ' AND farmer_id = ?' : ''}
          GROUP BY period, type
          ORDER BY period DESC`,
+      { replacements: farmerIdNum ? [shopIdNum, farmerIdNum] : [shopIdNum], type: 'SELECT' }
+    );
+    res.json(results);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+}
+
+// Get earnings (commission and net) grouped by period
+export async function getEarnings(req: Request, res: Response) {
+  try {
+    const { shop_id, farmer_id, period } = req.query;
+    if (!shop_id) return res.status(400).json({ error: 'shop_id required' });
+    const shopIdNum = Number(shop_id);
+    const farmerIdNum = farmer_id ? Number(farmer_id) : undefined;
+    const groupBy = period === 'monthly' ? "strftime('%Y-%m', created_at)" : "strftime('%Y-%W', created_at)";
+    const results = await SimpleFarmerLedger.sequelize!.query(
+      `SELECT ${groupBy} as period,
+              SUM(COALESCE(commission_amount,0)) as total_commission,
+              SUM(COALESCE(net_amount,0)) as total_net,
+              SUM(COALESCE(amount,0)) as total_amount
+       FROM kisaan_ledger
+       WHERE shop_id = ?${farmerIdNum ? ' AND farmer_id = ?' : ''}
+       GROUP BY period
+       ORDER BY period DESC`,
       { replacements: farmerIdNum ? [shopIdNum, farmerIdNum] : [shopIdNum], type: 'SELECT' }
     );
     res.json(results);

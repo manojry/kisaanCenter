@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchLedgerEntries } from './api';
+import { useTransactionStore } from '../store/transactionStore';
+import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import { AlertCircle, Inbox } from 'lucide-react';
@@ -27,8 +29,25 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
 
   const shopId = 1;
   const farmerId = undefined;
+  const getUsersForShop = useTransactionStore(state => state.getUsers);
+  const setUsersForShop = useTransactionStore(state => state.setUsers);
 
   useEffect(() => {
+    // Ensure we have users cached for this shop so the farmer_id can be resolved to names
+    const shopKey = String(shopId);
+    const cached = getUsersForShop(shopKey);
+    if (!cached || cached.length === 0) {
+      (async () => {
+        try {
+          const res = await usersApi.getAll({ shop_id: shopId });
+          const users = res.data || [];
+          setUsersForShop(shopKey, users as any);
+        } catch (err) {
+          // ignore - names will fallback to id
+        }
+      })();
+    }
+
     const loadEntries = async () => {
       setLoading(true);
       setError(null);
@@ -80,6 +99,7 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableCell className="font-semibold">Farmer</TableCell>
                   <TableCell className="font-semibold">Date</TableCell>
                   <TableCell className="font-semibold">Type</TableCell>
                   <TableCell className="font-semibold">Category</TableCell>
@@ -90,6 +110,14 @@ const LedgerList: React.FC<LedgerListProps> = ({ refreshTrigger = false }) => {
               <TableBody>
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
+                    <TableCell className="text-sm">
+                      {(() => {
+                        const users = getUsersForShop(String(entry.shop_id)) || [];
+                        const u = users.find((us: any) => us.id === entry.farmer_id);
+                        return u ? (u.username || u.name || `#${u.id}`) : `#${entry.farmer_id}`;
+                      })()}
+                    </TableCell>
+
                     <TableCell className="text-sm">
                       {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-IN') : '—'}
                     </TableCell>

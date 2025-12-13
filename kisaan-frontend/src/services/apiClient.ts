@@ -26,6 +26,8 @@ interface RequestConfig extends RequestInit {
   showErrorToast?: boolean;
   successMessage?: string;
   errorMessage?: string;
+  // If true, do not attach Authorization header to the request (useful for public endpoints)
+  skipAuth?: boolean;
 }
 
 class ApiClient {
@@ -99,6 +101,8 @@ class ApiClient {
 
   // Default auth header interceptor
   private async addAuthHeader(config: RequestConfig): Promise<RequestConfig> {
+    // Respect explicit skip flag
+    if (config.skipAuth) return config;
     const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
     if (token) {
       config.headers = {
@@ -163,9 +167,9 @@ class ApiClient {
       finalConfig = await interceptor(finalConfig);
     }
 
-    // Add default headers
+    // Add default headers. Only set Content-Type when there is a body
     finalConfig.headers = {
-      'Content-Type': 'application/json',
+      ...(finalConfig.body ? { 'Content-Type': 'application/json' } : {}),
       ...finalConfig.headers,
     };
 

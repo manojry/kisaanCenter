@@ -40,8 +40,12 @@ export function applySecurity(app: Application, opts: SecurityOptions = {}) {
   const corsOptions: CorsOptions = {
     origin: corsOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
   };
   app.use(cors(corsOptions));
+  // Ensure preflight requests are handled with the same CORS options
+  app.options('*', cors(corsOptions));
 
   // Compression (optional if dependency installed)
   try {

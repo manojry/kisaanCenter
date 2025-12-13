@@ -75,6 +75,21 @@ async function startServer() {
             )
           `);
         }
+          // Ensure ledger has commission and net columns
+          const ledgerInfo: any = await sequelize.query("PRAGMA table_info('kisaan_ledger')", { type: (sequelize as any).QueryTypes.SELECT });
+          const ledgerCols = Array.isArray(ledgerInfo) ? ledgerInfo.map((c: any) => c.name) : [];
+          if (!ledgerCols.includes('commission_rate')) {
+            console.log('🔧 Adding missing column `commission_rate` to kisaan_ledger');
+            await sequelize.query('ALTER TABLE kisaan_ledger ADD COLUMN commission_rate REAL');
+          }
+          if (!ledgerCols.includes('commission_amount')) {
+            console.log('🔧 Adding missing column `commission_amount` to kisaan_ledger');
+            await sequelize.query('ALTER TABLE kisaan_ledger ADD COLUMN commission_amount REAL');
+          }
+          if (!ledgerCols.includes('net_amount')) {
+            console.log('🔧 Adding missing column `net_amount` to kisaan_ledger');
+            await sequelize.query('ALTER TABLE kisaan_ledger ADD COLUMN net_amount REAL');
+          }
       } catch (e) {
         console.warn('⚠️  Could not ensure legacy columns for SQLite:', e instanceof Error ? e.message : e);
       }

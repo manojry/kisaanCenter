@@ -277,7 +277,12 @@ CREATE TABLE IF NOT EXISTS kisaan_ledger (
     type TEXT NOT NULL CHECK(type IN ('credit', 'debit')),
     category TEXT NOT NULL CHECK(category IN ('sale', 'expense', 'withdrawal', 'other')),
     notes TEXT,
+    commission_amount REAL,
+    net_amount REAL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_kisaan_ledger_shop ON kisaan_ledger(shop_id);
+CREATE INDEX IF NOT EXISTS idx_kisaan_ledger_farmer ON kisaan_ledger(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_kisaan_ledger_shop_created_at ON kisaan_ledger(shop_id, created_at);
 

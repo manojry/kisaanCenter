@@ -1,23 +1,9 @@
-// API utility for simple ledger
-const API_BASE = 'http://localhost:8000/api';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-};
+// API utility for simple ledger (uses centralized apiClient)
+import { apiClient } from '../services/apiClient';
 
 export async function fetchLedgerEntries(shopId: number, farmerId?: number) {
-  const params = new URLSearchParams();
-  params.append('shop_id', String(shopId));
-  if (farmerId) params.append('farmer_id', String(farmerId));
-  const res = await fetch(`${API_BASE}/simple-ledger?${params.toString()}`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch ledger entries');
-  return res.json();
+  const qs = `?shop_id=${encodeURIComponent(String(shopId))}${farmerId ? `&farmer_id=${encodeURIComponent(String(farmerId))}` : ''}`;
+  return apiClient.get(`/simple-ledger${qs}`);
 }
 
 export async function createLedgerEntry(data: {
@@ -27,25 +13,15 @@ export async function createLedgerEntry(data: {
   category: string;
   amount: number;
   notes?: string;
+  created_by?: number;
 }) {
-  const res = await fetch(`${API_BASE}/simple-ledger`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: 'Failed to create entry' }));
-    throw new Error(error.message || 'Failed to create entry');
-  }
-  return res.json();
+  return apiClient.post('/simple-ledger', data);
 }
 
-export async function fetchLedgerSummary(shopId: number) {
+export async function fetchLedgerSummary(shopId: number, period?: 'weekly' | 'monthly') {
   const params = new URLSearchParams();
   params.append('shop_id', String(shopId));
-  const res = await fetch(`${API_BASE}/simple-ledger/summary?${params.toString()}`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error('Failed to fetch summary');
-  return res.json();
+  if (period) params.append('period', period);
+  const qs = `?${params.toString()}`;
+  return apiClient.get(`/simple-ledger/summary${qs}`);
 }

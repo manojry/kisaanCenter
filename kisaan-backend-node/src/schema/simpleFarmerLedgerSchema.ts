@@ -10,4 +10,6 @@ export const simpleFarmerLedgerSchema = yup.object({
   category: yup.mixed().oneOf(LEDGER_CATEGORY_VALUES).required(),
   notes: yup.string().optional(),
   created_by: yup.number().required(),
+  commission_amount: yup.number().optional(),
+  net_amount: yup.number().optional(),
 });

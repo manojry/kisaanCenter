@@ -16,6 +16,8 @@ export interface SimpleFarmerLedgerAttributes {
   created_at?: Date;
 
   created_by: number;
+  commission_amount?: number;
+  net_amount?: number;
 }
 
 export interface SimpleFarmerLedgerCreationAttributes extends Optional<SimpleFarmerLedgerAttributes, 'id' | 'created_at' | 'notes'> {}
@@ -34,6 +36,8 @@ export class SimpleFarmerLedger extends Model<SimpleFarmerLedgerAttributes, Simp
   public notes?: string;
   public created_at?: Date;
   public created_by!: number;
+  public commission_amount?: number;
+  public net_amount?: number;
 }
 
 SimpleFarmerLedger.init({
@@ -74,6 +78,15 @@ SimpleFarmerLedger.init({
   created_by: {
     type: DataTypes.BIGINT,
     allowNull: false,
+  },
+  
+  commission_amount: {
+    type: DataTypes.DECIMAL(12,2),
+    allowNull: true,
+  },
+  net_amount: {
+    type: DataTypes.DECIMAL(12,2),
+    allowNull: true,
   },
 }, {
   sequelize,
