@@ -5,6 +5,7 @@ import { loadFeatures, requireFeature } from '../middlewares/features';
 import { success } from '../shared/http/respond';
 import { Transaction } from '../models/transaction';
 import { logger } from '../shared/logging/logger';
+import * as allRoutes from '../routes';
 
 export interface ApiModule {
   name: string;
@@ -34,13 +35,30 @@ export class ApiRegistry {
   _endpoints: Array<{ method: string; path: string }> = [];
 
   registerRoutes(app: Application): void {
-    console.log('🔧 Registering API routes manually...');
-    // Import routes dynamically to avoid circular dependencies
+    console.log('🔧 Registering API routes via direct imports...');
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const routes = require('../routes');
+      // Use directly imported routes instead of dynamic require
+      const routes = allRoutes;
+      
+      // Validate that routes are loaded
+      console.log('🔎 Loaded route keys:', Object.keys(routes));
+      
+      // Add a debug log for each route registration
+      for (const [key, value] of Object.entries(routes)) {
+        if (!value) {
+          console.warn(`⚠️  Route '${key}' is undefined or null!`);
+        } else if (key !== 'default') {
+          console.log(`✅ Route '${key}' loaded successfully`);
+        }
+      }
+
       // Helper to register and collect endpoints
       const register = (path: string, router: unknown) => {
+        if (!router) {
+          console.warn(`⚠️  Skipping registration of ${path} - router is null/undefined`);
+          return;
+        }
+        console.log(`📝 Registering route: ${path}`);
         app.use(path, router as express.Router);
         if (router && (router as express.Router).stack) {
           for (const layer of (router as express.Router).stack) {
@@ -56,63 +74,62 @@ export class ApiRegistry {
           }
         }
       };
+
       // Authentication routes
-      register('/api/auth', routes.authRoutes);
+      register('/api/auth', (routes as any).authRoutes);
       // User management routes
-      register('/api/users', routes.userRoutes);
-      register('/api/superadmin', routes.superadminRoutes);
+      register('/api/users', (routes as any).userRoutes);
+      register('/api/superadmin', (routes as any).superadminRoutes);
       // Shop and category management
-      register('/api/shops', routes.shopRoutes);
-      register('/api/categories', routes.categoryRoutes);
-      register('/api/shop-categories', routes.shopCategoryRoutes);
-      register('/api/plans', routes.planRoutes);
+      register('/api/shops', (routes as any).shopRoutes);
+      register('/api/categories', (routes as any).categoryRoutes);
+      register('/api/shop-categories', (routes as any).shopCategoryRoutes);
+      register('/api/plans', (routes as any).planRoutes);
       // Product management
-      register('/api/products', routes.productRoutes);
-      register('/api/test-products', routes.testProductRoutes);
+      register('/api/products', (routes as any).productRoutes);
       // Farmer & shop product assignment
-      if (routes.farmerProductRoutes) {
-        register('/api/farmer-products', routes.farmerProductRoutes);
+      if ((routes as any).farmerProductRoutes) {
+        register('/api/farmer-products', (routes as any).farmerProductRoutes);
       }
-      if (routes.shopProductRoutes) {
-        register('/api/shop-products', routes.shopProductRoutes);
+      if ((routes as any).shopProductRoutes) {
+        register('/api/shop-products', (routes as any).shopProductRoutes);
       }
       // Transaction and payment processing (enhanced with backdated support)
-      register('/api/transactions', routes.transactionRoutes);
-      register('/api/payments', routes.paymentRoutes);
-      register('/api/credit-advances', routes.creditAdvanceRoutes);
+      register('/api/transactions', (routes as any).transactionRoutes);
+      register('/api/credit-advances', (routes as any).creditAdvanceRoutes);
       // Financial management
-      register('/api/balances', routes.balanceRoutes);
-      register('/api/balance-snapshots', routes.balanceSnapshotRoutes);
-      register('/api/balance', routes.balanceReconciliationRoutes);
-      register('/api/commissions', routes.commissionRoutes);
-      register('/api/settlements', routes.settlementRoutes);
+      register('/api/balances', (routes as any).balanceRoutes);
+      register('/api/balance-snapshots', (routes as any).balanceSnapshotRoutes);
+      register('/api/balance', (routes as any).balanceReconciliationRoutes);
+      register('/api/commissions', (routes as any).commissionRoutes);
+      register('/api/settlements', (routes as any).settlementRoutes);
       // Expense routes
-      if (routes.expenseRoutes) {
-        register('/api/expenses', routes.expenseRoutes);
+      if ((routes as any).expenseRoutes) {
+        register('/api/expenses', (routes as any).expenseRoutes);
       }
       // Development/diagnostic routes
-      if (routes.debugRoutes) {
-        register('/api/debug', routes.debugRoutes);
+      if ((routes as any).debugRoutes) {
+        register('/api/debug', (routes as any).debugRoutes);
       }
       // Reporting and auditing
-      register('/api/reports', routes.reportRoutes);
-      register('/api/audit-logs', routes.auditLogRoutes);
-      register('/api/features-admin', routes.featureAdminRoutes);
+      register('/api/reports', (routes as any).reportRoutes);
+      register('/api/audit-logs', (routes as any).auditLogRoutes);
+      register('/api/features-admin', (routes as any).featureAdminRoutes);
       // Dashboard routes
-      register('/api/owner-dashboard', routes.ownerDashboardRoute);
+      register('/api/owner-dashboard', (routes as any).ownerDashboardRoute);
       // Simplified transaction system - clear user experience
-      if (routes.simplifiedRoutes) {
-        register('/api/simple', routes.simplifiedRoutes);
+      if ((routes as any).simplifiedRoutes) {
+        register('/api/simple', (routes as any).simplifiedRoutes);
         console.log('✅ Simplified transaction routes registered at /api/simple');
       }
       // Simple Farmer Ledger Book-Keeping
-      if (routes.simpleFarmerLedgerRoutes) {
-        register('/api/simple-ledger', routes.simpleFarmerLedgerRoutes);
+      if ((routes as any).simpleFarmerLedgerRoutes) {
+        register('/api/simple-ledger', (routes as any).simpleFarmerLedgerRoutes);
         console.log('✅ Simple Farmer Ledger routes registered at /api/simple-ledger');
       }
+      
       // Diagnostics routes (commission integrity)
       try {
-        // Remove require statements here, use imported modules above
         const diagnostics = express.Router();
         diagnostics.get('/commission-integrity', authenticateToken, loadFeatures, requireFeature('diagnostics.integrity'), async (req: Request, res: Response) => {
           try {
@@ -153,18 +170,15 @@ export class ApiRegistry {
         const errMsg = (typeof diagErr === 'object' && diagErr && 'message' in diagErr) ? (diagErr as { message?: string }).message : undefined;
         console.warn('Diagnostics route registration failed (non-fatal):', errMsg || diagErr);
       }
+      
       console.log('✅ All API routes registered successfully');
-      console.log('📋 Available endpoints:');
-      console.log('   • /api/auth/* - Authentication');
-      console.log('   • /api/users/* - User management');
-      console.log('   • /api/shops/* - Shop management');
-      console.log('   • /api/categories/* - Category management');
-      console.log('   • /api/products/* - Product management');
-      console.log('   • /api/transactions/* - Transaction processing');
-      console.log('   • /api/payments/* - Payment processing');
-      console.log('   • /api/balances/* - Balance management');
-      console.log('   • /api/reports/* - Reporting');
-      console.log('   • And more...');
+      console.log('📋 Registered endpoints (' + this._endpoints.length + ' total):');
+      for (const ep of this._endpoints) {
+        console.log(`   • ${ep.method.padEnd(6)} ${ep.path}`);
+      }
+      if (this._endpoints.length === 0) {
+        console.warn('⚠️  WARNING: No endpoints were registered! This may indicate an issue with route registration.');
+      }
     } catch (error) {
       console.error('❌ Error loading routes:', error);
       console.log('⚠️  Continuing with stub routes...');

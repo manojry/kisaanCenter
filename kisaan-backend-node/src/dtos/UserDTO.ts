@@ -4,7 +4,7 @@
 export interface UserDTO {
   id: number;
   username: string;
-  role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  role: 'superadmin' | 'owner' | 'farmer' | 'buyer' | 'employee';
   owner_id?: string | null;
   shop_id?: number | null;
   contact?: string | null;
@@ -26,7 +26,7 @@ export interface UserDTO {
 export interface CreateUserDTO {
   username?: string;
   password: string;
-  role: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  role: 'superadmin' | 'owner' | 'farmer' | 'buyer' | 'employee';
   owner_id?: string | null;
   shop_id?: number | null;
   contact?: string | null;
@@ -37,7 +37,7 @@ export interface CreateUserDTO {
 export interface UpdateUserDTO {
   username?: string;
   password?: string;
-  role?: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  role?: 'superadmin' | 'owner' | 'farmer' | 'buyer' | 'employee';
   shop_id?: number | null;
   contact?: string | null;
   email?: string | null;

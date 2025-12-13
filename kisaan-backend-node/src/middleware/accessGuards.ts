@@ -10,15 +10,38 @@ function getUser(req: Request) {
 export function shopAccessGuard(req: Request, res: Response, next: NextFunction) {
   const user = getUser(req);
   const shopId = req.body.shop_id || req.query.shop_id || req.params.shop_id;
-  
-  // Owner or employee must belong to the requested shop
-  if (user && ['owner', 'employee'].includes(user.role)) {
+
+  // Employee must belong to the requested shop
+  if (user && user.role === 'employee') {
     if (user.shop_id === Number(shopId)) {
       next();
       return;
     }
+    return res.status(403).json({ error: 'Forbidden: Only shop employee allowed for this shop' });
   }
-  
+
+  // Owner can access any shop they own, even if user.shop_id is null or does not match
+  if (user && user.role === 'owner') {
+    if (user.shop_id === Number(shopId)) {
+      next();
+      return;
+    }
+    // If not direct match, check if user is owner of the shop
+    const { Shop } = require('../models/shop');
+    Shop.findOne({ where: { id: Number(shopId), owner_id: user.id } })
+      .then((shop: any) => {
+        if (shop) {
+          next();
+        } else {
+          res.status(403).json({ error: 'Forbidden: Only shop owner allowed for this shop' });
+        }
+      })
+      .catch(() => {
+        res.status(500).json({ error: 'Internal server error' });
+      });
+    return;
+  }
+
   return res.status(403).json({ error: 'Forbidden: Only shop owner/employee allowed' });
 }
 

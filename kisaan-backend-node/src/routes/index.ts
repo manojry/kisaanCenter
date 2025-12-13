@@ -89,5 +89,6 @@ export default {
   debugRoutes,
   creditAdvanceRoutes,
   balanceReconciliationRoutes,
-  simplifiedRoutes
+  simplifiedRoutes,
+  simpleFarmerLedgerRoutes
 };

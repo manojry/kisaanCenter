@@ -5,7 +5,7 @@ export class UserEntity {
   id?: number;
   username?: string;
   password?: string;
-  role?: 'superadmin' | 'owner' | 'farmer' | 'buyer';
+  role?: 'superadmin' | 'owner' | 'farmer' | 'buyer' | 'employee';
   shop_id?: number | null;
   email?: string | null;
   firstname?: string | null;

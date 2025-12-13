@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const UserRoleEnum = z.enum(['superadmin', 'owner', 'farmer', 'buyer']);
+export const UserRoleEnum = z.enum(['superadmin', 'owner', 'farmer', 'buyer', 'employee']);
 
 // Password reset schema
 export const PasswordResetSchema = z.object({

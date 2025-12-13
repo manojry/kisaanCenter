@@ -47,6 +47,7 @@ export enum UserRole {
   Owner = 'owner',
   Farmer = 'farmer',
   Buyer = 'buyer',
+  Employee = 'employee',
 }
 
 export enum UserStatus {

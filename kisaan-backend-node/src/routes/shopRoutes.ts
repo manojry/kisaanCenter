@@ -39,11 +39,9 @@ shopRoutes.patch('/:id/commission-rate',
 
 // Shop-Product mapping routes
 shopRoutes.get('/:id/products', 
-  requireShopAccess((req: Request) => parseInt(req.params.id)), 
   shopProductsController.getShopProducts
 );
 shopRoutes.get('/:id/available-products', 
-  requireShopAccess((req: Request) => parseInt(req.params.id)), 
   shopProductsController.getAvailableProductsForShop
 );
 shopRoutes.post('/:shopId/products/:productId', 
